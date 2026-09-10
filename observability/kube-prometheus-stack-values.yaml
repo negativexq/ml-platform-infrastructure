@@ -1,0 +1,72 @@
+# kube-prometheus-stack tuned for a local kind cluster.
+#
+# Trimmed deliberately: this is a laptop, and the point is to observe the
+# inference workload, not to run a production monitoring platform.
+
+fullnameOverride: monitoring
+
+prometheus:
+  prometheusSpec:
+    retention: 6h
+    scrapeInterval: 15s
+    evaluationInterval: 15s
+    # Discover ServiceMonitors in every namespace, but only those carrying
+    # `release: monitoring` — which is what the chart's
+    # metrics.serviceMonitor.additionalLabels sets.
+    serviceMonitorSelectorNilUsesHelmValues: true
+    podMonitorSelectorNilUsesHelmValues: true
+    ruleSelectorNilUsesHelmValues: true
+    resources:
+      requests:
+        cpu: 100m
+        memory: 512Mi
+      limits:
+        memory: 2Gi
+    storageSpec: {}
+
+grafana:
+  adminPassword: admin
+  service:
+    type: NodePort
+    nodePort: 30300
+  defaultDashboardsEnabled: true
+  sidecar:
+    dashboards:
+      enabled: true
+      label: grafana_dashboard
+      searchNamespace: ALL
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: 10m
+        memory: 64Mi
+
+# kind runs its own control plane in containers; these scrape targets do not
+# resolve and would only produce permanently-down targets.
+kubeEtcd:
+  enabled: false
+kubeControllerManager:
+  enabled: false
+kubeScheduler:
+  enabled: false
+kubeProxy:
+  enabled: false
+
+prometheus-node-exporter:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 32Mi
+
+kube-state-metrics:
+  resources:
+    requests:
+      cpu: 10m
+      memory: 64Mi

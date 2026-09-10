@@ -28,6 +28,10 @@ class Settings(BaseSettings):
     # so the service recovers without a restart. 0 disables the recheck loop.
     model_load_recheck_seconds: float = 30.0
 
+    # Fault injection for failure drills (M5). Adds artificial latency to
+    # every prediction; 0 disables it. Never set outside a drill.
+    predict_fault_latency_ms: int = 0
+
     # Fail each MLflow HTTP call fast; our own loop owns the retry policy.
     mlflow_http_request_max_retries: int = 1
     mlflow_http_request_timeout: int = 10

@@ -41,3 +41,9 @@ artifactStore:
 logging:
   level: INFO
   json: true
+
+metrics:
+  serviceMonitor:
+    enabled: true
+    additionalLabels:
+      release: monitoring

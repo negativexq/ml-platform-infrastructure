@@ -15,6 +15,7 @@ data:
   ML_MODEL_LOAD_RECHECK_SECONDS: {{ .Values.model.loadRecheckSeconds | quote }}
   ML_LOG_LEVEL: {{ .Values.logging.level | quote }}
   ML_LOG_JSON: {{ .Values.logging.json | quote }}
+  ML_PREDICT_FAULT_LATENCY_MS: {{ .Values.faultInjection.predictLatencyMs | quote }}
   {{- with .Values.mlflow.trackingUri }}
   ML_MLFLOW_TRACKING_URI: {{ . | quote }}
   {{- end }}

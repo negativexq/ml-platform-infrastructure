@@ -19,6 +19,7 @@ from typing import Literal
 import numpy as np
 import structlog
 
+from app import metrics
 from app.config import settings
 from app.model_loader import LoadedModel, load_model
 
@@ -72,14 +73,17 @@ class InferenceService:
                 self._error = str(err)
                 self._load_seconds = None
                 self._state = "failed"
+            metrics.record_model_failed()
             log.error("inference.model_unavailable", error=str(err))
             return
 
+        elapsed = time.perf_counter() - started
         with self._lock:
             self._model = model
             self._error = None
-            self._load_seconds = time.perf_counter() - started
+            self._load_seconds = elapsed
             self._state = "ready"
+        metrics.record_model_loaded(model.version, model.source, elapsed)
 
     # -- state -------------------------------------------------------------
 
@@ -119,9 +123,23 @@ class InferenceService:
         with self._lock:
             model = self._model
         if model is None:
+            metrics.prediction_errors_total.labels(reason="not_ready").inc()
             raise RuntimeError("model not loaded")
+
+        metrics.prediction_requests_total.inc()
         batch = np.asarray([features], dtype=float)
-        result = model.predictor.predict(batch)
+        started = time.perf_counter()
+        try:
+            # Inside the measured window on purpose: the drill simulates the
+            # model itself getting slower, so both prediction_duration_seconds
+            # and http_request_duration_seconds must move.
+            if settings.predict_fault_latency_ms:
+                time.sleep(settings.predict_fault_latency_ms / 1000.0)
+            result = model.predictor.predict(batch)
+        except Exception:
+            metrics.prediction_errors_total.labels(reason="inference_error").inc()
+            raise
+        metrics.prediction_duration_seconds.observe(time.perf_counter() - started)
         return float(np.asarray(result).reshape(-1)[0])
 
 

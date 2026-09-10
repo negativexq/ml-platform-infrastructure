@@ -50,6 +50,24 @@ logging:
   level: INFO
   json: true
 
+# Prometheus scraping. The ServiceMonitor needs the Prometheus Operator CRDs,
+# so it is opt-in per environment.
+metrics:
+  path: /metrics
+  serviceMonitor:
+    enabled: false
+    namespace: ""
+    interval: 15s
+    scrapeTimeout: 10s
+    # kube-prometheus-stack only picks up ServiceMonitors carrying its own
+    # release label unless configured otherwise.
+    additionalLabels: {}
+
+# Fault injection for M5 drills. Adds latency to every prediction; keep 0
+# outside a drill.
+faultInjection:
+  predictLatencyMs: 0
+
 # Extra plain env vars merged into the ConfigMap.
 extraEnv: {}
 

@@ -8,8 +8,9 @@ from contextlib import asynccontextmanager
 
 import structlog
 from fastapi import FastAPI, HTTPException
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, Response
 
+from app import metrics
 from app.config import settings
 from app.inference import service
 from app.schemas import (
@@ -50,6 +51,12 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
+app.middleware("http")(metrics.metrics_middleware)
+
+
+@app.get("/metrics", include_in_schema=False)
+def prometheus_metrics() -> Response:
+    return metrics.metrics_response()
 
 
 @app.get("/health", response_model=HealthResponse)
