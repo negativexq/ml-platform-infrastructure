@@ -47,7 +47,3 @@ metrics:
     enabled: true
     additionalLabels:
       release: monitoring
-
-# F5 drill: injected latency regression (reverted straight after).
-faultInjection:
-  predictLatencyMs: 500
