@@ -1,0 +1,57 @@
+# Training Job — runs a tracked MLflow run entirely inside the cluster.
+#
+# Rendered and applied by scripts/train-job.sh. __ALPHA__ and __JOB_SUFFIX__
+# are substituted so repeated runs get unique Job names.
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: train-__JOB_SUFFIX__
+  namespace: ml-platform
+  labels:
+    app.kubernetes.io/name: train
+    app.kubernetes.io/part-of: ml-platform
+spec:
+  backoffLimit: 2
+  ttlSecondsAfterFinished: 600
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: train
+        app.kubernetes.io/part-of: ml-platform
+    spec:
+      restartPolicy: Never
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: train
+          image: ml-platform-training:local
+          imagePullPolicy: IfNotPresent
+          args:
+            - --alpha=__ALPHA__
+            - --register=ml-platform-model
+          env:
+            - name: MLFLOW_TRACKING_URI
+              value: http://platform-mlflow:5000
+            - name: MLFLOW_S3_ENDPOINT_URL
+              value: http://platform-minio:9000
+            - name: MLFLOW_DISABLE_AGENT_HINT
+              value: "1"
+            - name: GIT_PYTHON_REFRESH
+              value: quiet
+          envFrom:
+            - secretRef:
+                name: platform-minio
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              memory: 1Gi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop: ["ALL"]

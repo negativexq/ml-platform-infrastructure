@@ -4,6 +4,7 @@ app/__init__.py
 app/config.py
 app/inference.py
 app/main.py
+app/metrics.py
 app/model_loader.py
 app/schemas.py
 ml_platform_infra.egg-info/PKG-INFO

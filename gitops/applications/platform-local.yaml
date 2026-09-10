@@ -1,0 +1,43 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-local
+  namespace: argocd
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+  labels:
+    ml-platform.io/environment: local
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/negativexq/ml-platform-infrastructure.git
+    targetRevision: main
+    path: helm/platform-local
+    helm:
+      releaseName: platform-local
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ml-platform
+
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      # The bucket-creation Job is a helm hook; let Argo replace it each sync
+      # rather than failing on the immutable Job spec.
+      - Replace=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+
+  # Postgres/MinIO data (emptyDir in M7, PVC in M8) and the MLflow schema are
+  # state Argo should not fight: ignore replica-count drift from nothing here,
+  # but do keep the workloads reconciled.
+  revisionHistoryLimit: 10

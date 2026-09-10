@@ -77,7 +77,7 @@ def main() -> None:
 
         mlflow.sklearn.log_model(
             sk_model=model,
-            name="model",
+            artifact_path="model",
             input_example=x_test[:2],
             registered_model_name=args.register,
         )

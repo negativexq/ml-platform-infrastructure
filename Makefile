@@ -1,38 +1,29 @@
 .PHONY: install train train-baseline test integration lint type check docker-build docker-run run clean \
-        platform-up platform-down platform-logs mlflow-ui kind-up kind-down smoke k8s-logs \
+        platform-up mlflow-ui kind-up kind-down smoke k8s-logs \
         helm-lint helm-template helm-deploy helm-rollback helm-history \
         argocd-up argocd-ui argocd-status \
         observability-up grafana prometheus verify-dashboards \
         tf-fmt tf-validate tf-lint tf-check
 
 IMAGE ?= ml-platform-inference:dev
-MLFLOW_TRACKING_URI ?= http://localhost:5001
-MLFLOW_S3_ENDPOINT_URL ?= http://localhost:9000
-AWS_ACCESS_KEY_ID ?= minioadmin
-AWS_SECRET_ACCESS_KEY ?= minioadmin
-export MLFLOW_TRACKING_URI MLFLOW_S3_ENDPOINT_URL AWS_ACCESS_KEY_ID AWS_SECRET_ACCESS_KEY
 
 install:
 	python -m pip install --upgrade pip
 	pip install -e ".[dev,train]"
 
-## M1 local platform: PostgreSQL + MinIO + MLflow + inference
+## M7: the whole platform (PostgreSQL + MinIO + MLflow) runs inside kind.
+## helm/platform-local deploys it; `make kind-up` does this end to end.
 platform-up:
-	docker compose up -d --build
-
-platform-down:
-	docker compose down
-
-platform-logs:
-	docker compose logs -f
+	helm upgrade --install platform-local helm/platform-local \
+	  --namespace ml-platform --create-namespace --wait --timeout 5m
 
 mlflow-ui:
-	@echo "MLflow UI: $(MLFLOW_TRACKING_URI)"
-	@echo "MinIO console: http://localhost:9001 (minioadmin/minioadmin)"
+	@echo "MLflow UI:      http://localhost:30500"
+	@echo "MinIO console:  kubectl -n ml-platform port-forward svc/platform-minio 9001:9001"
 
-## Train a tracked run and register a new model version
+## Train a tracked run inside the cluster and register a new model version
 train:
-	python scripts/train.py --register ml-platform-model
+	./scripts/train-job.sh
 
 ## M0 fallback: a local joblib artifact, no MLflow required
 train-baseline:
@@ -95,7 +86,7 @@ argocd-up:
 	./scripts/argocd-up.sh
 
 argocd-status:
-	kubectl -n argocd get application inference-local \
+	kubectl -n argocd get applications \
 	  -o custom-columns=NAME:.metadata.name,SYNC:.status.sync.status,HEALTH:.status.health.status,REVISION:.status.sync.revision
 
 argocd-ui:

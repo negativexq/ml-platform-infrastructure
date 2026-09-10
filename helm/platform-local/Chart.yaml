@@ -1,0 +1,15 @@
+apiVersion: v2
+name: platform-local
+description: >-
+  Local-only environment dependencies for the ML platform: PostgreSQL, MinIO and
+  the MLflow tracking server. In AWS these are replaced by RDS, S3 and an
+  in-cluster MLflow deployment — this chart is never applied outside kind.
+type: application
+version: 0.1.0
+appVersion: "1.0.0"
+
+keywords:
+  - mlops
+  - local
+maintainers:
+  - name: ml-platform

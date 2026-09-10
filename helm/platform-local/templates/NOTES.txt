@@ -1,0 +1,12 @@
+platform-local deployed to namespace {{ .Release.Namespace }}.
+
+  PostgreSQL : platform-postgres:5432   (persistence: {{ .Values.postgres.persistence.enabled }})
+  MinIO      : platform-minio:9000       (persistence: {{ .Values.minio.persistence.enabled }})
+  MLflow     : platform-mlflow:5000      NodePort {{ .Values.mlflow.nodePort }}
+
+From the host (kind maps the node port):
+  MLflow UI  : http://localhost:{{ .Values.mlflow.nodePort }}
+
+In-cluster URLs for the application chart:
+  mlflow.trackingUri  = http://platform-mlflow.{{ .Release.Namespace }}.svc.cluster.local:5000
+  mlflow.s3EndpointUrl = http://platform-minio.{{ .Release.Namespace }}.svc.cluster.local:9000

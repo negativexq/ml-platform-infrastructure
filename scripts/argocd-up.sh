@@ -36,18 +36,21 @@ kubectl -n "$NAMESPACE" create secret generic repo-ml-platform \
   | kubectl apply -f - >/dev/null
 echo "credentials registered for $user (token not written to Git)"
 
-step "Applying the Application manifest"
+step "Applying the Application manifests"
+kubectl apply -f gitops/applications/platform-local.yaml
 kubectl apply -f gitops/applications/inference-local.yaml
 
-step "Waiting for the Application to become Healthy"
-for _ in $(seq 1 60); do
-  sync=$(kubectl -n "$NAMESPACE" get application inference-local \
-    -o jsonpath='{.status.sync.status}' 2>/dev/null || true)
-  health=$(kubectl -n "$NAMESPACE" get application inference-local \
-    -o jsonpath='{.status.health.status}' 2>/dev/null || true)
-  echo "sync=${sync:-?} health=${health:-?}"
-  [[ "$sync" == "Synced" && "$health" == "Healthy" ]] && break
-  sleep 5
+step "Waiting for the Applications to become Healthy"
+for app in platform-local inference-local; do
+  for _ in $(seq 1 60); do
+    sync=$(kubectl -n "$NAMESPACE" get application "$app" \
+      -o jsonpath='{.status.sync.status}' 2>/dev/null || true)
+    health=$(kubectl -n "$NAMESPACE" get application "$app" \
+      -o jsonpath='{.status.health.status}' 2>/dev/null || true)
+    echo "${app}: sync=${sync:-?} health=${health:-?}"
+    [[ "$sync" == "Synced" && "$health" == "Healthy" ]] && break
+    sleep 5
+  done
 done
 
 step "Admin password"

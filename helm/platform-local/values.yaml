@@ -1,0 +1,59 @@
+# platform-local — PostgreSQL + MinIO + MLflow for the kind cluster.
+#
+# M7 runs these with emptyDir: pod restart loses data, on purpose. M8 turns
+# postgres and minio into StatefulSets with PVCs and proves persistence.
+
+nameOverride: ""
+commonLabels: {}
+
+# ---------------------------------------------------------------------------
+postgres:
+  image: postgres:16-alpine
+  # M8 flips this to true and adds volumeClaimTemplates.
+  persistence:
+    enabled: false
+    size: 2Gi
+    storageClassName: standard
+  auth:
+    username: mlflow
+    password: mlflow
+    database: mlflow
+  resources:
+    requests:
+      cpu: 50m
+      memory: 128Mi
+    limits:
+      memory: 512Mi
+
+# ---------------------------------------------------------------------------
+minio:
+  image: minio/minio:RELEASE.2024-09-13T20-26-02Z
+  mcImage: minio/mc:RELEASE.2024-09-16T17-43-14Z
+  persistence:
+    enabled: false
+    size: 5Gi
+    storageClassName: standard
+  auth:
+    rootUser: minioadmin
+    rootPassword: minioadmin
+  bucket: mlflow-artifacts
+  resources:
+    requests:
+      cpu: 50m
+      memory: 256Mi
+    limits:
+      memory: 1Gi
+
+# ---------------------------------------------------------------------------
+mlflow:
+  image: ml-platform-mlflow:local
+  imagePullPolicy: IfNotPresent
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      memory: 640Mi
+  # Exposed on the host via kind's extraPortMappings, for `mlflow ui` and for
+  # running training from a laptop against the in-cluster server.
+  nodePort: 30500

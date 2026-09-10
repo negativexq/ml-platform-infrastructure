@@ -15,7 +15,7 @@ each local dependency for its managed counterpart and re-runs the same gates.
 | M4 | GitOps kurmak | Argo CD + self-heal | ✅ |
 | M5 | Production davranışını kanıtlamak | Observability + failure tests | ✅ |
 | M6 | AWS migration'ı IaC olarak tasarlamak | Terraform foundation | ✅ |
-| M7 | Full local Kubernetes platform | Bütün lifecycle kind üzerinde, Compose'suz | ⬜ |
+| M7 | Full local Kubernetes platform | Bütün lifecycle kind üzerinde, Compose'suz | ✅ |
 | M8 | Stateful persistence & recovery | Restart/restore sonrası veri kaybı yok | ⬜ |
 | M9 | Security hardening | RBAC + NetworkPolicy allow/deny + image scan gates | ⬜ |
 | M10 | Scaling, SLO & alerting | HPA + load + PDB + tested alert rules | ⬜ |

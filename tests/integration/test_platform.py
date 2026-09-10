@@ -1,8 +1,9 @@
-"""Integration tests against the running M1 stack.
+"""Integration tests against the running platform on kind.
 
-Skipped unless `RUN_INTEGRATION=1` and the compose stack is up:
+Skipped unless `RUN_INTEGRATION=1`. Point the URLs at the node ports kind maps
+to localhost (see k8s/kind-cluster.yaml):
 
-    make platform-up && make integration
+    make kind-up && RUN_INTEGRATION=1 make integration
 """
 
 from __future__ import annotations
@@ -15,11 +16,11 @@ requests = pytest.importorskip("requests")
 
 pytestmark = pytest.mark.skipif(
     os.environ.get("RUN_INTEGRATION") != "1",
-    reason="set RUN_INTEGRATION=1 with the compose stack running",
+    reason="set RUN_INTEGRATION=1 with the kind platform running",
 )
 
-MLFLOW = os.environ.get("MLFLOW_TRACKING_URI", "http://localhost:5001")
-INFERENCE = os.environ.get("INFERENCE_URL", "http://localhost:8000")
+MLFLOW = os.environ.get("MLFLOW_URL", "http://localhost:30500")
+INFERENCE = os.environ.get("INFERENCE_URL", "http://localhost:30080")
 
 
 def test_mlflow_server_is_healthy():

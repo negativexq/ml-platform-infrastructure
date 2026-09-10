@@ -1,0 +1,116 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: platform-postgres
+  labels:
+    {{- include "platform-local.labels" . | nindent 4 }}
+    app.kubernetes.io/name: postgres
+type: Opaque
+stringData:
+  POSTGRES_USER: {{ .Values.postgres.auth.username | quote }}
+  POSTGRES_PASSWORD: {{ .Values.postgres.auth.password | quote }}
+  POSTGRES_DB: {{ .Values.postgres.auth.database | quote }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: platform-postgres
+  labels:
+    {{- include "platform-local.labels" . | nindent 4 }}
+    app.kubernetes.io/name: postgres
+spec:
+  clusterIP: None
+  selector:
+    app.kubernetes.io/name: postgres
+    app.kubernetes.io/instance: {{ .Release.Name }}
+  ports:
+    - name: postgres
+      port: 5432
+      targetPort: postgres
+---
+{{- if .Values.postgres.persistence.enabled }}
+apiVersion: apps/v1
+kind: StatefulSet
+{{- else }}
+apiVersion: apps/v1
+kind: Deployment
+{{- end }}
+metadata:
+  name: platform-postgres
+  labels:
+    {{- include "platform-local.labels" . | nindent 4 }}
+    app.kubernetes.io/name: postgres
+spec:
+  replicas: 1
+  {{- if .Values.postgres.persistence.enabled }}
+  serviceName: platform-postgres
+  {{- end }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+      app.kubernetes.io/instance: {{ .Release.Name }}
+  {{- if not .Values.postgres.persistence.enabled }}
+  strategy:
+    type: Recreate
+  {{- end }}
+  template:
+    metadata:
+      labels:
+        {{- include "platform-local.labels" . | nindent 8 }}
+        app.kubernetes.io/name: postgres
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 70
+        fsGroup: 70
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: postgres
+          image: {{ .Values.postgres.image }}
+          envFrom:
+            - secretRef:
+                name: platform-postgres
+          env:
+            # Keep the data in a subdirectory so the volume root (which may
+            # carry lost+found on a real PV) is never the data dir.
+            - name: PGDATA
+              value: /var/lib/postgresql/data/pgdata
+          ports:
+            - name: postgres
+              containerPort: 5432
+          readinessProbe:
+            exec:
+              command: ["pg_isready", "-U", "{{ .Values.postgres.auth.username }}", "-d", "{{ .Values.postgres.auth.database }}"]
+            periodSeconds: 5
+            timeoutSeconds: 3
+          livenessProbe:
+            exec:
+              command: ["pg_isready", "-U", "{{ .Values.postgres.auth.username }}"]
+            initialDelaySeconds: 10
+            periodSeconds: 10
+          resources:
+            {{- toYaml .Values.postgres.resources | nindent 12 }}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities:
+              drop: ["ALL"]
+          volumeMounts:
+            - name: data
+              mountPath: /var/lib/postgresql/data
+      {{- if not .Values.postgres.persistence.enabled }}
+      volumes:
+        - name: data
+          emptyDir: {}
+      {{- end }}
+  {{- if .Values.postgres.persistence.enabled }}
+  volumeClaimTemplates:
+    - metadata:
+        name: data
+      spec:
+        accessModes: ["ReadWriteOnce"]
+        storageClassName: {{ .Values.postgres.persistence.storageClassName }}
+        resources:
+          requests:
+            storage: {{ .Values.postgres.persistence.size }}
+  {{- end }}
