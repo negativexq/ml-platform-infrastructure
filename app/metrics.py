@@ -58,6 +58,12 @@ prediction_duration_seconds = Histogram(
 
 # -- Model -----------------------------------------------------------------
 
+# A labelled counter is not exported until its first increment, which would
+# leave a gap in dashboards and make absence indistinguishable from zero.
+# Declaring the known reasons up front pins them at 0.
+for _reason in ("not_ready", "inference_error"):
+    prediction_errors_total.labels(reason=_reason)
+
 model_load_duration_seconds = Histogram(
     "model_load_duration_seconds",
     "Time to fetch and load a model artifact.",

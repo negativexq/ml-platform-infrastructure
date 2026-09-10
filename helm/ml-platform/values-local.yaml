@@ -12,7 +12,7 @@ environment: local
 
 image:
   repository: ml-platform-inference
-  tag: v3
+  tag: v4
   pullPolicy: IfNotPresent
 
 replicaCount: 2
