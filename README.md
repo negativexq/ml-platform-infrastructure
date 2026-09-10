@@ -12,7 +12,7 @@ with a gate and real evidence under [`docs/evidence/`](docs/evidence/).
 | M1 | Local ML lifecycle (MLflow + PostgreSQL + MinIO) | ✅ |
 | M2 | Local Kubernetes with kind | ✅ |
 | M3 | Helm packaging | ✅ |
-| M4 | GitOps with Argo CD | ⬜ |
+| M4 | GitOps with Argo CD | ✅ |
 | M5 | Observability & failure engineering | ⬜ |
 | M6 | Terraform & AWS migration design | ⬜ |
 

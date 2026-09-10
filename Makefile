@@ -1,6 +1,7 @@
 .PHONY: install train train-baseline test integration lint type check docker-build docker-run run clean \
         platform-up platform-down platform-logs mlflow-ui kind-up kind-down smoke k8s-logs \
-        helm-lint helm-template helm-deploy helm-rollback helm-history
+        helm-lint helm-template helm-deploy helm-rollback helm-history \
+        argocd-up argocd-ui argocd-status
 
 IMAGE ?= ml-platform-inference:dev
 MLFLOW_TRACKING_URI ?= http://localhost:5001
@@ -86,6 +87,19 @@ helm-history:
 
 helm-rollback:
 	helm -n ml-platform rollback inference --wait --timeout 5m
+
+## M4 GitOps
+argocd-up:
+	./scripts/argocd-up.sh
+
+argocd-status:
+	kubectl -n argocd get application inference-local \
+	  -o custom-columns=NAME:.metadata.name,SYNC:.status.sync.status,HEALTH:.status.health.status,REVISION:.status.sync.revision
+
+argocd-ui:
+	@echo "https://localhost:8080  (user: admin)"
+	@echo "password: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d"
+	kubectl -n argocd port-forward svc/argocd-server 8080:443
 
 clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache artifacts
