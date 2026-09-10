@@ -4,6 +4,12 @@ set -euo pipefail
 
 BASE_URL="${BASE_URL:-http://localhost:30080}"
 NAMESPACE="${NAMESPACE:-ml-platform}"
+# Resolve the Deployment by label so the raw-manifest (M2) and Helm (M3+)
+# names both work without editing this script.
+DEPLOYMENT="${DEPLOYMENT:-$(kubectl -n "$NAMESPACE" get deploy \
+  -l app.kubernetes.io/component=inference \
+  -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)}"
+DEPLOYMENT="${DEPLOYMENT:-inference}"
 failures=0
 
 check() {
@@ -18,7 +24,7 @@ check() {
 
 code() { curl -s -o /dev/null -w '%{http_code}' "$@"; }
 
-echo "Smoke test against ${BASE_URL}"
+echo "Smoke test against ${BASE_URL} (deployment: ${DEPLOYMENT})"
 
 check "GET /health" 200 "$(code "${BASE_URL}/health")"
 check "GET /ready" 200 "$(code "${BASE_URL}/ready")"
@@ -27,14 +33,14 @@ check "POST /predict (valid)" 200 "$(code -X POST "${BASE_URL}/predict" \
 check "POST /predict (invalid)" 422 "$(code -X POST "${BASE_URL}/predict" \
   -H 'content-type: application/json' -d '{"features":[]}')"
 
-ready_replicas="$(kubectl -n "$NAMESPACE" get deploy inference \
+ready_replicas="$(kubectl -n "$NAMESPACE" get deploy "$DEPLOYMENT" \
   -o jsonpath='{.status.readyReplicas}')"
-desired="$(kubectl -n "$NAMESPACE" get deploy inference \
+desired="$(kubectl -n "$NAMESPACE" get deploy "$DEPLOYMENT" \
   -o jsonpath='{.spec.replicas}')"
 check "ready replicas" "$desired" "$ready_replicas"
 
 endpoints="$(kubectl -n "$NAMESPACE" get endpointslice \
-  -l kubernetes.io/service-name=inference \
+  -l "app.kubernetes.io/component=inference" \
   -o jsonpath='{range .items[*].endpoints[*]}{.conditions.ready}{"\n"}{end}' \
   | grep -c true || true)"
 check "ready Service endpoints" "$desired" "$endpoints"

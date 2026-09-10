@@ -43,3 +43,20 @@ jobs:
             http://localhost:8000/predict -H 'content-type: application/json' \
             -d '{"features":[1.0,2.0,3.0]}')" = "503"
           docker rm -f svc
+
+  helm:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - run: helm lint helm/ml-platform --values helm/ml-platform/values-local.yaml
+      - name: render for every environment values file
+        run: |
+          for values in helm/ml-platform/values-*.yaml; do
+            echo "--- $values"
+            helm template inference helm/ml-platform --values "$values" >/dev/null
+          done
+      - name: irsa mode must not render a Secret
+        run: |
+          ! helm template inference helm/ml-platform \
+            --set artifactStore.mode=irsa | grep -q 'kind: Secret'

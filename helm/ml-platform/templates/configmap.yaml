@@ -1,0 +1,26 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "ml-platform.fullname" . }}-config
+  labels:
+    {{- include "ml-platform.labels" . | nindent 4 }}
+  {{- with .Values.commonAnnotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+data:
+  ML_MODEL_URI: {{ .Values.model.uri | quote }}
+  ML_MODEL_LOAD_MAX_RETRIES: {{ .Values.model.loadMaxRetries | quote }}
+  ML_MODEL_LOAD_RETRY_SECONDS: {{ .Values.model.loadRetrySeconds | quote }}
+  ML_MODEL_LOAD_RECHECK_SECONDS: {{ .Values.model.loadRecheckSeconds | quote }}
+  ML_LOG_LEVEL: {{ .Values.logging.level | quote }}
+  ML_LOG_JSON: {{ .Values.logging.json | quote }}
+  {{- with .Values.mlflow.trackingUri }}
+  ML_MLFLOW_TRACKING_URI: {{ . | quote }}
+  {{- end }}
+  {{- with .Values.mlflow.s3EndpointUrl }}
+  ML_MLFLOW_S3_ENDPOINT_URL: {{ . | quote }}
+  {{- end }}
+  {{- range $key, $value := .Values.extraEnv }}
+  {{ $key }}: {{ $value | quote }}
+  {{- end }}

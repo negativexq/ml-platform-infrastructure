@@ -70,7 +70,7 @@ services:
       - --default-artifact-root=s3://${MLFLOW_BUCKET:-mlflow-artifacts}/
       # MLflow 3.x rejects unknown Host headers (DNS-rebinding protection).
       # Allow the in-network service name and the host-published port.
-      - --allowed-hosts=${MLFLOW_ALLOWED_HOSTS:-mlflow:5000,mlflow,localhost:5001,localhost:5000,127.0.0.1:5001,host.docker.internal:5001}
+      - --allowed-hosts=${MLFLOW_ALLOWED_HOSTS:-mlflow:5000,mlflow,platform-host:5001,platform-host,localhost:5001,localhost:5000,127.0.0.1:5001,host.docker.internal:5001}
     ports:
       # 5000 on the host is taken by macOS AirPlay Receiver; publish on 5001.
       - "${MLFLOW_HOST_PORT:-5001}:5000"

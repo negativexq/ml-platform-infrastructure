@@ -1,5 +1,6 @@
 .PHONY: install train train-baseline test integration lint type check docker-build docker-run run clean \
-        platform-up platform-down platform-logs mlflow-ui kind-up kind-down smoke k8s-logs
+        platform-up platform-down platform-logs mlflow-ui kind-up kind-down smoke k8s-logs \
+        helm-lint helm-template helm-deploy helm-rollback helm-history
 
 IMAGE ?= ml-platform-inference:dev
 MLFLOW_TRACKING_URI ?= http://localhost:5001
@@ -69,6 +70,22 @@ smoke:
 
 k8s-logs:
 	kubectl -n ml-platform logs -l app.kubernetes.io/name=inference --tail=50 -f
+
+## M3 Helm
+helm-lint:
+	helm lint helm/ml-platform --values helm/ml-platform/values-local.yaml
+
+helm-template:
+	helm template inference helm/ml-platform --values helm/ml-platform/values-local.yaml
+
+helm-deploy:
+	./scripts/helm-deploy.sh
+
+helm-history:
+	helm -n ml-platform history inference
+
+helm-rollback:
+	helm -n ml-platform rollback inference --wait --timeout 5m
 
 clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache artifacts

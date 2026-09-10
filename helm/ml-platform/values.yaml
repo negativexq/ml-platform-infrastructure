@@ -1,0 +1,122 @@
+# Defaults for the ml-platform inference chart.
+#
+# Nothing environment-specific is hardcoded here: every endpoint, image tag and
+# credential reference is a value. One chart serves every environment; the
+# differences live in values-<env>.yaml.
+
+nameOverride: ""
+fullnameOverride: ""
+
+# Free-form label/annotation hooks so an environment can tag its own resources.
+environment: local
+commonLabels: {}
+commonAnnotations: {}
+
+replicaCount: 2
+
+image:
+  repository: ml-platform-inference
+  tag: dev
+  pullPolicy: IfNotPresent
+
+imagePullSecrets: []
+
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+  # M6 attaches an IRSA role annotation here instead of mounting credentials.
+  automountServiceAccountToken: false
+
+service:
+  type: NodePort
+  port: 80
+  nodePort: 30080
+
+# Where the model comes from, and how hard the service tries to get it.
+model:
+  uri: "models:/ml-platform-model/1"
+  loadMaxRetries: 3
+  loadRetrySeconds: 2
+  # Background retry after the initial burst fails, so the pod recovers
+  # without a restart when the artifact store comes back.
+  loadRecheckSeconds: 15
+
+mlflow:
+  trackingUri: ""
+  s3EndpointUrl: ""
+
+logging:
+  level: INFO
+  json: true
+
+# Extra plain env vars merged into the ConfigMap.
+extraEnv: {}
+
+artifactStore:
+  # local: chart renders a Secret from the values below (lab only).
+  # existing: chart references an already-present Secret by name.
+  # irsa: no Secret at all — credentials come from the ServiceAccount (M6).
+  mode: local
+  existingSecret: ""
+  accessKeyId: ""
+  secretAccessKey: ""
+
+# Host entries for reaching services that are not in the cluster. In M2 this
+# is how kind pods find the Docker Compose platform on the host; the value is
+# supplied per environment rather than substituted into the manifest.
+hostAliases: []
+#  - ip: 172.21.0.1
+#    hostnames: [platform-host]
+
+resources:
+  requests:
+    cpu: 100m
+    memory: 384Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+# Liveness must not depend on the artifact store; readiness is what gates
+# traffic. See docs/evidence/m2/readiness-failure.md.
+probes:
+  liveness:
+    path: /health
+    periodSeconds: 10
+    timeoutSeconds: 3
+    failureThreshold: 3
+  readiness:
+    path: /ready
+    periodSeconds: 5
+    timeoutSeconds: 3
+    failureThreshold: 2
+  startup:
+    path: /health
+    periodSeconds: 3
+    failureThreshold: 20
+
+updateStrategy:
+  type: RollingUpdate
+  maxUnavailable: 0
+  maxSurge: 1
+
+# Drain the endpoint before shutdown. See docs/evidence/m2/rolling-update.md.
+terminationGracePeriodSeconds: 30
+preStopSleepSeconds: 8
+
+podSecurityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  seccompProfile:
+    type: RuntimeDefault
+
+containerSecurityContext:
+  allowPrivilegeEscalation: false
+  readOnlyRootFilesystem: false
+  capabilities:
+    drop: ["ALL"]
+
+podAnnotations: {}
+nodeSelector: {}
+tolerations: []
+affinity: {}

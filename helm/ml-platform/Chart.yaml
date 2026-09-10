@@ -1,0 +1,15 @@
+apiVersion: v2
+name: ml-platform
+description: Inference service for the ML platform — one chart, per-environment values
+type: application
+
+# Chart version tracks the packaging; appVersion tracks the service image.
+version: 0.1.0
+appVersion: "0.1.0"
+
+keywords:
+  - mlops
+  - inference
+  - mlflow
+maintainers:
+  - name: ml-platform

@@ -1,0 +1,43 @@
+# Local kind environment.
+#
+# The M1 platform services (MLflow, MinIO, PostgreSQL) run in Docker Compose on
+# the host. `hostAliases[0].ip` must be the kind bridge gateway; discover it with
+#
+#     docker network inspect kind -f '{{json .IPAM.Config}}'
+#
+# and pass it with --set, as scripts/helm-deploy.sh does. The value below is
+# only the common default on this machine.
+
+environment: local
+
+image:
+  repository: ml-platform-inference
+  tag: dev
+  pullPolicy: IfNotPresent
+
+replicaCount: 2
+
+service:
+  type: NodePort
+  nodePort: 30080
+
+model:
+  uri: "models:/ml-platform-model/1"
+
+mlflow:
+  trackingUri: "http://platform-host:5001"
+  s3EndpointUrl: "http://platform-host:9000"
+
+hostAliases:
+  - ip: 172.21.0.1
+    hostnames:
+      - platform-host
+
+artifactStore:
+  mode: local
+  accessKeyId: minioadmin
+  secretAccessKey: minioadmin
+
+logging:
+  level: INFO
+  json: true

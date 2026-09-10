@@ -1,0 +1,19 @@
+{{ .Chart.Name }} release {{ .Release.Name }} deployed to namespace {{ .Release.Namespace }}.
+
+  environment : {{ .Values.environment }}
+  image       : {{ .Values.image.repository }}:{{ .Values.image.tag | default .Chart.AppVersion }}
+  replicas    : {{ .Values.replicaCount }}
+  model URI   : {{ .Values.model.uri }}
+  MLflow      : {{ .Values.mlflow.trackingUri | default "(not set)" }}
+  credentials : {{ .Values.artifactStore.mode }}
+
+Check the rollout:
+
+  kubectl -n {{ .Release.Namespace }} rollout status deployment/{{ include "ml-platform.fullname" . }}
+
+{{- if eq .Values.service.type "NodePort" }}
+
+Reach the service (kind maps this node port to localhost):
+
+  curl http://localhost:{{ .Values.service.nodePort }}/ready
+{{- end }}

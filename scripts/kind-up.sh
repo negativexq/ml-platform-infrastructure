@@ -40,7 +40,7 @@ echo "platform host: $PLATFORM_HOST"
 
 step "Ensuring the M1 platform accepts requests from that address"
 # MLflow 3.x rejects unknown Host headers, so the gateway must be allowlisted.
-ALLOWED="mlflow:5000,mlflow,localhost:5001,localhost:5000,127.0.0.1:5001"
+ALLOWED="mlflow:5000,mlflow,platform-host:5001,platform-host,localhost:5001,localhost:5000,127.0.0.1:5001"
 ALLOWED="${ALLOWED},${PLATFORM_HOST}:5001,${PLATFORM_HOST}"
 if [[ -f .env ]]; then
   grep -v '^MLFLOW_ALLOWED_HOSTS=' .env > .env.tmp || true
