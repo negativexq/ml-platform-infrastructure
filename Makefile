@@ -1,7 +1,7 @@
 .PHONY: install train train-baseline test integration lint type check docker-build docker-run run clean \
         platform-up mlflow-ui kind-up kind-down smoke k8s-logs \
         helm-lint helm-template helm-deploy helm-rollback helm-history \
-        argocd-up argocd-ui argocd-status \
+        argocd-up argocd-ui argocd-status backup restore drill-persistence drill-backup-restore \
         observability-up grafana prometheus verify-dashboards \
         tf-fmt tf-validate tf-lint tf-check
 
@@ -80,6 +80,19 @@ helm-history:
 
 helm-rollback:
 	helm -n ml-platform rollback inference --wait --timeout 5m
+
+## M8 persistence & recovery
+backup:
+	./scripts/backup.sh
+
+restore:
+	./scripts/restore.sh $(SRC)
+
+drill-persistence:
+	./scripts/drills/persistence.sh
+
+drill-backup-restore:
+	./scripts/drills/backup-restore.sh
 
 ## M4 GitOps
 argocd-up:

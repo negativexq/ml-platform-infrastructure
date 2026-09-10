@@ -16,6 +16,7 @@ run that produced it — commands, output, and the numbers actually measured.
 | M5 | Observability & failure engineering | ✅ | [gate](docs/evidence/m5/gate.md) |
 | M6 | Terraform & AWS migration design | ✅ | [gate](docs/evidence/m6/gate.md) |
 | M7 | Full local Kubernetes platform | ✅ | [gate](docs/evidence/m7/gate.md) |
+| M8 | Stateful persistence & recovery | ✅ | [gate](docs/evidence/m8/gate.md) |
 
 Plan and gates: [`docs/roadmap.md`](docs/roadmap.md) ·
 architecture: [`docs/architecture.md`](docs/architecture.md) ·

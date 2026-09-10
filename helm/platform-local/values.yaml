@@ -1,7 +1,7 @@
 # platform-local — PostgreSQL + MinIO + MLflow for the kind cluster.
 #
-# M7 runs these with emptyDir: pod restart loses data, on purpose. M8 turns
-# postgres and minio into StatefulSets with PVCs and proves persistence.
+# postgres and minio run as StatefulSets with PVCs (M8). Their data survives
+# pod deletion; the backup/restore drill covers volume loss.
 
 nameOverride: ""
 commonLabels: {}
@@ -9,9 +9,8 @@ commonLabels: {}
 # ---------------------------------------------------------------------------
 postgres:
   image: postgres:16-alpine
-  # M8 flips this to true and adds volumeClaimTemplates.
   persistence:
-    enabled: false
+    enabled: true
     size: 2Gi
     storageClassName: standard
   auth:
@@ -30,7 +29,7 @@ minio:
   image: minio/minio:RELEASE.2024-09-13T20-26-02Z
   mcImage: minio/mc:RELEASE.2024-09-16T17-43-14Z
   persistence:
-    enabled: false
+    enabled: true
     size: 5Gi
     storageClassName: standard
   auth:
