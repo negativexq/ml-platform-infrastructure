@@ -60,3 +60,28 @@ jobs:
         run: |
           ! helm template inference helm/ml-platform \
             --set artifactStore.mode=irsa | grep -q 'kind: Secret'
+
+  terraform:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: hashicorp/setup-terraform@v3
+        with:
+          terraform_version: "1.15.8"
+      - run: terraform fmt -check -recursive infra/terraform
+      - name: validate every environment
+        run: |
+          for env in infra/terraform/environments/*/; do
+            echo "--- $env"
+            terraform -chdir="$env" init -backend=false -input=false
+            terraform -chdir="$env" validate
+          done
+      - uses: terraform-linters/setup-tflint@v4
+        with:
+          tflint_version: v0.64.0
+      - run: tflint --init
+      - run: tflint --recursive --chdir=infra/terraform
+
+      # No `terraform apply` and no `terraform plan` here on purpose: nothing
+      # in CI holds AWS credentials, so nothing in CI can create billable
+      # infrastructure. Adding plan means adding a read-only role first.

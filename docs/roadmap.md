@@ -12,7 +12,7 @@ contract so AWS migration risk is minimal.
 | M3 | Deployment'ı standardize etmek | Helm chart | ✅ |
 | M4 | GitOps kurmak | Argo CD + self-heal | ✅ |
 | M5 | Production davranışını kanıtlamak | Observability + failure tests | ✅ |
-| M6 | AWS migration'ı IaC olarak tasarlamak | Terraform foundation | ⬜ |
+| M6 | AWS migration'ı IaC olarak tasarlamak | Terraform foundation | ✅ |
 
 ## M0 — Application & Repository Foundation
 

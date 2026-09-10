@@ -1,0 +1,61 @@
+# AWS dev environment.
+#
+# Same chart as values-local.yaml — only values differ. The placeholders below
+# are filled from `terraform output` in infra/terraform/environments/aws-dev
+# (see the `helm_values_hint` output). Nothing here has been applied yet.
+
+environment: aws-dev
+
+image:
+  # terraform output ecr_repository_url
+  repository: ACCOUNT.dkr.ecr.eu-central-1.amazonaws.com/ml-platform-inference
+  # Immutable tags: ECR rejects a re-push, so this is always a new build.
+  tag: sha-CHANGEME
+  pullPolicy: IfNotPresent
+
+replicaCount: 2
+
+service:
+  # No NodePort in AWS; an ALB fronts this via an Ingress.
+  type: ClusterIP
+  nodePort: null
+
+model:
+  uri: "models:/ml-platform-model/1"
+
+mlflow:
+  # MLflow in-cluster; S3 is reached natively, so no endpoint override.
+  trackingUri: "http://mlflow.ml-platform.svc.cluster.local:5000"
+  s3EndpointUrl: ""
+
+# No Secret is rendered: credentials come from the IAM role attached to the
+# ServiceAccount below. This is the whole point of the mode switch.
+artifactStore:
+  mode: irsa
+
+serviceAccount:
+  create: true
+  annotations:
+    # terraform output inference_role_arn
+    eks.amazonaws.com/role-arn: arn:aws:iam::ACCOUNT:role/ml-platform-aws-dev-inference
+
+# Pods reach S3 and RDS through the VPC; nothing lives on the host.
+hostAliases: []
+
+resources:
+  requests:
+    cpu: 250m
+    memory: 512Mi
+  limits:
+    cpu: "1"
+    memory: 1Gi
+
+metrics:
+  serviceMonitor:
+    enabled: true
+    additionalLabels:
+      release: monitoring
+
+logging:
+  level: INFO
+  json: true

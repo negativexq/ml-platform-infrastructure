@@ -2,7 +2,8 @@
         platform-up platform-down platform-logs mlflow-ui kind-up kind-down smoke k8s-logs \
         helm-lint helm-template helm-deploy helm-rollback helm-history \
         argocd-up argocd-ui argocd-status \
-        observability-up grafana prometheus verify-dashboards
+        observability-up grafana prometheus verify-dashboards \
+        tf-fmt tf-validate tf-lint tf-check
 
 IMAGE ?= ml-platform-inference:dev
 MLFLOW_TRACKING_URI ?= http://localhost:5001
@@ -116,6 +117,22 @@ prometheus:
 
 verify-dashboards:
 	./scripts/verify-dashboard-queries.sh
+
+## M6 Terraform (design only — no apply)
+TF_ENV ?= infra/terraform/environments/aws-dev
+
+tf-fmt:
+	terraform fmt -check -recursive infra/terraform
+
+tf-validate:
+	terraform -chdir=$(TF_ENV) init -backend=false -input=false
+	terraform -chdir=$(TF_ENV) validate
+
+tf-lint:
+	tflint --init
+	tflint --recursive --chdir=infra/terraform
+
+tf-check: tf-fmt tf-validate tf-lint
 
 clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache artifacts

@@ -1,0 +1,26 @@
+# Copy to terraform.tfvars and fill in. terraform.tfvars is gitignored —
+# nothing account-specific belongs in version control.
+
+owner  = "your-name"
+region = "eu-central-1"
+
+# Globally unique across all of S3.
+artifact_bucket_name = "ml-platform-artifacts-CHANGE-ME"
+
+# Bind the CI role to your repository and branch. Never widen this to a
+# wildcard: the subject claim is the only thing stopping another GitHub
+# repository from assuming the role.
+github_subject_claims = [
+  "repo:negativexq/ml-platform-infrastructure:ref:refs/heads/main",
+]
+
+# Set false if this AWS account already has the GitHub OIDC provider — it is
+# account-global and creating a second one fails.
+create_github_oidc_provider = true
+
+# Narrow this to your own IP before using the cluster for anything real.
+public_access_cidrs = ["0.0.0.0/0"]
+
+# Budget alerts. Leave the list empty and no budget is created.
+monthly_budget_usd  = 150
+budget_alert_emails = ["you@example.com"]
