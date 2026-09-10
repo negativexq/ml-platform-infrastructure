@@ -1,0 +1,14 @@
+README.md
+pyproject.toml
+app/__init__.py
+app/config.py
+app/inference.py
+app/main.py
+app/model_loader.py
+app/schemas.py
+ml_platform_infra.egg-info/PKG-INFO
+ml_platform_infra.egg-info/SOURCES.txt
+ml_platform_infra.egg-info/dependency_links.txt
+ml_platform_infra.egg-info/requires.txt
+ml_platform_infra.egg-info/top_level.txt
+tests/test_api.py

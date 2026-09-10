@@ -1,0 +1,18 @@
+Metadata-Version: 2.4
+Name: ml-platform-infra
+Version: 0.1.0
+Summary: Containerized inference service — ML platform infrastructure lab
+Requires-Python: >=3.11
+Requires-Dist: fastapi>=0.115
+Requires-Dist: uvicorn[standard]>=0.32
+Requires-Dist: pydantic>=2.9
+Requires-Dist: pydantic-settings>=2.6
+Requires-Dist: scikit-learn>=1.5
+Requires-Dist: numpy>=2.1
+Requires-Dist: joblib>=1.4
+Requires-Dist: structlog>=24.4
+Provides-Extra: dev
+Requires-Dist: pytest>=8.3; extra == "dev"
+Requires-Dist: httpx>=0.27; extra == "dev"
+Requires-Dist: ruff>=0.7; extra == "dev"
+Requires-Dist: mypy>=1.13; extra == "dev"
