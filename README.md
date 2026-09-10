@@ -92,8 +92,7 @@ Three defects were found by these drills and fixed, rather than written around:
 
 ```bash
 make install          # app + dev + training deps
-make platform-up      # PostgreSQL + MinIO + MLflow + inference (compose)
-make train            # tracked run, registers a model version
+make kind-up          # kind + platform-local (PG/MinIO/MLflow) + train + inference
 make check            # ruff + mypy + pytest
 ```
 
@@ -148,6 +147,4 @@ docs/evidence/m0..m6/ transcripts behind every claim above
 - **No alert rules.** Prometheus and Alertmanager are installed and the
   evidence names what the rules should fire on, but none are written.
 - **No tracing.** OpenTelemetry was optional in the roadmap and skipped.
-- **MLflow is not in the cluster.** It stays in Docker Compose; the AWS design
-  provisions RDS, S3 and its IAM role, but not the deployment.
 - **Single-node local platform.** No HA anywhere, by design and by budget.
