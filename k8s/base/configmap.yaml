@@ -1,0 +1,20 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: inference-config
+  namespace: ml-platform
+  labels:
+    app.kubernetes.io/name: inference
+    app.kubernetes.io/part-of: ml-platform
+data:
+  # __PLATFORM_HOST__ is replaced by scripts/kind-up.sh with the address at
+  # which the kind nodes reach the host, where the M1 compose stack runs.
+  # M3 turns this into a Helm value instead of a sed placeholder.
+  ML_MODEL_URI: "models:/ml-platform-model/1"
+  ML_MLFLOW_TRACKING_URI: "http://__PLATFORM_HOST__:5001"
+  ML_MLFLOW_S3_ENDPOINT_URL: "http://__PLATFORM_HOST__:9000"
+  ML_LOG_LEVEL: "INFO"
+  ML_LOG_JSON: "true"
+  ML_MODEL_LOAD_MAX_RETRIES: "3"
+  ML_MODEL_LOAD_RETRY_SECONDS: "2"
+  ML_MODEL_LOAD_RECHECK_SECONDS: "15"

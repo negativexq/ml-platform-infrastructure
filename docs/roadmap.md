@@ -8,7 +8,7 @@ contract so AWS migration risk is minimal.
 | --- | --- | --- | --- |
 | M0 | Deploy edilecek workload contract'ını kurmak | Containerized inference service | ✅ |
 | M1 | Local ML lifecycle kurmak | MLflow + PostgreSQL + MinIO + training/serving | ✅ |
-| M2 | Kubernetes'e taşımak | kind üzerinde çalışan workload | ⬜ |
+| M2 | Kubernetes'e taşımak | kind üzerinde çalışan workload | ✅ |
 | M3 | Deployment'ı standardize etmek | Helm chart | ⬜ |
 | M4 | GitOps kurmak | Argo CD + self-heal | ⬜ |
 | M5 | Production davranışını kanıtlamak | Observability + failure tests | ⬜ |

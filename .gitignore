@@ -9,3 +9,4 @@ venv/
 artifacts/
 *.joblib
 .DS_Store
+.env

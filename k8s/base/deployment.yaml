@@ -1,0 +1,99 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: inference
+  namespace: ml-platform
+  labels:
+    app.kubernetes.io/name: inference
+    app.kubernetes.io/part-of: ml-platform
+spec:
+  replicas: 2
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      # Never drop below the desired replica count during a rollout: a bad
+      # image stalls instead of taking the service down.
+      maxUnavailable: 0
+      maxSurge: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: inference
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: inference
+        app.kubernetes.io/part-of: ml-platform
+    spec:
+      serviceAccountName: inference
+      # Endpoint removal and container shutdown race each other. Without this
+      # pause a terminating pod can still receive a connection that kube-proxy
+      # has not yet stopped routing — measured as one failed request out of 90
+      # during a rolling update (docs/evidence/m2/rolling-update.md).
+      terminationGracePeriodSeconds: 30
+      # The M1 platform services (MLflow, MinIO) run on the host in Docker
+      # Compose; kind nodes reach them through this alias.
+      hostAliases:
+        - ip: "__PLATFORM_HOST__"
+          hostnames:
+            - platform-host
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: inference
+          image: ml-platform-inference:dev
+          imagePullPolicy: IfNotPresent
+          ports:
+            - name: http
+              containerPort: 8000
+          envFrom:
+            - configMapRef:
+                name: inference-config
+            - secretRef:
+                name: inference-artifact-store
+          resources:
+            requests:
+              cpu: 100m
+              memory: 384Mi
+            limits:
+              cpu: "1"
+              memory: 1Gi
+          lifecycle:
+            preStop:
+              exec:
+                # Keep serving while kube-proxy drains this pod's endpoint.
+                command: ["sleep", "8"]
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop: ["ALL"]
+          # Liveness only asks "is the process serving?" — it must never depend
+          # on the artifact store, or an MLflow outage would restart every pod.
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          # Readiness gates traffic: a pod with no model stays out of the
+          # Service endpoints instead of serving 503s to clients.
+          readinessProbe:
+            httpGet:
+              path: /ready
+              port: http
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 2
+          # Gives a slow artifact download room to finish before liveness
+          # starts counting failures.
+          startupProbe:
+            httpGet:
+              path: /health
+              port: http
+            periodSeconds: 3
+            failureThreshold: 20

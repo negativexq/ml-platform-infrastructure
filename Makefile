@@ -1,5 +1,5 @@
 .PHONY: install train train-baseline test integration lint type check docker-build docker-run run clean \
-        platform-up platform-down platform-logs mlflow-ui
+        platform-up platform-down platform-logs mlflow-ui kind-up kind-down smoke k8s-logs
 
 IMAGE ?= ml-platform-inference:dev
 MLFLOW_TRACKING_URI ?= http://localhost:5001
@@ -56,6 +56,19 @@ docker-build:
 
 docker-run:
 	docker run --rm -p 8000:8000 $(IMAGE)
+
+## M2 local Kubernetes
+kind-up:
+	./scripts/kind-up.sh
+
+kind-down:
+	./scripts/kind-down.sh
+
+smoke:
+	./scripts/smoke-test.sh
+
+k8s-logs:
+	kubectl -n ml-platform logs -l app.kubernetes.io/name=inference --tail=50 -f
 
 clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache artifacts
