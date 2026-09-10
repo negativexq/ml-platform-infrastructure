@@ -1,0 +1,43 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: inference-local
+  namespace: argocd
+  finalizers:
+    # Deleting the Application removes what it created, rather than orphaning it.
+    - resources-finalizer.argocd.argoproj.io
+  labels:
+    ml-platform.io/environment: local
+spec:
+  project: default
+
+  source:
+    repoURL: https://github.com/negativexq/ml-platform-infrastructure.git
+    targetRevision: main
+    path: helm/ml-platform
+    helm:
+      releaseName: inference
+      valueFiles:
+        - values-local.yaml
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: ml-platform
+
+  syncPolicy:
+    automated:
+      # Deploy whatever Git says, without waiting for a human to press sync.
+      prune: true
+      # Revert manual changes made directly against the cluster.
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 3m
+
+  revisionHistoryLimit: 10
