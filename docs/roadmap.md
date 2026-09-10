@@ -7,7 +7,7 @@ contract so AWS migration risk is minimal.
 | Milestone | Amaç | Ana çıktı | Status |
 | --- | --- | --- | --- |
 | M0 | Deploy edilecek workload contract'ını kurmak | Containerized inference service | ✅ |
-| M1 | Local ML lifecycle kurmak | MLflow + PostgreSQL + MinIO + training/serving | ⬜ |
+| M1 | Local ML lifecycle kurmak | MLflow + PostgreSQL + MinIO + training/serving | ✅ |
 | M2 | Kubernetes'e taşımak | kind üzerinde çalışan workload | ⬜ |
 | M3 | Deployment'ı standardize etmek | Helm chart | ⬜ |
 | M4 | GitOps kurmak | Argo CD + self-heal | ⬜ |

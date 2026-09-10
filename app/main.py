@@ -40,8 +40,13 @@ def _configure_logging() -> None:
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     _configure_logging()
-    service.startup()
-    yield
+    # Non-blocking: the server must answer /health even while the model is
+    # still downloading, or a liveness probe would kill a healthy process.
+    service.start()
+    try:
+        yield
+    finally:
+        service.stop()
 
 
 app = FastAPI(title=settings.app_name, lifespan=lifespan)
@@ -54,12 +59,15 @@ def health() -> HealthResponse:
 
 @app.get("/ready")
 def ready() -> JSONResponse:
+    ready_now = service.ready
     body = ReadyResponse(
-        ready=service.ready,
+        ready=ready_now,
+        state=service.state,
         model_version=service.model_version,
+        model_source=service.model_source,
         detail=service.error,
     )
-    status = 200 if service.ready else 503
+    status = 200 if ready_now else 503
     return JSONResponse(status_code=status, content=body.model_dump())
 
 

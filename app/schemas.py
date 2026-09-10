@@ -22,5 +22,7 @@ class HealthResponse(BaseModel):
 
 class ReadyResponse(BaseModel):
     ready: bool
+    state: str = "loading"
     model_version: str | None = None
+    model_source: str | None = None
     detail: str | None = None

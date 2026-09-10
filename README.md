@@ -9,7 +9,7 @@ with a gate and real evidence under [`docs/evidence/`](docs/evidence/).
 | Milestone | | Status |
 | --- | --- | --- |
 | M0 | Application & repository foundation | ✅ |
-| M1 | Local ML lifecycle (MLflow + PostgreSQL + MinIO) | ⬜ |
+| M1 | Local ML lifecycle (MLflow + PostgreSQL + MinIO) | ✅ |
 | M2 | Local Kubernetes with kind | ⬜ |
 | M3 | Helm packaging | ⬜ |
 | M4 | GitOps with Argo CD | ⬜ |

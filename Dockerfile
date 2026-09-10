@@ -1,4 +1,4 @@
-FROM python:3.11-slim AS base
+FROM python:3.12-slim AS base
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -11,8 +11,9 @@ COPY app ./app
 COPY scripts ./scripts
 RUN pip install --upgrade pip && pip install .
 
-# Bake a baseline artifact so the container is self-contained for M0.
-RUN python scripts/train_baseline.py
+# No model is baked into the image: from M1 the artifact is pulled at startup
+# from MLflow (ML_MODEL_URI). An image with no reachable artifact stays alive
+# but reports /ready 503 — that is the contract M2 relies on.
 
 EXPOSE 8000
 

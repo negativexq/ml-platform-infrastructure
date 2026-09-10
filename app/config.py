@@ -12,13 +12,25 @@ class Settings(BaseSettings):
     log_level: str = "INFO"
     log_json: bool = True
 
-    # M0: local model file. M1 replaces this with an MLflow/MinIO artifact URI.
+    # Model source. When `model_uri` is set the artifact is resolved through
+    # MLflow (M1+); otherwise the local file at `model_path` is loaded (M0).
     model_path: str = "artifacts/model.joblib"
     model_uri: str | None = None
+    mlflow_tracking_uri: str | None = None
 
-    # Bounded startup behaviour for model loading (used from M1 onwards).
+    # S3/MinIO endpoint used by MLflow's artifact client.
+    mlflow_s3_endpoint_url: str | None = None
+
+    # Bounded startup behaviour for model loading.
     model_load_max_retries: int = 5
     model_load_retry_seconds: float = 2.0
+    # After the initial burst fails, retry in the background at this interval
+    # so the service recovers without a restart. 0 disables the recheck loop.
+    model_load_recheck_seconds: float = 30.0
+
+    # Fail each MLflow HTTP call fast; our own loop owns the retry policy.
+    mlflow_http_request_max_retries: int = 1
+    mlflow_http_request_timeout: int = 10
 
 
 settings = Settings()

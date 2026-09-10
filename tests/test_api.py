@@ -11,6 +11,13 @@ def test_ready_503_when_model_missing(client_no_model):
     r = client_no_model.get("/ready")
     assert r.status_code == 503
     assert r.json()["ready"] is False
+    assert r.json()["state"] == "failed"
+
+
+def test_health_stays_200_while_model_unavailable(client_no_model):
+    """Liveness must not depend on the artifact store being reachable."""
+    assert client_no_model.get("/ready").status_code == 503
+    assert client_no_model.get("/health").status_code == 200
 
 
 def test_ready_200_when_model_loaded(client_ready):
