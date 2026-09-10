@@ -7,10 +7,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 COPY pyproject.toml ./
-RUN pip install --upgrade pip && pip install .
-
 COPY app ./app
 COPY scripts ./scripts
+RUN pip install --upgrade pip && pip install .
 
 # Bake a baseline artifact so the container is self-contained for M0.
 RUN python scripts/train_baseline.py
