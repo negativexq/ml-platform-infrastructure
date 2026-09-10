@@ -1,7 +1,8 @@
 .PHONY: install train train-baseline test integration lint type check docker-build docker-run run clean \
         platform-up platform-down platform-logs mlflow-ui kind-up kind-down smoke k8s-logs \
         helm-lint helm-template helm-deploy helm-rollback helm-history \
-        argocd-up argocd-ui argocd-status
+        argocd-up argocd-ui argocd-status \
+        observability-up grafana prometheus verify-dashboards
 
 IMAGE ?= ml-platform-inference:dev
 MLFLOW_TRACKING_URI ?= http://localhost:5001
@@ -100,6 +101,21 @@ argocd-ui:
 	@echo "https://localhost:8080  (user: admin)"
 	@echo "password: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d"
 	kubectl -n argocd port-forward svc/argocd-server 8080:443
+
+## M5 observability
+observability-up:
+	./scripts/observability-up.sh
+
+grafana:
+	@echo "http://localhost:3000  (admin / admin)"
+	kubectl -n observability port-forward svc/monitoring-grafana 3000:80
+
+prometheus:
+	@echo "http://localhost:9090"
+	kubectl -n observability port-forward svc/monitoring-prometheus 9090:9090
+
+verify-dashboards:
+	./scripts/verify-dashboard-queries.sh
 
 clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache artifacts

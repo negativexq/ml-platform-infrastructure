@@ -13,7 +13,7 @@ with a gate and real evidence under [`docs/evidence/`](docs/evidence/).
 | M2 | Local Kubernetes with kind | ✅ |
 | M3 | Helm packaging | ✅ |
 | M4 | GitOps with Argo CD | ✅ |
-| M5 | Observability & failure engineering | ⬜ |
+| M5 | Observability & failure engineering | ✅ |
 | M6 | Terraform & AWS migration design | ⬜ |
 
 Full plan, gates and contracts: [`docs/roadmap.md`](docs/roadmap.md) ·
