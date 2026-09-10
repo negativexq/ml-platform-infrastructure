@@ -1,8 +1,10 @@
-# ML Platform Infrastructure Roadmap — frozen v1
+# ML Platform Infrastructure Roadmap — frozen v2
 
-Status: **frozen v1** (2026-09-10). Milestones are closed in order M0 → M6.
-The goal through M6 is not new features — it is hardening the local platform
-contract so AWS migration risk is minimal.
+Status: **frozen v2** (2026-09-11). Milestones are closed in order M0 → M12,
+then AWS from M13. The goal through M12 is to extract every piece of real
+engineering evidence that can be produced locally — before spending a cent of
+AWS credit. After M12 the local architecture is frozen; the AWS work swaps
+each local dependency for its managed counterpart and re-runs the same gates.
 
 | Milestone | Amaç | Ana çıktı | Status |
 | --- | --- | --- | --- |
@@ -13,6 +15,28 @@ contract so AWS migration risk is minimal.
 | M4 | GitOps kurmak | Argo CD + self-heal | ✅ |
 | M5 | Production davranışını kanıtlamak | Observability + failure tests | ✅ |
 | M6 | AWS migration'ı IaC olarak tasarlamak | Terraform foundation | ✅ |
+| M7 | Full local Kubernetes platform | Bütün lifecycle kind üzerinde, Compose'suz | ⬜ |
+| M8 | Stateful persistence & recovery | Restart/restore sonrası veri kaybı yok | ⬜ |
+| M9 | Security hardening | RBAC + NetworkPolicy allow/deny + image scan gates | ⬜ |
+| M10 | Scaling, SLO & alerting | HPA + load + PDB + tested alert rules | ⬜ |
+| M11 | End-to-end reproducibility | Fresh cluster tek komutla acceptance PASS | ⬜ |
+| M12 | Local Release Candidate | `local-v1.0.0` freeze | ⬜ |
+| M13+ | AWS | terraform apply, gerçek EKS/RDS/S3/ECR | ⬜ |
+
+## Local → AWS dependency swap (the M13 contract)
+
+| Local (M7–M12) | AWS (M13+) |
+| --- | --- |
+| PostgreSQL StatefulSet + PVC | RDS PostgreSQL |
+| MinIO StatefulSet + PVC | S3 |
+| kind | EKS |
+| locally built image | ECR |
+| kindnet NetworkPolicy | VPC security groups + NetworkPolicy |
+| local PV backup/restore drill | RDS snapshots + S3 versioning |
+
+Postgres and MinIO are **local environment dependencies**, deployed by a
+separate `platform-local` chart — never bundled into the application chart,
+because in AWS they are managed services the app does not deploy.
 
 ## M0 — Application & Repository Foundation
 
@@ -211,6 +235,162 @@ design documented · cost model documented · no AWS secrets in repo · no actua
 expensive infrastructure required.
 
 **Commit:** `M6: establish Terraform foundation for AWS migration`
+
+## M7 — Full local Kubernetes platform
+
+**Amaç:** M2'den kalan split yapıyı bitir — inference K8s'te ama
+MLflow/Postgres/MinIO Compose'da. Kubernetes dışında çalışan hiçbir dependency
+kalmayacak.
+
+**Mimari karar:** Postgres ve MinIO ayrı bir `platform-local` chart'ında
+deploy edilir, uygulama chart'ına gömülmez. AWS'de bunlar RDS/S3 olacak; app
+onları deploy etmez.
+
+**Yapılacaklar:** `helm/platform-local/` chart (PostgreSQL, MinIO, MLflow) ·
+kind cluster config'i genişlet · MLflow `platform-local` içine · inference
+`ML_MLFLOW_TRACKING_URI` → in-cluster service DNS · `scripts/kind-up.sh`
+Compose'a hiç dokunmayacak · Argo CD platform-local'i de yönetsin (app-of-apps
+veya ikinci Application) · smoke-test full lifecycle'ı cluster içinde koşsun.
+
+**M7 Gate:** fresh kind cluster → platform bootstrap → train → MLflow metadata
+PostgreSQL pod'unda + artifact MinIO pod'unda → inference artifact indiriyor →
+`/ready` 200 → `/predict` 200 — **hiçbir Docker Compose servisi çalışmadan.**
+
+**Commit:** `M7: run the full ML lifecycle on Kubernetes`
+
+## M8 — Persistence & recovery
+
+**Amaç:** Kubernetes'in stateful tarafını çalıştır ve state kaybı / restore
+contract'ını kanıtla.
+
+**Yapılacaklar:** PostgreSQL ve MinIO → StatefulSet + PVC + PersistentVolume ·
+`storageClassName` explicit · pod delete drill (Postgres, MinIO, MLflow) ·
+backup/restore drill (`pg_dump` + MinIO artifact kopyası → delete/recreate →
+restore → MLflow metadata↔artifact ilişkisi geçerli).
+
+Production-grade PostgreSQL HA kurulmaz — AWS'de RDS var. Amaç veri kaybı
+davranışını öğrenmek.
+
+**M8 Gate:** pod recreation veri kaybettirmiyor (eski MLflow run'ları + artifact
+duruyor, inference yüklenebiliyor) · kontrollü backup/restore PASS.
+
+**Commit:** `M8: prove stateful persistence and restore`
+
+## M9 — Security hardening
+
+**Container:** `runAsNonRoot` · `readOnlyRootFilesystem` ·
+`allowPrivilegeEscalation: false` · `capabilities.drop: [ALL]` ·
+`seccompProfile: RuntimeDefault` — her workload için.
+
+**Kubernetes:** dedicated ServiceAccount · RBAC (en dar) · NetworkPolicy ·
+Secret separation · namespace isolation.
+
+**NetworkPolicy — CNI'a güvenme, testle kanıtla:** kindnet'in NetworkPolicy'yi
+gerçekten enforce edip etmediği önce ampirik doğrulanır (M7'de smoke). Sonra
+explicit allow/deny integration testleri:
+
+```
+inference → MLflow        : ALLOWED
+inference → PostgreSQL     : BLOCKED
+MLflow    → PostgreSQL     : ALLOWED
+MLflow    → MinIO          : ALLOWED
+any       → inference:8000 : ALLOWED (Service üzerinden)
+```
+
+Her satır hem pozitif hem negatif olarak test edilir. Enforce edilmiyorsa o
+noktada Calico'ya geçilir — ama önce ölç.
+
+**CI/local security gates:** Trivy image scan · dependency scan · SBOM ·
+`helm lint` · `kubeconform` · Terraform static checks.
+
+**M9 Gate:** workload privilege sınırları ve network boundary'leri her biri
+allow+deny testiyle kanıtlanmış · image scan CI'da.
+
+**Commit:** `M9: enforce and prove workload security boundaries`
+
+## M10 — Scaling, SLO & alerting
+
+**Yapılacaklar:** `metrics-server` (kind'da `--kubelet-insecure-tls`) · HPA
+(CPU + istek bazlı) · k6 ile load · ölç: RPS/p50/p95/error rate/replica
+count/CPU/mem/scale-up süresi/scale-down süresi · `PodDisruptionBudget`
+(`minAvailable: 1`) · `kubectl drain` ile node maintenance testi.
+
+**Alerting (M5'ten eksik kalan):** PrometheusRule — `HighErrorRate` ·
+`HighLatency` · `InferenceUnavailable` · `ModelNotReady` · `ReplicaUnavailable`.
+Sadece YAML değil: `promtool test rules` ile given-series → condition →
+expected-alert testi.
+
+**SLO:** Availability / Latency / Error-rate SLI — rakamlar benchmark
+görülmeden dondurulmaz.
+
+**M10 Gate:** load altında autoscaling ölçülmüş · disruption budget korunmuş ·
+alert rule'ları `promtool` ile test edilmiş.
+
+**Commit:** `M10: measure autoscaling and test alert rules`
+
+## M11 — End-to-end reproducibility
+
+**Amaç:** "Benim makinemde çalışıyor" yetmez. Repo dışında hiçbir manuel state
+gerektirmeden fresh cluster'da acceptance PASS.
+
+**Yapılacaklar:**
+
+```
+make local-up     # kind + platform-local + Argo CD + observability + app + seed/train
+make local-test   # health/ready/predict + MLflow persistence + pod recovery +
+                  # readiness isolation + GitOps sync + NetworkPolicy allow/deny +
+                  # Prometheus scrape + alert rules + HPA smoke
+make local-down    # her şeyi kaldır
+```
+
+**Kritik test:** brand-new kind cluster → repo dışında elle oluşturulmuş
+kaynak yok → bootstrap → acceptance PASS.
+
+**CI:** ucuz olanlar her PR'da (pytest, ruff, mypy, helm lint, kubeconform,
+terraform validate, tflint, trivy, promtool) · pahalı olan (kind → deploy →
+smoke) opsiyonel/manuel.
+
+**M11 Gate:** fresh environment'da repo dışında manuel state gerektirmeden
+`make local-up && make local-test` PASS.
+
+**Commit:** `M11: one-command reproducible local environment`
+
+## M12 — Local Release Candidate
+
+**Amaç:** Local geliştirmeyi freeze et. Yeni feature yok.
+
+**Son acceptance:** fresh clone → fresh kind → bootstrap → train → track →
+store → serve → observe → scale → break → recover → destroy.
+
+**README evidence matrix** — her capability'nin altında gerçek kanıt:
+
+| Capability | Evidence |
+| --- | --- |
+| ML lifecycle | Postgres metadata + MinIO artifact (pod'larda) |
+| Serving | MLflow artifact → inference |
+| Health semantics | non-blocking health/readiness |
+| Kubernetes recovery | measured pod recovery |
+| Rolling update | measured zero-drop |
+| GitOps | OutOfSync → Synced |
+| Observability | live Prometheus/Grafana queries |
+| Failure engineering | 6 drills |
+| Persistence | restart/restore drill |
+| Security | RBAC + NetworkPolicy allow/deny |
+| Scaling | measured HPA behavior |
+| Alerting | tested Prometheus rules |
+| Reproducibility | fresh-cluster acceptance |
+
+Sonra: `git tag local-v1.0.0`, local architecture frozen.
+
+**Commit:** `M12: freeze local release candidate` + tag `local-v1.0.0`
+
+## Explicitly out of scope (local)
+
+- **LocalStack ile AWS taklidi yok.** MinIO object-store contract'ı zaten
+  veriyor. IAM/SG/EKS/IRSA/OIDC/RDS/ALB'yi localde taklit etmek sahte güven
+  verir, gerçek AWS davranışını kanıtlamaz.
+- **Production PostgreSQL HA / distributed MinIO / 15-tool security stack yok.**
+  Scope'u büyütür, CV açığını kapatmaz.
 
 ## Evidence
 
