@@ -22,7 +22,7 @@ service:
   nodePort: 30080
 
 model:
-  uri: "models:/ml-platform-model/999"
+  uri: "models:/ml-platform-model/1"
 
 mlflow:
   trackingUri: "http://platform-host:5001"
