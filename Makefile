@@ -4,6 +4,7 @@
         argocd-up argocd-ui argocd-status backup restore drill-persistence drill-backup-restore \
         observability-up grafana prometheus verify-dashboards security-scan drill-netpol \
         alert-rules-test alert-rules-apply loadtest drill-autoscale drill-drain \
+        local-up local-test local-down \
         tf-fmt tf-validate tf-lint tf-check
 
 IMAGE ?= ml-platform-inference:dev
@@ -129,6 +130,16 @@ prometheus:
 
 verify-dashboards:
 	./scripts/verify-dashboard-queries.sh
+
+## M11 reproducibility
+local-up:
+	./scripts/local-up.sh
+
+local-test:
+	./scripts/local-test.sh
+
+local-down:
+	./scripts/kind-down.sh
 
 ## M10 scaling & alerting
 alert-rules-test:
