@@ -69,28 +69,63 @@ design decision, and the repository layout:
 
 ## Key results
 
-Measured on this local kind cluster, not estimated — full detail linked per row:
+Measured on this local kind cluster, not estimated:
 
 | | |
 | --- | --- |
 | k6 load test | **645,809 requests, 0% errors** |
-| Saturated throughput | **2,935 req/s** ([M10](docs/evidence/m10/gate.md)) |
+| Saturated throughput | **2,935 req/s** |
 | Saturated `/predict` p95 | **32.9 ms** |
 | HPA scale-up under load | **2 → 6 replicas in 71 s** |
-| Pod deleted → replacement serving | **12–15 s** ([M2](docs/evidence/m2/pod-recovery.md)) |
-| Argo drift → reconciled | **~1.4 s** ([M4](docs/evidence/m4/argocd-drift-reconciliation.md)) |
-| Fresh cluster → 11/11 acceptance | **901 s (~15 min)** ([M11](docs/evidence/m11/gate.md)) |
+| HPA scale-down after load | **6 → 2 in ~230 s**, stepped |
+| Pod deleted → replacement serving | **12–15 s** |
+| Argo drift → reconciled | **~1.4 s** |
+| Fresh cluster → 11/11 acceptance | **901 s (~15 min)** |
+
+Autoscaling: [M10](docs/evidence/m10/gate.md) · pod recovery:
+[M2](docs/evidence/m2/pod-recovery.md) · GitOps reconciliation:
+[M4](docs/evidence/m4/argocd-drift-reconciliation.md) · reproducibility:
+[M11](docs/evidence/m11/gate.md).
 
 ## Failure engineering
 
-Six drills — pod crash, invalid model artifact, artifact-store outage, config
-drift, latency regression, bad rollout, volume loss, node drain — run for
-real against the cluster, each with its own detection/containment/recovery.
-They surfaced six real defects along the way, including a blocking model load
-that took down `/health`, a rolling update that dropped 1 request in 90 while
-`kubectl` reported success, and a security drill that produced a false
-positive after PSS `restricted` went on. Full table and all six writeups:
+Eight faults injected on purpose against the running cluster — not simulated.
+Representative scenarios:
+
+| Scenario | Observed | Recovery |
+| --- | --- | --- |
+| Pod crash | ReplicaSet notices, surviving replica keeps serving | replacement ready in 12–15 s |
+| Invalid model artifact | readiness 503, pod held out of Service endpoints | Git revert |
+| Artifact store outage | 100% of requests still 200 while unready | background recheck, 0 restarts |
+| Config drift | Argo marks `OutOfSync` the moment it diverges | self-heal in ~1.4 s |
+| Bad rollout | `maxUnavailable: 0` keeps old replicas serving | Git revert, bad ReplicaSet pruned |
+| Node drain (stateful pod on it) | surviving inference pod absorbs traffic | Postgres/MinIO reschedule automatically |
+
+Full 8-row table with detection/containment detail:
 [`docs/failure-engineering.md`](docs/failure-engineering.md).
+
+## Real defects this project found in itself
+
+Not written around — found by running the automation (one of them by someone
+just asking), then fixed. Full writeups:
+[`docs/failure-engineering.md`](docs/failure-engineering.md).
+
+- **Blocking startup** — model loading blocked the process; a slow artifact
+  store took `/health` down with it. Fixed: moved to a background thread.
+- **Dropped request during rolling update** — `kubectl rollout status` said
+  success while an external probe measured 1 failure in 90. Fixed: `preStop` drain.
+- **Empty dashboard panel** — a labelled counter emits no series until its
+  first increment, so "zero errors" and "not instrumented" looked identical.
+  Fixed twice with `or vector(0)`.
+- **Security drill false positive** — PSS `restricted` rejected the drill's
+  own probe pods, and every admission rejection was misread as a network
+  `DENY`. Fixed: PSS-compliant probe pods.
+- **MLflow CVE vs. memory trade-off** — the 297 MiB version carried 7
+  unpatched CRITICAL CVEs; every fix lands only in a version with a 1.46 GiB
+  floor. Paid the memory.
+- **Broken GitHub Actions Trivy scan** — an action tag missing its `v` prefix
+  never resolved, so `image-scan` silently failed for four milestones while
+  the gate table said `PASS`. Fixed the pin and corrected the M9 evidence.
 
 ## Engineering evidence
 
