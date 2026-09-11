@@ -1,0 +1,109 @@
+rule_files:
+  - alert-rules.yaml
+
+evaluation_interval: 1m
+
+tests:
+  # -- HighErrorRate: 10 error / 110 total per interval = 9.09%, constant -----
+  - interval: 1m
+    input_series:
+      - series: 'http_requests_total{job="ml-platform-inference",status="200"}'
+        values: "0+100x10"
+      - series: 'http_requests_total{job="ml-platform-inference",status="500"}'
+        values: "0+10x10"
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: HighErrorRate
+        exp_alerts: []
+      - eval_time: 4m
+        alertname: HighErrorRate
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+            exp_annotations:
+              summary: "Inference 5xx rate above 5%"
+              description: "9.091% of requests to ml-platform-inference have returned 5xx over the last 5 minutes."
+
+  # -- HighLatency: every request lands past the highest finite (0.5s) bucket -
+  - interval: 1m
+    input_series:
+      - series: 'http_request_duration_seconds_bucket{job="ml-platform-inference",path="/predict",le="0.1"}'
+        values: "0+0x10"
+      - series: 'http_request_duration_seconds_bucket{job="ml-platform-inference",path="/predict",le="0.5"}'
+        values: "0+0x10"
+      - series: 'http_request_duration_seconds_bucket{job="ml-platform-inference",path="/predict",le="1"}'
+        values: "0+10x10"
+      - series: 'http_request_duration_seconds_bucket{job="ml-platform-inference",path="/predict",le="+Inf"}'
+        values: "0+10x10"
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: HighLatency
+        exp_alerts: []
+      - eval_time: 4m
+        alertname: HighLatency
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: "Inference /predict p95 latency above 500ms"
+              description: "p95 latency is 975ms."
+
+  # -- ModelNotReady ------------------------------------------------------------
+  - interval: 1m
+    input_series:
+      - series: 'model_ready{job="ml-platform-inference",instance="pod-a"}'
+        values: "1 1 0 0 0 0"
+      - series: 'model_ready{job="ml-platform-inference",instance="pod-b"}'
+        values: "1 1 0 0 0 0"
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: ModelNotReady
+        exp_alerts: []
+      - eval_time: 4m
+        alertname: ModelNotReady
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+            exp_annotations:
+              summary: "No inference pod has a model loaded"
+              description: "model_ready is 0 across every pod — the service is up but cannot serve a single prediction."
+
+  # -- InferenceUnavailable -----------------------------------------------------
+  - interval: 1m
+    input_series:
+      - series: 'up{job="ml-platform-inference",instance="pod-a"}'
+        values: "1 1 0 0 0"
+    alert_rule_test:
+      - eval_time: 1m
+        alertname: InferenceUnavailable
+        exp_alerts: []
+      - eval_time: 4m
+        alertname: InferenceUnavailable
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+            exp_annotations:
+              summary: "No inference target is being scraped"
+              description: "Prometheus has no healthy ml-platform-inference target."
+
+  # -- ReplicaUnavailable -----------------------------------------------------
+  - interval: 1m
+    input_series:
+      - series: 'kube_deployment_spec_replicas{namespace="ml-platform",deployment="ml-platform-inference"}'
+        values: "2x10"
+      - series: 'kube_deployment_status_replicas_available{namespace="ml-platform",deployment="ml-platform-inference"}'
+        values: "2 2 1 1 1 1 1 1 1 1"
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: ReplicaUnavailable
+        exp_alerts: []
+      - eval_time: 8m
+        alertname: ReplicaUnavailable
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              namespace: ml-platform
+              deployment: ml-platform-inference
+            exp_annotations:
+              summary: "Inference deployment below desired replica count"
+              description: "Available replicas have been below the desired count for 5+ minutes — check for a stalled rollout or a scheduling problem."

@@ -9,7 +9,11 @@ metadata:
     {{- toYaml . | nindent 4 }}
   {{- end }}
 spec:
+  {{- if not .Values.autoscaling.enabled }}
+  # Omitted when the HPA owns replica count: Helm reasserting replicaCount on
+  # every upgrade would fight the autoscaler's own decisions.
   replicas: {{ .Values.replicaCount }}
+  {{- end }}
   revisionHistoryLimit: 5
   strategy:
     type: {{ .Values.updateStrategy.type }}

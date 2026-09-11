@@ -18,6 +18,7 @@ run that produced it — commands, output, and the numbers actually measured.
 | M7 | Full local Kubernetes platform | ✅ | [gate](docs/evidence/m7/gate.md) |
 | M8 | Stateful persistence & recovery | ✅ | [gate](docs/evidence/m8/gate.md) |
 | M9 | Security hardening | ✅ | [gate](docs/evidence/m9/gate.md) |
+| M10 | Scaling, SLO & alerting | ✅ | [gate](docs/evidence/m10/gate.md) |
 
 Plan and gates: [`docs/roadmap.md`](docs/roadmap.md) ·
 architecture: [`docs/architecture.md`](docs/architecture.md) ·

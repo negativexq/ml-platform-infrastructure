@@ -56,6 +56,17 @@ networkPolicy:
   enabled: false
   monitoringNamespace: observability
 
+autoscaling:
+  enabled: false
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 50
+  scaleDownStabilizationSeconds: 120
+
+podDisruptionBudget:
+  enabled: false
+  minAvailable: 1
+
 metrics:
   path: /metrics
   serviceMonitor:

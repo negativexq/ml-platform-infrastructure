@@ -39,6 +39,16 @@ logging:
 networkPolicy:
   enabled: true
 
+autoscaling:
+  enabled: true
+  minReplicas: 2
+  maxReplicas: 6
+  targetCPUUtilizationPercentage: 50
+
+podDisruptionBudget:
+  enabled: true
+  minAvailable: 1
+
 metrics:
   serviceMonitor:
     enabled: true

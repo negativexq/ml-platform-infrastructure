@@ -1,0 +1,64 @@
+# Generated from observability/alert-rules.yaml by
+# scripts/render-prometheus-rule.sh — do not edit by hand.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: ml-platform-inference
+  namespace: ml-platform
+  labels:
+    release: monitoring
+spec:
+  groups:
+  - name: ml-platform-inference
+    rules:
+    - alert: HighErrorRate
+      expr: 'sum(rate(http_requests_total{job="ml-platform-inference",status=~"5.."}[5m]))
+        / clamp_min(sum(rate(http_requests_total{job="ml-platform-inference"}[5m])),
+        0.0001) > 0.05
+
+        '
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: Inference 5xx rate above 5%
+        description: '{{ $value | humanizePercentage }} of requests to ml-platform-inference
+          have returned 5xx over the last 5 minutes.'
+    - alert: HighLatency
+      expr: "histogram_quantile(0.95,\n  sum(rate(http_request_duration_seconds_bucket{job=\"\
+        ml-platform-inference\",path=\"/predict\"}[5m])) by (le)\n) > 0.5\n"
+      for: 2m
+      labels:
+        severity: warning
+      annotations:
+        summary: Inference /predict p95 latency above 500ms
+        description: p95 latency is {{ $value | humanizeDuration }}.
+    - alert: ModelNotReady
+      expr: sum(model_ready{job="ml-platform-inference"}) == 0
+      for: 1m
+      labels:
+        severity: critical
+      annotations:
+        summary: No inference pod has a model loaded
+        description: "model_ready is 0 across every pod \u2014 the service is up but\
+          \ cannot serve a single prediction."
+    - alert: InferenceUnavailable
+      expr: absent(up{job="ml-platform-inference"} == 1)
+      for: 1m
+      labels:
+        severity: critical
+      annotations:
+        summary: No inference target is being scraped
+        description: Prometheus has no healthy ml-platform-inference target.
+    - alert: ReplicaUnavailable
+      expr: 'kube_deployment_status_replicas_available{namespace="ml-platform",deployment="ml-platform-inference"}
+        < kube_deployment_spec_replicas{namespace="ml-platform",deployment="ml-platform-inference"}
+
+        '
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: Inference deployment below desired replica count
+        description: "Available replicas have been below the desired count for 5+\
+          \ minutes \u2014 check for a stalled rollout or a scheduling problem."

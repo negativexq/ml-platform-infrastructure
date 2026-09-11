@@ -3,6 +3,7 @@
         helm-lint helm-template helm-deploy helm-rollback helm-history \
         argocd-up argocd-ui argocd-status backup restore drill-persistence drill-backup-restore \
         observability-up grafana prometheus verify-dashboards security-scan drill-netpol \
+        alert-rules-test alert-rules-apply loadtest drill-autoscale drill-drain \
         tf-fmt tf-validate tf-lint tf-check
 
 IMAGE ?= ml-platform-inference:dev
@@ -128,6 +129,23 @@ prometheus:
 
 verify-dashboards:
 	./scripts/verify-dashboard-queries.sh
+
+## M10 scaling & alerting
+alert-rules-test:
+	cd observability && promtool test rules alert-rules.test.yaml
+
+alert-rules-apply: alert-rules-test
+	./scripts/render-prometheus-rule.sh
+	kubectl apply -f observability/prometheus-rule.generated.yaml
+
+loadtest:
+	k6 run scripts/loadtest/predict.js
+
+drill-autoscale:
+	./scripts/drills/autoscaling.sh
+
+drill-drain:
+	./scripts/drills/node-drain.sh
 
 ## M6 Terraform (design only — no apply)
 TF_ENV ?= infra/terraform/environments/aws-dev
