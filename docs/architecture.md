@@ -7,36 +7,58 @@ Docker Compose (that split was closed in
 [M7](evidence/m7/gate.md)).
 
 ```
-                       ┌──────────── Git (source of truth) ────────────┐
-                       │  helm/*/  gitops/  infra/terraform/           │
-                       └───────────────────────┬───────────────────────┘
-                                               │ poll / self-heal
-                                        ┌──────▼──────┐
-                                        │   Argo CD   │
-                                        └──────┬──────┘
-                                               │
-   ┌───────────────────────── kind cluster (PSS: restricted) ─────────────┐
-   │                                                                      │
-   │  Service ──> inference (HPA 2-6, PDB min 1)   Prometheus ──> Grafana │
-   │       NetworkPolicy: default-deny + allow-list      ▲               │
-   │                    │  /health /ready                 │               │
-   │                    │  /predict /metrics ──────────────┘               │
-   │                    │                                                 │
-   │                    ▼ (NetworkPolicy: MLflow/MinIO only, no Postgres) │
-   │       platform-local: MLflow ──> PostgreSQL (PVC)                    │
-   │                            └──> MinIO      (PVC)                     │
-   └────────────────────────────────────────────────────────────────────┘
+                                              client
+                                                │
+                                                ▼
+┌────────────────────── Git (source of truth) ─────────────────────────────────┐
+│  helm/ml-platform/   helm/platform-local/   gitops/   infra/terraform/       │
+└──────────────────────────────────────────────────────────────────────────────┘
+                          │  poll ~3 min · watch + self-heal ~1.4 s
+                   ┌──────▼──────┐
+                   │   Argo CD   │   Applications: platform-local, inference-local
+                   └──────┬──────┘
+                          │ apply
+┌───────────────────── kind cluster · Pod Security Standards: restricted ──────────────────────┐
+│                                                                                              │
+│ namespace: ml-platform ──────────────────────────────────────────────────────────────────────│
+│                                                                                              │
+│  Service ──▶ inference    Deployment · HPA 2↔6 on CPU · PDB minAvailable=1                   │
+│                  │  GET /health   GET /ready   POST /predict   GET /metrics                  │
+│                  │                                                                           │
+│                  │  NetworkPolicy: default-deny + explicit allow-list                        │
+│                  ├── allowed ──▶ MLflow ──▶ PostgreSQL   StatefulSet, PVC                    │
+│                  │                     └──▶ MinIO        StatefulSet, PVC                    │
+│                  └── denied  ──▶ PostgreSQL directly                                         │
+│                                                                                              │
+│ namespace: observability ────────────────────────────────────────────────────────────────────│
+│                                                                                              │
+│  Prometheus ── scrapes /metrics ──▶ inference (above)                                        │
+│  Prometheus ──▶ Grafana        Prometheus ──▶ Alertmanager  5 rules, promtool-tested         │
+│                                                                                              │
+└──────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
+- **Git** — the only source of truth. `helm/ml-platform` (the inference
+  chart), `helm/platform-local` (MLflow/PostgreSQL/MinIO), `gitops/`
+  (the two Argo Applications) and `infra/terraform` (AWS design, unapplied).
+- **Argo CD** — two Applications, `platform-local` and `inference-local`,
+  each polling Git independently (default ~3 min) and watching live cluster
+  state continuously, so a manual `kubectl` edit is reverted in ~1.4 s —
+  far faster than a Git-driven rollout, because that path is watch-based
+  rather than polled ([M4](evidence/m4/argocd-drift-reconciliation.md)).
 - **inference** — FastAPI service, autoscaled 2–6 replicas by an HPA on CPU,
-  protected by a PodDisruptionBudget (`minAvailable: 1`). Reaches only MLflow
-  and MinIO under NetworkPolicy — not PostgreSQL directly.
-- **platform-local** — MLflow, PostgreSQL and MinIO, PVC-backed
-  ([M8](evidence/m8/gate.md)), local-only and never applied to AWS.
-- **Argo CD** — two Applications (`platform-local`, `inference-local`) poll
-  Git and self-heal live drift ([M4](evidence/m4/argocd-drift-reconciliation.md)).
-- **Prometheus / Grafana** — scrape `inference`'s `/metrics`; alerting rules
-  are unit-tested with `promtool` before being loaded ([M10](evidence/m10/gate.md)).
+  protected by a PodDisruptionBudget (`minAvailable: 1`)
+  ([M10](evidence/m10/gate.md)). NetworkPolicy lets it reach MLflow and MinIO
+  only — a direct path to PostgreSQL is explicitly denied and verified, not
+  just assumed ([M9](evidence/m9/gate.md)).
+- **platform-local** — MLflow, PostgreSQL and MinIO, all PVC-backed; a
+  destructive drill (delete the volumes, restore from backup) leaves the
+  registry byte-identical ([M8](evidence/m8/gate.md)). Local-only, never
+  applied to AWS.
+- **Prometheus / Grafana / Alertmanager** — Prometheus scrapes `inference`'s
+  `/metrics`; every dashboard query is checked against live data rather than
+  trusted on sight, and all 5 alert rules are unit-tested with `promtool`
+  before being loaded ([M10](evidence/m10/gate.md)).
 
 ## API
 

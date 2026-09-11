@@ -46,25 +46,46 @@ destroyed first, then `local-up` → `local-test` from the repo alone.
 ## Architecture
 
 ```
-                       ┌──────────── Git (source of truth) ────────────┐
-                       │  helm/*/  gitops/  infra/terraform/           │
-                       └───────────────────────┬───────────────────────┘
-                                               │ poll / self-heal
-                                        ┌──────▼──────┐
-                                        │   Argo CD   │
-                                        └──────┬──────┘
-                                               │
-   ┌───────────────────────── kind cluster (PSS: restricted) ─────────────┐
-   │  Service ──> inference (HPA 2-6, PDB min 1)   Prometheus ──> Grafana │
-   │       NetworkPolicy: default-deny + allow-list                      │
-   │       platform-local: MLflow ──> PostgreSQL (PVC)                   │
-   │                            └──> MinIO      (PVC)                    │
-   └───────────────────────────────────────────────────────────────────────┘
+                                              client
+                                                │
+                                                ▼
+┌────────────────────── Git (source of truth) ─────────────────────────────────┐
+│  helm/ml-platform/   helm/platform-local/   gitops/   infra/terraform/       │
+└──────────────────────────────────────────────────────────────────────────────┘
+                          │  poll ~3 min · watch + self-heal ~1.4 s
+                   ┌──────▼──────┐
+                   │   Argo CD   │   Applications: platform-local, inference-local
+                   └──────┬──────┘
+                          │ apply
+┌───────────────────── kind cluster · Pod Security Standards: restricted ──────────────────────┐
+│                                                                                              │
+│ namespace: ml-platform ──────────────────────────────────────────────────────────────────────│
+│                                                                                              │
+│  Service ──▶ inference    Deployment · HPA 2↔6 on CPU · PDB minAvailable=1                   │
+│                  │  GET /health   GET /ready   POST /predict   GET /metrics                  │
+│                  │                                                                           │
+│                  │  NetworkPolicy: default-deny + explicit allow-list                        │
+│                  ├── allowed ──▶ MLflow ──▶ PostgreSQL   StatefulSet, PVC                    │
+│                  │                     └──▶ MinIO        StatefulSet, PVC                    │
+│                  └── denied  ──▶ PostgreSQL directly                                         │
+│                                                                                              │
+│ namespace: observability ────────────────────────────────────────────────────────────────────│
+│                                                                                              │
+│  Prometheus ── scrapes /metrics ──▶ inference (above)                                        │
+│  Prometheus ──▶ Grafana        Prometheus ──▶ Alertmanager  5 rules, promtool-tested         │
+│                                                                                              │
+└──────────────────────────────────────────────────────────────────────────────────────────────┘
 ```
 
 Everything runs inside the cluster; Docker Compose was retired in
-[M7](docs/evidence/m7/gate.md). Full diagram, the `/health` vs `/ready`
-design decision, and the repository layout:
+[M7](docs/evidence/m7/gate.md). Argo CD watches live cluster state
+continuously (drift reverted in ~1.4 s) and polls Git independently (default
+~3 min) — the two paths have very different latency, which is why a Git
+commit lands slower than a manual edit gets reverted
+([M4](docs/evidence/m4/argocd-drift-reconciliation.md)). NetworkPolicy denies
+`inference → PostgreSQL` directly, verified rather than assumed
+([M9](docs/evidence/m9/gate.md)). Full component notes, the `/health` vs
+`/ready` design decision, and the repository layout:
 [`docs/architecture.md`](docs/architecture.md).
 
 ## Key results
