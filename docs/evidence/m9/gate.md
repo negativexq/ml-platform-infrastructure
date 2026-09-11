@@ -166,7 +166,7 @@ declare itself.)
 | trivy gate (fixable HIGH/CRITICAL) | PASS (0 across all images) |
 | trivy secret scan | PASS (clean) |
 | MLflow on a version with all CVE fixes | PASS (3.15.0) |
-| CI jobs added | PASS (`security`, `image-scan` with SBOM) |
+| CI jobs added | PASS locally at the time — **but see correction below** |
 | Pod Security Standards enforced (`restricted`) | PASS (all workloads comply) |
 
 ## Not done
@@ -174,3 +174,18 @@ declare itself.)
 - `readOnlyRootFilesystem` on the stateful services — they write outside their
   data volume; would need tmpfs mounts for `/var/run`, `/tmp`, lock dirs.
 - No runtime security (Falco). Out of scope for a lab.
+
+## Correction (added 2026-09-11)
+
+The "CI jobs added" row above was wrong to mark plain `PASS`. The transcript
+shown is `scripts/security-scan.sh` run **locally** — that part is real. But
+the actual GitHub Actions `image-scan` job never ran successfully: it pinned
+`aquasecurity/trivy-action@0.28.0`, a tag that doesn't exist (the project
+uses a `v` prefix — `v0.28.0`). Every push from this commit through M12 failed
+at "Set up job" before a single Trivy scan executed on GitHub. Six commits
+worth of gates were closed without anyone checking `gh run list`.
+
+Found and fixed 2026-09-11, prompted by the user asking to check CI after an
+unrelated conversation. Pinned to `v0.36.0`; run
+[34602280694](https://github.com/negativexq/ml-platform-infrastructure/actions/runs/34602280694)
+is the first green CI on this repository since M9.
