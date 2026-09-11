@@ -2,7 +2,7 @@
         platform-up mlflow-ui kind-up kind-down smoke k8s-logs \
         helm-lint helm-template helm-deploy helm-rollback helm-history \
         argocd-up argocd-ui argocd-status backup restore drill-persistence drill-backup-restore \
-        observability-up grafana prometheus verify-dashboards \
+        observability-up grafana prometheus verify-dashboards security-scan drill-netpol \
         tf-fmt tf-validate tf-lint tf-check
 
 IMAGE ?= ml-platform-inference:dev
@@ -106,6 +106,13 @@ argocd-ui:
 	@echo "https://localhost:8080  (user: admin)"
 	@echo "password: kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath='{.data.password}' | base64 -d"
 	kubectl -n argocd port-forward svc/argocd-server 8080:443
+
+## M9 security
+security-scan:
+	./scripts/security-scan.sh
+
+drill-netpol:
+	./scripts/drills/network-policy.sh
 
 ## M5 observability
 observability-up:

@@ -37,25 +37,31 @@ spec:
         {{- include "platform-local.labels" . | nindent 8 }}
         app.kubernetes.io/name: mlflow
     spec:
+      automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
         seccompProfile:
           type: RuntimeDefault
-      # MLflow needs Postgres and the bucket before it will start cleanly.
+      # Wait for Postgres, then run the schema migration explicitly. The
+      # tracking server only auto-migrates an empty DB on a cold start; if the
+      # database is replaced under a running pod (an M8 restore, a wiped PVC)
+      # the server never notices. Running `mlflow db upgrade` here — idempotent
+      # — makes every pod start leave the schema correct.
       initContainers:
-        - name: wait-for-postgres
-          image: {{ .Values.postgres.image }}
+        - name: db-migrate
+          image: {{ .Values.mlflow.image }}
+          imagePullPolicy: {{ .Values.mlflow.imagePullPolicy }}
           command:
             - /bin/sh
             - -c
             - |
-              until pg_isready -h platform-postgres -U {{ .Values.postgres.auth.username }}; do
+              until python -c "import socket; socket.create_connection(('platform-postgres', 5432), 5)" 2>/dev/null; do
                 echo "waiting for postgres..."; sleep 3
               done
+              mlflow db upgrade "{{ include "platform-local.postgresUri" . }}"
           securityContext:
             allowPrivilegeEscalation: false
-            runAsUser: 70
             capabilities:
               drop: ["ALL"]
       containers:
@@ -72,6 +78,7 @@ spec:
             - --workers=1
             - --backend-store-uri={{ include "platform-local.postgresUri" . }}
             - --default-artifact-root=s3://{{ .Values.minio.bucket }}/
+            - --allowed-hosts={{ join "," .Values.mlflow.allowedHosts }}
           env:
             - name: MLFLOW_S3_ENDPOINT_URL
               value: http://platform-minio:9000

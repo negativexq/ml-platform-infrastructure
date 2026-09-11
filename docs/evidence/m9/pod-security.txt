@@ -1,0 +1,6 @@
+workload               nonRoot noToken noPrivEsc dropALL seccomp        roRootFS
+ml-platform-inference  True    SA      True      True    RuntimeDefault True
+ml-platform-inference  True    SA      True      True    RuntimeDefault True
+platform-minio-0       True    yes     True      True    RuntimeDefault None
+platform-mlflow        True    yes     True      True    RuntimeDefault None
+platform-postgres-0    True    yes     True      True    RuntimeDefault None

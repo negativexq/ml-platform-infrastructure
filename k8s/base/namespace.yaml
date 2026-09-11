@@ -4,3 +4,10 @@ metadata:
   name: ml-platform
   labels:
     app.kubernetes.io/part-of: ml-platform
+    # Pod Security Standards: reject anything that is not "restricted" —
+    # non-root, seccomp, all capabilities dropped, no privilege escalation.
+    # Every workload in this namespace already complies (docs/evidence/m9).
+    pod-security.kubernetes.io/enforce: restricted
+    pod-security.kubernetes.io/enforce-version: latest
+    pod-security.kubernetes.io/warn: restricted
+    pod-security.kubernetes.io/audit: restricted

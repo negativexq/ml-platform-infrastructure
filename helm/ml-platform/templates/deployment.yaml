@@ -67,6 +67,15 @@ spec:
             {{- toYaml .Values.resources | nindent 12 }}
           securityContext:
             {{- toYaml .Values.containerSecurityContext | nindent 12 }}
+          {{- if .Values.containerSecurityContext.readOnlyRootFilesystem }}
+          volumeMounts:
+            # MLflow's artifact download writes to a temp dir; with a
+            # read-only root filesystem it needs a writable scratch mount.
+            - name: tmp
+              mountPath: /tmp
+            - name: cache
+              mountPath: /home/appuser/.cache
+          {{- end }}
           {{- if .Values.preStopSleepSeconds }}
           lifecycle:
             preStop:
@@ -104,4 +113,11 @@ spec:
       {{- with .Values.affinity }}
       affinity:
         {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if .Values.containerSecurityContext.readOnlyRootFilesystem }}
+      volumes:
+        - name: tmp
+          emptyDir: {}
+        - name: cache
+          emptyDir: {}
       {{- end }}

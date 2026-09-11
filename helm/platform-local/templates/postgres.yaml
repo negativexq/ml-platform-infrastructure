@@ -59,6 +59,7 @@ spec:
         {{- include "platform-local.labels" . | nindent 8 }}
         app.kubernetes.io/name: postgres
     spec:
+      automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
         runAsUser: 70

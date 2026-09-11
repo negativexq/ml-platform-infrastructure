@@ -36,6 +36,9 @@ logging:
   level: INFO
   json: true
 
+networkPolicy:
+  enabled: true
+
 metrics:
   serviceMonitor:
     enabled: true

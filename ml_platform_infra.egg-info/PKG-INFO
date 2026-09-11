@@ -11,7 +11,7 @@ Requires-Dist: scikit-learn>=1.5
 Requires-Dist: numpy>=2.1
 Requires-Dist: joblib>=1.4
 Requires-Dist: structlog>=24.4
-Requires-Dist: mlflow-skinny==2.19.0
+Requires-Dist: mlflow-skinny==3.15.0
 Requires-Dist: boto3>=1.35
 Requires-Dist: pandas>=2.2
 Requires-Dist: skops>=0.10
@@ -23,5 +23,5 @@ Requires-Dist: ruff>=0.7; extra == "dev"
 Requires-Dist: mypy>=1.13; extra == "dev"
 Requires-Dist: requests>=2.32; extra == "dev"
 Provides-Extra: train
-Requires-Dist: mlflow==2.19.0; extra == "train"
+Requires-Dist: mlflow==3.15.0; extra == "train"
 Requires-Dist: pandas>=2.2; extra == "train"

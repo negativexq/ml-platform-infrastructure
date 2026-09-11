@@ -6,6 +6,12 @@
 nameOverride: ""
 commonLabels: {}
 
+# M9: kindnet enforces standard NetworkPolicy (docs/evidence/m7). These lock
+# the namespace to a default-deny with explicit allows.
+networkPolicy:
+  enabled: true
+  monitoringNamespace: observability
+
 # ---------------------------------------------------------------------------
 postgres:
   image: postgres:16-alpine
@@ -47,12 +53,29 @@ minio:
 mlflow:
   image: ml-platform-mlflow:local
   imagePullPolicy: IfNotPresent
+  # MLflow 3.x re-introduced Host-header (DNS-rebinding) protection. Every name
+  # a client may use to reach the server has to be listed.
+  allowedHosts:
+    - platform-mlflow
+    - platform-mlflow:5000
+    - platform-mlflow.ml-platform.svc.cluster.local
+    - platform-mlflow.ml-platform.svc.cluster.local:5000
+    - localhost
+    - localhost:5000
+    - localhost:30500
+    - 127.0.0.1
+    - 127.0.0.1:5000
+    - 127.0.0.1:30500
   resources:
     requests:
       cpu: 100m
-      memory: 256Mi
+      # MLflow 3.15 (first release with all 7 CVE fixes) has a ~1.4 GiB memory
+      # floor from its bundled job/genai subsystem. Earlier, lighter versions
+      # ship known CRITICAL path-traversal and command-execution bugs, so the
+      # memory cost is accepted. See docs/evidence/m9/gate.md.
+      memory: 512Mi
     limits:
-      memory: 640Mi
+      memory: 1792Mi
   # Exposed on the host via kind's extraPortMappings, for `mlflow ui` and for
   # running training from a laptop against the in-cluster server.
   nodePort: 30500

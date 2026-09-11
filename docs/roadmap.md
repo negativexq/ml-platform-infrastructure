@@ -17,7 +17,7 @@ each local dependency for its managed counterpart and re-runs the same gates.
 | M6 | AWS migration'ı IaC olarak tasarlamak | Terraform foundation | ✅ |
 | M7 | Full local Kubernetes platform | Bütün lifecycle kind üzerinde, Compose'suz | ✅ |
 | M8 | Stateful persistence & recovery | Restart/restore sonrası veri kaybı yok | ✅ |
-| M9 | Security hardening | RBAC + NetworkPolicy allow/deny + image scan gates | ⬜ |
+| M9 | Security hardening | RBAC + NetworkPolicy allow/deny + image scan gates | ✅ |
 | M10 | Scaling, SLO & alerting | HPA + load + PDB + tested alert rules | ⬜ |
 | M11 | End-to-end reproducibility | Fresh cluster tek komutla acceptance PASS | ⬜ |
 | M12 | Local Release Candidate | `local-v1.0.0` freeze | ⬜ |

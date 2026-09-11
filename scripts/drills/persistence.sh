@@ -12,7 +12,9 @@ MC_IMAGE="minio/mc:RELEASE.2024-09-16T17-43-14Z"
 pg() { kubectl -n "$NS" exec platform-postgres-0 -- psql -U mlflow -d mlflow -tA -c "$1"; }
 
 mc() {
+  # The minio-shell label is what the NetworkPolicy allows to reach MinIO.
   kubectl -n "$NS" run "mc-$RANDOM" --rm -i --restart=Never --image="$MC_IMAGE" \
+    --labels="app.kubernetes.io/name=minio-shell" \
     --env=HOME=/tmp --quiet --command -- sh -c \
     "mc alias set l http://platform-minio:9000 minioadmin minioadmin >/dev/null && $1" 2>/dev/null
 }

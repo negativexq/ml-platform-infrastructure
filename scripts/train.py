@@ -77,9 +77,13 @@ def main() -> None:
 
         mlflow.sklearn.log_model(
             sk_model=model,
-            artifact_path="model",
+            name="model",
             input_example=x_test[:2],
             registered_model_name=args.register,
+            # Pin the on-disk format: MLflow 3.x defaults to skops, which the
+            # serving side would need an extra dependency to read. cloudpickle
+            # is understood by a plain mlflow install.
+            serialization_format="cloudpickle",
         )
 
         print(f"run_id={run.info.run_id}")

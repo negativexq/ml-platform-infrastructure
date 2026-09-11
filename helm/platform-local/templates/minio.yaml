@@ -63,6 +63,7 @@ spec:
         {{- include "platform-local.labels" . | nindent 8 }}
         app.kubernetes.io/name: minio
     spec:
+      automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000
@@ -140,6 +141,7 @@ spec:
         app.kubernetes.io/name: minio-createbucket
     spec:
       restartPolicy: OnFailure
+      automountServiceAccountToken: false
       securityContext:
         runAsNonRoot: true
         runAsUser: 1000

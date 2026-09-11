@@ -1,0 +1,108 @@
+{{- if .Values.networkPolicy.enabled }}
+{{- /*
+  Namespace security model. kindnet enforces standard NetworkPolicy (verified
+  in docs/evidence/m7/gate.md), so these are real, not decorative.
+
+  default-deny-ingress   : nothing reaches any pod unless a policy allows it
+  postgres               : only MLflow may connect (5432)
+  minio                  : MLflow, inference, training, the backup shell (9000/9001)
+  mlflow                 : inference, training, the monitoring namespace, and
+                           node-port traffic (5000)
+
+  The inference pod is deliberately absent from the postgres allow-list: the
+  application has no business talking to the metadata database directly, and
+  scripts/drills/network-policy.sh proves it cannot.
+*/}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: default-deny-ingress
+  labels:
+    {{- include "platform-local.labels" . | nindent 4 }}
+spec:
+  podSelector: {}
+  policyTypes: [Ingress]
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-postgres
+  labels:
+    {{- include "platform-local.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: postgres
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: mlflow
+      ports:
+        - { protocol: TCP, port: 5432 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-minio
+  labels:
+    {{- include "platform-local.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: minio
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: mlflow
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ml-platform
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: train
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: minio-shell
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: minio-createbucket
+      ports:
+        - { protocol: TCP, port: 9000 }
+        - { protocol: TCP, port: 9001 }
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-mlflow
+  labels:
+    {{- include "platform-local.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: mlflow
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: ml-platform
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: train
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.monitoringNamespace }}
+      ports:
+        - { protocol: TCP, port: 5000 }
+    # Node-port / kube-proxy traffic arrives with the node IP as source, which
+    # no podSelector matches; allow it explicitly so the MLflow UI works.
+    - from:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+      ports:
+        - { protocol: TCP, port: 5000 }
+{{- end }}

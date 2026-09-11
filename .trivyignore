@@ -1,0 +1,34 @@
+# Suppressions for the trivy image scan. The CI gate runs with
+# --ignore-unfixed, so it already fails only on vulnerabilities that HAVE a
+# fix; this file removes two remaining classes of unactionable noise.
+#
+# Reviewed: 2026-09-11
+
+# ---------------------------------------------------------------------------
+# 1. Unfixed base-image CVEs — Debian trixie (python:3.12-slim).
+#    Every entry is `fixed: none` upstream. They live in packages the
+#    workloads never invoke: perl is never executed, no setuid binary is
+#    used, no interactive login exists. Re-review when the base is bumped.
+
+# perl-base — no perl in any code path
+CVE-2026-13221
+CVE-2026-42496
+CVE-2026-8376
+
+# util-linux / mount / login / bsdutils — setuid mount/login CVEs; containers
+# run as non-root with no setuid use.
+CVE-2024-28085
+CVE-2025-5222
+
+# ---------------------------------------------------------------------------
+# 2. pip's vendored copies (pip/_vendor/): pip bundles its own msgpack and
+#    setuptools, pinned old in pip/_vendor/vendor.txt. The *runtime* packages
+#    the app imports are patched (msgpack 1.2.2, setuptools 84.0.0 — verified
+#    in the image filesystem). pip itself is never invoked at container
+#    runtime. Both CVEs require running pip/setuptools against hostile input.
+
+# msgpack — out-of-bounds read; only the vendored 1.1.2 under pip/_vendor
+GHSA-6v7p-g79w-8964
+
+# setuptools — path traversal in PackageIndex; only the vendored 70.3.0
+CVE-2025-47273

@@ -52,6 +52,10 @@ logging:
 
 # Prometheus scraping. The ServiceMonitor needs the Prometheus Operator CRDs,
 # so it is opt-in per environment.
+networkPolicy:
+  enabled: false
+  monitoringNamespace: observability
+
 metrics:
   path: /metrics
   serviceMonitor:
@@ -130,7 +134,7 @@ podSecurityContext:
 
 containerSecurityContext:
   allowPrivilegeEscalation: false
-  readOnlyRootFilesystem: false
+  readOnlyRootFilesystem: true
   capabilities:
     drop: ["ALL"]
 

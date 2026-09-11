@@ -85,3 +85,67 @@ jobs:
       # No `terraform apply` and no `terraform plan` here on purpose: nothing
       # in CI holds AWS credentials, so nothing in CI can create billable
       # infrastructure. Adding plan means adding a read-only role first.
+
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: azure/setup-helm@v4
+      - name: kubeconform — rendered manifests are valid Kubernetes
+        run: |
+          curl -sSL -o /tmp/kc.tar.gz \
+            https://github.com/yannh/kubeconform/releases/download/v0.8.0/kubeconform-linux-amd64.tar.gz
+          tar -C /usr/local/bin -xzf /tmp/kc.tar.gz kubeconform
+          for chart in helm/ml-platform helm/platform-local; do
+            vals=""
+            [ -f "$chart/values-local.yaml" ] && vals="--values $chart/values-local.yaml"
+            helm template x "$chart" $vals \
+              | kubeconform -strict -summary -skip ServiceMonitor \
+                  -schema-location default \
+                  -schema-location 'https://raw.githubusercontent.com/datreeio/CRDs-catalog/main/{{.Group}}/{{.ResourceKind}}_{{.ResourceAPIVersion}}.json'
+          done
+
+  image-scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - name: build images
+        run: |
+          docker build -t ml-platform-inference:ci .
+          docker build -t ml-platform-mlflow:ci docker/mlflow
+          docker build -t ml-platform-training:ci -f docker/training/Dockerfile .
+      - name: trivy — fail on FIXABLE HIGH/CRITICAL only
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: image
+          image-ref: ml-platform-inference:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          trivyignores: .trivyignore
+      - name: trivy — mlflow image
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: image
+          image-ref: ml-platform-mlflow:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          trivyignores: .trivyignore
+      - name: trivy — training image
+        uses: aquasecurity/trivy-action@0.28.0
+        with:
+          scan-type: image
+          image-ref: ml-platform-training:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+          trivyignores: .trivyignore
+      - name: syft — SBOM for the inference image
+        uses: anchore/sbom-action@v0
+        with:
+          image: ml-platform-inference:ci
+          format: spdx-json
+          artifact-name: inference-sbom.spdx.json

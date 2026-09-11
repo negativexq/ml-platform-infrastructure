@@ -6,7 +6,7 @@ scikit-learn>=1.5
 numpy>=2.1
 joblib>=1.4
 structlog>=24.4
-mlflow-skinny==2.19.0
+mlflow-skinny==3.15.0
 boto3>=1.35
 pandas>=2.2
 skops>=0.10
@@ -20,5 +20,5 @@ mypy>=1.13
 requests>=2.32
 
 [train]
-mlflow==2.19.0
+mlflow==3.15.0
 pandas>=2.2

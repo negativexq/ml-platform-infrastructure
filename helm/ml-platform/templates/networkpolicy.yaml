@@ -1,0 +1,31 @@
+{{- if .Values.networkPolicy.enabled }}
+{{- /*
+  Ingress to the inference pods. A namespace-wide default-deny (rendered by the
+  platform-local chart) means this allow is required for the Service to route
+  at all. Egress is left open: the pod must reach MLflow, MinIO and kube-dns,
+  and the meaningful restriction — that it cannot reach PostgreSQL — is
+  enforced on the PostgreSQL side, proven by scripts/drills/network-policy.sh.
+*/}}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ include "ml-platform.fullname" . }}
+  labels:
+    {{- include "ml-platform.labels" . | nindent 4 }}
+spec:
+  podSelector:
+    matchLabels:
+      {{- include "ml-platform.selectorLabels" . | nindent 6 }}
+  policyTypes: [Ingress]
+  ingress:
+    # Node-port traffic (source = node IP after SNAT) and the monitoring
+    # namespace's Prometheus both need /predict and /metrics on 8000.
+    - from:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.monitoringNamespace }}
+      ports:
+        - { protocol: TCP, port: 8000 }
+{{- end }}

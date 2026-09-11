@@ -1,0 +1,13 @@
+NetworkPolicy matrix (5 policies active)
+
+   OK   ml-platform→platform-mlflow :5000                  -> ALLOW
+   OK   ml-platform→platform-minio :9000                  -> ALLOW
+   OK   ml-platform→platform-postgres :5432                  -> DENY
+   OK   train→platform-mlflow    :5000                  -> ALLOW
+   OK   train→platform-postgres  :5432                  -> DENY
+   OK   mlflow→platform-postgres :5432                  -> ALLOW
+   OK   mlflow→platform-minio    :9000                  -> ALLOW
+   OK   →platform-postgres       :5432                  -> DENY
+   OK   →platform-minio          :9000                  -> DENY
+
+all edges match the intended matrix
