@@ -15,7 +15,7 @@ into a Helm value.
 $ make kind-up
 ==> Creating kind cluster 'ml-platform' (idempotent)
 ==> Detecting the address kind nodes use to reach the host
-platform host: 172.21.0.1
+platform host: 172.21.0.1  # Docker-assigned kind bridge gateway; machine-specific, not stable
 ==> Ensuring the M1 platform accepts requests from that address
 ==> Building and loading the image into the cluster
 ==> Applying manifests

@@ -24,7 +24,7 @@ kind: Deployment
 
 ```
 $ make helm-deploy
-platform host: 172.21.0.1
+platform host: 172.21.0.1  # Docker-assigned kind bridge gateway; machine-specific, not stable
 Release "inference" has been upgraded. Happy Helming!
 STATUS: deployed
 
