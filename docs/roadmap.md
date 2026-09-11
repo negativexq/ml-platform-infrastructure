@@ -20,7 +20,7 @@ each local dependency for its managed counterpart and re-runs the same gates.
 | M9 | Security hardening | RBAC + NetworkPolicy allow/deny + image scan gates | ✅ |
 | M10 | Scaling, SLO & alerting | HPA + load + PDB + tested alert rules | ✅ |
 | M11 | End-to-end reproducibility | Fresh cluster tek komutla acceptance PASS | ✅ |
-| M12 | Local Release Candidate | `local-v1.0.0` freeze | ⬜ |
+| M12 | Local Release Candidate | `local-v1.0.0` freeze | ✅ |
 | M13+ | AWS | terraform apply, gerçek EKS/RDS/S3/ECR | ⬜ |
 
 ## Local → AWS dependency swap (the M13 contract)
