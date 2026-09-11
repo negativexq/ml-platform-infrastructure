@@ -15,28 +15,45 @@
 # MLflow's own port 5000 is intentionally reachable from any pod and the node
 # port — it is the shared tracking API/UI. The precise controls are on the
 # metadata database and the object store.
+#
+# The probe pods must themselves satisfy the namespace's Pod Security Standard
+# (M9: `restricted`) — otherwise the API server rejects the pod outright, the
+# probe never runs, and that admission failure is indistinguishable from a
+# real network DENY unless it is checked for explicitly. This bit the first
+# run of this script after PSS was enforced: every "should ALLOW" edge came
+# back DENY, because no probe pod was ever admitted. See docs/evidence/m11.
 set -euo pipefail
 
 NS="${NAMESPACE:-ml-platform}"
 FAIL=0
 
+PSS_SECURITY_CONTEXT='"securityContext":{"runAsNonRoot":true,"runAsUser":1000,"seccompProfile":{"type":"RuntimeDefault"},"allowPrivilegeEscalation":false,"capabilities":{"drop":["ALL"]}}'
+
 # probe <name> <label-value> <host> <port> <expect: ALLOW|DENY>
 probe() {
   local name="$1" label="$2" host="$3" port="$4" expect="$5"
-  local overrides result
+  local labels_json overrides out result rc
+
   if [[ -n "$label" ]]; then
-    overrides='{"metadata":{"labels":{"app.kubernetes.io/name":"'"$label"'"}}}'
+    labels_json='{"app.kubernetes.io/name":"'"$label"'"}'
   else
-    overrides='{}'
+    labels_json='{}'
   fi
-  # nc exit 0 = connected; timeout/refused = non-zero.
-  if kubectl -n "$NS" run "$name" --rm -i --restart=Never --image=busybox:1.36 \
-       --overrides="$overrides" --timeout=90s --quiet -- \
-       sh -c "nc -z -w4 $host $port" >/dev/null 2>&1; then
-    result=ALLOW
-  else
-    result=DENY
+
+  overrides='{"metadata":{"labels":'"$labels_json"'},"spec":{'"$PSS_SECURITY_CONTEXT"',"containers":[{"name":"'"$name"'","image":"busybox:1.36","command":["sh","-c","nc -z -w4 '"$host"' '"$port"'"],'"$PSS_SECURITY_CONTEXT"'}]}}'
+
+  out=$(kubectl -n "$NS" run "$name" --rm -i --restart=Never --image=busybox:1.36 \
+          --overrides="$overrides" --timeout=90s --quiet 2>&1) && rc=0 || rc=$?
+
+  if grep -qE "Forbidden|violates PodSecurity" <<<"$out"; then
+    printf '  \033[31mERROR\033[0m %-26s pod rejected by admission control (not a network result):\n          %s\n' \
+      "$label→${host%%.*}" "$(head -1 <<<"$out")"
+    FAIL=1
+    return
   fi
+
+  [[ $rc -eq 0 ]] && result=ALLOW || result=DENY
+
   if [[ "$result" == "$expect" ]]; then
     printf '  \033[32m OK \033[0m  %-26s %-22s -> %s\n' "$label→${host%%.*}" ":$port" "$result"
   else

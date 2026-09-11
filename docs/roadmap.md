@@ -19,7 +19,7 @@ each local dependency for its managed counterpart and re-runs the same gates.
 | M8 | Stateful persistence & recovery | Restart/restore sonrası veri kaybı yok | ✅ |
 | M9 | Security hardening | RBAC + NetworkPolicy allow/deny + image scan gates | ✅ |
 | M10 | Scaling, SLO & alerting | HPA + load + PDB + tested alert rules | ✅ |
-| M11 | End-to-end reproducibility | Fresh cluster tek komutla acceptance PASS | ⬜ |
+| M11 | End-to-end reproducibility | Fresh cluster tek komutla acceptance PASS | ✅ |
 | M12 | Local Release Candidate | `local-v1.0.0` freeze | ⬜ |
 | M13+ | AWS | terraform apply, gerçek EKS/RDS/S3/ECR | ⬜ |
 

@@ -121,7 +121,7 @@
       },
       "targets": [
         {
-          "expr": "sum(rate(http_requests_total{job=\"ml-platform-inference\",status=~\"5..\"}[5m])) / clamp_min(sum(rate(http_requests_total{job=\"ml-platform-inference\"}[5m])), 0.0001)",
+          "expr": "(sum(rate(http_requests_total{job=\"ml-platform-inference\",status=~\"5..\"}[5m])) or vector(0)) / clamp_min(sum(rate(http_requests_total{job=\"ml-platform-inference\"}[5m])), 0.0001)",
           "legendFormat": "5xx share",
           "refId": "A",
           "datasource": {
