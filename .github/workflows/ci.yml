@@ -117,7 +117,7 @@ jobs:
           docker build -t ml-platform-mlflow:ci docker/mlflow
           docker build -t ml-platform-training:ci -f docker/training/Dockerfile .
       - name: trivy — fail on FIXABLE HIGH/CRITICAL only
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: image
           image-ref: ml-platform-inference:ci
@@ -126,7 +126,7 @@ jobs:
           exit-code: "1"
           trivyignores: .trivyignore
       - name: trivy — mlflow image
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: image
           image-ref: ml-platform-mlflow:ci
@@ -135,7 +135,7 @@ jobs:
           exit-code: "1"
           trivyignores: .trivyignore
       - name: trivy — training image
-        uses: aquasecurity/trivy-action@0.28.0
+        uses: aquasecurity/trivy-action@v0.36.0
         with:
           scan-type: image
           image-ref: ml-platform-training:ci
