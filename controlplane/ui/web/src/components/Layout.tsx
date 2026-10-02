@@ -5,10 +5,12 @@ import { go, routes } from '../lib/format';
 import { Palette } from './Palette';
 import { AccountMenu, SignIn, useSignedOut } from './Account';
 import { Modal } from './overlays';
+import { Sidebar, useWhere } from './Sidebar';
 
 const SHORTCUTS: [string, string][] = [
   ['Ctrl/⌘ K  or  /', 'Search everything'],
   ['g then p', 'Go to projects'],
+  ['g then m', 'Go to the platform monitor'],
   ['?', 'Show this help'],
   ['Esc', 'Close a dialog'],
 ];
@@ -21,6 +23,16 @@ export function Layout({ children }: { children: ReactNode }) {
   const [help, setHelp] = useState(false);
   const main = useRef<HTMLElement>(null);
   const pendingG = useRef(0);
+  const [menu, setMenu] = useState(false);
+  const where = useWhere();
+  const place = `${where.top}/${where.project ?? ''}/${where.section}`;
+  useEffect(() => { setMenu(false); }, [place]); // the drawer closes once you have gone somewhere
+  useEffect(() => {
+    if (!menu) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setMenu(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [menu]);
 
   useEffect(() => { setTheme(getTheme()); }, []);
 
@@ -40,6 +52,7 @@ export function Layout({ children }: { children: ReactNode }) {
       } else if (event.key === '?') setHelp(true);
       else if (event.key === 'g') pendingG.current = Date.now();
       else if (event.key === 'p' && Date.now() - pendingG.current < 1200) { go(routes.projects()); pendingG.current = 0; }
+      else if (event.key === 'm' && Date.now() - pendingG.current < 1200) { go(routes.monitor()); pendingG.current = 0; }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
@@ -49,7 +62,16 @@ export function Layout({ children }: { children: ReactNode }) {
     <>
       <a className="skip" href="#view" onClick={(e) => { e.preventDefault(); main.current?.focus(); }}>Skip to content</a>
       <header className="topbar">
-        <a className="brand" href={routes.projects()}>ML Platform</a>
+        {!signedOut && (
+          <button className="btn small ghost menu-btn" type="button" aria-label="Menu" aria-controls="sidebar" aria-expanded={menu}
+            data-testid="menu-btn" onClick={() => setMenu(!menu)}><span aria-hidden="true">☰</span></button>)}
+        <a className="brand" href={routes.projects()}>
+          <svg className="logo" width="22" height="22" viewBox="0 0 22 22" aria-hidden="true" focusable="false">
+            <rect width="22" height="22" rx="5" fill="var(--accent)" />
+            <path d="M5.5 15.5v-9l5.5 6 5.5-6v9" fill="none" stroke="var(--accent-contrast)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+          <span className="brand-name">ML Platform</span>
+        </a>
         <nav id="crumbs" aria-label="Breadcrumb">
           {crumbs.map((c, i) => (
             <span key={i} className="crumb">
@@ -70,7 +92,11 @@ export function Layout({ children }: { children: ReactNode }) {
           onClick={() => { if (!anyDialogOpen()) setHelp(true); }}>?</button>
         <AccountMenu />
       </header>
-      <main id="view" ref={main} tabIndex={-1}>{signedOut ? <SignIn signInUrl={signedOut.signInUrl} /> : children}</main>
+      <div className={`shell${signedOut ? ' bare' : ''}`}>
+        {!signedOut && <Sidebar open={menu} />}
+        {menu && <button className="scrim" type="button" aria-label="Close menu" tabIndex={-1} onClick={() => setMenu(false)} />}
+        <main id="view" ref={main} tabIndex={-1}>{signedOut ? <SignIn signInUrl={signedOut.signInUrl} /> : children}</main>
+      </div>
       <Modal open={help} onClose={() => setHelp(false)}>
         <h2>Keyboard shortcuts</h2>
         <dl className="kv">

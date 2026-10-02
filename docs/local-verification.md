@@ -569,6 +569,7 @@ make alert-rules-test               # promtool: inference + control-plane rules
 | 8 | `ServiceMonitor` is picked up (`release: monitoring`), `job` is the service name | **you**: Prometheus → Targets; `honorLabels: true` is what makes `job="mlp-controlplane-reconciler"` |
 | 9 | With the real stack: `ReconcilerStalled` fires after `kubectl scale deploy/reconciler --replicas=0`, clears after scale up | **you** (needs the control plane deployed; its manifests are still in §9) |
 | 10 | Applications reach the Collector (`OTEL_EXPORTER_OTLP_ENDPOINT`) through NetworkPolicy | **you**: `ml-platform` policies may need an egress rule to `observability:4318` |
+| 11 | Monitor page reads the platform's own metrics | **verified** against Prometheus 3.1.0 with promtool-written series (heartbeat, stalled reconciler, error ratios, p95). **You**: with the real stack, open `#/monitor` and scale the reconciler to 0; its heartbeat turns critical within ~3 minutes |
 
 ## 11. Identity gate — OIDC sign-in and project roles
 

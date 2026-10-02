@@ -1003,3 +1003,56 @@ def test_metric_history_api(client: TestClient) -> None:
     assert (
         client.get("/projects/credit-risk/endpoints/credit-risk-prod/metrics/history?minutes=2")
     ).status_code == 422
+
+
+# -- app shell and platform monitor ------------------------------------------------------
+
+
+def test_the_project_switcher_keeps_the_section(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects/credit-risk/models")
+    page.get_by_test_id("project-switcher").select_option("fraud-detection")
+    expect(page).to_have_url(re.compile(r"#/projects/fraud-detection/models$"))
+    expect(page.locator("main h1")).to_have_text("Models")
+    page.locator("[data-nav=monitor]").click()
+    expect(page.locator("[data-nav=monitor]")).to_have_attribute("aria-current", "page")
+    expect(page.get_by_test_id("project-tabs")).to_have_count(0)  # no project, no sections
+
+
+def test_monitor_judges_each_check_against_its_threshold(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/monitor")
+    expect(page.get_by_test_id("platform-status")).to_have_attribute("data-status", "warning")
+    expect(page.get_by_test_id("nav-health")).to_contain_text("Warning")  # visible from anywhere
+    attention = page.get_by_test_id("health-attention")
+    expect(attention).to_contain_text("External system errors for serving")
+    expect(attention).to_contain_text("warn above 1.0%")
+    row = page.locator("[data-check='reconcile_passes:runs']")
+    expect(row).to_contain_text("warn below 1.0/min")
+    expect(row).to_contain_text("Healthy")
+    expect(row.locator("svg.spark")).to_be_visible()
+    expect(page.locator("[data-check='api_requests:']")).to_contain_text("not judged")
+    expect(page.get_by_test_id("inventory").locator("[data-tile=projects] .n")).to_have_text("3")
+    for key in ("api_requests", "api_errors", "api_latency"):
+        expect(page.get_by_test_id(f"trend-{key}").locator("path").first).to_be_visible()
+    page.locator("[data-range='6h']").click()
+    expect(page).to_have_url(re.compile(r"#/monitor\?range=6h$"))
+    page.get_by_test_id("api-table").locator("summary").click()
+    expect(page.get_by_test_id("api-table").locator("tbody tr").first).to_be_visible()
+
+
+def test_the_sidebar_is_a_drawer_on_a_phone(page: Page, server: Server) -> None:
+    page.set_viewport_size({"width": 390, "height": 844})
+    page.goto(f"{server.url}/ui/#/projects/credit-risk")
+    sidebar = page.locator("#sidebar")
+    expect(sidebar).not_to_be_in_viewport()
+    page.get_by_test_id("menu-btn").click()
+    expect(sidebar).to_be_in_viewport()
+    sidebar.locator("[data-tab=runs]").click()
+    expect(page.locator("main h1")).to_have_text("Runs")
+    expect(sidebar).not_to_be_in_viewport()  # closes once you have gone somewhere
+
+
+def test_platform_health_api(client: TestClient) -> None:
+    body = client.get("/platform/health").json()
+    assert body["available"] is True and body["status"] == "warning"
+    assert body["inventory"]["projects"] == 3
+    assert {s["key"] for s in body["signals"]} >= {"reconcile_passes", "api_errors"}

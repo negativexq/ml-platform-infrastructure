@@ -170,6 +170,7 @@ POLICY: dict[tuple[str, str], str | ProjectRole] = {
     ("GET", "/me"): SIGNED_IN,
     ("GET", "/projects"): SIGNED_IN,  # lists only the caller's projects
     ("POST", "/projects"): SIGNED_IN,  # the creator becomes the project's admin
+    ("GET", "/platform/health"): SIGNED_IN,  # inventory counts only the caller's projects
     ("DELETE", "/projects/{project_id}"): ProjectRole.ADMIN,
     ("PUT", "/projects/{project}/models/{name}/thresholds"): ProjectRole.ADMIN,
     ("PUT", "/projects/{project}/members/{subject}"): ProjectRole.ADMIN,

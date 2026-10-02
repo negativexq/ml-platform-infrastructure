@@ -16,8 +16,10 @@ from controlplane.application.providers import (
     NamespaceSpec,
     NamespaceState,
     Observation,
+    PlatformSignal,
     RegisteredVersion,
     RevisionMetrics,
+    Sample,
     ServingSpec,
     ServingState,
     ServingStatus,
@@ -274,6 +276,32 @@ class FakeMetricsProvider:
             )
             for i, group in sorted(buckets.items())
         ]
+
+
+class FakePlatformTelemetry:
+    """Series as functions of time, sampled once per step: (signal, group) -> value or None."""
+
+    def __init__(self) -> None:
+        self.series: dict[tuple[PlatformSignal, str], Callable[[datetime], float | None]] = {}
+        self.fail: str | None = None  # set to make every query raise ConnectionError
+
+    def platform_series(
+        self, signal: PlatformSignal, *, start: datetime, end: datetime, step_seconds: int
+    ) -> Mapping[str, Sequence[Sample]]:
+        if self.fail:
+            raise ConnectionError(self.fail)
+        total = int((end - start).total_seconds())
+        moments = [
+            start + timedelta(seconds=s) for s in range(step_seconds, total + 1, step_seconds)
+        ]
+        out: dict[str, Sequence[Sample]] = {}
+        for (sig, group), value_at in sorted(self.series.items()):
+            if sig is not signal:
+                continue
+            points = [Sample(at, v) for at in moments if (v := value_at(at)) is not None]
+            if points:
+                out[group] = points
+        return out
 
 
 class FakeArtifactProvider:

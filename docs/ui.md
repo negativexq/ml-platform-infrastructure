@@ -22,6 +22,35 @@ rules we adopted (from the `Admin-ui-design` skill):
 * **Friction proportional to blast radius**: confirmations name the consequence; deleting
   a project needs its name typed.
 
+## Layout
+
+An application shell, the same on every page: a top bar (breadcrumbs, search, theme, help,
+account) and a sidebar. The sidebar lists the platform pages (**Projects**, **Monitor**) and,
+inside a project, a project switcher and that project's sections. Switching project keeps the
+section you are on. Content uses the full width (up to 1480px) with dense tables. On a phone
+the sidebar is a drawer behind the menu button and closes once you have navigated.
+
+## Monitor (platform health)
+
+`#/monitor` answers "is the platform itself doing its job?" for whoever is on call for it,
+from `GET /platform/health` (any signed-in user; workload counts cover only their projects).
+
+* **Status**: the worst of all checks that have data, also shown next to *Monitor* in the
+  sidebar when it is a warning or critical, so a problem is visible from any page.
+* **Needs attention**: only the checks over a threshold, with the value, the rule and what
+  it means.
+* **Workload**, from the database: projects not ready, runs in flight, the longest wait to
+  start (a stuck reconciler or a full cluster), failed runs in 24h, deployments, rollouts.
+* **Platform API** charts: traffic, 5xx rate and p95, with the warning threshold drawn.
+* **Checks**: every measure, its scope (a reconciler, an external system), its value now,
+  the rule it is judged by, its status and a sparkline. Signals with many series are table
+  rows with sparklines (small multiples), never a many-coloured chart.
+
+The checks and thresholds live in `controlplane/application/platform.py` and match the alert
+rules in `observability/controlplane-alert-rules.yaml`. A reconciler heartbeat that goes
+silent is critical (it stopped), not "no data". Without `CP_PROMETHEUS_URL` the page says so
+and still shows the workload counts.
+
 ## Charts
 
 Built to the `dataviz` method (form first, colour last, computed not eyeballed):
@@ -33,6 +62,9 @@ Built to the `dataviz` method (form first, colour last, computed not eyeballed):
 | Version comparison (model) | Is the candidate better, against the bar? | dot strip per metric + threshold line | emphasis: champion in the accent, the rest grey |
 | Traffic split (canary) | Where does traffic go now? | stacked bar, 2px gaps, legend | categorical: stable slot 1, canary slot 2 |
 | Step timeline (run) | What ran in parallel, where did the time go? | bars on a shared time axis | status |
+| Serving trends (deployment) | How has each revision served over time, against the gate? | lines, one axis per chart, gate line, event markers | categorical by role |
+| Platform API (monitor) | Is the API answering, fast, without errors? | line per measure, warning threshold line | one series, no legend |
+| Check sparklines (monitor) | Which way is each check going? | 1.5px line in a table cell, threshold dashed | one series |
 
 Every chart has a table twin on the same page, a tooltip on hover **and** keyboard focus, and
 never relies on colour alone. The two categorical colours were validated against our light

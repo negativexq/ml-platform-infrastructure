@@ -243,6 +243,34 @@ class MetricsProvider(Protocol):
         no traffic have no point (or None values): a gap, never a made-up zero."""
 
 
+class PlatformSignal(StrEnum):
+    """The control plane's own health, as its telemetry backend records it."""
+
+    API_REQUESTS = "api_requests"  # requests per second
+    API_ERRORS = "api_errors"  # share of 5xx responses, 0..1
+    API_LATENCY = "api_latency"  # p95, milliseconds
+    RECONCILE_PASSES = "reconcile_passes"  # completed passes per minute, by reconciler
+    RECONCILE_ERRORS = "reconcile_errors"  # share of reconciliations that errored, by reconciler
+    PROVIDER_ERRORS = "provider_errors"  # share of external calls that errored, by system
+    PROVIDER_LATENCY = "provider_latency"  # p95 of external calls in ms, by system
+    TRANSITIONS = "transitions"  # state changes per minute, by entity type
+
+
+@dataclass(frozen=True, slots=True)
+class Sample:
+    at: datetime
+    value: float
+
+
+@runtime_checkable
+class PlatformTelemetry(Protocol):
+    def platform_series(
+        self, signal: PlatformSignal, *, start: datetime, end: datetime, step_seconds: int
+    ) -> Mapping[str, Sequence[Sample]]:
+        """One series per group (a reconciler, an external system...), keyed by the group's
+        name, or by "" for a signal with no groups. Oldest first; no data is a gap."""
+
+
 @runtime_checkable
 class ArtifactProvider(Protocol):
     def exists(self, uri: str) -> bool: ...

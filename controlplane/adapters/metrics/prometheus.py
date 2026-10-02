@@ -13,11 +13,16 @@ import re
 import urllib.error
 import urllib.parse
 import urllib.request
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from typing import Any
 
-from controlplane.application.providers import MetricsPoint, RevisionMetrics
+from controlplane.application.providers import (
+    MetricsPoint,
+    PlatformSignal,
+    RevisionMetrics,
+    Sample,
+)
 
 _SAFE_LABEL = re.compile(r"^[A-Za-z0-9._-]+$")
 TIMEOUT_SECONDS = 5
@@ -106,12 +111,7 @@ class PrometheusMetricsProvider:
         return out
 
     def _get(self, url: str) -> dict[str, Any]:
-        try:
-            with urllib.request.urlopen(url, timeout=TIMEOUT_SECONDS) as response:  # noqa: S310
-                body: dict[str, Any] = json.load(response)
-        except urllib.error.URLError as exc:
-            raise ConnectionError(f"prometheus query failed: {exc}") from exc
-        return body
+        return _get(url)
 
     def _scalar(self, query: str) -> float | None:
         url = f"{self._base}/api/v1/query?{urllib.parse.urlencode({'query': query})}"
@@ -125,3 +125,107 @@ class PrometheusMetricsProvider:
             return None
         value = float(results[0]["value"][1])
         return None if value != value else value  # NaN (e.g. quantile of nothing) -> no data
+
+
+API_JOB = "mlp-controlplane-api"
+RECONCILER_JOB = "mlp-controlplane-reconciler"
+
+
+def _ratio(failed: str, everything: str) -> str:
+    # 0/0 (nothing happened) is NaN, which becomes a gap; no error series at all is 0
+    return f"(({failed}) or ({everything}) * 0) / ({everything})"
+
+
+def platform_queries(window: str) -> dict[PlatformSignal, tuple[str, str]]:
+    """PromQL per signal and the label it is grouped by ("" for none). The same names the
+    alert rules and the Grafana dashboard use."""
+    w = window
+    api = f'job="{API_JOB}"'
+    rec = f'job="{RECONCILER_JOB}"'
+    http = "http_server_request_duration_seconds"
+    runs = "mlp_reconcile_runs_total"
+    calls = "mlp_provider_calls_total"
+    return {
+        PlatformSignal.API_REQUESTS: (f"sum(rate({http}_count{{{api}}}[{w}]))", ""),
+        PlatformSignal.API_ERRORS: (
+            _ratio(
+                f'sum(rate({http}_count{{{api},http_response_status_code=~"5.."}}[{w}]))',
+                f"sum(rate({http}_count{{{api}}}[{w}]))",
+            ),
+            "",
+        ),
+        PlatformSignal.API_LATENCY: (
+            f"1000 * histogram_quantile(0.95, sum by (le) (rate({http}_bucket{{{api}}}[{w}])))",
+            "",
+        ),
+        PlatformSignal.RECONCILE_PASSES: (
+            f"60 * sum by (reconciler) (rate(mlp_reconcile_passes_total{{{rec}}}[{w}]))",
+            "reconciler",
+        ),
+        PlatformSignal.RECONCILE_ERRORS: (
+            _ratio(
+                f'sum by (reconciler) (rate({runs}{{{rec},outcome="error"}}[{w}]))',
+                f"sum by (reconciler) (rate({runs}{{{rec}}}[{w}]))",
+            ),
+            "reconciler",
+        ),
+        PlatformSignal.PROVIDER_ERRORS: (
+            _ratio(
+                f'sum by (provider) (rate({calls}{{outcome="error"}}[{w}]))',
+                f"sum by (provider) (rate({calls}[{w}]))",
+            ),
+            "provider",
+        ),
+        PlatformSignal.PROVIDER_LATENCY: (
+            "1000 * histogram_quantile(0.95, sum by (le, provider) "
+            f"(rate(mlp_provider_duration_seconds_bucket[{w}])))",
+            "provider",
+        ),
+        PlatformSignal.TRANSITIONS: (
+            f"60 * sum by (entity_type) (rate(mlp_state_transitions_total[{w}]))",
+            "entity_type",
+        ),
+    }
+
+
+class PrometheusPlatformTelemetry:
+    """The control plane's own metrics (see controlplane/observability/metrics.py), read back
+    for the Monitor page."""
+
+    def __init__(self, base_url: str, window: str = "5m") -> None:
+        self._base = base_url.rstrip("/")
+        self._queries = platform_queries(window)
+
+    def platform_series(
+        self, signal: PlatformSignal, *, start: datetime, end: datetime, step_seconds: int
+    ) -> Mapping[str, Sequence[Sample]]:
+        query, label = self._queries[signal]
+        params = urllib.parse.urlencode(
+            {
+                "query": query,
+                "start": start.timestamp(),
+                "end": end.timestamp(),
+                "step": f"{step_seconds}s",
+            }
+        )
+        body = _get(f"{self._base}/api/v1/query_range?{params}")
+        out: dict[str, list[Sample]] = {}
+        for result in body.get("data", {}).get("result", []):
+            group = result.get("metric", {}).get(label, "") if label else ""
+            points = [
+                Sample(datetime.fromtimestamp(float(ts), UTC), float(raw))
+                for ts, raw in result["values"]
+                if float(raw) == float(raw)  # NaN: nothing happened, a gap
+            ]
+            if points:
+                out.setdefault(group, []).extend(points)
+        return {group: sorted(points, key=lambda s: s.at) for group, points in sorted(out.items())}
+
+
+def _get(url: str) -> dict[str, Any]:
+    try:
+        with urllib.request.urlopen(url, timeout=TIMEOUT_SECONDS) as response:  # noqa: S310
+            body: dict[str, Any] = json.load(response)
+    except urllib.error.URLError as exc:
+        raise ConnectionError(f"prometheus query failed: {exc}") from exc
+    return body

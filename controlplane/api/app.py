@@ -17,6 +17,7 @@ from controlplane.api.jobs_runs import jobs_router, runs_router
 from controlplane.api.models import model_versions_router, models_router
 from controlplane.api.overview import overview_router
 from controlplane.api.pipelines import pipeline_runs_router, pipelines_router
+from controlplane.api.platform import platform_router
 from controlplane.api.rollouts import rollouts_router
 from controlplane.api.schemas import ErrorOut, ProjectCreate, ProjectList, ProjectOut
 from controlplane.application.deployments import DeploymentService
@@ -27,6 +28,7 @@ from controlplane.application.models import EvaluationService, ModelService, Pro
 from controlplane.application.overview import OverviewService
 from controlplane.application.pipeline_runs import PipelineRunService
 from controlplane.application.pipelines import PipelineService
+from controlplane.application.platform import PlatformService
 from controlplane.application.projects import (
     Clock,
     CreateProject,
@@ -37,6 +39,7 @@ from controlplane.application.projects import (
 from controlplane.application.providers import (
     ExperimentProvider,
     MetricsProvider,
+    PlatformTelemetry,
     ServingProvider,
     WorkflowProvider,
 )
@@ -143,6 +146,7 @@ def create_app(
     ui: bool = True,
     telemetry: TelemetryConfig | None = None,
     auth: AuthConfig | None = None,
+    platform: PlatformTelemetry | None = None,
 ) -> FastAPI:
     """`auth=None` runs without sign-in: every caller is an anonymous platform admin. That is
     for local development, the demo and tests; production passes an `AuthConfig`."""
@@ -170,6 +174,7 @@ def create_app(
     app.state.deployments = DeploymentService(uow_factory, clock, experiments, serving)
     app.state.rollouts = RolloutService(uow_factory, app.state.deployments, clock)
     app.state.overview = OverviewService(uow_factory, serving, metrics, clock)
+    app.state.platform = PlatformService(uow_factory, platform, clock)
     app.state.workflow = workflow
     app.state.experiments = experiments
     app.add_exception_handler(DomainError, handle_domain_error)
@@ -184,6 +189,7 @@ def create_app(
     app.include_router(deployments_router())
     app.include_router(rollouts_router())
     app.include_router(overview_router())
+    app.include_router(platform_router())
     app.include_router(identity_router())
     if auth is not None and auth.login is not None:
         app.include_router(login_router(auth))

@@ -6,7 +6,10 @@ type Entry = { label: string; detail?: string; kind: string; href: string };
 
 async function loadIndex(): Promise<Entry[]> {
   const { items: projects } = await api.get<S['ProjectList']>('/projects?limit=200');
-  const entries: Entry[] = [{ label: 'All projects', kind: 'page', href: routes.projects() }];
+  const entries: Entry[] = [
+    { label: 'All projects', kind: 'page', href: routes.projects() },
+    { label: 'Platform health', detail: 'monitor', kind: 'page', href: routes.monitor() },
+  ];
   await Promise.all(projects.map(async (p) => {
     const base = `/projects/${enc(p.name)}`;
     entries.push({ label: p.display_name, detail: p.name, kind: 'project', href: routes.project(p.name) });

@@ -32,6 +32,7 @@ from controlplane.adapters.fakes import (
     FakeClusterProvider,
     FakeExperimentProvider,
     FakeMetricsProvider,
+    FakePlatformTelemetry,
     FakeServingProvider,
     FakeWorkflowProvider,
 )
@@ -47,6 +48,7 @@ from controlplane.application.providers import (
     ExperimentRun,
     ExternalState,
     MetricsPoint,
+    PlatformSignal,
     RegisteredVersion,
     RevisionMetrics,
 )
@@ -153,6 +155,7 @@ def build_demo(observed: bool = False, auth: AuthConfig | None = None) -> Demo:
         serving=fakes["serving"],
         metrics=fakes["metrics"],
         auth=auth,
+        platform=_platform_telemetry(),
     )
     return Demo(app, clock, rec.all, ids, factory)
 
@@ -217,6 +220,50 @@ def _traffic(
         )
 
     return at
+
+
+def _wave(
+    base: float, *, seed: int, swing: float = 0.1, noise: float = 0.05, floor: float = 0.0
+) -> Callable[[datetime], float | None]:
+    """A smooth, deterministic series around `base` for the platform's own metrics."""
+
+    def at(t: datetime) -> float | None:
+        s = t.timestamp()
+        rng = random.Random(int(s // 15) * 104729 + seed)
+        drift = swing * (math.sin(s / 900 + seed) + 0.5 * math.sin(s / 241 + 3 * seed))
+        return max(floor, base * (1 + drift + noise * (rng.random() - 0.5)))
+
+    return at
+
+
+def _platform_telemetry() -> FakePlatformTelemetry:
+    """The control plane's own health as Prometheus would report it: busy but fine, except
+    that the serving backend fails a little more often than it should (a warning)."""
+    fake = FakePlatformTelemetry()
+    sig = PlatformSignal
+    fake.series[(sig.API_REQUESTS, "")] = _wave(4.2, seed=1, swing=0.25)
+    fake.series[(sig.API_ERRORS, "")] = _wave(0.002, seed=2, swing=0.5, noise=0.15)
+    fake.series[(sig.API_LATENCY, "")] = _wave(120, seed=3, swing=0.15)
+    reconcilers = ("projects", "runs", "pipeline_runs", "deployments", "rollouts", "model_aliases")
+    for i, name in enumerate(reconcilers):
+        fake.series[(sig.RECONCILE_PASSES, name)] = _wave(5.6, seed=10 + i, swing=0.03)
+        errors = 0.004 if name == "deployments" else 0.0
+        fake.series[(sig.RECONCILE_ERRORS, name)] = _wave(errors, seed=20 + i, swing=0.5)
+    systems = {
+        "cluster": (0.0, 35),
+        "experiments": (0.001, 80),
+        "metrics": (0.0, 25),
+        "serving": (0.024, 240),
+        "workflow": (0.002, 60),
+    }
+    for i, (name, (errors, p95)) in enumerate(systems.items()):
+        fake.series[(sig.PROVIDER_ERRORS, name)] = _wave(errors, seed=30 + i, swing=0.3)
+        fake.series[(sig.PROVIDER_LATENCY, name)] = _wave(p95, seed=40 + i, swing=0.2)
+    for i, (name, rate) in enumerate(
+        {"run": 1.4, "pipeline_run": 0.8, "deployment": 0.3, "rollout": 0.2}.items()
+    ):
+        fake.series[(sig.TRANSITIONS, name)] = _wave(rate, seed=50 + i, swing=0.4)
+    return fake
 
 
 def _seed(

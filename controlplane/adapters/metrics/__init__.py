@@ -1,5 +1,9 @@
-"""Metrics adapters. Implements MetricsProvider; the in-memory fake lives in adapters/fakes.py."""
+"""Metrics adapters. Implements MetricsProvider and PlatformTelemetry; the in-memory fakes
+live in adapters/fakes.py."""
 
-from controlplane.adapters.metrics.prometheus import PrometheusMetricsProvider
+from controlplane.adapters.metrics.prometheus import (
+    PrometheusMetricsProvider,
+    PrometheusPlatformTelemetry,
+)
 
-__all__ = ["PrometheusMetricsProvider"]
+__all__ = ["PrometheusMetricsProvider", "PrometheusPlatformTelemetry"]

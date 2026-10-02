@@ -2,7 +2,6 @@ import {
   createHashHistory, createRootRoute, createRoute, createRouter, Navigate, Outlet, redirect, useParams,
 } from '@tanstack/react-router';
 import { Layout } from './components/Layout';
-import { ProjectTabs } from './components/ProjectTabs';
 import { ActivityPage } from './pages/Activity';
 import { DeploymentPage } from './pages/Deployment';
 import { DeploymentsPage } from './pages/Deployments';
@@ -10,6 +9,7 @@ import { JobPage, JobsPage } from './pages/Jobs';
 import { JobRunPage } from './pages/JobRun';
 import { ModelPage } from './pages/Model';
 import { ModelsPage } from './pages/Models';
+import { MonitorPage } from './pages/Monitor';
 import { PipelinePage, PipelinesPage } from './pages/Pipelines';
 import { PipelineRunPage } from './pages/PipelineRun';
 import { ProjectPage } from './pages/Project';
@@ -29,14 +29,10 @@ const root = createRootRoute({
 const index = createRoute({ getParentRoute: () => root, path: '/', beforeLoad: () => { throw redirect({ to: '/projects' }); } });
 const projects = createRoute({ getParentRoute: () => root, path: '/projects', component: ProjectsPage, validateSearch: anySearch });
 
-/** Everything inside a project shares the section tabs. */
-const project = createRoute({
-  getParentRoute: () => root, path: '/projects/$project',
-  component: function ProjectLayout() {
-    const { project: p } = project.useParams();
-    return <><ProjectTabs project={p} /><Outlet /></>;
-  },
-});
+const monitor = createRoute({ getParentRoute: () => root, path: '/monitor', component: MonitorPage, validateSearch: anySearch });
+
+/** Everything inside a project; its sections are in the sidebar. */
+const project = createRoute({ getParentRoute: () => root, path: '/projects/$project', component: Outlet });
 /** A page inside a project. It gets the route params (project, id, name, ...) as plain props. */
 const child = (path: string, render: (params: Record<string, string>) => React.ReactNode) => createRoute({
   getParentRoute: () => project, path, validateSearch: anySearch,
@@ -61,7 +57,7 @@ const activity = child('activity', (p) => <ActivityPage key={p.project} project=
 const settings = child('settings', (p) => <SettingsPage key={p.project} project={p.project!} />);
 
 const routeTree = root.addChildren([
-  index, projects,
+  index, projects, monitor,
   project.addChildren([overview, runs, pipelineRun, jobRun, pipelines, pipeline, jobs, job, models, model, deployments, deployment, activity, settings]),
 ]);
 // Plain `?key=value` query strings (every value is a string), rather than JSON-encoded ones, so

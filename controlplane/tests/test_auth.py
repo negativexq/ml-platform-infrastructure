@@ -343,3 +343,13 @@ def test_start_up_refuses_to_run_open_by_accident() -> None:
             Settings(oidc_issuer="https://idp", oidc_client_id="mlp-ui", session_secret="short")
         )
     assert auth_config(Settings(auth_mode="none")) is None
+
+
+def test_platform_health_counts_only_the_callers_projects(env: Env) -> None:
+    env.project("alice", "credit-risk")
+    env.project("bob", "ranker")
+    alice = env.client.get("/platform/health", headers=env.as_("alice")).json()
+    assert alice["inventory"]["projects"] == 1
+    admin = env.client.get("/platform/health", headers=env.as_("root", ["platform-admins"])).json()
+    assert admin["inventory"]["projects"] == 2
+    assert env.client.get("/platform/health").status_code == 401

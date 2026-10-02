@@ -157,6 +157,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/platform/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The control plane's own health: checks with thresholds and trends */
+        get: operations["health_platform_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/projects": {
         parameters: {
             query?: never;
@@ -1031,6 +1048,11 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /**
+         * Health
+         * @enum {string}
+         */
+        Health: "ok" | "warning" | "critical" | "no_data";
         /** HistoryMarkerOut */
         HistoryMarkerOut: {
             /**
@@ -1040,6 +1062,32 @@ export interface components {
             at: string;
             /** Label */
             label: string;
+        };
+        /** InventoryOut */
+        InventoryOut: {
+            /** Deployments */
+            deployments: number;
+            /** Deployments Failed */
+            deployments_failed: number;
+            /** Deployments Ready */
+            deployments_ready: number;
+            /** Oldest Waiting Seconds */
+            oldest_waiting_seconds: number | null;
+            /** Projects */
+            projects: number;
+            /** Projects Not Ready */
+            projects_not_ready: number;
+            /** Rollouts Active */
+            rollouts_active: number;
+            /** Runs Active */
+            runs_active: number;
+            /** Runs Failed 24H */
+            runs_failed_24h: number;
+            /**
+             * Runs Waiting
+             * @description accepted but not started
+             */
+            runs_waiting: number;
         };
         /** JobCreate */
         JobCreate: {
@@ -1434,6 +1482,44 @@ export interface components {
             /** Status Reason */
             status_reason: string | null;
         };
+        /** PlatformHealthOut */
+        PlatformHealthOut: {
+            /**
+             * Available
+             * @description false when no platform metrics could be read
+             */
+            available: boolean;
+            /**
+             * End
+             * Format: date-time
+             */
+            end: string;
+            /** Error */
+            error: string | null;
+            /**
+             * Generated At
+             * Format: date-time
+             */
+            generated_at: string;
+            inventory: components["schemas"]["InventoryOut"];
+            /** Signals */
+            signals: components["schemas"]["SignalHealthOut"][];
+            /**
+             * Start
+             * Format: date-time
+             */
+            start: string;
+            /** @description the worst status among checks that have data */
+            status: components["schemas"]["Health"];
+            /** Step Seconds */
+            step_seconds: number;
+        };
+        /**
+         * PlatformSignal
+         * @description The control plane's own health, as its telemetry backend records it.
+         * @enum {string}
+         */
+        PlatformSignal: "api_requests" | "api_errors" | "api_latency" | "reconcile_passes" | "reconcile_errors" | "provider_errors" | "provider_latency" | "transitions";
         /**
          * PredictRequest
          * @description Passed to the model server unchanged (e.g. `{"instances": [[1, 2, 3]]}`).
@@ -1744,6 +1830,61 @@ export interface components {
          * @enum {string}
          */
         RunStatus: "PENDING" | "SUBMITTED" | "RUNNING" | "SUCCEEDED" | "FAILED" | "CANCELLED";
+        /** SampleOut */
+        SampleOut: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Value */
+            value: number;
+        };
+        /** SeriesHealthOut */
+        SeriesHealthOut: {
+            /**
+             * Current
+             * @description latest value, if recent; null means silent
+             */
+            current: number | null;
+            /**
+             * Name
+             * @description the group (a reconciler, a system...), "" if ungrouped
+             */
+            name: string;
+            /** Points */
+            points: components["schemas"]["SampleOut"][];
+            status: components["schemas"]["Health"];
+        };
+        /** SignalHealthOut */
+        SignalHealthOut: {
+            /** Critical */
+            critical: number | null;
+            /** Error */
+            error: string | null;
+            /**
+             * Group
+             * @description what one series stands for, if grouped
+             */
+            group: string | null;
+            /** Help */
+            help: string;
+            key: components["schemas"]["PlatformSignal"];
+            /** Lower Is Worse */
+            lower_is_worse: boolean;
+            /** Series */
+            series: components["schemas"]["SeriesHealthOut"][];
+            status: components["schemas"]["Health"];
+            /** Title */
+            title: string;
+            /**
+             * Unit
+             * @description ratio (0..1), ms, req/s or /min
+             */
+            unit: string;
+            /** Warn */
+            warn: number | null;
+        };
         /** StepDefOut */
         StepDefOut: {
             /** Depends On */
@@ -2340,6 +2481,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    health_platform_health_get: {
+        parameters: {
+            query?: {
+                minutes?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlatformHealthOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

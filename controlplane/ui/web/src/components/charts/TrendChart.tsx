@@ -91,7 +91,7 @@ export function TrendChart({ title, testid, series, format, reference, markers, 
         <g className="grid">{ticks.map((t) => <line key={t} x1={PAD_L} x2={plotR} y1={y(t)} y2={y(t)} />)}</g>
         {ticks.map((t) => <text key={t} className="tick" x={PAD_L - 6} y={y(t) + 4} textAnchor="end">{format(t)}</text>)}
         <line className="baseline" x1={PAD_L} x2={plotR} y1={y(0)} y2={y(0)} />
-        {timeTicks(start, end).map((t) => <text key={t} className="tick" x={x(t)} y={H - 6} textAnchor="middle">{clock(t)}</text>)}
+        {timeTicks(start, end, Math.max(2, Math.floor((plotR - PAD_L) / 90))).map((t) => <text key={t} className="tick" x={x(t)} y={H - 6} textAnchor="middle">{clock(t)}</text>)}
         {mergeMarkers(markers.filter((m) => m.t >= start && m.t <= end), x).map((m) => (
           <g key={`${m.label}${m.t}`}>
             <line className="ref" x1={x(m.t)} x2={x(m.t)} y1={PAD_T} y2={y(0)} />
