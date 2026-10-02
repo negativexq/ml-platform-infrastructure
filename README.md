@@ -1,9 +1,17 @@
 # ML Platform Infrastructure
 
-A local ML platform reference implementation — an inference service, its full
-MLflow/PostgreSQL/MinIO lifecycle, GitOps, autoscaling, security hardening and
-observability, all running on Kubernetes and validated with real drills
-instead of descriptions. AWS is designed as code but has not been built yet.
+A local ML platform reference implementation in two layers:
+
+1. **The infrastructure** (M0–M12, frozen as `local-v1.0.0`): an inference service, its full
+   MLflow/PostgreSQL/MinIO lifecycle, GitOps, autoscaling, security hardening and
+   observability. It runs on Kubernetes and is validated with real drills, not descriptions.
+2. **The platform** (M13+, branch `v2`): a control plane that teams use to run ML work end to
+   end. They train with jobs and pipelines, register and evaluate models, and deploy with
+   canaries. They can open models to outside callers through a gateway with API keys and
+   serve LLMs on GPUs. There is a web UI, OIDC sign-in with project roles, and full
+   observability.
+
+AWS is designed as code but has not been built yet.
 
 **Status: `local-v1.0.0`.** The local implementation (M0–M12) is validated and
 frozen. AWS work (M22+) has not started — no cloud resource has been created,
@@ -24,6 +32,79 @@ No manual step, no pre-existing cluster resource, no registry. Proved for real
 in [M11](docs/evidence/m11/gate.md): cluster, images, and build cache
 destroyed first, then `local-up` → `local-test` from the repo alone.
 
+## The platform (control plane)
+
+```
+ people (browser)            services and partners (API keys, OAuth)
+        │                                 │
+        ▼                                 ▼
+ ┌──────────────┐  OIDC   ┌──────────────────────────┐
+ │  Web UI      │◀──────▶│  Identity provider       │  Keycloak locally
+ │  (React)     │         │  users, groups           │
+ └──────┬───────┘         └──────────────────────────┘
+        │ same-origin, session cookie
+        ▼
+ ┌─────────────────────────────┐      ┌────────────────────────────────────┐
+ │  Control plane API          │      │  Inference gateway (separate pods) │
+ │  projects · roles · jobs    │      │  /v1/{project}/{endpoint}/predict  │
+ │  pipelines · models · evals │      │  /v1/.../chat/completions (LLMs)   │
+ │  deployments · canaries     │      │  API keys · invoker role           │
+ │  API keys · GPU quota       │      │  limits (requests or tokens)       │
+ │  audit · monitor            │      │  streaming · usage metering        │
+ └──────┬──────────────────────┘      └──────┬─────────────────────────────┘
+        │ desired state                      │ reads endpoints and keys (5 s cache)
+        ▼                                    ▼
+ ┌──────────────────────────────────────────────────┐
+ │  PostgreSQL: the single source of lifecycle truth │  Alembic migrations 0001–0011
+ └──────┬───────────────────────────────────────────┘
+        │ reconcile loop (idempotent, audited, traced)
+        ▼
+ ┌───────────────┬────────────────┬──────────────────────┬─────────────────────┐
+ │ Kubernetes    │ Argo Workflows │ MLflow registry      │ KServe (Knative)    │
+ │ namespace per │ jobs and       │ runs, metrics,       │ MLflow server (v2)  │
+ │ project,      │ pipeline DAGs  │ model versions,      │ or vLLM on GPUs,    │
+ │ quotas, GPUs  │                │ aliases              │ canary traffic split│
+ └───────────────┴────────────────┴──────────────────────┴─────────────────────┘
+        all of it → OpenTelemetry Collector → Prometheus · Tempo · Grafana · alerts
+```
+
+The design is hexagonal: domain and application code know no frameworks, and every external
+system sits behind a port with an adapter and an in-memory fake. An architecture test
+enforces this. The UI talks only to the platform API.
+
+### What a team can do
+
+| Area | Features |
+| --- | --- |
+| **Projects and access** | Projects with their own Kubernetes namespace and quota. OIDC sign-in (browser and bearer tokens). Roles `invoker < viewer < operator < admin` for users and groups. Platform admins. A fail-closed policy table. Every change is in the audit trail, with the person's name |
+| **Training** | Jobs and pipeline DAGs on Argo Workflows, with retry, cancel, logs, step timelines and failure reasons. Lineage from a run to the model versions it produced |
+| **Models** | Versions discovered from the MLflow registry or, for LLMs, registered from the Hugging Face Hub. Acceptance thresholds, evaluation to CANDIDATE or REJECTED, promotion to CHAMPION, registry aliases kept in sync |
+| **Serving** | Immutable revisions. Canary rollouts with traffic steps and gates (error rate, p95, minimum traffic) that roll back automatically. Rollback. Per-revision metrics and trends |
+| **LLMs** | LLM models served by KServe's Hugging Face runtime (vLLM) on GPUs. Per-project GPU quota, set by platform admins and checked on deploy and canary. OpenAI-compatible chat completions with streaming |
+| **Public API** | A separate gateway service: `POST /v1/{project}/{endpoint}/predict` or `/chat/completions`. Per-caller API keys, shown once and stored hashed. Endpoint and per-key limits: requests per minute, or tokens for LLMs. One error shape and request ids. Usage by caller. Ingress, TLS and NetworkPolicy manifests |
+| **Monitoring** | A Monitor page for the platform's own health (reconciler heartbeats, API, gateway, external systems), with alert-matched thresholds. Grafana dashboard and 10 promtool-tested alerts. Traces from an API request through the reconciler |
+| **UI** | Enterprise app shell with a sidebar and project switcher. Runs, pipelines, models, deployments, activity, settings, members and API access. Charts built to a data-viz spec (validated colours, table twins, keyboard tooltips). Previews before risky changes. Light, dark and mobile |
+
+### Run it
+
+```bash
+make cp-demo        # control plane + gateway on in-memory fakes: http://localhost:8080/ui
+                    # prints a ready-to-run curl for the public gateway
+make cp-test        # unit, API, PostgreSQL and real-browser tests
+make gateway-e2e    # real PostgreSQL + the real gateway process + a model server over HTTP
+make identity-up    # Keycloak in kind with demo users (alice, bob, carol)
+```
+
+What was verified, and what still needs a real cluster:
+- **Verified here:** the test suite (memory and PostgreSQL), real Prometheus queries, real
+  Keycloak sign-in, promtool alert tests and kubeconform.
+- **Needs a real cluster** (KServe, Argo, GPUs, ingress, TLS): listed gate by gate in
+  [`docs/local-verification.md`](docs/local-verification.md).
+
+Docs: [identity](docs/identity.md) · [gateway](docs/gateway.md) ·
+[UI](docs/ui.md) · [observability](docs/observability.md) ·
+[roadmap](docs/platform-roadmap.md).
+
 ## Milestone status
 
 | Milestone | | Evidence |
@@ -43,9 +124,10 @@ destroyed first, then `local-up` → `local-test` from the repo alone.
 | M12 | Local Release Candidate — this freeze | [gate](docs/evidence/m12/gate.md) |
 | M13 | Platform domain foundation — control plane, PostgreSQL-owned lifecycle state | [gate](docs/evidence/m13/gate.md) |
 | M14–M21 | Platform MVP: projects, runs, pipelines, models, serving, canary, UI | [plan](docs/platform-roadmap.md) |
+| v2 | Identity and roles, observability, Monitor, public gateway with API keys, LLM serving with GPU quota (UI for LLMs in progress) | [local verification](docs/local-verification.md) |
 | M22+ | AWS — **not started, no cloud resource has been created** | — |
 
-## Architecture
+## Infrastructure architecture (local-v1.0.0)
 
 ```
                                               client
@@ -174,6 +256,10 @@ just asking), then fixed. Full writeups:
 - `local-up`/`local-test` were proven manually from a destroyed-and-rebuilt
   environment ([M11](docs/evidence/m11/gate.md)) but do not yet run
   automatically in CI.
+- The platform (v2) is verified with fakes, real PostgreSQL, Prometheus and Keycloak. It
+  has not yet run against real KServe, Argo or GPUs, and its own Helm chart is not written.
+  The UI for LLMs (playground, token usage, GPU quota) is still to come; LLMs work through
+  the API and the gateway.
 - AWS (M22+) will replace each local dependency with its managed equivalent
   (kind→EKS, MinIO→S3, PostgreSQL→RDS, local image→ECR) and re-run the
   equivalent gates — it does not change anything above.
