@@ -628,7 +628,8 @@ def test_keyboard_help_and_skip_link(page: Page, server: Server) -> None:
     page.reload()
     expect(page.locator("main h1")).to_be_visible()
     page.locator(".skip").focus()
-    assert page.locator(".skip").bounding_box()["x"] >= 0  # visible once focused
+    box = page.locator(".skip").bounding_box()
+    assert box is not None and box["x"] >= 0  # visible once focused
     page.keyboard.press("Enter")  # must not be taken for navigation by the hash router
     expect(page.locator("main")).to_be_focused()
     assert page.url.endswith("#/projects")
