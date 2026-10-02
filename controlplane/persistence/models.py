@@ -8,6 +8,7 @@ from typing import Any
 from uuid import UUID
 
 from sqlalchemy import (
+    Boolean,
     DateTime,
     ForeignKey,
     Index,
@@ -63,6 +64,31 @@ class JobDefinitionRow(Base):
     resources: Mapped[dict[str, str]] = mapped_column(JSONB, nullable=False)
     env: Mapped[dict[str, str]] = mapped_column(JSONB, nullable=False)
     created_at: Mapped[datetime] = _ts()
+
+
+class RunRow(Base):
+    __tablename__ = "runs"
+    __table_args__ = (
+        UniqueConstraint("project_id", "idempotency_key", name="uq_runs_idempotency_key"),
+        Index("ix_runs_status", "status"),
+    )
+
+    id: Mapped[UUID] = _pk()
+    project_id: Mapped[UUID] = _fk("projects.id")
+    job_definition_id: Mapped[UUID] = _fk("job_definitions.id")
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    status_reason: Mapped[str | None] = mapped_column(Text)
+    exit_code: Mapped[int | None] = mapped_column(Integer)
+    external_ref: Mapped[str | None] = mapped_column(Text)
+    cancel_requested: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    retry_of: Mapped[UUID | None] = mapped_column(
+        Uuid, ForeignKey("runs.id", ondelete="RESTRICT"), index=True
+    )
+    idempotency_key: Mapped[str | None] = mapped_column(String(200))
+    created_at: Mapped[datetime] = _ts()
+    updated_at: Mapped[datetime] = _ts()
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class PipelineDefinitionRow(Base):

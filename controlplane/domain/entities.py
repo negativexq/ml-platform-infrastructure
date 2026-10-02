@@ -82,8 +82,15 @@ class Project:
         return replace(self, status_reason=reason, updated_at=now)
 
 
+_RESOURCE_KEYS = {"cpu", "memory", "ephemeral-storage", "nvidia.com/gpu"}
+_QUANTITY = re.compile(r"^[0-9]+(\.[0-9]+)?(m|Ki|Mi|Gi|Ti|k|M|G|T)?$")
+_ENV_KEY = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+
+
 @dataclass(frozen=True, slots=True, kw_only=True)
 class JobDefinition:
+    """What to run. Immutable: a different image or command is a different definition."""
+
     id: UUID = field(default_factory=new_id)
     project_id: UUID
     name: str
@@ -92,6 +99,41 @@ class JobDefinition:
     resources: Mapping[str, str] = field(default_factory=dict)
     env: Mapping[str, str] = field(default_factory=dict)
     created_at: datetime
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        project_id: UUID,
+        name: str,
+        image: str,
+        command: tuple[str, ...],
+        resources: Mapping[str, str],
+        env: Mapping[str, str],
+        now: datetime,
+    ) -> Self:
+        validate_slug(name, "job name")
+        if not image.strip() or any(c.isspace() for c in image):
+            raise InvalidArgument("image must be a non-empty reference without whitespace")
+        for key, value in resources.items():
+            if key not in _RESOURCE_KEYS:
+                raise InvalidArgument(
+                    f"unsupported resource {key!r}; allowed: {sorted(_RESOURCE_KEYS)}"
+                )
+            if not _QUANTITY.match(value):
+                raise InvalidArgument(f"invalid quantity {value!r} for resource {key!r}")
+        for key in env:
+            if not _ENV_KEY.match(key):
+                raise InvalidArgument(f"invalid environment variable name {key!r}")
+        return cls(
+            project_id=project_id,
+            name=name,
+            image=image.strip(),
+            command=tuple(command),
+            resources=dict(resources),
+            env=dict(env),
+            created_at=now,
+        )
 
 
 @dataclass(frozen=True, slots=True)
@@ -126,6 +168,61 @@ class PipelineRun:
     def transition_to(self, status: RunStatus, now: datetime) -> Self:
         states.PIPELINE_RUN.ensure(self.status, status)
         return replace(self, status=status, updated_at=now)
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class Run:
+    """One execution of a JobDefinition. The platform id is the identity; the
+    workflow system's reference is `external_ref` and is never shown to users."""
+
+    id: UUID = field(default_factory=new_id)
+    project_id: UUID
+    job_definition_id: UUID
+    status: RunStatus = RunStatus.PENDING
+    status_reason: str | None = None
+    exit_code: int | None = None
+    external_ref: str | None = None
+    cancel_requested: bool = False
+    retry_of: UUID | None = None
+    idempotency_key: str | None = None
+    created_at: datetime
+    updated_at: datetime
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
+
+    @property
+    def is_terminal(self) -> bool:
+        return states.RUN.is_terminal(self.status)
+
+    @property
+    def duration_seconds(self) -> float | None:
+        if self.started_at is None or self.finished_at is None:
+            return None
+        return (self.finished_at - self.started_at).total_seconds()
+
+    def transition_to(
+        self,
+        status: RunStatus,
+        now: datetime,
+        *,
+        reason: str | None = None,
+        exit_code: int | None = None,
+        external_ref: str | None = None,
+    ) -> Self:
+        states.RUN.ensure(self.status, status)
+        return replace(
+            self,
+            status=status,
+            status_reason=reason if reason is not None else self.status_reason,
+            exit_code=exit_code if exit_code is not None else self.exit_code,
+            external_ref=external_ref if external_ref is not None else self.external_ref,
+            started_at=now if status is RunStatus.RUNNING else self.started_at,
+            finished_at=now if states.RUN.is_terminal(status) else self.finished_at,
+            updated_at=now,
+        )
+
+    def with_cancel_requested(self, now: datetime) -> Self:
+        return replace(self, cancel_requested=True, updated_at=now)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

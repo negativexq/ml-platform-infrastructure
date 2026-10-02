@@ -108,6 +108,14 @@ class _Wrapped:
         return Proxy()
 
     @property
+    def jobs(self) -> Any:
+        return self._inner.jobs
+
+    @property
+    def runs(self) -> Any:
+        return self._inner.runs
+
+    @property
     def audit(self) -> Any:
         if self._audit_fails:
             raise_on_record = type(

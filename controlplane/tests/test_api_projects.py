@@ -65,3 +65,12 @@ def test_pagination_bounds(client: TestClient) -> None:
 
 def test_healthz(client: TestClient) -> None:
     assert client.get("/healthz").json() == {"status": "ok"}
+
+
+def test_delete_is_accepted_idempotent_and_recorded(client: TestClient) -> None:
+    _, created = _create(client)
+    first = client.delete(f"/projects/{created['id']}")
+    assert first.status_code == 202 and first.json()["status"] == "DELETING"
+    again = client.delete(f"/projects/{created['id']}")
+    assert again.status_code == 202 and again.json()["status"] == "DELETING"
+    assert client.delete(f"/projects/{uuid4()}").status_code == 404

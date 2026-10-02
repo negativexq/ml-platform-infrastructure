@@ -22,6 +22,7 @@ SERVICE_ACCOUNT = "mlp-workload"
 QUOTA = "mlp-quota"
 LIMIT_RANGE = "mlp-limits"
 NETWORK_POLICY = "mlp-baseline"
+WORKFLOW_ROLE = "mlp-workflow-executor"
 
 
 def _covers(actual: Any, desired: Any) -> bool:
@@ -39,23 +40,28 @@ def _covers(actual: Any, desired: Any) -> bool:
     return bool(actual == desired)
 
 
+def load_api_client(path: str | None = None) -> client.ApiClient:
+    """`path=None` uses in-cluster config, falling back to ~/.kube/config."""
+    if path:
+        config.load_kube_config(config_file=path)
+    else:
+        try:
+            config.load_incluster_config()
+        except config.ConfigException:
+            config.load_kube_config()
+    return client.ApiClient()
+
+
 class KubernetesClusterProvider:
     def __init__(self, api_client: client.ApiClient) -> None:
         self._api = api_client
         self._core = client.CoreV1Api(api_client)
         self._net = client.NetworkingV1Api(api_client)
+        self._rbac = client.RbacAuthorizationV1Api(api_client)
 
     @classmethod
     def from_kubeconfig(cls, path: str | None = None) -> KubernetesClusterProvider:
-        """`path=None` uses in-cluster config, falling back to ~/.kube/config."""
-        if path:
-            config.load_kube_config(config_file=path)
-        else:
-            try:
-                config.load_incluster_config()
-            except config.ConfigException:
-                config.load_kube_config()
-        return cls(client.ApiClient())
+        return cls(load_api_client(path))
 
     # -- desired state (wire format: what the API server stores) -----------
 
@@ -79,6 +85,33 @@ class KubernetesClusterProvider:
                     ]
                 },
             },
+            # Argo's executor reports each step's result as a WorkflowTaskResult from inside
+            # the workload pod; without this the workflow can never record that a step ended.
+            "role": {
+                "metadata": {"name": WORKFLOW_ROLE, **meta},
+                "rules": [
+                    {
+                        "apiGroups": ["argoproj.io"],
+                        "resources": ["workflowtaskresults"],
+                        "verbs": ["create", "patch"],
+                    }
+                ],
+            },
+            "rolebinding": {
+                "metadata": {"name": WORKFLOW_ROLE, **meta},
+                "subjects": [
+                    {
+                        "kind": "ServiceAccount",
+                        "name": SERVICE_ACCOUNT,
+                        "namespace": spec.namespace,
+                    }
+                ],
+                "roleRef": {
+                    "apiGroup": "rbac.authorization.k8s.io",
+                    "kind": "Role",
+                    "name": WORKFLOW_ROLE,
+                },
+            },
             # Baseline isolation: pods accept traffic only from their own namespace.
             "networkpolicy": {
                 "metadata": {"name": NETWORK_POLICY, **meta},
@@ -98,6 +131,8 @@ class KubernetesClusterProvider:
             "resourcequota": self._core.read_namespaced_resource_quota,
             "limitrange": self._core.read_namespaced_limit_range,
             "networkpolicy": self._net.read_namespaced_network_policy,
+            "role": self._rbac.read_namespaced_role,
+            "rolebinding": self._rbac.read_namespaced_role_binding,
         }
         try:
             return readers[kind](name, ns)
@@ -204,6 +239,14 @@ class KubernetesClusterProvider:
             "networkpolicy": (
                 self._net.create_namespaced_network_policy,
                 self._net.replace_namespaced_network_policy,
+            ),
+            "role": (
+                self._rbac.create_namespaced_role,
+                self._rbac.replace_namespaced_role,
+            ),
+            "rolebinding": (
+                self._rbac.create_namespaced_role_binding,
+                self._rbac.replace_namespaced_role_binding,
             ),
         }[kind]
         name = body["metadata"]["name"]

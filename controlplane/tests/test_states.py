@@ -17,6 +17,7 @@ from controlplane.domain.states import (
 MACHINES = [
     states.PROJECT,
     states.PIPELINE_RUN,
+    states.RUN,
     states.STEP_RUN,
     states.MODEL_VERSION,
     states.EVALUATION,

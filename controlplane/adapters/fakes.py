@@ -78,8 +78,16 @@ class FakeWorkflowProvider:
         return self._logs.get((ref, step), "")
 
     # test controls
-    def set_state(self, ref: str, state: ExternalState, *, reason: str | None = None) -> None:
-        self._status[ref] = WorkflowStatus(state, reason=reason)
+    def set_state(
+        self,
+        ref: str,
+        state: ExternalState,
+        *,
+        reason: str | None = None,
+        exit_code: int | None = None,
+    ) -> None:
+        exit_codes = {} if exit_code is None else {"main": exit_code}
+        self._status[ref] = WorkflowStatus(state, reason=reason, exit_codes=exit_codes)
 
     def set_logs(self, ref: str, step: str, text: str) -> None:
         self._logs[(ref, step)] = text
@@ -138,7 +146,15 @@ class FakeArtifactProvider:
         self._blobs[uri] = data
 
 
-_NAMESPACED = ("namespace", "serviceaccount", "resourcequota", "limitrange", "networkpolicy")
+_NAMESPACED = (
+    "namespace",
+    "serviceaccount",
+    "resourcequota",
+    "limitrange",
+    "networkpolicy",
+    "role",
+    "rolebinding",
+)
 
 
 class FakeClusterProvider:

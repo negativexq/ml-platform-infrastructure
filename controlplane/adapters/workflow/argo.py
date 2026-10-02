@@ -1,0 +1,195 @@
+"""WorkflowProvider backed by Argo Workflows (the `Workflow` custom resource).
+
+Not exercised against a real Argo yet: see docs/local-verification.md.
+"""
+
+from __future__ import annotations
+
+from typing import Any
+
+from kubernetes import client
+from kubernetes.client.exceptions import ApiException
+
+from controlplane.adapters.kubernetes import load_api_client
+from controlplane.application.providers import (
+    ExternalState,
+    StepSpec,
+    WorkflowSpec,
+    WorkflowStatus,
+)
+from controlplane.domain.errors import NotFound
+
+GROUP, VERSION, PLURAL = "argoproj.io", "v1alpha1", "workflows"
+SERVICE_ACCOUNT = "mlp-workload"
+DEFAULT_DEADLINE_SECONDS = 3600
+# A pod stuck on one of these will never start; Argo itself would wait for the deadline.
+_UNSTARTABLE = ("ImagePullBackOff", "ErrImagePull", "InvalidImageName", "ErrImageNeverPull")
+
+_PHASES = {
+    "": ExternalState.PENDING,
+    "Pending": ExternalState.PENDING,
+    "Running": ExternalState.RUNNING,
+    "Succeeded": ExternalState.SUCCEEDED,
+    "Failed": ExternalState.FAILED,
+    "Error": ExternalState.FAILED,
+}
+
+
+def _ref(namespace: str, name: str) -> str:
+    return f"{namespace}/{name}"
+
+
+def _split(ref: str) -> tuple[str, str]:
+    namespace, _, name = ref.partition("/")
+    return namespace, name
+
+
+def _container(step: StepSpec) -> dict[str, Any]:
+    container: dict[str, Any] = {
+        "image": step.image,
+        "env": [{"name": k, "value": v} for k, v in step.env.items()],
+    }
+    if step.command:
+        container["command"] = list(step.command)
+    if step.resources:
+        container["resources"] = {"requests": dict(step.resources), "limits": dict(step.resources)}
+    return {"name": step.name, "container": container}
+
+
+def build_workflow(spec: WorkflowSpec) -> dict[str, Any]:
+    """Translate a WorkflowSpec to an Argo Workflow manifest. One step runs as a
+    plain container template; several become a DAG."""
+    templates = [_container(step) for step in spec.steps]
+    if len(spec.steps) == 1:
+        entrypoint = spec.steps[0].name
+    else:
+        entrypoint = "dag"
+        templates.append(
+            {
+                "name": "dag",
+                "dag": {
+                    "tasks": [
+                        {
+                            "name": step.name,
+                            "template": step.name,
+                            "dependencies": list(step.depends_on),
+                        }
+                        for step in spec.steps
+                    ]
+                },
+            }
+        )
+    return {
+        "apiVersion": f"{GROUP}/{VERSION}",
+        "kind": "Workflow",
+        "metadata": {
+            "name": spec.name,
+            "namespace": spec.namespace,
+            "labels": dict(spec.labels),
+        },
+        "spec": {
+            "entrypoint": entrypoint,
+            "serviceAccountName": SERVICE_ACCOUNT,
+            "activeDeadlineSeconds": DEFAULT_DEADLINE_SECONDS,
+            "templates": templates,
+        },
+    }
+
+
+class ArgoWorkflowProvider:
+    def __init__(self, api_client: client.ApiClient) -> None:
+        self._custom = client.CustomObjectsApi(api_client)
+        self._core = client.CoreV1Api(api_client)
+
+    @classmethod
+    def from_kubeconfig(cls, path: str | None = None) -> ArgoWorkflowProvider:
+        return cls(load_api_client(path))
+
+    def submit(self, spec: WorkflowSpec, idempotency_key: str) -> str:
+        # The workflow name is derived from the run, so the name *is* the idempotency
+        # key: a second submit hits 409 and returns the workflow that already exists.
+        try:
+            self._custom.create_namespaced_custom_object(
+                GROUP, VERSION, spec.namespace, PLURAL, build_workflow(spec)
+            )
+        except ApiException as exc:
+            if exc.status != 409:
+                raise
+        return _ref(spec.namespace, spec.name)
+
+    def _get(self, ref: str) -> dict[str, Any]:
+        namespace, name = _split(ref)
+        try:
+            workflow: dict[str, Any] = self._custom.get_namespaced_custom_object(
+                GROUP, VERSION, namespace, PLURAL, name
+            )
+        except ApiException as exc:
+            if exc.status == 404:
+                raise NotFound("workflow", ref) from None
+            raise
+        return workflow
+
+    def get_status(self, ref: str) -> WorkflowStatus:
+        workflow = self._get(ref)
+        status = workflow.get("status") or {}
+        nodes: dict[str, Any] = status.get("nodes") or {}
+        state = _PHASES.get(status.get("phase", ""), ExternalState.PENDING)
+        reason: str | None = status.get("message") or None
+        steps = {
+            n["templateName"]: _node_state(n)
+            for n in nodes.values()
+            if n.get("type") == "Pod" and "templateName" in n
+        }
+        exit_codes = {
+            n["templateName"]: int(n["outputs"]["exitCode"])
+            for n in nodes.values()
+            if n.get("type") == "Pod" and (n.get("outputs") or {}).get("exitCode") is not None
+        }
+
+        stuck = next(
+            (
+                n.get("message", "")
+                for n in nodes.values()
+                if n.get("type") == "Pod"
+                and n.get("phase") == "Pending"
+                and any(marker in (n.get("message") or "") for marker in _UNSTARTABLE)
+            ),
+            None,
+        )
+        if state is ExternalState.RUNNING and stuck:
+            self.cancel(ref)
+            return WorkflowStatus(ExternalState.FAILED, steps, stuck, exit_codes)
+        if state is ExternalState.FAILED and workflow.get("spec", {}).get("shutdown"):
+            state = ExternalState.CANCELLED
+        return WorkflowStatus(state, steps, reason, exit_codes)
+
+    def cancel(self, ref: str) -> None:
+        namespace, name = _split(ref)
+        self._custom.patch_namespaced_custom_object(
+            GROUP, VERSION, namespace, PLURAL, name, {"spec": {"shutdown": "Terminate"}}
+        )
+
+    def get_logs(self, ref: str, step: str) -> str:
+        namespace, _ = _split(ref)
+        nodes: dict[str, Any] = (self._get(ref).get("status") or {}).get("nodes") or {}
+        pod = next(
+            (
+                n["id"]
+                for n in nodes.values()
+                if n.get("type") == "Pod" and n.get("templateName") == step
+            ),
+            None,
+        )
+        if pod is None:
+            return ""
+        try:
+            logs: str = self._core.read_namespaced_pod_log(pod, namespace, container="main")
+        except ApiException as exc:
+            if exc.status in (400, 404):  # pod not started yet, or already garbage-collected
+                return ""
+            raise
+        return logs
+
+
+def _node_state(node: dict[str, Any]) -> ExternalState:
+    return _PHASES.get(node.get("phase", ""), ExternalState.PENDING)

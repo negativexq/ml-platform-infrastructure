@@ -80,19 +80,19 @@ class RunStatus(StrEnum):
     CANCELLED = "CANCELLED"
 
 
-PIPELINE_RUN = StateMachine(
-    "PipelineRun",
-    RunStatus,
-    {
-        RunStatus.PENDING: {RunStatus.SUBMITTED, RunStatus.FAILED, RunStatus.CANCELLED},
-        # SUBMITTED -> FAILED covers workloads that never start (bad image).
-        RunStatus.SUBMITTED: {RunStatus.RUNNING, RunStatus.FAILED, RunStatus.CANCELLED},
-        RunStatus.RUNNING: {RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED},
-        RunStatus.SUCCEEDED: set(),
-        RunStatus.FAILED: set(),
-        RunStatus.CANCELLED: set(),
-    },
-)
+_RUN_EDGES: dict[RunStatus, set[RunStatus]] = {
+    RunStatus.PENDING: {RunStatus.SUBMITTED, RunStatus.FAILED, RunStatus.CANCELLED},
+    # SUBMITTED -> FAILED covers workloads that never start (bad image).
+    RunStatus.SUBMITTED: {RunStatus.RUNNING, RunStatus.FAILED, RunStatus.CANCELLED},
+    RunStatus.RUNNING: {RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED},
+    RunStatus.SUCCEEDED: set(),
+    RunStatus.FAILED: set(),
+    RunStatus.CANCELLED: set(),
+}
+
+PIPELINE_RUN = StateMachine("PipelineRun", RunStatus, _RUN_EDGES)
+# A single-job Run follows the same lifecycle as a pipeline run.
+RUN = StateMachine("Run", RunStatus, _RUN_EDGES)
 
 
 class StepStatus(StrEnum):

@@ -11,10 +11,10 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.sql import Select
 
 from controlplane.domain.audit import AuditEvent
-from controlplane.domain.entities import Project
+from controlplane.domain.entities import JobDefinition, Project, Run
 from controlplane.domain.errors import AlreadyExists, Conflict, NotFound
-from controlplane.domain.states import ProjectStatus
-from controlplane.persistence.models import AuditEventRow, ProjectRow
+from controlplane.domain.states import ProjectStatus, RunStatus
+from controlplane.persistence.models import AuditEventRow, JobDefinitionRow, ProjectRow, RunRow
 
 _UNIQUE_VIOLATION = "23505"
 
@@ -112,6 +112,162 @@ class SqlProjects:
         raise Conflict(f"project {project.id} is no longer {expected_status.value}")
 
 
+def _job(row: JobDefinitionRow) -> JobDefinition:
+    return JobDefinition(
+        id=row.id,
+        project_id=row.project_id,
+        name=row.name,
+        image=row.image,
+        command=tuple(row.command),
+        resources=dict(row.resources),
+        env=dict(row.env),
+        created_at=row.created_at,
+    )
+
+
+def _run(row: RunRow) -> Run:
+    return Run(
+        id=row.id,
+        project_id=row.project_id,
+        job_definition_id=row.job_definition_id,
+        status=RunStatus(row.status),
+        status_reason=row.status_reason,
+        exit_code=row.exit_code,
+        external_ref=row.external_ref,
+        cancel_requested=row.cancel_requested,
+        retry_of=row.retry_of,
+        idempotency_key=row.idempotency_key,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+        started_at=row.started_at,
+        finished_at=row.finished_at,
+    )
+
+
+def _flush_unique(session: Session, entity: str, key: object) -> None:
+    try:
+        session.flush()
+    except IntegrityError as exc:
+        if getattr(exc.orig, "sqlstate", None) == _UNIQUE_VIOLATION:
+            raise AlreadyExists(entity, key) from exc
+        raise
+
+
+class SqlJobs:
+    def __init__(self, session: Session) -> None:
+        self._s = session
+
+    def add(self, job: JobDefinition) -> None:
+        self._s.add(
+            JobDefinitionRow(
+                id=job.id,
+                project_id=job.project_id,
+                name=job.name,
+                image=job.image,
+                command=list(job.command),
+                resources=dict(job.resources),
+                env=dict(job.env),
+                created_at=job.created_at,
+            )
+        )
+        _flush_unique(self._s, "job", job.name)
+
+    def get(self, job_id: UUID) -> JobDefinition | None:
+        row = self._s.get(JobDefinitionRow, job_id)
+        return _job(row) if row else None
+
+    def get_by_name(self, project_id: UUID, name: str) -> JobDefinition | None:
+        row = self._s.scalars(
+            select(JobDefinitionRow).where(
+                JobDefinitionRow.project_id == project_id, JobDefinitionRow.name == name
+            )
+        ).first()
+        return _job(row) if row else None
+
+    def list(self, project_id: UUID) -> Sequence[JobDefinition]:
+        rows = self._s.scalars(
+            select(JobDefinitionRow)
+            .where(JobDefinitionRow.project_id == project_id)
+            .order_by(JobDefinitionRow.created_at, JobDefinitionRow.id)
+        )
+        return [_job(r) for r in rows]
+
+
+class SqlRuns:
+    def __init__(self, session: Session) -> None:
+        self._s = session
+
+    def add(self, run: Run) -> None:
+        self._s.add(
+            RunRow(
+                id=run.id,
+                project_id=run.project_id,
+                job_definition_id=run.job_definition_id,
+                status=run.status.value,
+                status_reason=run.status_reason,
+                exit_code=run.exit_code,
+                external_ref=run.external_ref,
+                cancel_requested=run.cancel_requested,
+                retry_of=run.retry_of,
+                idempotency_key=run.idempotency_key,
+                created_at=run.created_at,
+                updated_at=run.updated_at,
+                started_at=run.started_at,
+                finished_at=run.finished_at,
+            )
+        )
+        _flush_unique(self._s, "run", run.idempotency_key)
+
+    def get(self, run_id: UUID) -> Run | None:
+        row = self._s.get(RunRow, run_id)
+        return _run(row) if row else None
+
+    def get_by_idempotency_key(self, project_id: UUID, key: str) -> Run | None:
+        row = self._s.scalars(
+            select(RunRow).where(RunRow.project_id == project_id, RunRow.idempotency_key == key)
+        ).first()
+        return _run(row) if row else None
+
+    def list(
+        self, project_id: UUID, *, job_id: UUID | None, limit: int, offset: int
+    ) -> Sequence[Run]:
+        stmt = select(RunRow).where(RunRow.project_id == project_id)
+        if job_id is not None:
+            stmt = stmt.where(RunRow.job_definition_id == job_id)
+        stmt = stmt.order_by(RunRow.created_at.desc(), RunRow.id.desc()).limit(limit).offset(offset)
+        return [_run(r) for r in self._s.scalars(stmt)]
+
+    def list_active(self) -> Sequence[Run]:
+        terminal = [s.value for s in (RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED)]
+        rows = self._s.scalars(
+            select(RunRow)
+            .where(RunRow.status.not_in(terminal))
+            .order_by(RunRow.created_at, RunRow.id)
+        )
+        return [_run(r) for r in rows]
+
+    def update(self, run: Run, *, expected_status: RunStatus) -> None:
+        result = self._s.execute(
+            update(RunRow)
+            .where(RunRow.id == run.id, RunRow.status == expected_status.value)
+            .values(
+                status=run.status.value,
+                status_reason=run.status_reason,
+                exit_code=run.exit_code,
+                external_ref=run.external_ref,
+                cancel_requested=run.cancel_requested,
+                updated_at=run.updated_at,
+                started_at=run.started_at,
+                finished_at=run.finished_at,
+            )
+        )
+        if getattr(result, "rowcount", 0) == 1:
+            return
+        if self._s.get(RunRow, run.id) is None:
+            raise NotFound("run", run.id)
+        raise Conflict(f"run {run.id} is no longer {expected_status.value}")
+
+
 class SqlAudit:
     def __init__(self, session: Session) -> None:
         self._s = session
@@ -148,6 +304,8 @@ class SqlUnitOfWork:
     def __enter__(self) -> Self:
         self._session = self._factory()
         self.projects = SqlProjects(self._session)
+        self.jobs = SqlJobs(self._session)
+        self.runs = SqlRuns(self._session)
         self.audit = SqlAudit(self._session)
         return self
 

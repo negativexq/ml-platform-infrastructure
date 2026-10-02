@@ -8,8 +8,8 @@ from typing import Protocol, Self
 from uuid import UUID
 
 from controlplane.domain.audit import AuditEvent
-from controlplane.domain.entities import Project
-from controlplane.domain.states import ProjectStatus
+from controlplane.domain.entities import JobDefinition, Project, Run
+from controlplane.domain.states import ProjectStatus, RunStatus
 
 
 class ProjectRepository(Protocol):
@@ -30,6 +30,37 @@ class ProjectRepository(Protocol):
         """Compare-and-swap on status. Conflict if another writer moved the project first."""
 
 
+class JobRepository(Protocol):
+    def add(self, job: JobDefinition) -> None:
+        """Raises AlreadyExists if the project already has a job with this name."""
+
+    def get(self, job_id: UUID) -> JobDefinition | None: ...
+
+    def get_by_name(self, project_id: UUID, name: str) -> JobDefinition | None: ...
+
+    def list(self, project_id: UUID) -> Sequence[JobDefinition]: ...
+
+
+class RunRepository(Protocol):
+    def add(self, run: Run) -> None:
+        """Raises AlreadyExists if (project, idempotency_key) is already used."""
+
+    def get(self, run_id: UUID) -> Run | None: ...
+
+    def get_by_idempotency_key(self, project_id: UUID, key: str) -> Run | None: ...
+
+    def list(
+        self, project_id: UUID, *, job_id: UUID | None, limit: int, offset: int
+    ) -> Sequence[Run]:
+        """Newest first."""
+
+    def list_active(self) -> Sequence[Run]:
+        """Runs that are not in a terminal state, oldest first."""
+
+    def update(self, run: Run, *, expected_status: RunStatus) -> None:
+        """Compare-and-swap on status. Conflict if another writer moved the run first."""
+
+
 class AuditLog(Protocol):
     def record(self, event: AuditEvent) -> None: ...
 
@@ -43,6 +74,12 @@ class UnitOfWork(Protocol):
 
     @property
     def projects(self) -> ProjectRepository: ...
+
+    @property
+    def jobs(self) -> JobRepository: ...
+
+    @property
+    def runs(self) -> RunRepository: ...
 
     @property
     def audit(self) -> AuditLog: ...

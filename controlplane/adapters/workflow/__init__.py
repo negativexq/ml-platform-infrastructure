@@ -1,2 +1,5 @@
-"""Real workflow adapter. Implements the matching port in
-controlplane.application.providers; arrives with a later milestone."""
+"""Workflow adapters. Implements WorkflowProvider; the in-memory fake lives in adapters/fakes.py."""
+
+from controlplane.adapters.workflow.argo import ArgoWorkflowProvider
+
+__all__ = ["ArgoWorkflowProvider"]
