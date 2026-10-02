@@ -1,9 +1,12 @@
 name: CI
 
+# Paused: runs only when started by hand (Actions → CI → Run workflow).
+# To turn it back on, restore:
+#   push:
+#     branches: [main]
+#   pull_request:
 on:
-  push:
-    branches: [main]
-  pull_request:
+  workflow_dispatch:
 
 jobs:
   quality:
