@@ -6,7 +6,7 @@
         alert-rules-test alert-rules-apply loadtest drill-autoscale drill-drain \
         local-up local-test local-down \
         tf-fmt tf-validate tf-lint tf-check \
-        cp-install cp-test cp-check cp-migrate cp-run
+        cp-install cp-test cp-check cp-migrate cp-run cp-reconcile envtest-up envtest-down
 
 IMAGE ?= ml-platform-inference:dev
 
@@ -196,3 +196,13 @@ cp-migrate:
 
 cp-run:
 	uvicorn controlplane.main:app_factory --factory --reload --port 8080
+
+cp-reconcile:
+	python -m controlplane.reconciler_main
+
+## Real kube-apiserver + etcd + controller-manager, no nodes (see scripts/envtest.sh)
+envtest-up:
+	./scripts/envtest.sh up
+
+envtest-down:
+	./scripts/envtest.sh down

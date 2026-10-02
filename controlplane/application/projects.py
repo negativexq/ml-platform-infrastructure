@@ -9,6 +9,7 @@ from controlplane.application.ports import UnitOfWork
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import Project
 from controlplane.domain.errors import AlreadyExists, Conflict, NotFound
+from controlplane.domain.states import ProjectStatus
 
 Clock = Callable[[], datetime]
 UnitOfWorkFactory = Callable[[], UnitOfWork]
@@ -90,3 +91,29 @@ class ProjectService:
     def list(self, *, limit: int = 50, offset: int = 0) -> Sequence[Project]:
         with self._uow_factory() as uow:
             return uow.projects.list(limit=limit, offset=offset)
+
+    def request_delete(self, project_id: UUID) -> Project:
+        """Record the intent to delete. The reconciler performs the cleanup and
+        moves the project to DELETED once the namespace is really gone."""
+        with self._uow_factory() as uow:
+            project = uow.projects.get(project_id)
+            if project is None:
+                raise NotFound("project", project_id)
+            if project.status in (ProjectStatus.DELETING, ProjectStatus.DELETED):
+                return project  # idempotent
+            now = self._clock()
+            deleting = project.transition_to(ProjectStatus.DELETING, now)
+            uow.projects.update(deleting, expected_status=project.status)
+            uow.audit.record(
+                AuditEvent(
+                    occurred_at=now,
+                    actor=ANONYMOUS,
+                    action="project.delete_requested",
+                    entity_type="project",
+                    entity_id=project.id,
+                    project_id=project.id,
+                    payload={"from": project.status.value},
+                )
+            )
+            uow.commit()
+            return deleting

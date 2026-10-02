@@ -33,6 +33,7 @@ controlplane = [
     "sqlalchemy>=2.0",
     "alembic>=1.13",
     "psycopg[binary]>=3.2",
+    "kubernetes>=31",
 ]
 controlplane-dev = [
     "pgserver>=0.1.4",
@@ -69,7 +70,7 @@ strict = true
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = ["joblib.*", "sklearn.*", "mlflow.*", "boto3.*", "pgserver.*"]
+module = ["joblib.*", "sklearn.*", "mlflow.*", "boto3.*", "pgserver.*", "kubernetes.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

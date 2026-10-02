@@ -48,8 +48,14 @@ class Project:
     display_name: str
     description: str = ""
     status: ProjectStatus = ProjectStatus.PENDING
+    status_reason: str | None = None
     created_at: datetime
     updated_at: datetime
+
+    @property
+    def namespace(self) -> str:
+        """Deterministic Kubernetes namespace for this project."""
+        return f"mlp-{self.name}"
 
     @classmethod
     def create(
@@ -65,9 +71,15 @@ class Project:
             name=name, display_name=display, description=description, created_at=now, updated_at=now
         )
 
-    def transition_to(self, status: ProjectStatus, now: datetime) -> Self:
+    def transition_to(
+        self, status: ProjectStatus, now: datetime, reason: str | None = None
+    ) -> Self:
         states.PROJECT.ensure(self.status, status)
-        return replace(self, status=status, updated_at=now)
+        return replace(self, status=status, status_reason=reason, updated_at=now)
+
+    def with_reason(self, reason: str | None, now: datetime) -> Self:
+        """Record why a project is stuck without changing its status."""
+        return replace(self, status_reason=reason, updated_at=now)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

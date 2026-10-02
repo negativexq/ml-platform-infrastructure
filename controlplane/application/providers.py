@@ -131,6 +131,47 @@ class ServingProvider(Protocol):
     def delete(self, ref: str) -> None: ...
 
 
+# --- cluster (project isolation) --------------------------------------------
+
+
+class NamespaceState(StrEnum):
+    ABSENT = "ABSENT"
+    TERMINATING = "TERMINATING"
+    PRESENT = "PRESENT"
+
+
+@dataclass(frozen=True, slots=True)
+class NamespaceSpec:
+    """Everything a project needs in the cluster, derived from the project alone."""
+
+    project_id: UUID
+    project_name: str
+    namespace: str
+    labels: Mapping[str, str]
+    quota: Mapping[str, str]
+    default_limits: Mapping[str, str]
+    default_requests: Mapping[str, str]
+
+
+@dataclass(frozen=True, slots=True)
+class Observation:
+    state: NamespaceState
+    # Resources that are missing or differ from the spec ("namespace", "resourcequota", ...)
+    drifted: tuple[str, ...] = ()
+
+
+@runtime_checkable
+class ClusterProvider(Protocol):
+    def observe(self, spec: NamespaceSpec) -> Observation: ...
+
+    def apply(self, spec: NamespaceSpec) -> tuple[str, ...]:
+        """Converge the cluster on the spec. Returns the resources it had to
+        create or change; an already-converged cluster returns ()."""
+
+    def delete(self, namespace: str, project_id: UUID) -> None:
+        """Delete the namespace only if this project owns it (Conflict otherwise)."""
+
+
 # --- metrics & artifacts ---------------------------------------------------
 
 

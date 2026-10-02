@@ -9,6 +9,7 @@ from uuid import UUID
 
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import Project
+from controlplane.domain.states import ProjectStatus
 
 
 class ProjectRepository(Protocol):
@@ -19,7 +20,14 @@ class ProjectRepository(Protocol):
 
     def get_by_name(self, name: str) -> Project | None: ...
 
-    def list(self, *, limit: int, offset: int) -> Sequence[Project]: ...
+    def list(self, *, limit: int, offset: int) -> Sequence[Project]:
+        """Live projects only; DELETED projects are history, not inventory."""
+
+    def list_reconcilable(self) -> Sequence[Project]:
+        """Every project that is not DELETED."""
+
+    def update(self, project: Project, *, expected_status: ProjectStatus) -> None:
+        """Compare-and-swap on status. Conflict if another writer moved the project first."""
 
 
 class AuditLog(Protocol):

@@ -24,6 +24,7 @@ class ProjectOut(BaseModel):
     display_name: str
     description: str
     status: ProjectStatus
+    status_reason: str | None
     created_at: datetime
     updated_at: datetime
 
@@ -35,6 +36,7 @@ class ProjectOut(BaseModel):
             display_name=project.display_name,
             description=project.description,
             status=project.status,
+            status_reason=project.status_reason,
             created_at=project.created_at,
             updated_at=project.updated_at,
         )

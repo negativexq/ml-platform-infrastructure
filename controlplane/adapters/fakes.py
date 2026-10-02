@@ -10,6 +10,9 @@ from uuid import UUID
 from controlplane.application.providers import (
     ExperimentRun,
     ExternalState,
+    NamespaceSpec,
+    NamespaceState,
+    Observation,
     RevisionMetrics,
     ServingSpec,
     ServingState,
@@ -17,7 +20,7 @@ from controlplane.application.providers import (
     WorkflowSpec,
     WorkflowStatus,
 )
-from controlplane.domain.errors import NotFound
+from controlplane.domain.errors import Conflict, NotFound
 
 _TERMINAL = {ExternalState.SUCCEEDED, ExternalState.FAILED, ExternalState.CANCELLED}
 
@@ -133,3 +136,60 @@ class FakeArtifactProvider:
 
     def write(self, uri: str, data: bytes) -> None:
         self._blobs[uri] = data
+
+
+_NAMESPACED = ("namespace", "serviceaccount", "resourcequota", "limitrange", "networkpolicy")
+
+
+class FakeClusterProvider:
+    """A cluster that is just a set of (namespace -> resources) with the same
+    ownership and idempotency rules as the real adapter."""
+
+    def __init__(self) -> None:
+        self.namespaces: dict[str, set[str]] = {}
+        self.owners: dict[str, UUID] = {}
+        self.terminating: set[str] = set()
+        self.apply_calls = 0
+        self.mutations = 0  # resources actually created/changed; stays flat when converged
+        self.fail_apply: Exception | None = None
+        self.silently_incomplete = False  # apply "succeeds" but creates nothing
+
+    def observe(self, spec: NamespaceSpec) -> Observation:
+        if spec.namespace in self.terminating:
+            return Observation(NamespaceState.TERMINATING)
+        if spec.namespace not in self.namespaces:
+            return Observation(NamespaceState.ABSENT)
+        missing = tuple(r for r in _NAMESPACED if r not in self.namespaces[spec.namespace])
+        return Observation(NamespaceState.PRESENT, missing)
+
+    def apply(self, spec: NamespaceSpec) -> tuple[str, ...]:
+        self.apply_calls += 1
+        if self.fail_apply is not None:
+            raise self.fail_apply
+        if self.silently_incomplete:
+            return ()
+        owner = self.owners.get(spec.namespace)
+        if owner is not None and owner != spec.project_id:
+            raise Conflict(f"namespace {spec.namespace!r} belongs to another project")
+        have = self.namespaces.setdefault(spec.namespace, set())
+        self.owners[spec.namespace] = spec.project_id
+        changed = tuple(r for r in _NAMESPACED if r not in have)
+        have.update(changed)
+        self.mutations += len(changed)
+        return changed
+
+    def delete(self, namespace: str, project_id: UUID) -> None:
+        owner = self.owners.get(namespace)
+        if namespace in self.namespaces and owner != project_id:
+            raise Conflict(f"namespace {namespace!r} is not owned by project {project_id}")
+        self.namespaces.pop(namespace, None)
+        self.owners.pop(namespace, None)
+        self.terminating.discard(namespace)
+
+    # test controls
+    def remove_namespace(self, namespace: str) -> None:
+        self.namespaces.pop(namespace, None)
+        self.owners.pop(namespace, None)
+
+    def remove_resource(self, namespace: str, resource: str) -> None:
+        self.namespaces[namespace].discard(resource)

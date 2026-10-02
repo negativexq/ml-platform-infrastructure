@@ -89,6 +89,16 @@ def _projects_router() -> APIRouter:
     def get_project(project_id: UUID, request: Request) -> ProjectOut:
         return ProjectOut.from_domain(service(request).get(project_id))
 
+    @router.delete(
+        "/{project_id}",
+        response_model=ProjectOut,
+        status_code=status.HTTP_202_ACCEPTED,
+        responses=errors,
+        summary="Request project deletion (idempotent; the reconciler cleans up)",
+    )
+    def delete_project(project_id: UUID, request: Request) -> ProjectOut:
+        return ProjectOut.from_domain(service(request).request_delete(project_id))
+
     return router
 
 

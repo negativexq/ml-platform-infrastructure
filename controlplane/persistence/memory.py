@@ -14,7 +14,8 @@ from uuid import UUID
 
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import Project
-from controlplane.domain.errors import AlreadyExists
+from controlplane.domain.errors import AlreadyExists, Conflict, NotFound
+from controlplane.domain.states import ProjectStatus
 
 
 @dataclass
@@ -39,8 +40,21 @@ class _Projects:
         return next((p for p in self._data.values() if p.name == name), None)
 
     def list(self, *, limit: int, offset: int) -> Sequence[Project]:
-        ordered = sorted(self._data.values(), key=lambda p: (p.created_at, p.id))
-        return ordered[offset : offset + limit]
+        return self.list_reconcilable()[offset : offset + limit]
+
+    def list_reconcilable(self) -> Sequence[Project]:
+        live = (p for p in self._data.values() if p.status is not ProjectStatus.DELETED)
+        return sorted(live, key=lambda p: (p.created_at, p.id))
+
+    def update(self, project: Project, *, expected_status: ProjectStatus) -> None:
+        current = self._data.get(project.id)
+        if current is None:
+            raise NotFound("project", project.id)
+        if current.status is not expected_status:
+            raise Conflict(
+                f"project {project.id} is {current.status.value}, not {expected_status.value}"
+            )
+        self._data[project.id] = project
 
 
 class _Audit:

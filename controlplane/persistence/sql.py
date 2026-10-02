@@ -2,16 +2,17 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 from types import TracebackType
-from typing import Self
+from typing import Any, Self
 from uuid import UUID
 
-from sqlalchemy import Engine, create_engine, select
+from sqlalchemy import Engine, create_engine, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.sql import Select
 
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import Project
-from controlplane.domain.errors import AlreadyExists
+from controlplane.domain.errors import AlreadyExists, Conflict, NotFound
 from controlplane.domain.states import ProjectStatus
 from controlplane.persistence.models import AuditEventRow, ProjectRow
 
@@ -29,6 +30,7 @@ def _project(row: ProjectRow) -> Project:
         display_name=row.display_name,
         description=row.description,
         status=ProjectStatus(row.status),
+        status_reason=row.status_reason,
         created_at=row.created_at,
         updated_at=row.updated_at,
     )
@@ -59,6 +61,7 @@ class SqlProjects:
                 display_name=project.display_name,
                 description=project.description,
                 status=project.status.value,
+                status_reason=project.status_reason,
                 created_at=project.created_at,
                 updated_at=project.updated_at,
             )
@@ -78,14 +81,35 @@ class SqlProjects:
         row = self._s.scalars(select(ProjectRow).where(ProjectRow.name == name)).first()
         return _project(row) if row else None
 
-    def list(self, *, limit: int, offset: int) -> Sequence[Project]:
-        rows = self._s.scalars(
+    def _live(self) -> Select[Any]:
+        return (
             select(ProjectRow)
+            .where(ProjectRow.status != ProjectStatus.DELETED.value)
             .order_by(ProjectRow.created_at, ProjectRow.id)
-            .limit(limit)
-            .offset(offset)
         )
+
+    def list(self, *, limit: int, offset: int) -> Sequence[Project]:
+        rows = self._s.scalars(self._live().limit(limit).offset(offset))
         return [_project(r) for r in rows]
+
+    def list_reconcilable(self) -> Sequence[Project]:
+        return [_project(r) for r in self._s.scalars(self._live())]
+
+    def update(self, project: Project, *, expected_status: ProjectStatus) -> None:
+        result = self._s.execute(
+            update(ProjectRow)
+            .where(ProjectRow.id == project.id, ProjectRow.status == expected_status.value)
+            .values(
+                status=project.status.value,
+                status_reason=project.status_reason,
+                updated_at=project.updated_at,
+            )
+        )
+        if getattr(result, "rowcount", 0) == 1:
+            return
+        if self._s.get(ProjectRow, project.id) is None:
+            raise NotFound("project", project.id)
+        raise Conflict(f"project {project.id} is no longer {expected_status.value}")
 
 
 class SqlAudit:
