@@ -125,8 +125,11 @@ Settings are environment variables prefixed `CP_` (`controlplane/settings.py`).
     through the API and the gateway.
   * A Helm chart for the control plane itself.
 
+The full list of what is missing and what comes next: [`docs/roadmap.md`](docs/roadmap.md).
+
 ## Documentation
 
+* [Roadmap: what is missing and what comes next](docs/roadmap.md)
 * [Identity and roles](docs/identity.md)
 * [Gateway and API keys](docs/gateway.md)
 * [Web UI design](docs/ui.md)

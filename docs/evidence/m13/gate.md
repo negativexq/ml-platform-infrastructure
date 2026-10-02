@@ -1,7 +1,7 @@
 # M13 Gate — Platform Domain Foundation
 
 Run date: 2026-10-02. First milestone of the control-plane platform
-([plan](../../platform-roadmap.md)). Nothing here runs MLflow, Argo or
+([plan](../../history/platform-milestones.md)). Nothing here runs MLflow, Argo or
 Kubernetes: this milestone is the domain, its persistence, and the rules that
 keep it independent of every subsystem it will later adapt.
 

@@ -126,4 +126,4 @@ model) in [aws-architecture.md](aws-architecture.md):
 | kindnet NetworkPolicy | VPC security groups + NetworkPolicy |
 | local ServiceAccount | IAM workload identity (IRSA) |
 
-See [roadmap.md](roadmap.md) for the milestone breakdown and gates.
+See [roadmap.md](roadmap.md) for what is next, and [history/milestones.md](history/milestones.md) for the original milestones and gates.
