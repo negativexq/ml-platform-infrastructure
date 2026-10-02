@@ -2,6 +2,7 @@ import { api, ApiError, enc, type S } from '../api/client';
 import { Badge, CopyButton, Empty, Section, Table, Time } from '../components/bits';
 import { useOverlays } from '../components/overlays';
 import { describeAction } from '../lib/audit';
+import { useAccess } from '../lib/me';
 import { useCrumbs } from '../lib/chrome';
 import { go, routes } from '../lib/format';
 import { QueryView, useLiveQuery } from '../lib/query';
@@ -14,6 +15,7 @@ const DAY = 24 * 3600 * 1000;
 
 /** The project at a glance: what needs attention, what ran lately, what is serving. */
 export function ProjectPage({ name }: { name: string }) {
+  const access = useAccess(name);
   const p = enc(name);
   const { form, toast } = useOverlays();
   const runPipeline = useRunPipeline(name);
@@ -73,9 +75,9 @@ export function ProjectPage({ name }: { name: string }) {
             <div className="page-head">
               <h1>{d.project.display_name}</h1><Badge status={d.project.status} />
               <div className="actions">
-                <button className="btn primary" type="button" data-testid="run-pipeline" disabled={!ready}
-                  title={ready ? '' : 'The project is not ready yet'} onClick={startRun}>Run pipeline</button>
-                <button className="btn" type="button" data-testid="start-job" disabled={!ready} onClick={startJob}>Start job</button>
+                <button className="btn primary" type="button" data-testid="run-pipeline" disabled={!ready || !access.may('operator')}
+                  title={access.why('operator') ?? (ready ? '' : 'The project is not ready yet')} onClick={startRun}>Run pipeline</button>
+                <button className="btn" type="button" data-testid="start-job" disabled={!ready || !access.may('operator')} title={access.why('operator')} onClick={startJob}>Start job</button>
               </div>
             </div>
             <p className="sub">{d.project.description || d.project.name}</p>

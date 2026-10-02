@@ -33,3 +33,11 @@ class IllegalTransition(DomainError):
         self.machine = machine
         self.source = source
         self.target = target
+
+
+class Unauthenticated(DomainError):
+    """No valid identity was presented."""
+
+
+class PermissionDenied(DomainError):
+    """The caller is known, but may not do this."""

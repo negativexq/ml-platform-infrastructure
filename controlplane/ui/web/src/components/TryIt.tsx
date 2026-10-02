@@ -5,7 +5,7 @@ import { Snippet } from './bits';
 const EXAMPLE = '{\n  "instances": [[1.0, 2.0, 3.0]]\n}';
 
 /** Send one request through the platform to the endpoint: the quickest "is it actually serving?". */
-export function TryIt({ project, endpoint }: { project: string; endpoint: S['EndpointOut'] }) {
+export function TryIt({ project, endpoint, allowed = true }: { project: string; endpoint: S['EndpointOut']; allowed?: boolean }) {
   const [body, setBody] = useState(EXAMPLE);
   const [result, setResult] = useState<{ ok: boolean; text: string; ms: number } | null>(null);
   const [busy, setBusy] = useState(false);
@@ -37,8 +37,8 @@ export function TryIt({ project, endpoint }: { project: string; endpoint: S['End
           <label className="field-label" htmlFor="try-body">Request body</label>
           <textarea id="try-body" className="code" rows={6} spellCheck={false} value={body} onChange={(e) => setBody(e.target.value)} data-testid="try-body" />
           <div className="dlg-actions" style={{ justifyContent: 'flex-start' }}>
-            <button className="btn primary" type="button" disabled={!ready || busy} data-testid="try-send" onClick={send}
-              title={ready ? '' : `The endpoint is ${endpoint.status.toLowerCase()}`}>{busy ? 'Sending…' : 'Send'}</button>
+            <button className="btn primary" type="button" disabled={!ready || busy || !allowed} data-testid="try-send" onClick={send}
+              title={!allowed ? 'Needs the operator role in this project' : ready ? '' : `The endpoint is ${endpoint.status.toLowerCase()}`}>{busy ? 'Sending…' : 'Send'}</button>
           </div>
         </div>
         <div>

@@ -4,13 +4,15 @@ from collections.abc import MutableMapping
 from typing import Annotated, Any
 from uuid import UUID
 
-from fastapi import APIRouter, FastAPI, Query, Request, Response, status
+from fastapi import APIRouter, Depends, FastAPI, Query, Request, Response, status
 from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.telemetry import TelemetryConfig
 
+from controlplane.api.auth import AuthConfig, AuthMiddleware, authorize, request_principal
 from controlplane.api.deployments import deployments_router
 from controlplane.api.errors import DomainHttpError, PlatformRoute, handle_domain_error
+from controlplane.api.identity import identity_router, login_router
 from controlplane.api.jobs_runs import jobs_router, runs_router
 from controlplane.api.models import model_versions_router, models_router
 from controlplane.api.overview import overview_router
@@ -18,7 +20,9 @@ from controlplane.api.pipelines import pipeline_runs_router, pipelines_router
 from controlplane.api.rollouts import rollouts_router
 from controlplane.api.schemas import ErrorOut, ProjectCreate, ProjectList, ProjectOut
 from controlplane.application.deployments import DeploymentService
+from controlplane.application.identity import visible_project_ids
 from controlplane.application.jobs import JobService
+from controlplane.application.members import MembershipService
 from controlplane.application.models import EvaluationService, ModelService, PromotionService
 from controlplane.application.overview import OverviewService
 from controlplane.application.pipeline_runs import PipelineRunService
@@ -67,10 +71,15 @@ def _projects_router() -> APIRouter:
         summary="Create a project (idempotent)",
     )
     def create_project(body: ProjectCreate, request: Request, response: Response) -> ProjectOut:
+        # With sign-in on, whoever creates a project is its first admin.
+        owner = None
+        if request.app.state.auth is not None:
+            owner = f"user:{request_principal(request).username}"
         project, created = service(request).create(
             CreateProject(
                 name=body.name, display_name=body.display_name, description=body.description
-            )
+            ),
+            owner=owner,
         )
         if not created:
             response.status_code = status.HTTP_200_OK
@@ -82,7 +91,10 @@ def _projects_router() -> APIRouter:
         limit: Annotated[int, Query(ge=1, le=200)] = 50,
         offset: Annotated[int, Query(ge=0)] = 0,
     ) -> ProjectList:
-        items = service(request).list(limit=limit, offset=offset)
+        uow_factory: UnitOfWorkFactory = request.app.state.uow_factory
+        with uow_factory() as uow:
+            only = visible_project_ids(uow, request_principal(request))
+        items = service(request).list(limit=limit, offset=offset, only=only)
         return ProjectList(
             items=[ProjectOut.from_domain(p) for p in items], limit=limit, offset=offset
         )
@@ -130,14 +142,21 @@ def create_app(
     metrics: MetricsProvider | None = None,
     ui: bool = True,
     telemetry: TelemetryConfig | None = None,
+    auth: AuthConfig | None = None,
 ) -> FastAPI:
+    """`auth=None` runs without sign-in: every caller is an anonymous platform admin. That is
+    for local development, the demo and tests; production passes an `AuthConfig`."""
     app = FastAPI(
         title="ML Platform Control Plane",
         version="0.1.0",
         description="Platform API. PostgreSQL owns lifecycle state; MLflow, Argo and "
         "KServe are adapters behind it.",
         telemetry=_telemetry_config(telemetry),
+        dependencies=[Depends(authorize)],
     )
+    app.state.uow_factory = uow_factory
+    app.state.auth = auth
+    app.state.members = MembershipService(uow_factory, clock)
     app.state.projects = ProjectService(uow_factory, clock)
     app.state.jobs = JobService(uow_factory, clock)
     app.state.runs = RunService(uow_factory, clock)
@@ -165,6 +184,9 @@ def create_app(
     app.include_router(deployments_router())
     app.include_router(rollouts_router())
     app.include_router(overview_router())
+    app.include_router(identity_router())
+    if auth is not None and auth.login is not None:
+        app.include_router(login_router(auth))
 
     if ui:
         _mount_ui(app)
@@ -173,6 +195,9 @@ def create_app(
     def healthz() -> dict[str, str]:
         return {"status": "ok"}
 
+    app.add_middleware(
+        AuthMiddleware, config=auth
+    )  # outermost: every request is authenticated first
     return app
 
 

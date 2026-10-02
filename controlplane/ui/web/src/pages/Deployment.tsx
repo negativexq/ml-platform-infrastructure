@@ -3,6 +3,7 @@ import { Alert, Badge, CopyButton, Section, Table, Time } from '../components/bi
 import { useOverlays } from '../components/overlays';
 import { useDeploy } from '../components/Deploy';
 import { TryIt } from '../components/TryIt';
+import { useAccess } from '../lib/me';
 import { useCrumbs } from '../lib/chrome';
 import { fmtDuration, num, pct, routes } from '../lib/format';
 import { QueryView, useAct, useLiveQuery } from '../lib/query';
@@ -17,6 +18,7 @@ const LABELS: Record<string, string> = {
 };
 
 export function DeploymentPage({ project, name }: { project: string; name: string }) {
+  const access = useAccess(project);
   useCrumbs([{ label: 'Projects', href: routes.projects() }, { label: project, href: routes.project(project) },
     { label: 'Deployments', href: `${routes.project(project)}/deployments` }, { label: name }]);
   const base = `/projects/${enc(project)}`;
@@ -44,10 +46,10 @@ export function DeploymentPage({ project, name }: { project: string; name: strin
             <div className="page-head">
               <h1>{d.name}</h1><Badge status={d.status} />
               <div className="actions">
-                <button className="btn primary" type="button" data-testid="deploy" disabled={Boolean(live)}
-                  title={live ? 'A rollout is in progress' : 'Deploy a model version here'} onClick={() => deploy({ deployment: d.name })}>Deploy a version</button>
-                <button className="btn danger" data-testid="rollback" disabled={noRollback}
-                  title={live ? 'A rollout is in progress; abort it instead' : d.revisions.length < 2 ? 'There is no earlier revision' : 'Serve the previous revision again'}
+                <button className="btn primary" type="button" data-testid="deploy" disabled={Boolean(live) || !access.may('operator')}
+                  title={access.why('operator') ?? (live ? 'A rollout is in progress' : 'Deploy a model version here')} onClick={() => deploy({ deployment: d.name })}>Deploy a version</button>
+                <button className="btn danger" data-testid="rollback" disabled={noRollback || !access.may('operator')}
+                  title={access.why('operator') ?? (live ? 'A rollout is in progress; abort it instead' : d.revisions.length < 2 ? 'There is no earlier revision' : 'Serve the previous revision again')}
                   onClick={async () => {
                     const prev = Math.max(...d.revisions.map((r) => r.revision).filter((n) => n < (d.active_revision ?? 0)));
                     if (await confirm({ title: 'Roll back this deployment?', confirmLabel: 'Roll back', danger: true,
@@ -61,12 +63,12 @@ export function DeploymentPage({ project, name }: { project: string; name: strin
               {d.desired_revision !== d.active_revision && <>{' · desired '}<b>{`r${d.desired_revision}`}</b></>}
             </p>
             {d.status_reason && <Alert bad={d.status === 'FAILED'}>{d.status_reason}</Alert>}
-            {live && <RolloutCard r={live} onAbort={async () => {
+            {live && <RolloutCard r={live} allowed={access.may('operator')} onAbort={async () => {
               if (await confirm({ title: 'Abort this rollout?', body: `All traffic returns to r${live.from_revision}. The canary is not promoted.`, confirmLabel: 'Abort rollout', danger: true }))
                 await act(() => api.post(`/rollouts/${live.id}/abort`), 'Abort requested');
             }} />}
             <div className="cols"><EndpointCard endpoint={d.endpoint} metrics={metrics} live={live} /><Revisions d={d} /></div>
-            <TryIt project={project} endpoint={d.endpoint} />
+            <TryIt project={project} endpoint={d.endpoint} allowed={access.may('operator')} />
             {rollouts.some((r) => r !== live) && (
               <Section title="Rollout history"><History rows={rollouts.filter((r) => r !== live)} /></Section>)}
             <div className="section card"><h2>Recent activity</h2>
@@ -82,7 +84,7 @@ export function DeploymentPage({ project, name }: { project: string; name: strin
   );
 }
 
-function RolloutCard({ r, onAbort }: { r: Rollout; onAbort: () => void }) {
+function RolloutCard({ r, onAbort, allowed }: { r: Rollout; onAbort: () => void; allowed: boolean }) {
   return (
     <div className="card section" data-testid="rollout">
       <h2>{`Canary rollout: r${r.from_revision} → r${r.to_revision}`}<Badge status={r.status} /><span className="muted small">{` ${r.model} v${r.model_version}`}</span></h2>
@@ -95,7 +97,7 @@ function RolloutCard({ r, onAbort }: { r: Rollout; onAbort: () => void }) {
       </div>
       <p className="muted small">{`Gate: error rate ≤ ${pct(r.gate.max_error_rate)}, p95 ≤ ${r.gate.max_p95_latency_ms} ms, ≥ ${r.gate.min_requests} requests, ${fmtDuration(r.gate.step_seconds)} per step`}</p>
       {r.abort_requested && <Alert>Abort requested — returning traffic to the stable revision.</Alert>}
-      <button className="btn danger" data-testid="abort" disabled={r.abort_requested} onClick={onAbort}>Abort rollout</button>
+      <button className="btn danger" data-testid="abort" disabled={r.abort_requested || !allowed} title={allowed ? undefined : 'Needs the operator role in this project'} onClick={onAbort}>Abort rollout</button>
     </div>
   );
 }

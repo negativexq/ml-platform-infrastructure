@@ -1,6 +1,7 @@
 import { api, ApiError, enc, type S } from '../api/client';
 import { Badge, Empty, Table, Time } from '../components/bits';
 import { useOverlays } from '../components/overlays';
+import { useAccess } from '../lib/me';
 import { useCrumbs } from '../lib/chrome';
 import { go, num, parseThresholds, routes } from '../lib/format';
 import { QueryView, useLiveQuery } from '../lib/query';
@@ -8,6 +9,7 @@ import { QueryView, useLiveQuery } from '../lib/query';
 type Row = { model: S['ModelOut']; versions: S['ModelVersionOut'][] };
 
 export function ModelsPage({ project }: { project: string }) {
+  const access = useAccess(project);
   useCrumbs([{ label: 'Projects', href: routes.projects() }, { label: project, href: routes.project(project) }, { label: 'Models' }]);
   const p = enc(project);
   const { form, toast } = useOverlays();
@@ -44,7 +46,7 @@ export function ModelsPage({ project }: { project: string }) {
         <>
           <div className="page-head">
             <h1>Models</h1>
-            <div className="actions"><button className="btn primary" type="button" data-testid="register-model" onClick={register}>Register model</button></div>
+            <div className="actions"><button className="btn primary" type="button" data-testid="register-model" disabled={!access.may('operator')} title={access.why('operator')} onClick={register}>Register model</button></div>
           </div>
           <p className="sub">What is serving, what is waiting to be promoted, and what was turned away.</p>
           {rows.length === 0 ? <Empty>No models yet. Register one, then train and discover versions.</Empty> : (

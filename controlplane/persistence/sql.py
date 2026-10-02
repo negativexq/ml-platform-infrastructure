@@ -5,11 +5,12 @@ from types import TracebackType
 from typing import Any, Self
 from uuid import UUID
 
-from sqlalchemy import Engine, create_engine, func, select, update
+from sqlalchemy import Engine, create_engine, delete, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.sql import Select
 
+from controlplane.domain.access import Membership, ProjectRole
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import (
     Check,
@@ -50,6 +51,7 @@ from controlplane.persistence.models import (
     EndpointRow,
     EvaluationRow,
     JobDefinitionRow,
+    MembershipRow,
     ModelRow,
     ModelVersionRow,
     PipelineDefinitionRow,
@@ -1189,6 +1191,77 @@ class SqlAudit:
         return [_audit(r) for r in self._s.scalars(stmt)]
 
 
+def _membership(row: MembershipRow) -> Membership:
+    return Membership(
+        id=row.id,
+        project_id=row.project_id,
+        subject=row.subject,
+        role=ProjectRole(row.role),
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
+class SqlMemberships:
+    def __init__(self, session: Session) -> None:
+        self._s = session
+
+    def add(self, membership: Membership) -> None:
+        self._s.add(
+            MembershipRow(
+                id=membership.id,
+                project_id=membership.project_id,
+                subject=membership.subject,
+                role=membership.role.value,
+                created_at=membership.created_at,
+                updated_at=membership.updated_at,
+            )
+        )
+        _flush_unique(self._s, "member", membership.subject)
+
+    def get(self, project_id: UUID, subject: str) -> Membership | None:
+        row = self._s.scalars(
+            select(MembershipRow).where(
+                MembershipRow.project_id == project_id, MembershipRow.subject == subject
+            )
+        ).first()
+        return _membership(row) if row else None
+
+    def list(self, project_id: UUID) -> Sequence[Membership]:
+        rows = self._s.scalars(
+            select(MembershipRow)
+            .where(MembershipRow.project_id == project_id)
+            .order_by(MembershipRow.subject)
+        )
+        return [_membership(r) for r in rows]
+
+    def list_for_subjects(self, subjects: Collection[str]) -> Sequence[Membership]:
+        if not subjects:
+            return []
+        rows = self._s.scalars(
+            select(MembershipRow).where(MembershipRow.subject.in_(list(subjects)))
+        )
+        return [_membership(r) for r in rows]
+
+    def update(self, membership: Membership) -> None:
+        result = self._s.execute(
+            update(MembershipRow)
+            .where(MembershipRow.id == membership.id)
+            .values(role=membership.role.value, updated_at=membership.updated_at)
+        )
+        if getattr(result, "rowcount", 0) != 1:
+            raise NotFound("member", membership.subject)
+
+    def remove(self, project_id: UUID, subject: str) -> None:
+        result = self._s.execute(
+            delete(MembershipRow).where(
+                MembershipRow.project_id == project_id, MembershipRow.subject == subject
+            )
+        )
+        if getattr(result, "rowcount", 0) != 1:
+            raise NotFound("member", subject)
+
+
 class SqlUnitOfWork:
     def __init__(self, session_factory: sessionmaker[Session]) -> None:
         self._factory = session_factory
@@ -1210,6 +1283,7 @@ class SqlUnitOfWork:
         self.endpoints = SqlEndpoints(self._session)
         self.rollouts = SqlRollouts(self._session)
         self.audit = SqlAudit(self._session)
+        self.memberships = SqlMemberships(self._session)
         return self
 
     def __exit__(

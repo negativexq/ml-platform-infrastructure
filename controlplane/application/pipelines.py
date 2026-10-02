@@ -3,8 +3,9 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import dataclass, field
 
+from controlplane.application.identity import current_actor
 from controlplane.application.jobs import resolve_project
-from controlplane.application.projects import ANONYMOUS, Clock, UnitOfWorkFactory, utc_now
+from controlplane.application.projects import Clock, UnitOfWorkFactory, utc_now
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import PipelineDefinition, StepSpec
 from controlplane.domain.errors import AlreadyExists, InvalidArgument, NotFound
@@ -61,7 +62,7 @@ class PipelineService:
             uow.audit.record(
                 AuditEvent(
                     occurred_at=definition.created_at,
-                    actor=ANONYMOUS,
+                    actor=current_actor(),
                     action="pipeline.created",
                     entity_type="pipeline",
                     entity_id=definition.id,

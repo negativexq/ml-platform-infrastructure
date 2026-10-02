@@ -2,11 +2,13 @@ import { api, enc, type S } from '../api/client';
 import { Badge, Empty, Table } from '../components/bits';
 import { useDeploy } from '../components/Deploy';
 import { useOverlays } from '../components/overlays';
+import { useAccess } from '../lib/me';
 import { useCrumbs } from '../lib/chrome';
 import { go, num, pct, routes } from '../lib/format';
 import { QueryView, useLiveQuery } from '../lib/query';
 
 export function DeploymentsPage({ project }: { project: string }) {
+  const access = useAccess(project);
   useCrumbs([{ label: 'Projects', href: routes.projects() }, { label: project, href: routes.project(project) }, { label: 'Deployments' }]);
   const p = enc(project);
   const { form, toast } = useOverlays();
@@ -39,8 +41,8 @@ export function DeploymentsPage({ project }: { project: string }) {
           <div className="page-head">
             <h1>Deployments</h1>
             <div className="actions">
-              <button className="btn" type="button" data-testid="new-deployment" onClick={create}>New deployment</button>
-              <button className="btn primary" type="button" data-testid="deploy" onClick={() => deploy()}>Deploy a version</button>
+              <button className="btn" type="button" data-testid="new-deployment" disabled={!access.may('operator')} title={access.why('operator')} onClick={create}>New deployment</button>
+              <button className="btn primary" type="button" data-testid="deploy" disabled={!access.may('operator')} title={access.why('operator')} onClick={() => deploy()}>Deploy a version</button>
             </div>
           </div>
           <p className="sub">What serves traffic, how it is split, and how it is doing right now.</p>

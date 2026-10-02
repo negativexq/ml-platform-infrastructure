@@ -1,0 +1,75 @@
+# Keycloak for local development: one pod, dev mode, in-memory database, the `mlp` realm
+# imported at start-up from k8s/identity/realm-mlp.json (loaded as the ConfigMap
+# `keycloak-realm` by scripts/identity-up.sh). Restarting the pod resets it to that file.
+#
+# NOT for production: use your organisation's identity provider (any OpenID Connect issuer
+# works), or a Keycloak with a real database and TLS. See docs/identity.md.
+#
+# The issuer is http://localhost:8180/realms/mlp: reach it with
+#   kubectl -n identity port-forward svc/keycloak 8180:8080
+# so the browser and a control plane running on the host (`make cp-demo`, `make cp-run`) see
+# the same issuer URL, which OpenID Connect requires.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: identity
+  labels: {app.kubernetes.io/part-of: ml-platform}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: keycloak
+  namespace: identity
+  labels: {app.kubernetes.io/name: keycloak, app.kubernetes.io/part-of: ml-platform}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app.kubernetes.io/name: keycloak}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: keycloak, app.kubernetes.io/part-of: ml-platform}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: keycloak
+          image: quay.io/keycloak/keycloak:26.4.0
+          args: ["start-dev", "--import-realm", "--http-port=8080"]
+          env:
+            - {name: KC_HOSTNAME, value: "http://localhost:8180"}
+            - {name: KC_HOSTNAME_BACKCHANNEL_DYNAMIC, value: "true"}
+            - {name: KC_HEALTH_ENABLED, value: "true"}
+            - {name: KC_BOOTSTRAP_ADMIN_USERNAME, value: admin}
+            - {name: KC_BOOTSTRAP_ADMIN_PASSWORD, value: admin}  # local only
+          ports:
+            - {name: http, containerPort: 8080}
+            - {name: management, containerPort: 9000}
+          readinessProbe:
+            httpGet: {path: /health/ready, port: management}
+            initialDelaySeconds: 20
+            periodSeconds: 5
+          resources:
+            requests: {cpu: 200m, memory: 512Mi}
+            limits: {memory: 1Gi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: realm, mountPath: /opt/keycloak/data/import, readOnly: true}
+      volumes:
+        - name: realm
+          configMap: {name: keycloak-realm}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: keycloak
+  namespace: identity
+  labels: {app.kubernetes.io/name: keycloak}
+spec:
+  selector: {app.kubernetes.io/name: keycloak}
+  ports:
+    - {name: http, port: 8080, targetPort: http}

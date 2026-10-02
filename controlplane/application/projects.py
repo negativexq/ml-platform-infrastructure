@@ -1,12 +1,14 @@
 from __future__ import annotations
 
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Collection, Sequence
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import UUID
 
 from controlplane.application.context import current_traceparent
+from controlplane.application.identity import current_actor
 from controlplane.application.ports import UnitOfWork
+from controlplane.domain.access import Membership, ProjectRole
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import Project
 from controlplane.domain.errors import AlreadyExists, Conflict, NotFound
@@ -14,9 +16,6 @@ from controlplane.domain.states import ProjectStatus
 
 Clock = Callable[[], datetime]
 UnitOfWorkFactory = Callable[[], UnitOfWork]
-
-# Until authentication exists, the actor is not something a client may assert.
-ANONYMOUS = "anonymous"
 
 
 def utc_now() -> datetime:
@@ -35,12 +34,15 @@ class ProjectService:
         self._uow_factory = uow_factory
         self._clock = clock
 
-    def create(self, cmd: CreateProject) -> tuple[Project, bool]:
+    def create(self, cmd: CreateProject, *, owner: str | None = None) -> tuple[Project, bool]:
         """Create a project. Returns `(project, created)`.
 
         A repeat of an identical request returns the existing project with
         `created=False` and writes nothing. The same name with different
         attributes is a Conflict, never a silent overwrite.
+
+        `owner` (a member subject such as `user:alice`) becomes the project's first admin, in
+        the same transaction, so a new project is never left without someone to manage it.
         """
         candidate = Project.create(
             name=cmd.name,
@@ -57,7 +59,7 @@ class ProjectService:
                     uow.audit.record(
                         AuditEvent(
                             occurred_at=candidate.created_at,
-                            actor=ANONYMOUS,
+                            actor=current_actor(),
                             action="project.created",
                             entity_type="project",
                             entity_id=candidate.id,
@@ -65,6 +67,15 @@ class ProjectService:
                             payload={"name": candidate.name},
                         )
                     )
+                    if owner is not None:
+                        membership = Membership.create(
+                            project_id=candidate.id,
+                            subject=owner,
+                            role=ProjectRole.ADMIN,
+                            now=candidate.created_at,
+                        )
+                        uow.memberships.add(membership)
+                        uow.audit.record(_membership_event(membership, "membership.granted"))
                     uow.commit()
                     return candidate, True
         except AlreadyExists:
@@ -90,9 +101,16 @@ class ProjectService:
             raise NotFound("project", project_id)
         return project
 
-    def list(self, *, limit: int = 50, offset: int = 0) -> Sequence[Project]:
+    def list(
+        self, *, limit: int = 50, offset: int = 0, only: Collection[UUID] | None = None
+    ) -> Sequence[Project]:
+        """`only` limits the list to these projects (the ones a caller is a member of)."""
         with self._uow_factory() as uow:
-            return uow.projects.list(limit=limit, offset=offset)
+            if only is None:
+                return uow.projects.list(limit=limit, offset=offset)
+            wanted = set(only)
+            visible = [p for p in uow.projects.list(limit=10_000, offset=0) if p.id in wanted]
+            return visible[offset : offset + limit]
 
     def request_delete(self, project_id: UUID) -> Project:
         """Record the intent to delete. The reconciler performs the cleanup and
@@ -109,7 +127,7 @@ class ProjectService:
             uow.audit.record(
                 AuditEvent(
                     occurred_at=now,
-                    actor=ANONYMOUS,
+                    actor=current_actor(),
                     action="project.delete_requested",
                     entity_type="project",
                     entity_id=project.id,
@@ -119,3 +137,20 @@ class ProjectService:
             )
             uow.commit()
             return deleting
+
+
+def _membership_event(
+    m: Membership, action: str, previous: ProjectRole | None = None
+) -> AuditEvent:
+    payload: dict[str, object] = {"subject": m.subject, "role": m.role.value}
+    if previous is not None:
+        payload["from"] = previous.value
+    return AuditEvent(
+        occurred_at=m.updated_at,
+        actor=current_actor(),
+        action=action,
+        entity_type="membership",
+        entity_id=m.id,
+        project_id=m.project_id,
+        payload=payload,
+    )

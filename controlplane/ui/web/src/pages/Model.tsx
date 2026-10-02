@@ -3,6 +3,7 @@ import { api, ApiError, enc, type S } from '../api/client';
 import { Alert, Badge, Empty, Table, Time } from '../components/bits';
 import { useDeploy } from '../components/Deploy';
 import { useOverlays } from '../components/overlays';
+import { useAccess } from '../lib/me';
 import { useCrumbs } from '../lib/chrome';
 import { formatThresholds, lowerIsBetter, num, parseThresholds, routes, shortId, type Thresholds } from '../lib/format';
 import { QueryView, useAct, useLiveQuery } from '../lib/query';
@@ -15,6 +16,7 @@ const metricNames = (versions: Version[]) =>
 const latest = (v: Version) => v.evaluations[v.evaluations.length - 1];
 
 export function ModelPage({ project, name }: { project: string; name: string }) {
+  const access = useAccess(project);
   useCrumbs([{ label: 'Projects', href: routes.projects() }, { label: project, href: routes.project(project) },
     { label: 'Models', href: `${routes.project(project)}/models` }, { label: name }]);
   const base = `/projects/${enc(project)}/models/${enc(name)}`;
@@ -57,11 +59,11 @@ export function ModelPage({ project, name }: { project: string; name: string }) 
             <div className="page-head">
               <h1>{model.name}</h1>{model.champion && <Badge status="CHAMPION" />}
               <div className="actions">
-                <button className="btn" data-testid="discover" onClick={() => act(async () => {
+                <button className="btn" data-testid="discover" disabled={!access.may('operator')} title={access.why('operator')} onClick={() => act(async () => {
                   const r = await api.post<{ created: unknown[] }>(`${base}/discover`);
                   toast(r.created.length ? `Registered ${r.created.length} new version(s)` : 'No new versions found');
                 }, 'Checked the registry')}>Discover versions</button>
-                <button className="btn" data-testid="edit-thresholds" onClick={() => editThresholds(model.thresholds as Thresholds)}>Edit thresholds</button>
+                <button className="btn" data-testid="edit-thresholds" disabled={!access.may('admin')} title={access.why('admin')} onClick={() => editThresholds(model.thresholds as Thresholds)}>Edit thresholds</button>
               </div>
             </div>
             <p className="sub">
@@ -85,16 +87,17 @@ export function ModelPage({ project, name }: { project: string; name: string }) 
                         ? <a href={routes.pipelineRun(project, v.source_pipeline_run_id)} onClick={(e) => e.stopPropagation()}>{shortId(v.source_pipeline_run_id)}</a> : '—'}</td>
                       <td className="num">
                         {EVALUATABLE.has(v.status) && (
-                          <button className="btn small" data-testid="evaluate" onClick={(e) => { e.stopPropagation(); act(() => api.post(`/model-versions/${v.id}/evaluate`), `Evaluated v${v.version}`); }}>Evaluate</button>)}
+                          <button className="btn small" data-testid="evaluate" disabled={!access.may('operator')} title={access.why('operator')} onClick={(e) => { e.stopPropagation(); act(() => api.post(`/model-versions/${v.id}/evaluate`), `Evaluated v${v.version}`); }}>Evaluate</button>)}
                         {v.status === 'CANDIDATE' && (
-                          <button className="btn small primary" data-testid="promote" onClick={async (e) => {
+                          <button className="btn small primary" data-testid="promote" disabled={!access.may('operator')} title={access.why('operator')} onClick={async (e) => {
                             e.stopPropagation();
                             const body = champion ? `v${champion.version} (current champion) will be archived and v${v.version} becomes the champion.` : `v${v.version} becomes the first champion.`;
                             if (await confirm({ title: `Promote v${v.version}?`, body: `${body} The registry alias follows shortly.`, confirmLabel: 'Promote' }))
                               await act(() => api.post(`/model-versions/${v.id}/promote`), `v${v.version} is now the champion`);
                           }}>Promote</button>)}
                         {(v.status === 'CANDIDATE' || v.status === 'CHAMPION') && (
-                          <button className="btn small" data-testid="deploy-version" title="Deploy this version, as a canary or directly"
+                          <button className="btn small" data-testid="deploy-version" disabled={!access.may('operator')}
+                            title={access.why('operator') ?? 'Deploy this version, as a canary or directly'}
                             onClick={(e) => { e.stopPropagation(); deploy({ model: name, version: v.version }); }}>Deploy</button>)}
                       </td>
                     </tr>);

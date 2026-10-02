@@ -4,9 +4,10 @@ from collections.abc import Collection, Sequence
 from uuid import UUID
 
 from controlplane.application.context import current_traceparent
+from controlplane.application.identity import current_actor
 from controlplane.application.jobs import resolve_project
 from controlplane.application.ports import UnitOfWork
-from controlplane.application.projects import ANONYMOUS, Clock, UnitOfWorkFactory, utc_now
+from controlplane.application.projects import Clock, UnitOfWorkFactory, utc_now
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import Run
 from controlplane.domain.errors import AlreadyExists, Conflict, NotFound
@@ -16,7 +17,7 @@ from controlplane.domain.states import ProjectStatus, RunStatus
 def _audit(run: Run, action: str, **payload: object) -> AuditEvent:
     return AuditEvent(
         occurred_at=run.updated_at,
-        actor=ANONYMOUS,
+        actor=current_actor(),
         action=action,
         entity_type="run",
         entity_id=run.id,

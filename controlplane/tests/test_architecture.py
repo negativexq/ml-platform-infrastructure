@@ -13,7 +13,7 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 
-EXTERNAL = {"mlflow", "kubernetes", "argo_workflows", "hera", "kserve", "boto3", "requests"}
+EXTERNAL = {"mlflow", "kubernetes", "argo_workflows", "hera", "kserve", "boto3", "requests", "jwt"}
 FRAMEWORKS = {"sqlalchemy", "alembic", "psycopg", "fastapi", "starlette", "pydantic_settings"}
 
 # layer -> top-level modules it must never import

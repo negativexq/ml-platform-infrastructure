@@ -37,6 +37,8 @@ controlplane = [
     "psycopg[binary]>=3.2",
     "kubernetes>=31",
     "opentelemetry-instrumentation-sqlalchemy>=0.50b0",
+    # OpenID Connect: verifying bearer and ID tokens (JWKS, RS256/ES256).
+    "pyjwt[crypto]>=2.9",
 ]
 controlplane-dev = [
     "pgserver>=0.1.4",

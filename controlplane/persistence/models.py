@@ -285,6 +285,18 @@ class EndpointRow(Base):
     updated_at: Mapped[datetime] = _ts()
 
 
+class MembershipRow(Base):
+    __tablename__ = "memberships"
+    __table_args__ = (UniqueConstraint("project_id", "subject", name="uq_memberships_subject"),)
+
+    id: Mapped[UUID] = _pk()
+    project_id: Mapped[UUID] = _fk("projects.id")
+    subject: Mapped[str] = mapped_column(String(210), nullable=False, index=True)
+    role: Mapped[str] = mapped_column(String(16), nullable=False)
+    created_at: Mapped[datetime] = _ts()
+    updated_at: Mapped[datetime] = _ts()
+
+
 class AuditEventRow(Base):
     __tablename__ = "audit_events"
     __table_args__ = (Index("ix_audit_events_entity", "entity_type", "entity_id"),)

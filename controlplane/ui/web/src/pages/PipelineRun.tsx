@@ -5,6 +5,7 @@ import { Alert, Badge, CopyButton, Table, Time } from '../components/bits';
 import { Dag } from '../components/Dag';
 import { Logs } from '../components/Logs';
 import { useOverlays } from '../components/overlays';
+import { useAccess } from '../lib/me';
 import { useCrumbs } from '../lib/chrome';
 import { fmtDuration, go, num, routes, shortId } from '../lib/format';
 import { QueryView, useAct, useLiveQuery } from '../lib/query';
@@ -13,6 +14,7 @@ const ACTIVE = new Set(['PENDING', 'SUBMITTED', 'RUNNING']);
 type Step = S['StepRunOut'];
 
 export function PipelineRunPage({ project, id }: { project: string; id: string }) {
+  const access = useAccess(project);
   useCrumbs([{ label: 'Projects', href: routes.projects() }, { label: project, href: routes.project(project) },
     { label: 'Runs', href: `${routes.project(project)}/runs` }, { label: `run ${shortId(id)}` }]);
   const { confirm, toast } = useOverlays();
@@ -59,13 +61,14 @@ export function PipelineRunPage({ project, id }: { project: string; id: string }
               <h1>{`${r.pipeline} v${r.pipeline_version}`}</h1><Badge status={r.status} />
               <div className="actions">
                 {cancellable ? (
-                  <button className="btn danger" data-testid="cancel-run" onClick={async () => {
+                  <button className="btn danger" data-testid="cancel-run" disabled={!access.may('operator')} title={access.why('operator')} onClick={async () => {
                     if (await confirm({ title: 'Cancel this run?', body: 'Running steps are stopped and pending steps are cancelled.', confirmLabel: 'Cancel run', danger: true }))
                       await act(() => api.post(`/pipeline-runs/${id}/cancel`), 'Cancellation requested');
                   }}>Cancel run</button>
                 ) : r.cancel_requested && ACTIVE.has(r.status) ? <Badge status="CANCELLED" /> : null}
                 {!ACTIVE.has(r.status) && (
-                  <button className="btn" type="button" data-testid="rerun" title="Start a new run of the same pipeline version" onClick={() => rerun(r)}>Run again</button>)}
+                  <button className="btn" type="button" data-testid="rerun" disabled={!access.may('operator')}
+                    title={access.why('operator') ?? 'Start a new run of the same pipeline version'} onClick={() => rerun(r)}>Run again</button>)}
               </div>
             </div>
             <p className="sub">

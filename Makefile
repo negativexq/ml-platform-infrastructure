@@ -6,7 +6,7 @@
         alert-rules-test alert-rules-apply loadtest drill-autoscale drill-drain \
         local-up local-test local-down \
         tf-fmt tf-validate tf-lint tf-check \
-        ui-install ui-build ui-api ui-dev cp-install cp-test cp-check cp-migrate cp-run cp-reconcile cp-demo lock envtest-up envtest-down
+        identity-up ui-install ui-build ui-api ui-dev cp-install cp-test cp-check cp-migrate cp-run cp-reconcile cp-demo lock envtest-up envtest-down
 
 IMAGE ?= ml-platform-inference:dev
 
@@ -195,7 +195,7 @@ cp-migrate:
 	python -m controlplane.persistence.migrate upgrade
 
 cp-run:
-	uvicorn controlplane.main:app_factory --factory --reload --port 8080
+	CP_AUTH_MODE=$${CP_AUTH_MODE:-none} uvicorn controlplane.main:app_factory --factory --reload --port 8080
 
 cp-reconcile:
 	python -m controlplane.reconciler_main
@@ -221,6 +221,10 @@ ui-api:  # regenerate the typed API client from the control plane's OpenAPI
 
 ui-dev:  # hot reload on :5173, proxying the API to `make cp-demo` on :8080
 	cd controlplane/ui/web && npm run dev
+
+## Identity: Keycloak in kind with the local realm (alice, bob, carol), see docs/identity.md
+identity-up:
+	./scripts/identity-up.sh
 
 cp-demo:
 	python -m controlplane.demo

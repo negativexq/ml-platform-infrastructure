@@ -14,10 +14,11 @@ from typing import Any
 from uuid import UUID
 
 from controlplane.application.context import current_traceparent
+from controlplane.application.identity import current_actor
 from controlplane.application.jobs import resolve_project
 from controlplane.application.models import restore_champion
 from controlplane.application.ports import UnitOfWork
-from controlplane.application.projects import ANONYMOUS, Clock, UnitOfWorkFactory, utc_now
+from controlplane.application.projects import Clock, UnitOfWorkFactory, utc_now
 from controlplane.application.providers import ExperimentProvider, ServingProvider
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import (
@@ -51,7 +52,7 @@ def _audit(
 ) -> AuditEvent:
     return AuditEvent(
         occurred_at=now,
-        actor=ANONYMOUS,
+        actor=current_actor(),
         action=action,
         entity_type=entity_type,
         entity_id=entity_id,

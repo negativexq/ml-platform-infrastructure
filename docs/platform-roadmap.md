@@ -142,6 +142,14 @@ React + TypeScript + Vite (typed from the OpenAPI, bundle committed, CSP unchang
 command palette, shortcuts, filters, create/run forms, step timeline, log tools, activity with
 trace ids. Tests in `controlplane/tests/test_ui.py`; see [local-verification.md](local-verification.md) §7.
 
+### Identity (after M20)
+
+OpenID Connect sign-in (bearer tokens for scripts, server-side browser sign-in with an
+HttpOnly session) and three project roles (viewer, operator, admin) for users and groups,
+enforced by a fail-closed policy table; the audit trail names people. Verified against a real
+Keycloak. This is the minimum, not the "enterprise multi-tenant RBAC" deferred below: no OPA,
+no custom roles, no fine-grained resource permissions. See [identity.md](identity.md).
+
 ### Observability (cross-cutting, after M20)
 
 OpenTelemetry end to end: FastAPI's native tracing/metrics, a lifecycle span per audit event,
@@ -153,5 +161,5 @@ Verified here with the real Collector, Tempo and Prometheus; the in-cluster part
 
 ### Not before M21
 
-Feast · Redis/Valkey online store · Kafka · lakeFS · Kueue · Keycloak · OPA ·
+Feast · Redis/Valkey online store · Kafka · lakeFS · Kueue · production identity provider (HA Keycloak) · OPA ·
 enterprise multi-tenant RBAC · automated drift retraining · AWS · notebooks/JupyterHub.

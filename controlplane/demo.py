@@ -34,6 +34,7 @@ from controlplane.adapters.fakes import (
     FakeWorkflowProvider,
 )
 from controlplane.api.app import create_app
+from controlplane.api.auth import AuthConfig
 from controlplane.application.deployments import DeploymentService
 from controlplane.application.jobs import CreateJob, JobService
 from controlplane.application.models import EvaluationService, ModelService, PromotionService
@@ -94,6 +95,7 @@ class Demo:
     clock: DemoClock
     reconcile: Callable[[], None]
     ids: dict[str, UUID]
+    uow_factory: Callable[[], Any] = lambda: None  # noqa: E731 - the store behind the app
 
 
 class _Reconcilers:
@@ -118,7 +120,7 @@ class _Reconcilers:
         self.aliases.reconcile_all()
 
 
-def build_demo(observed: bool = False) -> Demo:
+def build_demo(observed: bool = False, auth: AuthConfig | None = None) -> Demo:
     """`observed` wires the same telemetry the real deployment has (traces, metrics, trace
     context across the reconciler) around the fakes, *after* the history is seeded."""
     store = MemoryStore()
@@ -147,8 +149,9 @@ def build_demo(observed: bool = False) -> Demo:
         experiments=fakes["experiments"],
         serving=fakes["serving"],
         metrics=fakes["metrics"],
+        auth=auth,
     )
-    return Demo(app, clock, rec.all, ids)
+    return Demo(app, clock, rec.all, ids, factory)
 
 
 def _observed(
@@ -530,7 +533,10 @@ def main() -> None:
     from controlplane import observability
 
     telemetry = observability.configure("mlp-controlplane-demo", json_logs=False)
-    demo = build_demo(observed=telemetry.enabled)
+    auth = _auth_from_env()
+    demo = build_demo(observed=telemetry.enabled, auth=auth)
+    if auth is not None:
+        _seed_members(demo)
 
     def loop() -> None:
         while True:  # lets the UI's Abort / Cancel buttons take effect
@@ -544,6 +550,35 @@ def main() -> None:
     print("Demo control plane (in-memory fakes) on http://localhost:8080  ->  /ui")
     uvicorn.run(demo.app, host="127.0.0.1", port=8080, log_level="warning")
     telemetry.shutdown()
+
+
+def _auth_from_env() -> AuthConfig | None:
+    """`CP_AUTH_MODE=oidc` plus the usual CP_OIDC_* settings turn sign-in on, e.g. against the
+    local Keycloak (docs/identity.md). Without it the demo runs open, as before."""
+    import os
+
+    if os.environ.get("CP_AUTH_MODE") != "oidc":
+        return None
+    from controlplane.main import auth_config
+    from controlplane.settings import Settings
+
+    return auth_config(Settings())
+
+
+def _seed_members(demo: Demo) -> None:
+    """Roles for the local Keycloak's users: alice is a platform admin through her group;
+    the ml-team group (bob) operates credit-risk; carol may look at fraud-detection."""
+    from controlplane.application.identity import bind_principal, reset_principal
+    from controlplane.application.members import MembershipService
+    from controlplane.domain.access import Principal, ProjectRole
+
+    token = bind_principal(Principal(username="demo-setup", platform_admin=True))
+    try:
+        members = MembershipService(demo.uow_factory)
+        members.set_role("credit-risk", "group:ml-team", ProjectRole.OPERATOR)
+        members.set_role("fraud-detection", "user:carol", ProjectRole.VIEWER)
+    finally:
+        reset_principal(token)
 
 
 if __name__ == "__main__":

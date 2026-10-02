@@ -1,6 +1,7 @@
 import { api, ApiError, enc, type S } from '../api/client';
 import { Badge, Empty, Kv, Section, Snippet, Table, Time } from '../components/bits';
 import { useOverlays } from '../components/overlays';
+import { useAccess } from '../lib/me';
 import { useCrumbs } from '../lib/chrome';
 import { fmtDuration, go, parsePairs, pct, routes, shellQuote, splitCommand } from '../lib/format';
 import { QueryView, useLiveQuery } from '../lib/query';
@@ -22,6 +23,7 @@ function useStartJob(project: string) {
 }
 
 export function JobsPage({ project }: { project: string }) {
+  const access = useAccess(project);
   useCrumbs([{ label: 'Projects', href: routes.projects() }, { label: project, href: routes.project(project) }, { label: 'Jobs' }]);
   const p = enc(project);
   const { form, toast } = useOverlays();
@@ -64,7 +66,7 @@ export function JobsPage({ project }: { project: string }) {
         <>
           <div className="page-head">
             <h1>Jobs</h1>
-            <div className="actions"><button className="btn primary" type="button" data-testid="new-job" onClick={newJob}>New job</button></div>
+            <div className="actions"><button className="btn primary" type="button" data-testid="new-job" disabled={!access.may('operator')} title={access.why('operator')} onClick={newJob}>New job</button></div>
           </div>
           <p className="sub">Containers the platform can run, alone or as pipeline steps.</p>
           {rows.length === 0 ? <Empty>No jobs yet. Create one with “New job”.</Empty> : (
@@ -80,7 +82,8 @@ export function JobsPage({ project }: { project: string }) {
                     <td>{st.last ? <><Badge status={st.last.status} /> <Time iso={st.last.created_at} /></> : <span className="muted">never run</span>}</td>
                     <td className="num">{st.successRate == null ? '—' : pct(st.successRate, 0)}</td>
                     <td className="num">{fmtDuration(st.medianSeconds)}</td>
-                    <td className="num"><button className="btn small" type="button" disabled={!ready} title={ready ? '' : 'The project is not ready yet'}
+                    <td className="num"><button className="btn small" type="button" disabled={!ready || !access.may('operator')}
+                      title={access.why('operator') ?? (ready ? '' : 'The project is not ready yet')}
                       onClick={(e) => { e.stopPropagation(); start(job.name); }}>Start</button></td>
                   </tr>);
               })}
@@ -93,6 +96,7 @@ export function JobsPage({ project }: { project: string }) {
 }
 
 export function JobPage({ project, name }: { project: string; name: string }) {
+  const access = useAccess(project);
   useCrumbs([{ label: 'Projects', href: routes.projects() }, { label: project, href: routes.project(project) },
     { label: 'Jobs', href: `${routes.project(project)}/jobs` }, { label: name }]);
   const p = enc(project);
@@ -113,7 +117,7 @@ export function JobPage({ project, name }: { project: string; name: string }) {
           <>
             <div className="page-head">
               <h1>{job.name}</h1>
-              <div className="actions"><button className="btn primary" type="button" data-testid="start-this-job" onClick={() => start(job.name)}>Start job</button></div>
+              <div className="actions"><button className="btn primary" type="button" data-testid="start-this-job" disabled={!access.may('operator')} title={access.why('operator')} onClick={() => start(job.name)}>Start job</button></div>
             </div>
             <p className="sub">{'Defined '}<Time iso={job.created_at} />
               {st.successRate != null && ` · ${pct(st.successRate, 0)} of the last ${st.finished} finished runs succeeded · typically ${fmtDuration(st.medianSeconds)}`}</p>

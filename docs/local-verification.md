@@ -569,3 +569,15 @@ make alert-rules-test               # promtool: inference + control-plane rules
 | 8 | `ServiceMonitor` is picked up (`release: monitoring`), `job` is the service name | **you**: Prometheus → Targets; `honorLabels: true` is what makes `job="mlp-controlplane-reconciler"` |
 | 9 | With the real stack: `ReconcilerStalled` fires after `kubectl scale deploy/reconciler --replicas=0`, clears after scale up | **you** (needs the control plane deployed; its manifests are still in §9) |
 | 10 | Applications reach the Collector (`OTEL_EXPORTER_OTLP_ENDPOINT`) through NetworkPolicy | **you**: `ml-platform` policies may need an egress rule to `observability:4318` |
+
+## 11. Identity gate — OIDC sign-in and project roles
+
+Verified here, including against a real Keycloak 26.4 (see `docs/identity.md`). Left for you:
+
+| # | Gate | Status |
+| --- | --- | --- |
+| 1 | Keycloak in kind (`make identity-up`), realm imported, pod ready under the restricted security context | **you** (verified here as a local Keycloak process, not as the pod) |
+| 2 | `python scripts/identity_e2e.py` passes against it with the demo on :8080 | **verified here** against a local Keycloak; **you** against the in-cluster one |
+| 3 | Your real identity provider: discovery, a `groups` claim (or set `CP_OIDC_GROUPS_CLAIM`), the `mlp` audience on access tokens | **you** |
+| 4 | Behind TLS: `CP_PUBLIC_URL=https://...` makes the cookies `Secure`; sign-in still round-trips | **you** |
+| 5 | A CI service account (client credentials) calling the API with a membership | **you** |

@@ -159,7 +159,8 @@ jobs:
       - name: manifests
         run: |
           curl -sSL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar xz kubeconform
-          ./kubeconform -strict -ignore-missing-schemas -summary k8s/observability/
+          ./kubeconform -strict -ignore-missing-schemas -summary k8s/observability/ k8s/identity/keycloak.yaml
+          python3 -m json.tool k8s/identity/realm-mlp.json >/dev/null
       - name: dashboards are valid JSON
         run: for f in observability/dashboards/*.json; do python3 -m json.tool "$f" >/dev/null; done
 

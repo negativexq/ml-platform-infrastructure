@@ -3,6 +3,7 @@ import { applyTheme, cycleTheme, getTheme, THEME_ICON, THEME_LABEL } from '../li
 import { useChrome } from '../lib/chrome';
 import { go, routes } from '../lib/format';
 import { Palette } from './Palette';
+import { AccountMenu, SignIn, useSignedOut } from './Account';
 import { Modal } from './overlays';
 
 const SHORTCUTS: [string, string][] = [
@@ -14,6 +15,7 @@ const SHORTCUTS: [string, string][] = [
 
 export function Layout({ children }: { children: ReactNode }) {
   const { crumbs, live } = useChrome();
+  const signedOut = useSignedOut();
   const [theme, setTheme] = useState(() => applyTheme());
   const [palette, setPalette] = useState(false);
   const [help, setHelp] = useState(false);
@@ -66,8 +68,9 @@ export function Layout({ children }: { children: ReactNode }) {
         </button>
         <button id="help-btn" className="btn small ghost" type="button" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts"
           onClick={() => { if (!anyDialogOpen()) setHelp(true); }}>?</button>
+        <AccountMenu />
       </header>
-      <main id="view" ref={main} tabIndex={-1}>{children}</main>
+      <main id="view" ref={main} tabIndex={-1}>{signedOut ? <SignIn signInUrl={signedOut.signInUrl} /> : children}</main>
       <Modal open={help} onClose={() => setHelp(false)}>
         <h2>Keyboard shortcuts</h2>
         <dl className="kv">

@@ -1,3 +1,4 @@
+import { useQueryClient } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 import { api, enc, type S } from '../api/client';
 import { Badge, Empty, Time } from '../components/bits';
@@ -57,6 +58,7 @@ const BUSY = ['PENDING', 'PROVISIONING', 'DRIFTED', 'DELETING'];
 export function ProjectsPage() {
   useCrumbs([{ label: 'Projects' }]);
   const { form, toast } = useOverlays();
+  const client = useQueryClient();
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
 
@@ -82,7 +84,11 @@ export function ProjectsPage() {
         name: v.name, display_name: v.display_name || undefined, description: v.description || undefined,
       }),
     });
-    if (created) { toast(`Project ${created.name} created`); go(routes.project(created.name)); }
+    if (created) {
+      await client.invalidateQueries({ queryKey: ['me'] }); // the creator is the new project's admin
+      toast(`Project ${created.name} created`);
+      go(routes.project(created.name));
+    }
   }
 
   const test = FILTERS.find(([key]) => key === filter)?.[2] ?? (() => true);

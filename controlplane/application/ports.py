@@ -7,6 +7,7 @@ from types import TracebackType
 from typing import Protocol, Self
 from uuid import UUID
 
+from controlplane.domain.access import Membership
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import (
     Deployment,
@@ -266,11 +267,31 @@ class AuditLog(Protocol):
     ) -> Sequence[AuditEvent]: ...
 
 
+class MembershipRepository(Protocol):
+    def add(self, membership: Membership) -> None:
+        """Raises AlreadyExists if the subject is already a member of the project."""
+
+    def get(self, project_id: UUID, subject: str) -> Membership | None: ...
+
+    def list(self, project_id: UUID) -> Sequence[Membership]:
+        """Ordered by subject."""
+
+    def list_for_subjects(self, subjects: Collection[str]) -> Sequence[Membership]:
+        """Every membership, in any project, held by any of these subjects."""
+
+    def update(self, membership: Membership) -> None: ...
+
+    def remove(self, project_id: UUID, subject: str) -> None: ...
+
+
 class UnitOfWork(Protocol):
     """One transaction. Leaving the block without `commit()` rolls everything back."""
 
     @property
     def projects(self) -> ProjectRepository: ...
+
+    @property
+    def memberships(self) -> MembershipRepository: ...
 
     @property
     def jobs(self) -> JobRepository: ...

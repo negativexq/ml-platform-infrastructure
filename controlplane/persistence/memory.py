@@ -12,6 +12,7 @@ from types import TracebackType
 from typing import Self
 from uuid import UUID
 
+from controlplane.domain.access import Membership
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import (
     Deployment,
@@ -59,6 +60,43 @@ class MemoryStore:
     endpoints: dict[UUID, Endpoint] = field(default_factory=dict)
     rollouts: dict[UUID, Rollout] = field(default_factory=dict)
     audit: list[AuditEvent] = field(default_factory=list)
+    memberships: dict[UUID, Membership] = field(default_factory=dict)
+
+
+class _Memberships:
+    def __init__(self, data: dict[UUID, Membership]) -> None:
+        self._data = data
+
+    def add(self, membership: Membership) -> None:
+        if self.get(membership.project_id, membership.subject) is not None:
+            raise AlreadyExists("member", membership.subject)
+        self._data[membership.id] = membership
+
+    def get(self, project_id: UUID, subject: str) -> Membership | None:
+        return next(
+            (m for m in self._data.values() if m.project_id == project_id and m.subject == subject),
+            None,
+        )
+
+    def list(self, project_id: UUID) -> Sequence[Membership]:
+        return sorted(
+            (m for m in self._data.values() if m.project_id == project_id), key=lambda m: m.subject
+        )
+
+    def list_for_subjects(self, subjects: Collection[str]) -> Sequence[Membership]:
+        wanted = set(subjects)
+        return [m for m in self._data.values() if m.subject in wanted]
+
+    def update(self, membership: Membership) -> None:
+        if membership.id not in self._data:
+            raise NotFound("member", membership.subject)
+        self._data[membership.id] = membership
+
+    def remove(self, project_id: UUID, subject: str) -> None:
+        found = self.get(project_id, subject)
+        if found is None:
+            raise NotFound("member", subject)
+        del self._data[found.id]
 
 
 class _Projects:
@@ -625,6 +663,8 @@ class MemoryUnitOfWork:
         self._endpoints = dict(self._store.endpoints)
         self._rollouts = dict(self._store.rollouts)
         self._audit = list(self._store.audit)
+        self._memberships = dict(self._store.memberships)
+        self.memberships = _Memberships(self._memberships)
         self.projects = _Projects(self._projects)
         self.jobs = _Jobs(self._jobs)
         self.runs = _Runs(self._runs)
@@ -666,3 +706,4 @@ class MemoryUnitOfWork:
         self._store.endpoints = self._endpoints
         self._store.rollouts = self._rollouts
         self._store.audit = self._audit
+        self._store.memberships = self._memberships

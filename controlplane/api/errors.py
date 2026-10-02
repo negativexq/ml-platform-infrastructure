@@ -25,6 +25,8 @@ from controlplane.domain.errors import (
     IllegalTransition,
     InvalidArgument,
     NotFound,
+    PermissionDenied,
+    Unauthenticated,
 )
 
 _STATUS_FOR: dict[type[DomainError], tuple[int, str]] = {
@@ -33,6 +35,8 @@ _STATUS_FOR: dict[type[DomainError], tuple[int, str]] = {
     Conflict: (status.HTTP_409_CONFLICT, "conflict"),
     IllegalTransition: (status.HTTP_409_CONFLICT, "illegal_transition"),
     InvalidArgument: (status.HTTP_422_UNPROCESSABLE_CONTENT, "invalid_argument"),
+    Unauthenticated: (status.HTTP_401_UNAUTHORIZED, "unauthenticated"),
+    PermissionDenied: (status.HTTP_403_FORBIDDEN, "permission_denied"),
 }
 
 

@@ -4,8 +4,9 @@ from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from uuid import UUID
 
+from controlplane.application.identity import current_actor
 from controlplane.application.ports import UnitOfWork
-from controlplane.application.projects import ANONYMOUS, Clock, UnitOfWorkFactory, utc_now
+from controlplane.application.projects import Clock, UnitOfWorkFactory, utc_now
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import JobDefinition, Project
 from controlplane.domain.errors import AlreadyExists, Conflict, NotFound
@@ -57,7 +58,7 @@ class JobService:
                     uow.audit.record(
                         AuditEvent(
                             occurred_at=candidate.created_at,
-                            actor=ANONYMOUS,
+                            actor=current_actor(),
                             action="job.created",
                             entity_type="job",
                             entity_id=candidate.id,

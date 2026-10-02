@@ -3,6 +3,7 @@ import { api, type S } from '../api/client';
 import { Alert, Badge, CopyButton, Time } from '../components/bits';
 import { Logs } from '../components/Logs';
 import { useOverlays } from '../components/overlays';
+import { useAccess } from '../lib/me';
 import { useCrumbs } from '../lib/chrome';
 import { fmtDuration, go, routes, shortId } from '../lib/format';
 import { QueryView, useAct, useLiveQuery } from '../lib/query';
@@ -10,6 +11,7 @@ import { QueryView, useAct, useLiveQuery } from '../lib/query';
 const ACTIVE = new Set(['PENDING', 'SUBMITTED', 'RUNNING']);
 
 export function JobRunPage({ project, id }: { project: string; id: string }) {
+  const access = useAccess(project);
   useCrumbs([{ label: 'Projects', href: routes.projects() }, { label: project, href: routes.project(project) },
     { label: 'Runs', href: `${routes.project(project)}/runs?kind=job` }, { label: `job run ${shortId(id)}` }]);
   const { confirm, toast } = useOverlays();
@@ -30,13 +32,13 @@ export function JobRunPage({ project, id }: { project: string; id: string }) {
             <h1>{r.job || 'Job run'}</h1><Badge status={r.status} />
             <div className="actions">
               {ACTIVE.has(r.status) && !r.cancel_requested && (
-                <button className="btn danger" data-testid="cancel-run" onClick={async () => {
+                <button className="btn danger" data-testid="cancel-run" disabled={!access.may('operator')} title={access.why('operator')} onClick={async () => {
                   if (await confirm({ title: 'Cancel this run?', body: 'The workload is stopped.', confirmLabel: 'Cancel run', danger: true }))
                     await act(() => api.post(`/runs/${id}/cancel`), 'Cancellation requested');
                 }}>Cancel run</button>)}
               {['FAILED', 'CANCELLED', 'SUCCEEDED'].includes(r.status) && (
-                <button className={`btn${r.status === 'FAILED' ? ' primary' : ''}`} type="button" data-testid="retry"
-                  title="Run it again as a new run; this one stays in the history" onClick={async () => {
+                <button className={`btn${r.status === 'FAILED' ? ' primary' : ''}`} type="button" data-testid="retry" disabled={!access.may('operator')}
+                  title={access.why('operator') ?? 'Run it again as a new run; this one stays in the history'} onClick={async () => {
                     try {
                       const again = await api.post<S['RunOut']>(`/runs/${id}/retry`, {});
                       toast('Retry started');

@@ -19,7 +19,8 @@ export function useLiveQuery<T>(
     queryKey: key,
     queryFn: load,
     refetchInterval: (q) => (q.state.data !== undefined && isActive(q.state.data as T) ? interval : false),
-    retry: (count, error) => !(error instanceof ApiError && error.status === 404) && count < 50,
+    // Retry outages, never answers: a 4xx (not found, not allowed, signed out) will not change by asking again.
+    retry: (count, error) => !(error instanceof ApiError && error.status >= 400 && error.status < 500 && error.status !== 429) && count < 50,
     retryDelay: (count) => Math.min(15000, 3000 * (count + 1)),
     staleTime: 0,
   });
@@ -32,6 +33,14 @@ export function QueryView<T>({ query, children }: { query: UseQueryResult<T>; ch
   const error = query.error;
   if (query.data === undefined) {
     if (error instanceof ApiError && error.status === 404) return <Empty>Not found: {error.message}</Empty>;
+    if (error instanceof ApiError && error.status === 403) {
+      return (
+        <div className="empty no-access" data-testid="no-access">
+          <b>You don't have access to this.</b>
+          <p className="muted">{error.message}. A project admin can add you under Settings → Members.</p>
+        </div>);
+    }
+    if (error instanceof ApiError && error.status === 401) return <Skeleton />; // the sign-in screen takes over
     if (error) return <div className="alert bad net" role="alert">{error.message || 'Something went wrong'} — retrying…</div>;
     return <Skeleton />;
   }

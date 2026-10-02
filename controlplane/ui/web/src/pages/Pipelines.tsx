@@ -3,6 +3,7 @@ import { api, enc, type S } from '../api/client';
 import { Badge, Empty, Section, Snippet, Table, Time } from '../components/bits';
 import { Dag } from '../components/Dag';
 import { useOverlays } from '../components/overlays';
+import { useAccess } from '../lib/me';
 import { useCrumbs } from '../lib/chrome';
 import { fmtDuration, go, pct, routes } from '../lib/format';
 import { QueryView, useLiveQuery } from '../lib/query';
@@ -36,6 +37,7 @@ export function useRunPipeline(project: string) {
 }
 
 export function PipelinesPage({ project }: { project: string }) {
+  const access = useAccess(project);
   useCrumbs([{ label: 'Projects', href: routes.projects() }, { label: project, href: routes.project(project) }, { label: 'Pipelines' }]);
   const p = enc(project);
   const runPipeline = useRunPipeline(project);
@@ -69,7 +71,7 @@ export function PipelinesPage({ project }: { project: string }) {
                     <td>{st.last ? <><Badge status={st.last.status} /> <Time iso={st.last.created_at} /></> : <span className="muted">never run</span>}</td>
                     <td className="num" data-testid="success-rate">{st.successRate == null ? '—' : <Rate value={st.successRate} n={st.finished} />}</td>
                     <td className="num">{fmtDuration(st.medianSeconds)}</td>
-                    <td className="num"><button className="btn small" type="button" onClick={(e) => { e.stopPropagation(); runPipeline(rows.map((r) => r.pipeline), x.name); }}>Run</button></td>
+                    <td className="num"><button className="btn small" type="button" disabled={!access.may('operator')} title={access.why('operator')} onClick={(e) => { e.stopPropagation(); runPipeline(rows.map((r) => r.pipeline), x.name); }}>Run</button></td>
                   </tr>);
               })}
             </Table>
@@ -86,6 +88,7 @@ function Rate({ value, n }: { value: number; n: number }) {
 }
 
 export function PipelinePage({ project, name }: { project: string; name: string }) {
+  const access = useAccess(project);
   useCrumbs([{ label: 'Projects', href: routes.projects() }, { label: project, href: routes.project(project) },
     { label: 'Pipelines', href: `${routes.project(project)}/pipelines` }, { label: name }]);
   const p = enc(project);
@@ -118,7 +121,7 @@ export function PipelinePage({ project, name }: { project: string; name: string 
                 </select>
               </label>
               <div className="actions">
-                <button className="btn primary" type="button" data-testid="run-this-pipeline"
+                <button className="btn primary" type="button" data-testid="run-this-pipeline" disabled={!access.may('operator')} title={access.why('operator')}
                   onClick={() => runPipeline([{ name, version: def.version }], name, def.version === latest.version ? undefined : def.version)}>
                   {def.version === latest.version ? 'Run pipeline' : `Run v${def.version}`}
                 </button>
