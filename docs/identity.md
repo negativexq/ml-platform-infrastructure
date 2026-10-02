@@ -18,6 +18,10 @@ they may do depends on their role in the project.
   admin: demoting or removing the last one is refused.
 * **Platform admins** (`CP_PLATFORM_ADMINS`, e.g. `group:platform-admins`) may do anything in
   every project. Anyone signed in may create a project and sees only the projects they belong to.
+* **GPU quotas are platform decisions.** GPUs are shared by the whole platform, so only
+  platform admins set how many a project may hold (`PUT /projects/{project}/gpu-quota`, the
+  `platform-admin` rule in the policy table). A project's own admins see the quota and its
+  use but cannot raise it. The platform also refuses a quota below what is in use.
 * The policy is a table, `controlplane/api/auth.py: POLICY`, read as: GET needs viewer, any other
   method operator, unless the table says otherwise. It fails closed: a route that names no
   project and is not in the table is refused, and `test_every_route_has_an_owner_in_the_policy`

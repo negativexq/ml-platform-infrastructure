@@ -50,10 +50,59 @@ RateLimit-Reset: 2
 | 502 | `upstream_unavailable` | the model did not answer |
 | 504 | `timeout` | no answer within the endpoint's timeout |
 
-The paths for other kinds of endpoint are reserved in the contract: `…/chat/completions` for
-LLMs (OpenAI-compatible, streamed) and `…/invoke` for functions. The gateway already streams
-replies through and counts *units* (requests now, tokens for LLMs). Adding those kinds means
-a new upstream and unit counting, not a new gateway.
+The path names what an endpoint speaks. A model answers `…/predict`, an LLM answers
+`…/chat/completions` (below). `…/invoke` is reserved for functions. Calling the wrong one is a
+404 that names the right path.
+
+## LLM endpoints: chat completions
+
+An endpoint serving an LLM speaks the OpenAI chat completions API, so any OpenAI client works
+by changing its base URL:
+
+```http
+POST https://api.example.com/v1/{project}/{endpoint}/chat/completions
+Authorization: Bearer mlp_live_...
+
+{ "messages": [{"role": "user", "content": "Why was my card declined?"}],
+  "max_tokens": 256, "stream": true }
+```
+
+```python
+client = OpenAI(base_url="https://api.example.com/v1/customer-support/assistant-prod",
+                api_key=os.environ["MLP_API_KEY"])
+for chunk in client.chat.completions.create(model="assistant-prod", stream=True,
+                                            messages=[{"role": "user", "content": "Hello"}]):
+    print(chunk.choices[0].delta.content or "", end="") if chunk.choices else None
+```
+
+* **`model` is set by the gateway.** It addresses the served model by the endpoint's name;
+  callers may send anything there.
+* **Streaming.** With `"stream": true` the reply is server-sent events, passed through as
+  they arrive (never buffered). The gateway adds `stream_options.include_usage` so the last
+  event carries the token counts.
+* **Validation.** The body must be a JSON object with a non-empty `messages` list; otherwise
+  `400 invalid_request`.
+* **Inside the cluster** the call goes to KServe's Hugging Face server (vLLM) at
+  `/openai/v1/chat/completions`.
+
+### Tokens: metering and limits
+
+* **What counts.** For an LLM a unit is a **token**: prompt plus completion, read from the
+  reply's `usage` (the last streamed event, or the JSON body).
+* **Limits are charged after the call.** The cost is known only once the model has answered,
+  so the gateway:
+  1. lets a call in while both buckets (endpoint and caller) still have room;
+  2. charges the tokens it actually used once the reply has ended.
+
+  The bucket can go into debt. The calls that follow get `429` with `Retry-After` until it
+  refills, so the last admitted call may overshoot the limit once.
+* **Defaults.** A new LLM endpoint starts at 20,000 tokens per minute, a 512 KB body and a
+  120-second timeout. An admin changes them like any limits; a key's own limit is in tokens
+  too.
+* **Usage.** Usage by caller reports total, prompt and completion tokens
+  (`GET …/usage`, and the UI's API access panel).
+* **Missing counts.** If the model server reports no `usage`, the call counts as 0 tokens.
+  vLLM always reports it.
 
 ## Who may call
 
@@ -96,6 +145,7 @@ URLs in the UI.
 | | API (admin unless noted) | UI |
 | --- | --- | --- |
 | Open or close, set limits | `PATCH /projects/{p}/endpoints/{name}` | Deployment page, **API access** |
+| Try an LLM (invoker) | `POST /projects/{p}/endpoints/{name}/chat`, through the platform, not streamed | Deployment page, **Playground** |
 | Issue a key | `POST /projects/{p}/api-keys` | API access, or Settings, **API keys** |
 | Revoke a key | `DELETE /projects/{p}/api-keys/{key_id}` | the key's **Revoke** |
 | See usage (viewer) | `GET /projects/{p}/endpoints/{name}/usage` | API access, **Usage** |

@@ -68,14 +68,15 @@ Settings: `CP_LOG_JSON` (default true), `CP_LOG_LEVEL` (default INFO).
 | `mlp_provider_calls_total` | `provider`, `operation`, `outcome` (`ok` `not_found` `error`) | health of Argo, KServe, MLflow, Prometheus, Kubernetes API |
 | `mlp_provider_duration_seconds` | `provider`, `operation` | histogram |
 | `mlp_gateway_requests_total` | `project`, `endpoint`, `caller`, `code` | every public call through the gateway |
-| `mlp_gateway_units_total` | `project`, `endpoint`, `caller`, `unit` | what quotas count (requests; tokens for LLMs later) |
+| `mlp_gateway_units_total` | `project`, `endpoint`, `caller`, `unit` | what quotas count: requests for models, tokens for LLMs |
+| `mlp_gateway_tokens_total` | `project`, `endpoint`, `caller`, `direction` (`prompt` `completion`) | LLM tokens sent and generated |
 | `mlp_gateway_duration_seconds` | `project`, `endpoint` | histogram, whole call including streaming |
 | `http_server_request_duration_seconds_*` | `http_route`, `http_response_status_code`, ... | API traffic, from FastAPI itself |
 
 The same metrics are read back by the control plane for the UI's **Monitor** page
 (`GET /platform/health`, adapter `PrometheusPlatformTelemetry`): reconciler heartbeat and
 error ratio, API traffic, 5xx ratio and p95, external system error ratio and p95, state
-changes per minute. Thresholds match the alert rules. The adapter's queries are tested
+changes per minute, gateway traffic, errors and p95, and LLM tokens per minute. Thresholds match the alert rules. The adapter's queries are tested
 against a real Prometheus (`test_prometheus_adapter.py`).
 
 The inference service keeps its existing Prometheus metrics (`/metrics`): the M5/M10 alerts

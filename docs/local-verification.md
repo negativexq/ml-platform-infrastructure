@@ -35,6 +35,7 @@ What is missing to install the platform at all (image, Helm chart, Argo in `loca
 > 10. Observability
 > 11. Identity
 > 12. Gateway
+> 13. LLMs on GPUs
 
 ## 0. Setup on your machine
 
@@ -625,3 +626,32 @@ kubectl apply -f k8s/gateway/gateway.yaml   # after setting the host, the issuer
 | 5 | Two replicas: the effective limit is up to twice the configured one (per-replica buckets) | **you**: accept, or add a shared store behind the `RateLimiter` port |
 | 6 | Prometheus scrapes `mlp_gateway_*` (OTLP → Collector → Prometheus), the usage panel and Monitor show data, `GatewayHighErrorRate` fires when the model is scaled to zero with no activator | **you** |
 | 7 | A client-credentials token from Keycloak with the invoker role is accepted, without the role 403 | **you**: same issuer settings as the API |
+
+## 13. LLMs on GPUs
+
+Verified here:
+* The KServe manifest for the Hugging Face runtime: model format, `hf://` storage, args,
+  GPU resources and an optional token secret.
+* GPU quota checks on deploy and canary, and the namespace quota per GPU.
+* Chat completions through the gateway: streamed and not, token metering, token limits.
+* Token usage queries against a real Prometheus.
+* The UI in a real browser: playground, hub registration, GPU quota.
+
+All of it ran against fakes; no model has run on a GPU yet. Left for you:
+
+```bash
+# a GPU node with the NVIDIA device plugin, KServe Serverless with the Hugging Face runtime
+kubectl get nodes -o jsonpath='{.items[*].status.allocatable.nvidia\.com/gpu}'
+kubectl get clusterservingruntimes | grep huggingface
+```
+
+| # | Gate | Status |
+| --- | --- | --- |
+| 1 | A platform admin sets a project's GPU quota; the namespace ResourceQuota shows `requests.nvidia.com/gpu` and the CPU and memory that come with it | **you** |
+| 2 | Deploy an LLM version (`hf://Qwen/Qwen2.5-0.5B-Instruct@<commit>` is small enough for one GPU): the InferenceService gets `modelFormat: huggingface`, `--model_name=<deployment>`, `nvidia.com/gpu` limits, and goes READY | **you**: the first load downloads the weights; give it time |
+| 3 | A gated model (Llama) loads with the token in Secret `mlp-hf-token` (key `token`) in the project namespace, and fails clearly without it | **you** |
+| 4 | Playground answers through `POST …/chat`; KServe answers at `/openai/v1/chat/completions` with `usage` | **you** |
+| 5 | Through the gateway with `"stream": true`: events arrive one by one (not all at the end), the last one carries `usage`, and `mlp_gateway_tokens_total` grows by those numbers | **you**: also checks that the ingress does not buffer (`proxy-buffering: off`) |
+| 6 | A token limit of 500 per minute: a few calls pass, then `429` with `Retry-After`, then calls pass again after a minute | **you** |
+| 7 | Canary between two LLM versions needs twice the GPUs; with a quota of 1 it is refused with the numbers, with 2 it runs and the traffic split works | **you** |
+| 8 | Deploying a deployment with `--tensor_parallel_size=2` (a model with 2 GPUs) schedules on a node with 2 GPUs | **you**: optional |

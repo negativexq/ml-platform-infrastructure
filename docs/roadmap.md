@@ -18,11 +18,9 @@ code; the original milestone plan is in [history/](history/).
 
 ## Missing in the code
 
-### LLM docs and checks
-- **`docs/gateway.md`:** add chat completions, streaming, token metering and token limits.
-- **`docs/identity.md`:** add the GPU quota rule (platform admins only).
-- **`docs/local-verification.md`:** add a gate for a real vLLM model on a GPU.
-- **`make gateway-e2e`:** add an LLM case (stream, token count, token limit).
+### LLM end-to-end check
+- **`make gateway-e2e`:** add an LLM case (stream, token count, token limit) against a
+  stand-in OpenAI-compatible server.
 
 ### Functions (phase 3)
 - **Not started.** Endpoints of kind `function` (a container image, scaled to zero by
@@ -91,7 +89,7 @@ Already verified for real here:
 
 ## Next, in order
 
-1. **Finish LLMs:** the docs and the end-to-end check above (the UI is done).
+1. **Finish LLMs:** the end-to-end check above. The UI and docs are done.
 2. **Make it installable:** the control plane image, the Helm chart, and Argo in
    `local-up`. Then the platform can run on a real cluster for the first time.
 3. **Verify on a real cluster:** KServe, Argo, a GPU node, ingress and TLS, following
