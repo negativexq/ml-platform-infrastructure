@@ -94,6 +94,8 @@ def test_ui_never_talks_to_the_subsystems(path: Path) -> None:
     for word in SUBSYSTEMS:
         assert word not in lowered, f"{path.name} mentions {word!r}"
     for api in FORBIDDEN_APIS:
+        if api == "localStorage" and path.name == "prefs.js":
+            continue  # the one sanctioned use: the theme preference (guarded, optional)
         assert api not in code, f"{path.name} uses {api}"
     urls = re.findall(r"https?://[^\s'\"`)]+", text)
     assert [u for u in urls if u != "http://www.w3.org/2000/svg"] == [], (
@@ -496,3 +498,138 @@ def test_dark_mode_and_a_narrow_screen_still_render(page: Page, server: Server) 
         page.evaluate("document.documentElement.scrollWidth") <= 400 + 8
     )  # no page-level overflow
     shot(page, "10-dark-mobile")
+
+
+# -- UX: shell, search, forms, lists -------------------------------------------------
+
+
+def test_theme_toggle_cycles_and_is_remembered(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects")
+    html = page.locator("html")
+    expect(html).not_to_have_attribute("data-theme", re.compile(".+"))  # follows the system
+    page.get_by_test_id("theme-btn").click()
+    expect(html).to_have_attribute("data-theme", "light")
+    page.get_by_test_id("theme-btn").click()
+    expect(html).to_have_attribute("data-theme", "dark")
+    bg = page.evaluate("getComputedStyle(document.body).backgroundColor")
+    assert bg == "rgb(15, 18, 24)"
+    page.reload()
+    expect(page.locator("html")).to_have_attribute("data-theme", "dark")
+
+
+def test_command_palette_jumps_to_a_deployment(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects")
+    expect(page.locator("main h1")).to_be_visible()
+    page.keyboard.press("Control+k")
+    box = page.get_by_test_id("palette-input")
+    expect(box).to_be_focused()
+    box.fill("crprod")  # a subsequence match for credit-risk-prod
+    expect(page.get_by_test_id("palette-item").first).to_contain_text("credit-risk-prod")
+    page.keyboard.press("Enter")
+    expect(page.locator("h1")).to_have_text("credit-risk-prod")
+    assert page.title().startswith("credit-risk-prod")
+
+
+def test_slash_focuses_the_project_filter_and_it_filters(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects")
+    expect(page.locator("[data-testid^=project-]").first).to_be_visible()
+    page.keyboard.press("/")
+    expect(page.get_by_test_id("projects-search")).to_be_focused()
+    page.keyboard.type("fraud")
+    expect(page.locator("[data-testid^=project-]")).to_have_count(1)
+    expect(page.locator("[data-testid=project-fraud-detection]")).to_be_visible()
+    page.get_by_test_id("projects-search").fill("zzz")
+    expect(page.locator(".empty")).to_contain_text("No project matches")
+    page.get_by_test_id("projects-search").fill("")
+    page.get_by_role("button", name="Ready", exact=True).click()
+    for card in page.locator("[data-testid^=project-]").all():
+        expect(card.locator("[data-status=READY]")).to_be_visible()
+
+
+def test_the_filter_is_not_reset_by_live_refresh(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects")
+    page.get_by_test_id("projects-search").fill("credit")
+    page.wait_for_timeout(3500)  # a project is PENDING, so the page polls
+    expect(page.get_by_test_id("projects-search")).to_have_value("credit")
+    expect(page.locator("[data-testid^=project-]")).to_have_count(1)
+
+
+def test_create_project_validates_and_reports_server_errors(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects")
+    page.get_by_test_id("create-project").click()
+    page.locator("#f-name").fill("Not Valid")
+    page.get_by_test_id("form-submit").click()
+    expect(page.locator(".form-error")).to_contain_text("Lowercase")
+    page.locator("#f-name").fill("credit-risk")
+    page.get_by_label("Description").fill("a different description")
+    page.get_by_test_id("form-submit").click()
+    expect(page.locator(".form-error")).to_contain_text("credit-risk")
+    page.locator("#f-name").fill("brand-new")
+    page.get_by_label("Description").fill("")
+    page.get_by_test_id("form-submit").click()
+    expect(page.locator("h1")).to_have_text("brand-new")
+    assert page.request.get(f"{server.url}/projects").json()["items"]
+
+
+def test_run_a_pipeline_from_the_project_page(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects/credit-risk")
+    page.get_by_test_id("run-pipeline").click()
+    page.get_by_label("Commit").fill("beef123")
+    page.get_by_test_id("form-submit").click()
+    expect(page).to_have_url(re.compile(r"/pipeline-runs/[0-9a-f-]{36}$"))
+    expect(page.locator(".sub")).to_contain_text("beef123")
+
+
+def test_pending_project_cannot_start_work(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects/churn-prediction")
+    expect(page.get_by_test_id("run-pipeline")).to_be_disabled()
+
+
+def test_run_filters_and_show_more(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects/credit-risk")
+    rows = page.locator("[data-testid=pipeline-run-row]")
+    expect(rows).to_have_count(3)
+    page.locator("[data-testid=pipeline-runs] [data-run-filter=failed]").click()
+    expect(rows).to_have_count(1)
+    expect(rows.first.locator("[data-status=FAILED]")).to_be_visible()
+    page.locator("[data-testid=pipeline-runs] [data-run-filter=all]").click()
+    expect(rows).to_have_count(3)
+    expect(page.get_by_test_id("show-more")).to_have_count(0)
+
+
+def test_project_activity_feed(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects/credit-risk")
+    expect(page.locator("[data-testid=activity] li").first).to_be_visible()
+
+
+def test_pipeline_run_timeline_log_tools_and_run_again(page: Page, server: Server) -> None:
+    run = server.demo.ids["run_ok"]
+    page.goto(f"{server.url}/ui/#/projects/credit-risk/pipeline-runs/{run}")
+    expect(page.locator("[data-testid=timeline] .tl-bar")).to_have_count(5)
+    page.locator("[data-testid=timeline] .tl-label", has_text="train").first.click()
+    expect(page.locator("main h2", has_text="Logs: train")).to_be_visible()
+    logs = page.get_by_test_id("logs")
+    expect(logs).not_to_have_class(re.compile("nowrap"))
+    page.get_by_test_id("log-wrap").uncheck()
+    expect(logs).to_have_class(re.compile("nowrap"))
+    with page.expect_download() as download:
+        page.get_by_role("button", name="Download").click()
+    assert download.value.suggested_filename.endswith("-train.log")
+    page.get_by_test_id("rerun").click()
+    expect(page).to_have_url(re.compile(r"/pipeline-runs/(?!" + str(run) + r")[0-9a-f-]{36}$"))
+
+
+def test_keyboard_help_and_skip_link(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects")
+    expect(page.locator("main h1")).to_be_visible()
+    page.keyboard.press("?")
+    expect(page.locator("dialog[open]")).to_contain_text("Keyboard shortcuts")
+    page.keyboard.press("Escape")
+    page.reload()
+    expect(page.locator("main h1")).to_be_visible()
+    page.locator(".skip").focus()
+    assert page.locator(".skip").bounding_box()["x"] >= 0  # visible once focused
+    page.keyboard.press("Enter")  # must not be taken for navigation by the hash router
+    expect(page.locator("main")).to_be_focused()
+    assert page.url.endswith("#/projects")
+    shot(page, "11-ux-projects")

@@ -7,14 +7,20 @@
   <link rel="stylesheet" href="/ui/app.css">
 </head>
 <body>
+  <a class="skip" href="#view">Skip to content</a>
   <header class="topbar">
     <a class="brand" href="#/projects">ML Platform</a>
     <nav id="crumbs" aria-label="Breadcrumb"></nav>
-    <span id="live" class="live" title="Auto-refreshing">●</span>
+    <span id="live" class="live" title="Auto-refreshing" role="status" aria-label="Auto-refreshing">●</span>
+    <button id="search-btn" class="btn small ghost" type="button" title="Search (Ctrl+K)" data-testid="search-btn">
+      <span aria-hidden="true">⌕</span> Search <kbd>Ctrl K</kbd></button>
+    <button id="theme-btn" class="btn small ghost" type="button" data-testid="theme-btn"></button>
+    <button id="help-btn" class="btn small ghost" type="button" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts">?</button>
   </header>
   <main id="view" tabindex="-1"></main>
   <div id="toasts" role="status" aria-live="polite"></div>
   <dialog id="confirm"></dialog>
+  <dialog id="modal"></dialog>
   <script type="module" src="/ui/app.js"></script>
 </body>
 </html>

@@ -6,12 +6,16 @@ import { pipelineRunView } from './views/pipeline_run.js';
 import { jobRunView } from './views/job_run.js';
 import { modelView } from './views/model.js';
 import { deploymentView } from './views/deployment.js';
+import { applyTheme, cycleTheme, getTheme, THEME_ICON, THEME_LABEL } from './prefs.js';
+import { formDialog } from './forms.js';
+import { openPalette } from './palette.js';
 
 const root = document.getElementById('view');
 const crumbsEl = document.getElementById('crumbs');
 const liveEl = document.getElementById('live');
 const toastsEl = document.getElementById('toasts');
 const dialog = document.getElementById('confirm');
+const modal = document.getElementById('modal');
 
 const ROUTES = [
   [/^#\/projects$/, projectsView],
@@ -45,10 +49,19 @@ function confirmDialog({ title, body, confirmLabel = 'Confirm', danger = false }
 }
 
 function setCrumbs(parts) {
-  crumbsEl.replaceChildren(...parts.flatMap((p, i) => [
+  crumbsEl.replaceChildren(...parts.flatMap((p) => [
     h('span', { class: 'sep' }),
-    p.href ? h('a', { href: p.href }, p.label) : h('span', {}, p.label),
+    p.href ? h('a', { href: p.href }, p.label) : h('span', { 'aria-current': 'page' }, p.label),
   ]));
+  const last = parts[parts.length - 1];
+  document.title = last ? `${last.label} · ML Platform` : 'ML Platform';
+}
+
+/** What a page looks like while its first data loads: the shape of the page, not a bare word. */
+function skeleton() {
+  const bar = (cls) => h('div', { class: `skel ${cls}` });
+  return h('div', { class: 'skeleton', 'aria-busy': 'true', 'aria-label': 'Loading' },
+    bar('title'), bar('line'), h('div', { class: 'grid' }, bar('card'), bar('card'), bar('card')));
 }
 
 /** Load -> paint, again every few seconds while `isActive(data)` says something is in flight. */
@@ -103,7 +116,7 @@ function render(...children) {
   root.replaceChildren(...children.flat(Infinity).filter((c) => c != null && c !== false));
 }
 
-const ctx = { root, toast, confirm: confirmDialog, setCrumbs, mount, act, render };
+const ctx = { root, toast, confirm: confirmDialog, setCrumbs, mount, act, render, form: (options) => formDialog(modal, options) };
 
 async function navigate() {
   active?.stop();
@@ -112,7 +125,7 @@ async function navigate() {
   for (const [pattern, view] of ROUTES) {
     const match = hash.match(pattern);
     if (match) {
-      root.replaceChildren(h('p', { class: 'muted' }, 'Loading…'));
+      root.replaceChildren(skeleton());
       active = view(ctx, ...match.slice(1).map(decodeURIComponent));
       root.focus({ preventScroll: true });
       return;
@@ -120,6 +133,43 @@ async function navigate() {
   }
   location.hash = '#/projects';
 }
+
+// -- chrome: theme, search, shortcuts -------------------------------------------------------
+const themeBtn = document.getElementById('theme-btn');
+function showTheme() {
+  const theme = getTheme();
+  themeBtn.replaceChildren(h('span', { 'aria-hidden': 'true' }, THEME_ICON[theme]));
+  themeBtn.title = `${THEME_LABEL[theme]} (click to change)`;
+  themeBtn.setAttribute('aria-label', THEME_LABEL[theme]);
+}
+applyTheme();
+showTheme();
+themeBtn.addEventListener('click', () => { cycleTheme(); showTheme(); });
+
+const SHORTCUTS = [['Ctrl/⌘ K  or  /', 'Search everything'], ['g then p', 'Go to projects'], ['?', 'Show this help'], ['Esc', 'Close a dialog']];
+function help() {
+  modal.className = '';
+  modal.replaceChildren(h('h2', {}, 'Keyboard shortcuts'),
+    h('dl', { class: 'kv' }, SHORTCUTS.flatMap(([k, d]) => [h('dt', {}, h('kbd', {}, k)), h('dd', {}, d)])),
+    h('div', { class: 'dlg-actions' }, h('button', { class: 'btn primary', type: 'button', onclick: () => modal.close() }, 'Close')));
+  modal.showModal();
+}
+const search = () => { if (!modal.open && !dialog.open) openPalette(modal); };
+document.getElementById('search-btn').addEventListener('click', search);
+document.getElementById('help-btn').addEventListener('click', () => { if (!modal.open) help(); });
+let pendingG = 0;
+document.addEventListener('keydown', (event) => {
+  const typing = /^(INPUT|TEXTAREA|SELECT)$/.test(event.target.tagName) || event.target.isContentEditable;
+  if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === 'k') { event.preventDefault(); search(); return; }
+  if (typing || event.ctrlKey || event.metaKey || event.altKey || modal.open || dialog.open) return;
+  if (event.key === '/') { event.preventDefault(); const own = root.querySelector('[data-search]'); own ? own.focus() : search(); }
+  else if (event.key === '?') help();
+  else if (event.key === 'g') pendingG = Date.now();
+  else if (event.key === 'p' && Date.now() - pendingG < 1200) { location.hash = '#/projects'; pendingG = 0; }
+});
+
+// The skip link must not change the hash: the hash is the router.
+document.querySelector('.skip').addEventListener('click', (event) => { event.preventDefault(); root.focus(); });
 
 window.addEventListener('hashchange', navigate);
 navigate();

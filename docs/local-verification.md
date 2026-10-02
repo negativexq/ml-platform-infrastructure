@@ -411,6 +411,23 @@ Judgement calls to confirm:
 
 ---
 
+### UI/UX additions (after M20)
+
+Verified in a real browser against the demo, like the rest of M20 (`make cp-test`):
+
+- Chrome: light / dark / system theme (remembered; the only thing the UI stores, guarded),
+  Ctrl/⌘+K command palette (fuzzy jump to project, model, deployment), `/` focuses the page
+  filter, `g p`, `?` help, skip link, skeleton loading, per-page document titles.
+- Projects: filter box and status filter (survive live refresh), **New project** form with
+  inline validation and server errors.
+- Project: **Run pipeline** / **Start job** forms, run filters, *Show more*, recent activity
+  with the trace id of each change (copyable; paste it into Tempo).
+- Run pages: step timeline on a shared time axis, log tools (wrap, follow while live, copy,
+  download), **Run again**, copyable ids.
+
+What is left for you: try it against real data and real browsers other than Chromium; the trace
+ids in *Recent activity* only appear when the control plane runs with OTEL export on.
+
 ## 8. Code that has never run against the real thing
 
 Written to the Argo API from knowledge of its schema; unit-tested only as

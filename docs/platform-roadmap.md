@@ -136,6 +136,12 @@ and logs, models / evaluations / promote, deployments / canary / metrics / rollb
 `make cp-demo` runs it on in-memory fakes. What remains is looking at it with real data;
 see [local-verification.md](local-verification.md).
 
+### UI/UX pass (after M20)
+
+Still the no-build, CSP-locked UI (no framework, no bundle step): theme, command palette,
+shortcuts, filters, create/run forms, step timeline, log tools, activity with trace ids. Tests
+in `controlplane/tests/test_ui.py`; see [local-verification.md](local-verification.md) §7.
+
 ### Observability (cross-cutting, after M20)
 
 OpenTelemetry end to end: FastAPI's native tracing/metrics, a lifecycle span per audit event,

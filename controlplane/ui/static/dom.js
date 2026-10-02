@@ -76,3 +76,14 @@ export function timeEl(iso) {
 export const pct = (x, digits = 2) => (x == null ? '—' : `${(x * 100).toFixed(digits)}%`);
 export const num = (x, digits = 1) => (x == null ? '—' : Number(x).toFixed(digits));
 export const shortId = (id) => String(id).slice(0, 8);
+
+/** A small "copy" control for ids and URLs. Falls back silently where the clipboard is blocked. */
+export function copyButton(text, what = 'value') {
+  const btn = h('button', { class: 'copy', type: 'button', title: `Copy ${what}`, 'aria-label': `Copy ${what}` }, '⧉');
+  btn.addEventListener('click', async (event) => {
+    event.stopPropagation();
+    try { await navigator.clipboard.writeText(text); btn.textContent = '✓'; } catch { btn.textContent = '!'; }
+    setTimeout(() => { btn.textContent = '⧉'; }, 1200);
+  });
+  return btn;
+}

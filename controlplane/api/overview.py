@@ -68,6 +68,7 @@ class AuditEventOut(BaseModel):
     entity_type: str
     entity_id: UUID
     payload: dict[str, Any]
+    trace_id: str | None = None
 
 
 class AuditOut(BaseModel):
@@ -165,6 +166,7 @@ def overview_router() -> APIRouter:
                     entity_type=e.entity_type,
                     entity_id=e.entity_id,
                     payload=dict(e.payload),
+                    trace_id=e.trace_id,
                 )
                 for e in events
             ]

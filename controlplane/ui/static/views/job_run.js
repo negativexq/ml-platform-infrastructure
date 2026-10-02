@@ -1,4 +1,5 @@
-import { h, badge, timeEl, fmtDuration, shortId } from '../dom.js';
+import { h, badge, timeEl, fmtDuration, shortId, copyButton } from '../dom.js';
+import { logsPanel, newLogPrefs } from '../logs.js';
 import { api, enc } from '../api.js';
 
 const ACTIVE = new Set(['PENDING', 'SUBMITTED', 'RUNNING']);
@@ -7,6 +8,7 @@ export function jobRunView(ctx, project, id) {
   ctx.setCrumbs([{ label: 'Projects', href: '#/projects' }, { label: project, href: `#/projects/${enc(project)}` },
     { label: `job run ${shortId(id)}` }]);
   let logs = '';
+  const logPrefs = newLogPrefs();
   const view = ctx.mount({
     async load() {
       const run = await api.get(`/runs/${id}`);
@@ -22,10 +24,10 @@ export function jobRunView(ctx, project, id) {
               if (await ctx.confirm({ title: 'Cancel this run?', body: 'The workload is stopped.', confirmLabel: 'Cancel run', danger: true }))
                 await ctx.act(() => api.post(`/runs/${id}/cancel`), 'Cancellation requested', view);
             } }, 'Cancel run') : null)),
-        h('p', { class: 'sub' }, h('span', { class: 'mono' }, shortId(run.id)), ' · started ', timeEl(run.started_at || run.created_at),
+        h('p', { class: 'sub' }, h('span', { class: 'mono', title: run.id }, shortId(run.id)), copyButton(run.id, 'run id'), ' · started ', timeEl(run.started_at || run.created_at),
           ' · ', fmtDuration(run.duration_seconds), ' · exit code ', h('span', { class: 'mono' }, run.exit_code ?? '—')),
         run.status_reason ? h('div', { class: `alert${run.status === 'FAILED' ? ' bad' : ''}` }, run.status_reason) : null,
-        h('div', { class: 'card' }, h('h2', {}, 'Logs'), h('pre', { class: 'logs', 'data-testid': 'logs' }, logs || '(no output yet)')));
+        logsPanel(logPrefs, { title: 'Logs', text: logs, live: ACTIVE.has(run.status), filename: `${run.job || 'job'}-${shortId(run.id)}.log` }));
     },
     isActive: (run) => ACTIVE.has(run.status),
   });
