@@ -120,7 +120,7 @@ All five load into live Prometheus with `health: ok`.
 
 ## SLOs
 
-Defined in [`docs/slo.md`](../../slo.md), frozen from measured numbers: 99.5%
+Defined in [`docs/history/slo.md`](../../history/slo.md), frozen from measured numbers: 99.5%
 availability (100% observed in every drill so far), p95 < 100ms (4.99ms at
 rest, 32.9ms saturated). No burn-rate alerting yet — noted as a gap, not
 silently skipped.

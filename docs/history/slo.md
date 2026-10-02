@@ -47,9 +47,9 @@ sessions does not have.
 
 ## Alert rules
 
-Defined in [`observability/alert-rules.yaml`](../observability/alert-rules.yaml),
+Defined in [`observability/alert-rules.yaml`](../../observability/alert-rules.yaml),
 unit-tested with `promtool test rules` against
-[`observability/alert-rules.test.yaml`](../observability/alert-rules.test.yaml)
+[`observability/alert-rules.test.yaml`](../../observability/alert-rules.test.yaml)
 (5/5 pass), and applied as a `PrometheusRule` generated from the same file by
 `scripts/render-prometheus-rule.sh` — one rule source, so the tested rules and
 the applied rules cannot drift apart.

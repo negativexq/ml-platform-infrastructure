@@ -1,29 +1,45 @@
-# Local verification — what is written but not yet proven
+# Verifying on a real cluster
 
-M14 and M15 were written in a cloud sandbox where `kind` cannot start pods
-(nested `runc` fails: `can't get final child's PID from pipe`) and Argo is not
-installed. Everything below has to be run on a real machine before the
-milestones can be called done and their `docs/evidence/m14|m15/gate.md` written.
+What the platform does that has only been tested against fakes, a real PostgreSQL or schema
+validation, and how to check each part on a real Kubernetes cluster. Run these on a
+machine with a working container runtime: the development sandbox cannot start pods, and
+Argo, KServe and GPUs are not available there.
 
-**What *was* verified in the sandbox:** ruff + mypy strict, 120+ control-plane
-unit/API tests (every use-case test runs against both the in-memory store and a
-real PostgreSQL 16), migration/model drift check, and one manual run of
-`KubernetesClusterProvider` against a real `kube-apiserver` + `etcd` +
-`kube-controller-manager` (`scripts/envtest.sh`): create all resources → second
-apply changes nothing → delete one resource → drift detected and repaired →
-namespace deleted by the real namespace controller.
+**Already verified without a cluster:**
+* Lint, type checks, and the unit, API and browser tests. Every use-case test runs against
+  both the in-memory store and a real PostgreSQL.
+* Migrations checked against the models.
+* Real Prometheus, Keycloak and the gateway end to end (see the sections below).
+* One run of the namespace provider against a real `kube-apiserver` + `etcd` +
+  `kube-controller-manager` (`scripts/envtest.sh`): resources created, a second apply
+  changed nothing, drift was repaired, and the namespace was deleted.
 
-**What was not:** anything involving a running pod, Argo, or a CNI.
+**Not yet verified:** anything that runs a pod, Argo Workflows, KServe or a CNI.
+
+What is missing to install the platform at all (image, Helm chart, Argo in `local-up`) is in
+[roadmap.md](roadmap.md).
 
 ---
 
-> Sections: 0 setup · 1 M14 gate · 2 M15 gate · 3 M16 gate · 4 M17 gate ·
-> 5 M18 gate · 6 M19 gate · 7 M20 gate (UI) · 8 untested code · 9 missing pieces.
+> Sections:
+> 0. Setup
+> 1. Projects and isolation
+> 2. Jobs and runs
+> 3. Pipelines and tracking
+> 4. Models, evaluation and promotion
+> 5. Deployments and endpoints
+> 6. Canary rollouts and rollback
+> 7. Web UI
+> 8. Code that has never run against the real thing
+> 9. Missing pieces
+> 10. Observability
+> 11. Identity
+> 12. Gateway
 
 ## 0. Setup on your machine
 
 ```bash
-make local-up                      # existing kind cluster + platform (M0–M12)
+make local-up                      # kind cluster with MLflow, PostgreSQL, MinIO, Prometheus, Argo CD
 pip install -e ".[dev,controlplane,controlplane-dev]"
 
 # Argo Workflows (not part of local-up yet — see "Missing pieces")
@@ -46,7 +62,7 @@ Quick sanity (no cluster needed): `make cp-check`.
 
 ---
 
-## 1. M14 gate — Project lifecycle & Kubernetes isolation
+## 1. Projects and isolation
 
 Drive everything through the API (`curl`/`/docs`), inspect with `kubectl`.
 
@@ -58,7 +74,7 @@ Drive everything through the API (`curl`/`/docs`), inspect with `kubectl`.
 | 4 | `project_id` label on every resource | `kubectl get ns,sa,quota,limitrange,netpol,role,rolebinding -n mlp-credit-risk --show-labels` → `mlp.io/project-id` |
 | 5 | ServiceAccount `mlp-workload` | `kubectl -n mlp-credit-risk get sa` |
 | 6 | ResourceQuota `mlp-quota` applied | `kubectl -n mlp-credit-risk describe quota` |
-| 7 | Baseline NetworkPolicy `mlp-baseline` | `kubectl -n mlp-credit-risk get netpol` **and prove enforcement**: a pod in another namespace must not reach a pod in `mlp-credit-risk` (kindnet enforces; see the M9 drill for the shape) |
+| 7 | Baseline NetworkPolicy `mlp-baseline` | `kubectl -n mlp-credit-risk get netpol` **and prove enforcement**: a pod in another namespace must not reach a pod in `mlp-credit-risk` (kindnet enforces; see the NetworkPolicy drill in `docs/history/failure-engineering.md` for the shape) |
 | 8 | 10× reconcile changes nothing | record `resourceVersion` of every resource, wait ≥10 reconcile passes, compare; also `select count(*) from audit_events` must not grow |
 | 9 | Manual namespace delete is repaired | `kubectl delete ns mlp-credit-risk`; status goes `READY → DRIFTED → PROVISIONING → READY` (`select action,payload from audit_events order by occurred_at`) |
 | 10 | Failed provisioning never yields READY | e.g. pre-create `kubectl create ns mlp-other` *without* labels, then `POST /projects {"name":"other"}` → status `FAILED`, `status_reason` says the namespace is not owned |
@@ -76,7 +92,7 @@ Things to eyeball while doing this:
 
 ---
 
-## 2. M15 gate — Workloads & runs
+## 2. Jobs and runs
 
 Create a project (READY), then:
 
@@ -115,7 +131,7 @@ namespace.
 
 ---
 
-## 3. M16 gate — Pipeline DAG + MLflow tracking
+## 3. Pipelines and tracking
 
 Extra setup: point the control plane at MLflow and make the steps able to reach it.
 
@@ -129,7 +145,7 @@ Use the training image for real tracking: `docker/training/Dockerfile` →
 `kind load docker-image`, job `{"image": "ml-platform-training:dev", "command": ["python","scripts/train.py"]}`.
 `scripts/train.py` now reads the `MLP_*` env vars and writes them as MLflow tags.
 Check that the image's MinIO/S3 credentials reach the step pods (the project
-namespace is new; the M7 training Job got them from its own Secret).
+namespace is new; the original training Job got them from its own Secret).
 
 ```bash
 curl -XPOST localhost:8080/projects/credit-risk/pipelines -H 'content-type: application/json' -d '{
@@ -167,7 +183,7 @@ mid-run and restart → it resumes, no second workflow.
 
 ---
 
-## 4. M17 gate — Model, evaluation & promotion
+## 4. Models, evaluation and promotion
 
 Needs `CP_MLFLOW_TRACKING_URI` (section 3) and a pipeline that registers a model.
 Register the version under the name the API tells you, then let the platform find it:
@@ -215,14 +231,14 @@ Judgement calls to confirm you agree with:
 
 ---
 
-## 5. M18 gate — Deployment & endpoint
+## 5. Deployments and endpoints
 
 Extra setup: KServe must be installed, with the MLflow runtime available (the
 `InferenceService` uses `modelFormat: mlflow`, protocol v2), and the serving pods
 need credentials for the artifact store.
 
 ```bash
-# KServe. NOTE: M18 alone works in RawDeployment mode (shown below), but M19 canary
+# KServe. NOTE: plain deployments work in RawDeployment mode (shown below), but canary
 # splitting needs KServe *Serverless* mode (Knative Serving + a gateway); see section 6.
 kubectl apply -f https://github.com/kserve/kserve/releases/download/v0.14.1/kserve.yaml
 kubectl apply -f https://github.com/kserve/kserve/releases/download/v0.14.1/kserve-cluster-resources.yaml
@@ -277,20 +293,20 @@ Judgement calls to confirm:
   with backoff instead.
 - A rollout of revision N+1 keeps the endpoint READY while N serves; if N+1 fails the
   deployment is FAILED and the endpoint UNAVAILABLE even though N might still be up,
-  because the platform does not yet track per-revision serving (M19).
+  because the platform does not yet track per-revision serving (see canary rollouts).
 
 ---
 
-## 6. M19 gate — Canary, promotion safety & rollback
+## 6. Canary rollouts and rollback
 
-**Setup is heavier than M18.** KServe's native canary split only exists in Serverless
+**Setup is heavier than for plain deployments.** KServe's native canary split only exists in Serverless
 mode (Knative Serving + Kourier/Istio), and the gates read per-revision Knative
 metrics from Prometheus:
 
 ```bash
 # Knative Serving + Kourier, then KServe in Serverless mode (default), instead of RawDeployment
 # (follow the Knative and KServe install docs for the versions you pin)
-export CP_PROMETHEUS_URL=http://localhost:9090     # your kube-prometheus-stack (M5); port-forward it
+export CP_PROMETHEUS_URL=http://localhost:9090     # your kube-prometheus-stack; port-forward it
 make cp-migrate                                    # 0007
 make cp-reconcile                                  # now also drives rollouts
 ```
@@ -302,7 +318,7 @@ Knative versions — adjust `adapters/metrics/prometheus.py` if not).
 
 ```bash
 D=localhost:8080/projects/credit-risk/deployments/credit-risk-prod
-# stable revision 1 (champion) is READY and serving (M18). Candidate = version 2:
+# stable revision 1 (champion) is READY and serving. Candidate = version 2:
 curl -XPOST $D/rollouts -H 'content-type: application/json' -d '{
   "model":"scorer","version":2,"steps":[10,25,50,100],
   "gate":{"max_error_rate":0.01,"max_p95_latency_ms":300,"min_requests":50,"step_seconds":60}}'
@@ -351,9 +367,9 @@ Judgement calls to confirm:
 
 ---
 
-## 7. M20 gate — Minimal platform UI
+## 7. Web UI
 
-Unlike M14–M19 this one **was verified here, in a real browser** (Chromium via
+Unlike the sections above, this one **was verified here, in a real browser** (Chromium via
 Playwright, against the demo control plane on in-memory fakes). What is left for you is
 looking at it with *real* data, and the browsers I did not have.
 
@@ -403,15 +419,16 @@ Judgement calls to confirm:
 
 - **Actions in the UI:** promote, evaluate, discover versions, cancel run, abort rollout,
   rollback. **Not** in the UI: starting a rollout, creating anything. They stay API-only.
-- **No authentication.** Anyone who can reach the UI can promote or roll back, exactly
-  like the API today. Do not expose it beyond a trusted network until M21+ adds auth.
+- **Authentication:** sign-in and project roles now protect the UI and the API (section 11).
+  With `CP_AUTH_MODE=none` (the demo, local runs) there is none, so never expose such a
+  deployment beyond a trusted network.
 - **Live updates are polling** (3 s, only while something is in flight; the deployment
   page always polls because metrics are live). No WebSocket.
 - **Styling is deliberately plain:** system fonts, one CSS file, light/dark by OS setting.
 
 ---
 
-### UI/UX additions (after M20) and the move to React
+### UI/UX additions and the move to React
 
 The UI is now **React + TypeScript** (Vite, TanStack Query for loading and live refresh,
 TanStack Router on the URL hash, native `<dialog>` for modals), in `controlplane/ui/web`.
@@ -423,7 +440,7 @@ The CSP is unchanged (`script-src 'self'; style-src 'self'; connect-src 'self'`)
 (only the API client calls the network, no subsystem names, no inline styles, no
 `dangerouslySetInnerHTML`) are checked on the TypeScript source.
 
-Verified in a real browser against the demo, like the rest of M20 (`make cp-test`, 59 UI tests):
+Verified in a real browser against the demo, like the rest of the UI (`make cp-test`, 59 UI tests):
 
 - Chrome: light / dark / system theme (remembered; the only thing the UI stores, guarded),
   Ctrl/⌘+K command palette (fuzzy jump to project, model, deployment), `/` focuses the page
@@ -460,14 +477,14 @@ identity work planned for later.
 Written to the Argo API from knowledge of its schema; unit-tested only as
 manifests/dicts. Check each against a real Argo:
 
-000. **Canary adapter and metrics (M19)** — `KServeServingProvider` canary support
+000. **Canary adapter and metrics** — `KServeServingProvider` canary support
      (`canaryTrafficPercent` set via merge patch, `null` to remove; the
      `mlp.io/previous-revision` annotation; `components.predictor.latestCreatedRevision` /
      `previousRolledoutRevision` used to label metrics) and all of
      `adapters/metrics/prometheus.py` (metric names, label names `namespace_name` /
      `revision_name`, window `2m`, NaN handling). If gates never pass although traffic
      flows, run the four queries by hand in Prometheus first.
-00. **KServe adapter (M18), all of it** — `adapters/serving/kserve.py` has only been
+00. **KServe adapter, all of it** — `adapters/serving/kserve.py` has only been
     unit-tested as a manifest. Specifically check: (a) the status fields it reads —
     condition `Ready`, `status.modelStatus.transitionStatus == "UpToDate"`,
     `status.modelStatus.lastFailureInfo`, `status.address.url`; if a healthy service
@@ -478,7 +495,7 @@ manifests/dicts. Check each against a real Argo:
     `model_artifact_uri` returns the logged model's `artifact_location`; the model
     server needs the directory that contains `MLmodel`, which may be one level deeper;
     (d) the merge-patch used when the InferenceService already exists.
-0. **Omitted DAG tasks (M16)** — `_step_key`/`_NODE_PHASES` assume a task whose
+0. **Omitted DAG tasks** — `_step_key`/`_NODE_PHASES` assume a task whose
    dependency failed shows up as a node with `type: Skipped`, `phase: Omitted`
    and `displayName` = task name. If steps stay `PENDING` after a failed
    upstream, inspect `kubectl get workflow -o json | jq '.status.nodes'`; the
@@ -501,11 +518,11 @@ manifests/dicts. Check each against a real Argo:
    `mlp-workload`). If steps run but the workflow never completes, check the
    Argo version's required RBAC and the pod's `wait` container log.
 7. **Provisioner on kind vs. envtest** — only exercised on envtest. Re-run the
-   M14 table on kind (the NetworkPolicy and namespace-deletion rows especially).
+   projects table (section 1) on kind (the NetworkPolicy and namespace-deletion rows especially).
 
 ---
 
-## 9. Missing pieces (not written yet)
+## 9. Missing pieces (the current list is in [roadmap.md](roadmap.md))
 
 - Argo Workflows install in `make local-up` / Helm / GitOps; the Argo
   controller's `workflowNamespaces`/RBAC must cover `mlp-*` namespaces.
@@ -518,7 +535,7 @@ manifests/dicts. Check each against a real Argo:
 - `docs/evidence/m14/gate.md`, `docs/evidence/m15/gate.md` and README rows once
   the tables above pass.
 - Step pods need MLflow/S3 credentials and a reachable tracking URI; there is
-  no per-project secret/config mechanism yet (the M7 Secret lives in `ml-platform`).
+  no per-project secret/config mechanism yet (the original training Secret lives in `ml-platform`).
 - No retry for pipeline runs, no pipeline-run history cleanup, no per-step
   resource defaults.
 - UI: no pagination, search or filtering; no create/edit forms; no per-user views; the
@@ -542,11 +559,11 @@ manifests/dicts. Check each against a real Argo:
 - Workflow pods are never garbage-collected; logs depend on pods surviving.
 - No log streaming (single read), no per-run timeout, no resource defaults for
   jobs that omit `resources`.
-- Sandbox blocker for future milestones (M15+ in the cloud): nested `runc`.
+- Blocker in cloud development sandboxes: nested `runc`.
   Options: run the gates on your machine, or find a sandbox with a working
   container runtime (e.g. rootless `kind` with a userns-capable kernel).
 
-## 10. Observability gate — OpenTelemetry (traces, metrics, alerts)
+## 10. Observability: traces, metrics, alerts
 
 Verified in the sandbox with the real binaries (see `docs/observability.md`). What is left is
 the in-cluster part.
@@ -571,7 +588,7 @@ make alert-rules-test               # promtool: inference + control-plane rules
 | 10 | Applications reach the Collector (`OTEL_EXPORTER_OTLP_ENDPOINT`) through NetworkPolicy | **you**: `ml-platform` policies may need an egress rule to `observability:4318` |
 | 11 | Monitor page reads the platform's own metrics | **verified** against Prometheus 3.1.0 with promtool-written series (heartbeat, stalled reconciler, error ratios, p95). **You**: with the real stack, open `#/monitor` and scale the reconciler to 0; its heartbeat turns critical within ~3 minutes |
 
-## 11. Identity gate — OIDC sign-in and project roles
+## 11. Identity: sign-in and project roles
 
 Verified here, including against a real Keycloak 26.4 (see `docs/identity.md`). Left for you:
 
@@ -583,7 +600,7 @@ Verified here, including against a real Keycloak 26.4 (see `docs/identity.md`). 
 | 4 | Behind TLS: `CP_PUBLIC_URL=https://...` makes the cookies `Secure`; sign-in still round-trips | **you** |
 | 5 | A CI service account (client credentials) calling the API with a membership | **you** |
 
-## 12. Gateway gate: public endpoints and API keys
+## 12. Gateway: public endpoints and API keys
 
 Verified here (see `docs/gateway.md`):
 * `make gateway-e2e` runs real PostgreSQL, the real gateway process and a model server
