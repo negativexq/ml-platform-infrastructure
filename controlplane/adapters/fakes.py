@@ -13,6 +13,7 @@ from controlplane.application.providers import (
     NamespaceSpec,
     NamespaceState,
     Observation,
+    RegisteredVersion,
     RevisionMetrics,
     ServingSpec,
     ServingState,
@@ -28,6 +29,7 @@ _TERMINAL = {ExternalState.SUCCEEDED, ExternalState.FAILED, ExternalState.CANCEL
 class FakeExperimentProvider:
     def __init__(self) -> None:
         self.runs: dict[str, ExperimentRun] = {}
+        self.registered: dict[str, list[RegisteredVersion]] = {}
         self._aliases: dict[tuple[str, str], str] = {}
 
     def ensure_experiment(self, project_id: UUID, name: str) -> str:
@@ -47,8 +49,14 @@ class FakeExperimentProvider:
             and all(run.tags.get(k) == v for k, v in tags.items())
         ]
 
+    def list_model_versions(self, model: str) -> Sequence[RegisteredVersion]:
+        return list(self.registered.get(model, []))
+
     def set_model_alias(self, model: str, alias: str, version_ref: str) -> None:
         self._aliases[(model, alias)] = version_ref
+
+    def delete_model_alias(self, model: str, alias: str) -> None:
+        self._aliases.pop((model, alias), None)
 
     def get_model_alias(self, model: str, alias: str) -> str | None:
         return self._aliases.get((model, alias))

@@ -14,6 +14,7 @@ from controlplane.adapters.kubernetes import KubernetesClusterProvider, load_api
 from controlplane.adapters.mlflow import MlflowExperimentProvider
 from controlplane.adapters.workflow import ArgoWorkflowProvider
 from controlplane.persistence.sql import SqlUnitOfWork, make_engine, sql_uow_factory
+from controlplane.reconciliation.model_aliases import ModelAliasReconciler
 from controlplane.reconciliation.pipeline_runs import PipelineRunReconciler
 from controlplane.reconciliation.projects import ProjectReconciler
 from controlplane.reconciliation.runs import RunReconciler
@@ -48,6 +49,11 @@ def main() -> None:
         experiments,
         tracking_uri=settings.step_mlflow_tracking_uri or settings.mlflow_tracking_uri or None,
     )
+    aliases = (
+        ModelAliasReconciler(lambda: SqlUnitOfWork(sessions), experiments)
+        if experiments is not None
+        else None
+    )
     while True:
         # Only report passes that did something; converged projects are silent.
         _pass(
@@ -59,6 +65,11 @@ def main() -> None:
             "pipeline_runs",
             lambda: [r for r in pipeline_runs.reconcile_all() if r.before != r.after],
         )
+        if aliases is not None:
+            _pass(
+                "model_aliases",
+                lambda: [r for r in aliases.reconcile_all() if r.synced or r.drift],
+            )
         time.sleep(settings.reconcile_interval_seconds)
 
 

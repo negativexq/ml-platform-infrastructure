@@ -74,7 +74,7 @@ controlplane/
 | **M14** 🚧 | Project lifecycle & Kubernetes isolation | reconciler creates namespace `mlp-<name>`, ServiceAccount, ResourceQuota, LimitRange, baseline NetworkPolicy, `project_id` labels; 10× reconcile = no change; manual namespace delete → `READY → DRIFTED → PROVISIONING → READY`; safe delete; audit of create/reconcile/delete |
 | **M15** 🚧 | Workloads & runs | `JobDefinition` → `Run` → `WorkflowProvider` → Argo → Pod; status sync PENDING→RUNNING→SUCCEEDED/FAILED/CANCELLED; exit code, timings, logs via platform; retry = new Run; duplicate submission = one workload; `image: nonexistent:tag` ends FAILED with the reason kept |
 | **M16** 🚧 | Pipeline DAG + MLflow tracking | versioned `PipelineDefinition`; cycle detection; compile to Argo DAG; parallel branches; failed upstream skips downstream; every `StepRun` in the DB; deterministic platform run ↔ MLflow run mapping; Run → MLflow run → artifact in one platform query |
-| **M17** | Model, evaluation & promotion | `ModelVersion` from training output; threshold-driven evaluation; REJECTED can't be promoted; atomic audited promotion; champion history kept; MLflow alias synced with platform state; manual alias move detected as `DRIFT` |
+| **M17** 🚧 | Model, evaluation & promotion | `ModelVersion` from training output; threshold-driven evaluation; REJECTED can't be promoted; atomic audited promotion; champion history kept; MLflow alias synced with platform state; manual alias move detected as `DRIFT` |
 | **M18** | Deployment & endpoint abstraction | `ServingProvider` (KServe first); non-approved model can't go to production; DB object first, reconciler creates the resource; READY only after the model really loads and a prediction succeeds; immutable revisions; deleted KServe resource is recreated |
 | **M19** | Canary, safety & rollback | traffic split with per-revision metrics; latency/error-rate gates; injected 500s → traffic back to 100% old champion, candidate FAILED, champion unchanged; rollback audited |
 | **M20** | Minimal UI | talks only to the Platform API (never MLflow/Argo/Kubernetes); projects, runs/DAG/logs, models/evaluations/promote, deployments/metrics/rollback |
@@ -102,6 +102,14 @@ Code is in place (DAG validation, versioned `PipelineDefinition`, `PipelineRun` 
 `StepRun` execution, `PipelineRunReconciler`, `MlflowExperimentProvider`, tracking
 join by platform tags, migration 0004). The MLflow adapter is tested against a real
 MLflow store; Argo DAG behaviour and the end-to-end gates are in
+[local-verification.md](local-verification.md).
+
+### M17 status
+
+Code is in place (`Model`/`ModelVersion` with registry discovery and lineage,
+threshold evaluation, atomic promotion with a database-enforced single champion,
+`ModelAliasReconciler`, migration 0005). The registry adapter is tested against a
+real MLflow store. The end-to-end gates are in
 [local-verification.md](local-verification.md).
 
 ### Not before M21

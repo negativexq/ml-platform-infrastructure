@@ -9,12 +9,13 @@ from mlflow import MlflowClient
 from mlflow.entities import Run as MlflowRun
 from mlflow.exceptions import MlflowException
 from mlflow.protos.databricks_pb2 import (
+    INVALID_PARAMETER_VALUE,
     RESOURCE_ALREADY_EXISTS,
     RESOURCE_DOES_NOT_EXIST,
     ErrorCode,
 )
 
-from controlplane.application.providers import ExperimentRun
+from controlplane.application.providers import ExperimentRun, RegisteredVersion
 from controlplane.domain.errors import NotFound
 
 _MAX_RUNS = 1000
@@ -79,13 +80,30 @@ class MlflowExperimentProvider:
         )
         return [_run(r) for r in runs]
 
+    def list_model_versions(self, model: str) -> Sequence[RegisteredVersion]:
+        versions = self._client.search_model_versions(f"name = {_quote(model)}")
+        return sorted(
+            (RegisteredVersion(ref=str(v.version), run_ref=v.run_id or None) for v in versions),
+            key=lambda v: int(v.ref),
+        )
+
     def set_model_alias(self, model: str, alias: str, version_ref: str) -> None:
         self._client.set_registered_model_alias(model, alias, version_ref)
+
+    def delete_model_alias(self, model: str, alias: str) -> None:
+        try:
+            self._client.delete_registered_model_alias(model, alias)
+        except MlflowException as exc:
+            if not _is(exc, RESOURCE_DOES_NOT_EXIST):
+                raise
 
     def get_model_alias(self, model: str, alias: str) -> str | None:
         try:
             return str(self._client.get_model_version_by_alias(model, alias).version)
         except MlflowException as exc:
-            if _is(exc, RESOURCE_DOES_NOT_EXIST):
+            # An unknown model is RESOURCE_DOES_NOT_EXIST, but a missing *alias* on a
+            # known model comes back as INVALID_PARAMETER_VALUE ("... not found").
+            missing_alias = _is(exc, INVALID_PARAMETER_VALUE) and "not found" in str(exc)
+            if _is(exc, RESOURCE_DOES_NOT_EXIST) or missing_alias:
                 return None
             raise

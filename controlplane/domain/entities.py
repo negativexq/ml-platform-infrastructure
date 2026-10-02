@@ -365,12 +365,84 @@ class StepRun:
         )
 
 
+@dataclass(frozen=True, slots=True)
+class Threshold:
+    """Acceptance bounds for one metric. At least one bound is required."""
+
+    min: float | None = None
+    max: float | None = None
+
+    def __post_init__(self) -> None:
+        if self.min is None and self.max is None:
+            raise InvalidArgument("a threshold needs a min, a max, or both")
+        if self.min is not None and self.max is not None and self.min > self.max:
+            raise InvalidArgument(f"threshold min {self.min} is above max {self.max}")
+
+    def check(self, value: float | None) -> bool:
+        if value is None:
+            return False  # a metric that was never reported cannot pass
+        return (self.min is None or value >= self.min) and (self.max is None or value <= self.max)
+
+
+@dataclass(frozen=True, slots=True)
+class Check:
+    """The outcome of one threshold against one metric."""
+
+    metric: str
+    value: float | None
+    threshold: Threshold
+    passed: bool
+
+
+def run_checks(
+    metrics: Mapping[str, float], thresholds: Mapping[str, Threshold]
+) -> tuple[Check, ...]:
+    return tuple(
+        Check(name, metrics.get(name), thresholds[name], thresholds[name].check(metrics.get(name)))
+        for name in sorted(thresholds)
+    )
+
+
 @dataclass(frozen=True, slots=True, kw_only=True)
 class Model:
+    """A logical model of a project. Its versions live in the platform; the
+    registry (MLflow) is only where the artifacts are kept."""
+
     id: UUID = field(default_factory=new_id)
     project_id: UUID
     name: str
+    thresholds: Mapping[str, Threshold] = field(default_factory=dict)
+    # Set while the registry's aliases disagree with platform state; None when in sync.
+    alias_drift: str | None = None
     created_at: datetime
+
+    @classmethod
+    def create(
+        cls,
+        *,
+        project_id: UUID,
+        name: str,
+        thresholds: Mapping[str, Threshold],
+        now: datetime,
+    ) -> Self:
+        validate_slug(name, "model name")
+        for metric in thresholds:
+            if not metric.strip():
+                raise InvalidArgument("metric names must not be empty")
+        return cls(project_id=project_id, name=name, thresholds=dict(thresholds), created_at=now)
+
+    def with_thresholds(self, thresholds: Mapping[str, Threshold]) -> Self:
+        for metric in thresholds:
+            if not metric.strip():
+                raise InvalidArgument("metric names must not be empty")
+        return replace(self, thresholds=dict(thresholds))
+
+    def with_alias_drift(self, drift: str | None) -> Self:
+        return replace(self, alias_drift=drift)
+
+    def registry_name(self, project_name: str) -> str:
+        """Deterministic name in the model registry (names there are global)."""
+        return f"{project_name}-{self.name}"
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -379,7 +451,8 @@ class ModelVersion:
     model_id: UUID
     version: int
     status: ModelStatus = ModelStatus.REGISTERED
-    external_ref: str | None = None  # e.g. the MLflow model version
+    external_ref: str | None = None  # the registry's version number; unique per model
+    source_pipeline_run_id: UUID | None = None  # lineage: which pipeline run produced it
     created_at: datetime
     updated_at: datetime
 
@@ -392,8 +465,9 @@ class ModelVersion:
 class Evaluation:
     id: UUID = field(default_factory=new_id)
     model_version_id: UUID
-    baseline_version_id: UUID | None = None
+    baseline_version_id: UUID | None = None  # the champion at evaluation time
     metrics: Mapping[str, float] = field(default_factory=dict)
+    checks: tuple[Check, ...] = ()
     status: EvaluationStatus = EvaluationStatus.PENDING
     created_at: datetime
     updated_at: datetime
@@ -401,6 +475,11 @@ class Evaluation:
     def transition_to(self, status: EvaluationStatus, now: datetime) -> Self:
         states.EVALUATION.ensure(self.status, status)
         return replace(self, status=status, updated_at=now)
+
+    def with_result(
+        self, metrics: Mapping[str, float], checks: tuple[Check, ...], now: datetime
+    ) -> Self:
+        return replace(self, metrics=dict(metrics), checks=checks, updated_at=now)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

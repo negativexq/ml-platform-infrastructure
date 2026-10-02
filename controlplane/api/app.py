@@ -7,9 +7,11 @@ from fastapi import APIRouter, FastAPI, Query, Request, Response, status
 from fastapi.responses import JSONResponse
 
 from controlplane.api.jobs_runs import jobs_router, runs_router
+from controlplane.api.models import model_versions_router, models_router
 from controlplane.api.pipelines import pipeline_runs_router, pipelines_router
 from controlplane.api.schemas import ErrorOut, ProjectCreate, ProjectList, ProjectOut
 from controlplane.application.jobs import JobService
+from controlplane.application.models import EvaluationService, ModelService, PromotionService
 from controlplane.application.pipeline_runs import PipelineRunService
 from controlplane.application.pipelines import PipelineService
 from controlplane.application.projects import (
@@ -126,6 +128,11 @@ def create_app(
     app.state.runs = RunService(uow_factory, clock)
     app.state.pipelines = PipelineService(uow_factory, clock)
     app.state.pipeline_runs = PipelineRunService(uow_factory, clock, experiments)
+    app.state.models = ModelService(uow_factory, clock, experiments)
+    app.state.evaluations = (
+        EvaluationService(uow_factory, experiments, clock) if experiments is not None else None
+    )
+    app.state.promotions = PromotionService(uow_factory, clock)
     app.state.workflow = workflow
     app.state.experiments = experiments
     app.add_exception_handler(DomainError, _domain_error_handler)
@@ -134,6 +141,8 @@ def create_app(
     app.include_router(runs_router())
     app.include_router(pipelines_router())
     app.include_router(pipeline_runs_router())
+    app.include_router(models_router())
+    app.include_router(model_versions_router())
 
     @app.get("/healthz", tags=["ops"], summary="Liveness")
     def healthz() -> dict[str, str]:

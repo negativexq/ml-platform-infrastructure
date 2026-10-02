@@ -36,6 +36,12 @@ class ExperimentRun:
     artifact_uri: str | None = None
 
 
+@dataclass(frozen=True, slots=True)
+class RegisteredVersion:
+    ref: str  # the registry's version number
+    run_ref: str | None  # the tracking run that produced it
+
+
 @runtime_checkable
 class ExperimentProvider(Protocol):
     def ensure_experiment(self, project_id: UUID, name: str) -> str:
@@ -47,7 +53,12 @@ class ExperimentProvider(Protocol):
         """Runs in the experiment carrying every one of `tags`. This is how a
         platform run is joined to its tracked runs without storing tracker ids."""
 
+    def list_model_versions(self, model: str) -> Sequence[RegisteredVersion]:
+        """Versions registered under this name; empty if the name is unknown."""
+
     def set_model_alias(self, model: str, alias: str, version_ref: str) -> None: ...
+
+    def delete_model_alias(self, model: str, alias: str) -> None: ...
 
     def get_model_alias(self, model: str, alias: str) -> str | None: ...
 

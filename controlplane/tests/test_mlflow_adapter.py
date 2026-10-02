@@ -65,3 +65,32 @@ def test_unknown_run_and_alias(uri: str) -> None:
     with pytest.raises(NotFound):
         provider.get_run("does-not-exist")
     assert provider.get_model_alias("no-such-model", "champion") is None
+
+
+def test_registry_versions_and_aliases(uri: str, tmp_path: Path) -> None:
+    provider = MlflowExperimentProvider(uri)
+    client = MlflowClient(tracking_uri=uri)
+    experiment = provider.ensure_experiment(uuid4(), "mlp-credit-risk")
+    assert provider.list_model_versions("credit-risk-scorer") == []  # unknown name: empty
+
+    client.create_registered_model("credit-risk-scorer")
+    run_ids = []
+    for _ in range(2):
+        run = client.create_run(experiment)
+        client.set_terminated(run.info.run_id)
+        run_ids.append(run.info.run_id)
+        client.create_model_version(
+            "credit-risk-scorer", source=str(tmp_path), run_id=run.info.run_id
+        )
+
+    versions = provider.list_model_versions("credit-risk-scorer")
+    assert [(v.ref, v.run_ref) for v in versions] == [("1", run_ids[0]), ("2", run_ids[1])]
+
+    assert provider.get_model_alias("credit-risk-scorer", "champion") is None
+    provider.set_model_alias("credit-risk-scorer", "champion", "1")
+    assert provider.get_model_alias("credit-risk-scorer", "champion") == "1"
+    provider.set_model_alias("credit-risk-scorer", "champion", "2")  # move it
+    assert provider.get_model_alias("credit-risk-scorer", "champion") == "2"
+    provider.delete_model_alias("credit-risk-scorer", "champion")
+    assert provider.get_model_alias("credit-risk-scorer", "champion") is None
+    provider.delete_model_alias("credit-risk-scorer", "champion")  # already gone: no error

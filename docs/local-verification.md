@@ -17,8 +17,8 @@ namespace deleted by the real namespace controller.
 
 ---
 
-> Sections: 0 setup · 1 M14 gate · 2 M15 gate · 3 M16 gate · 4 untested code ·
-> 5 missing pieces.
+> Sections: 0 setup · 1 M14 gate · 2 M15 gate · 3 M16 gate · 4 M17 gate ·
+> 5 untested code · 6 missing pieces.
 
 ## 0. Setup on your machine
 
@@ -33,7 +33,7 @@ kubectl apply -n argo -f https://github.com/argoproj/argo-workflows/releases/dow
 # PostgreSQL for the control plane: reuse the platform one or any local instance
 export CP_DATABASE_URL=postgresql+psycopg://USER:PASS@localhost:5432/controlplane
 export CP_KUBECONFIG=$HOME/.kube/config      # context must be the kind cluster
-make cp-migrate                    # alembic upgrade head  (0001 → 0004)
+make cp-migrate                    # alembic upgrade head  (0001 → 0005)
 
 make cp-run                        # API on :8080      (terminal 1)
 make cp-reconcile                  # reconcilers       (terminal 2)
@@ -167,7 +167,55 @@ mid-run and restart → it resumes, no second workflow.
 
 ---
 
-## 4. Code that has never run against the real thing
+## 4. M17 gate — Model, evaluation & promotion
+
+Needs `CP_MLFLOW_TRACKING_URI` (section 3) and a pipeline that registers a model.
+Register the version under the name the API tells you, then let the platform find it:
+
+```bash
+curl -XPOST localhost:8080/projects/credit-risk/models -H 'content-type: application/json' \
+  -d '{"name":"scorer","thresholds":{"r2":{"min":0.9},"rmse":{"max":0.5}}}'
+#   -> "registry_name": "credit-risk-scorer"  (train with: --register credit-risk-scorer)
+curl -XPOST localhost:8080/projects/credit-risk/models/scorer/discover
+curl -XPOST localhost:8080/model-versions/<id>/evaluate
+curl -XPOST localhost:8080/model-versions/<id>/promote
+```
+
+`scripts/train.py --register credit-risk-scorer` inside a pipeline step produces the
+registry version; `discover` is the only way a version enters the platform. The
+alias reconciler runs inside `make cp-reconcile` when `CP_MLFLOW_TRACKING_URI` is set.
+
+| # | Gate | How to check |
+| --- | --- | --- |
+| 1 | Training output → ModelVersion | `discover` returns the new version with `source_pipeline_run_id` equal to the pipeline run |
+| 2 | Registry version ↔ platform version mapped | `select version, external_ref from model_versions` |
+| 3 | Duplicate discovery creates no duplicate | run `discover` twice → second says `already_known: N`, `created: []` |
+| 4 | Evaluation runs | `POST …/evaluate` → `evaluations[0]` with `metrics` and per-threshold `checks` |
+| 5 | Thresholds come from config | change them with `PUT /projects/{p}/models/{name}/thresholds`; the next evaluation uses the new ones, recorded evaluations keep theirs |
+| 6 | Failed evaluation → REJECTED | threshold above the real metric |
+| 7 | REJECTED cannot be promoted | `POST …/promote` → 409 |
+| 8 | Passed evaluation → CANDIDATE | threshold below the real metric |
+| 9 | Candidate can be promoted | `POST …/promote` → `CHAMPION`, `promotions[0].status: APPLIED` |
+| 10 | Promotion is atomic and audited | `audit_events` has exactly one `model_version.promoted`; kill the API between steps / inject a DB error: either everything or nothing changed |
+| 11 | Old champion history kept | promote a second candidate → first becomes `ARCHIVED`, its `promotions` still listed; `uq_model_versions_one_champion` prevents two champions |
+| 12 | MLflow alias in sync | MLflow UI: alias `champion` → the champion's registry version, `candidate` → newest candidate |
+| 13 | **Manual alias move is detected** | in the MLflow UI move `champion` to another version; within one reconcile pass `audit_events` shows `model.alias_drift_detected` then `model.alias_synced`, and the alias is back |
+
+Judgement calls to confirm you agree with:
+
+- Evaluation currently **reads metrics from the MLflow run behind the registry
+  version**; it does not launch a separate evaluation job. A version with no
+  tracking run is REJECTED (metrics missing = thresholds fail).
+- A metrics outage leaves the version `EVALUATING` (retry by calling `evaluate`
+  again), never `REJECTED`.
+- Alias drift is **repaired immediately** (platform wins); the `alias_drift` flag is
+  only visible if the repair fails, otherwise the audit trail is the evidence.
+  A *missing* alias is treated as "not synced yet", not drift.
+- The "candidate" alias points at the newest candidate.
+
+---
+
+## 5. Code that has never run against the real thing
 
 Written to the Argo API from knowledge of its schema; unit-tested only as
 manifests/dicts. Check each against a real Argo:
@@ -199,7 +247,7 @@ manifests/dicts. Check each against a real Argo:
 
 ---
 
-## 5. Missing pieces (not written yet)
+## 6. Missing pieces (not written yet)
 
 - Argo Workflows install in `make local-up` / Helm / GitOps; the Argo
   controller's `workflowNamespaces`/RBAC must cover `mlp-*` namespaces.
@@ -215,6 +263,9 @@ manifests/dicts. Check each against a real Argo:
   no per-project secret/config mechanism yet (the M7 Secret lives in `ml-platform`).
 - No retry for pipeline runs, no pipeline-run history cleanup, no per-step
   resource defaults.
+- No automatic discovery after a pipeline run succeeds (discovery is an explicit
+  call); no comparison against the champion beyond recording its id as `baseline`;
+  no rollback-to-previous-champion endpoint.
 - Run ids are plain UUIDs; the plan's `run_01J…` display form is not done.
 - Workflow pods are never garbage-collected; logs depend on pods surviving.
 - No log streaming (single read), no per-run timeout, no resource defaults for

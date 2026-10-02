@@ -17,6 +17,7 @@ from sqlalchemy import (
     Text,
     UniqueConstraint,
     Uuid,
+    text,
 )
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
@@ -150,18 +151,31 @@ class ModelRow(Base):
     id: Mapped[UUID] = _pk()
     project_id: Mapped[UUID] = _fk("projects.id")
     name: Mapped[str] = mapped_column(String(40), nullable=False)
+    thresholds: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    alias_drift: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = _ts()
 
 
 class ModelVersionRow(Base):
     __tablename__ = "model_versions"
-    __table_args__ = (UniqueConstraint("model_id", "version", name="uq_model_versions_version"),)
+    __table_args__ = (
+        UniqueConstraint("model_id", "version", name="uq_model_versions_version"),
+        UniqueConstraint("model_id", "external_ref", name="uq_model_versions_external_ref"),
+        # At most one CHAMPION per model, enforced by the database, not by hope.
+        Index(
+            "uq_model_versions_one_champion",
+            "model_id",
+            unique=True,
+            postgresql_where=text("status = 'CHAMPION'"),
+        ),
+    )
 
     id: Mapped[UUID] = _pk()
     model_id: Mapped[UUID] = _fk("models.id")
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
-    external_ref: Mapped[str | None] = mapped_column(Text)
+    external_ref: Mapped[str | None] = mapped_column(String(200))
+    source_pipeline_run_id: Mapped[UUID | None] = mapped_column(Uuid)
     created_at: Mapped[datetime] = _ts()
     updated_at: Mapped[datetime] = _ts()
 
@@ -175,6 +189,7 @@ class EvaluationRow(Base):
         Uuid, ForeignKey("model_versions.id", ondelete="RESTRICT"), index=True
     )
     metrics: Mapped[dict[str, float]] = mapped_column(JSONB, nullable=False)
+    checks: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     created_at: Mapped[datetime] = _ts()
     updated_at: Mapped[datetime] = _ts()

@@ -5,29 +5,46 @@ from types import TracebackType
 from typing import Any, Self
 from uuid import UUID
 
-from sqlalchemy import Engine, create_engine, select, update
+from sqlalchemy import Engine, create_engine, func, select, update
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.sql import Select
 
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import (
+    Check,
+    Evaluation,
     JobDefinition,
+    Model,
+    ModelVersion,
     PipelineDefinition,
     PipelineRun,
     Project,
+    Promotion,
     Run,
     StepRun,
     StepSpec,
+    Threshold,
 )
 from controlplane.domain.errors import AlreadyExists, Conflict, NotFound
-from controlplane.domain.states import ProjectStatus, RunStatus, StepStatus
+from controlplane.domain.states import (
+    EvaluationStatus,
+    ModelStatus,
+    ProjectStatus,
+    PromotionStatus,
+    RunStatus,
+    StepStatus,
+)
 from controlplane.persistence.models import (
     AuditEventRow,
+    EvaluationRow,
     JobDefinitionRow,
+    ModelRow,
+    ModelVersionRow,
     PipelineDefinitionRow,
     PipelineRunRow,
     ProjectRow,
+    PromotionRow,
     RunRow,
     StepRunRow,
 )
@@ -503,6 +520,282 @@ class SqlStepRuns:
         raise Conflict(f"step run {step.id} is no longer {expected_status.value}")
 
 
+def _threshold_json(t: Threshold) -> dict[str, float | None]:
+    return {"min": t.min, "max": t.max}
+
+
+def _model(row: ModelRow) -> Model:
+    return Model(
+        id=row.id,
+        project_id=row.project_id,
+        name=row.name,
+        thresholds={k: Threshold(min=v["min"], max=v["max"]) for k, v in row.thresholds.items()},
+        alias_drift=row.alias_drift,
+        created_at=row.created_at,
+    )
+
+
+def _version(row: ModelVersionRow) -> ModelVersion:
+    return ModelVersion(
+        id=row.id,
+        model_id=row.model_id,
+        version=row.version,
+        status=ModelStatus(row.status),
+        external_ref=row.external_ref,
+        source_pipeline_run_id=row.source_pipeline_run_id,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
+def _evaluation(row: EvaluationRow) -> Evaluation:
+    return Evaluation(
+        id=row.id,
+        model_version_id=row.model_version_id,
+        baseline_version_id=row.baseline_version_id,
+        metrics=dict(row.metrics),
+        checks=tuple(
+            Check(
+                metric=c["metric"],
+                value=c["value"],
+                threshold=Threshold(min=c["min"], max=c["max"]),
+                passed=c["passed"],
+            )
+            for c in row.checks
+        ),
+        status=EvaluationStatus(row.status),
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
+def _checks_json(checks: Sequence[Check]) -> list[dict[str, Any]]:
+    return [
+        {
+            "metric": c.metric,
+            "value": c.value,
+            "min": c.threshold.min,
+            "max": c.threshold.max,
+            "passed": c.passed,
+        }
+        for c in checks
+    ]
+
+
+class SqlModels:
+    def __init__(self, session: Session) -> None:
+        self._s = session
+
+    def add(self, model: Model) -> None:
+        self._s.add(
+            ModelRow(
+                id=model.id,
+                project_id=model.project_id,
+                name=model.name,
+                thresholds={k: _threshold_json(v) for k, v in model.thresholds.items()},
+                alias_drift=model.alias_drift,
+                created_at=model.created_at,
+            )
+        )
+        _flush_unique(self._s, "model", model.name)
+
+    def get(self, model_id: UUID) -> Model | None:
+        row = self._s.get(ModelRow, model_id)
+        return _model(row) if row else None
+
+    def get_by_name(self, project_id: UUID, name: str) -> Model | None:
+        row = self._s.scalars(
+            select(ModelRow).where(ModelRow.project_id == project_id, ModelRow.name == name)
+        ).first()
+        return _model(row) if row else None
+
+    def list(self, project_id: UUID) -> Sequence[Model]:
+        rows = self._s.scalars(
+            select(ModelRow)
+            .where(ModelRow.project_id == project_id)
+            .order_by(ModelRow.created_at, ModelRow.id)
+        )
+        return [_model(r) for r in rows]
+
+    def list_all(self) -> Sequence[Model]:
+        return [
+            _model(r)
+            for r in self._s.scalars(select(ModelRow).order_by(ModelRow.created_at, ModelRow.id))
+        ]
+
+    def update(self, model: Model) -> None:
+        result = self._s.execute(
+            update(ModelRow)
+            .where(ModelRow.id == model.id)
+            .values(
+                thresholds={k: _threshold_json(v) for k, v in model.thresholds.items()},
+                alias_drift=model.alias_drift,
+            )
+        )
+        if getattr(result, "rowcount", 0) != 1:
+            raise NotFound("model", model.id)
+
+
+class SqlModelVersions:
+    def __init__(self, session: Session) -> None:
+        self._s = session
+
+    def add(self, version: ModelVersion) -> None:
+        self._s.add(
+            ModelVersionRow(
+                id=version.id,
+                model_id=version.model_id,
+                version=version.version,
+                status=version.status.value,
+                external_ref=version.external_ref,
+                source_pipeline_run_id=version.source_pipeline_run_id,
+                created_at=version.created_at,
+                updated_at=version.updated_at,
+            )
+        )
+        _flush_unique(self._s, "model version", version.external_ref or version.version)
+
+    def get(self, version_id: UUID) -> ModelVersion | None:
+        row = self._s.get(ModelVersionRow, version_id)
+        return _version(row) if row else None
+
+    def get_by_ref(self, model_id: UUID, external_ref: str) -> ModelVersion | None:
+        row = self._s.scalars(
+            select(ModelVersionRow).where(
+                ModelVersionRow.model_id == model_id, ModelVersionRow.external_ref == external_ref
+            )
+        ).first()
+        return _version(row) if row else None
+
+    def list(self, model_id: UUID) -> Sequence[ModelVersion]:
+        rows = self._s.scalars(
+            select(ModelVersionRow)
+            .where(ModelVersionRow.model_id == model_id)
+            .order_by(ModelVersionRow.version)
+        )
+        return [_version(r) for r in rows]
+
+    def next_version(self, model_id: UUID) -> int:
+        current = self._s.scalar(
+            select(func.max(ModelVersionRow.version)).where(ModelVersionRow.model_id == model_id)
+        )
+        return (current or 0) + 1
+
+    def get_champion(self, model_id: UUID) -> ModelVersion | None:
+        row = self._s.scalars(
+            select(ModelVersionRow).where(
+                ModelVersionRow.model_id == model_id,
+                ModelVersionRow.status == ModelStatus.CHAMPION.value,
+            )
+        ).first()
+        return _version(row) if row else None
+
+    def update(self, version: ModelVersion, *, expected_status: ModelStatus) -> None:
+        try:
+            result = self._s.execute(
+                update(ModelVersionRow)
+                .where(
+                    ModelVersionRow.id == version.id,
+                    ModelVersionRow.status == expected_status.value,
+                )
+                .values(status=version.status.value, updated_at=version.updated_at)
+            )
+        except IntegrityError as exc:
+            if getattr(exc.orig, "sqlstate", None) == _UNIQUE_VIOLATION:
+                raise Conflict(f"model {version.model_id} already has a champion") from exc
+            raise
+        if getattr(result, "rowcount", 0) == 1:
+            return
+        if self._s.get(ModelVersionRow, version.id) is None:
+            raise NotFound("model version", version.id)
+        raise Conflict(f"model version {version.id} is no longer {expected_status.value}")
+
+
+class SqlEvaluations:
+    def __init__(self, session: Session) -> None:
+        self._s = session
+
+    def add(self, evaluation: Evaluation) -> None:
+        self._s.add(
+            EvaluationRow(
+                id=evaluation.id,
+                model_version_id=evaluation.model_version_id,
+                baseline_version_id=evaluation.baseline_version_id,
+                metrics=dict(evaluation.metrics),
+                checks=_checks_json(evaluation.checks),
+                status=evaluation.status.value,
+                created_at=evaluation.created_at,
+                updated_at=evaluation.updated_at,
+            )
+        )
+        self._s.flush()
+
+    def get(self, evaluation_id: UUID) -> Evaluation | None:
+        row = self._s.get(EvaluationRow, evaluation_id)
+        return _evaluation(row) if row else None
+
+    def list_for_version(self, version_id: UUID) -> Sequence[Evaluation]:
+        rows = self._s.scalars(
+            select(EvaluationRow)
+            .where(EvaluationRow.model_version_id == version_id)
+            .order_by(EvaluationRow.created_at, EvaluationRow.id)
+        )
+        return [_evaluation(r) for r in rows]
+
+    def update(self, evaluation: Evaluation, *, expected_status: EvaluationStatus) -> None:
+        result = self._s.execute(
+            update(EvaluationRow)
+            .where(EvaluationRow.id == evaluation.id, EvaluationRow.status == expected_status.value)
+            .values(
+                status=evaluation.status.value,
+                metrics=dict(evaluation.metrics),
+                checks=_checks_json(evaluation.checks),
+                updated_at=evaluation.updated_at,
+            )
+        )
+        if getattr(result, "rowcount", 0) == 1:
+            return
+        if self._s.get(EvaluationRow, evaluation.id) is None:
+            raise NotFound("evaluation", evaluation.id)
+        raise Conflict(f"evaluation {evaluation.id} is no longer {expected_status.value}")
+
+
+class SqlPromotions:
+    def __init__(self, session: Session) -> None:
+        self._s = session
+
+    def add(self, promotion: Promotion) -> None:
+        self._s.add(
+            PromotionRow(
+                id=promotion.id,
+                model_version_id=promotion.model_version_id,
+                previous_champion_id=promotion.previous_champion_id,
+                status=promotion.status.value,
+                created_at=promotion.created_at,
+                updated_at=promotion.updated_at,
+            )
+        )
+        self._s.flush()
+
+    def list_for_versions(self, version_ids: Sequence[UUID]) -> Sequence[Promotion]:
+        rows = self._s.scalars(
+            select(PromotionRow)
+            .where(PromotionRow.model_version_id.in_(list(version_ids)))
+            .order_by(PromotionRow.created_at, PromotionRow.id)
+        )
+        return [
+            Promotion(
+                id=r.id,
+                model_version_id=r.model_version_id,
+                previous_champion_id=r.previous_champion_id,
+                status=PromotionStatus(r.status),
+                created_at=r.created_at,
+                updated_at=r.updated_at,
+            )
+            for r in rows
+        ]
+
+
 class SqlAudit:
     def __init__(self, session: Session) -> None:
         self._s = session
@@ -544,6 +837,10 @@ class SqlUnitOfWork:
         self.pipelines = SqlPipelines(self._session)
         self.pipeline_runs = SqlPipelineRuns(self._session)
         self.step_runs = SqlStepRuns(self._session)
+        self.models = SqlModels(self._session)
+        self.model_versions = SqlModelVersions(self._session)
+        self.evaluations = SqlEvaluations(self._session)
+        self.promotions = SqlPromotions(self._session)
         self.audit = SqlAudit(self._session)
         return self
 

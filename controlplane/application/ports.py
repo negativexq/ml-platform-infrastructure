@@ -9,14 +9,24 @@ from uuid import UUID
 
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import (
+    Evaluation,
     JobDefinition,
+    Model,
+    ModelVersion,
     PipelineDefinition,
     PipelineRun,
     Project,
+    Promotion,
     Run,
     StepRun,
 )
-from controlplane.domain.states import ProjectStatus, RunStatus, StepStatus
+from controlplane.domain.states import (
+    EvaluationStatus,
+    ModelStatus,
+    ProjectStatus,
+    RunStatus,
+    StepStatus,
+)
 
 
 class ProjectRepository(Protocol):
@@ -111,6 +121,60 @@ class StepRunRepository(Protocol):
         """Compare-and-swap on status."""
 
 
+class ModelRepository(Protocol):
+    def add(self, model: Model) -> None:
+        """Raises AlreadyExists if the project already has a model with this name."""
+
+    def get(self, model_id: UUID) -> Model | None: ...
+
+    def get_by_name(self, project_id: UUID, name: str) -> Model | None: ...
+
+    def list(self, project_id: UUID) -> Sequence[Model]: ...
+
+    def list_all(self) -> Sequence[Model]: ...
+
+    def update(self, model: Model) -> None:
+        """Replace thresholds / drift flag (the only mutable parts of a model)."""
+
+
+class ModelVersionRepository(Protocol):
+    def add(self, version: ModelVersion) -> None:
+        """Raises AlreadyExists if (model, version) or (model, external_ref) exists."""
+
+    def get(self, version_id: UUID) -> ModelVersion | None: ...
+
+    def get_by_ref(self, model_id: UUID, external_ref: str) -> ModelVersion | None: ...
+
+    def list(self, model_id: UUID) -> Sequence[ModelVersion]:
+        """Oldest first."""
+
+    def next_version(self, model_id: UUID) -> int: ...
+
+    def get_champion(self, model_id: UUID) -> ModelVersion | None: ...
+
+    def update(self, version: ModelVersion, *, expected_status: ModelStatus) -> None:
+        """Compare-and-swap on status."""
+
+
+class EvaluationRepository(Protocol):
+    def add(self, evaluation: Evaluation) -> None: ...
+
+    def get(self, evaluation_id: UUID) -> Evaluation | None: ...
+
+    def list_for_version(self, version_id: UUID) -> Sequence[Evaluation]:
+        """Oldest first."""
+
+    def update(self, evaluation: Evaluation, *, expected_status: EvaluationStatus) -> None:
+        """Compare-and-swap on status."""
+
+
+class PromotionRepository(Protocol):
+    def add(self, promotion: Promotion) -> None: ...
+
+    def list_for_versions(self, version_ids: Sequence[UUID]) -> Sequence[Promotion]:
+        """Oldest first."""
+
+
 class AuditLog(Protocol):
     def record(self, event: AuditEvent) -> None: ...
 
@@ -139,6 +203,18 @@ class UnitOfWork(Protocol):
 
     @property
     def step_runs(self) -> StepRunRepository: ...
+
+    @property
+    def models(self) -> ModelRepository: ...
+
+    @property
+    def model_versions(self) -> ModelVersionRepository: ...
+
+    @property
+    def evaluations(self) -> EvaluationRepository: ...
+
+    @property
+    def promotions(self) -> PromotionRepository: ...
 
     @property
     def audit(self) -> AuditLog: ...

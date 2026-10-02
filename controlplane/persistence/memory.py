@@ -14,15 +14,25 @@ from uuid import UUID
 
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import (
+    Evaluation,
     JobDefinition,
+    Model,
+    ModelVersion,
     PipelineDefinition,
     PipelineRun,
     Project,
+    Promotion,
     Run,
     StepRun,
 )
 from controlplane.domain.errors import AlreadyExists, Conflict, NotFound
-from controlplane.domain.states import ProjectStatus, RunStatus, StepStatus
+from controlplane.domain.states import (
+    EvaluationStatus,
+    ModelStatus,
+    ProjectStatus,
+    RunStatus,
+    StepStatus,
+)
 
 
 @dataclass
@@ -33,6 +43,10 @@ class MemoryStore:
     pipelines: dict[UUID, PipelineDefinition] = field(default_factory=dict)
     pipeline_runs: dict[UUID, PipelineRun] = field(default_factory=dict)
     step_runs: dict[UUID, StepRun] = field(default_factory=dict)
+    models: dict[UUID, Model] = field(default_factory=dict)
+    model_versions: dict[UUID, ModelVersion] = field(default_factory=dict)
+    evaluations: dict[UUID, Evaluation] = field(default_factory=dict)
+    promotions: dict[UUID, Promotion] = field(default_factory=dict)
     audit: list[AuditEvent] = field(default_factory=list)
 
 
@@ -253,6 +267,145 @@ class _StepRuns:
         self._data[step.id] = step
 
 
+class _Models:
+    def __init__(self, data: dict[UUID, Model]) -> None:
+        self._data = data
+
+    def add(self, model: Model) -> None:
+        if self.get_by_name(model.project_id, model.name) is not None:
+            raise AlreadyExists("model", model.name)
+        self._data[model.id] = model
+
+    def get(self, model_id: UUID) -> Model | None:
+        return self._data.get(model_id)
+
+    def get_by_name(self, project_id: UUID, name: str) -> Model | None:
+        return next(
+            (m for m in self._data.values() if m.project_id == project_id and m.name == name), None
+        )
+
+    def list(self, project_id: UUID) -> Sequence[Model]:
+        return sorted(
+            (m for m in self._data.values() if m.project_id == project_id),
+            key=lambda m: (m.created_at, m.id),
+        )
+
+    def list_all(self) -> Sequence[Model]:
+        return sorted(self._data.values(), key=lambda m: (m.created_at, m.id))
+
+    def update(self, model: Model) -> None:
+        if model.id not in self._data:
+            raise NotFound("model", model.id)
+        self._data[model.id] = model
+
+
+class _ModelVersions:
+    def __init__(self, data: dict[UUID, ModelVersion]) -> None:
+        self._data = data
+
+    def add(self, version: ModelVersion) -> None:
+        for other in self._data.values():
+            if other.model_id != version.model_id:
+                continue
+            if other.version == version.version:
+                raise AlreadyExists("model version", version.version)
+            if version.external_ref is not None and other.external_ref == version.external_ref:
+                raise AlreadyExists("model version", version.external_ref)
+        self._data[version.id] = version
+
+    def get(self, version_id: UUID) -> ModelVersion | None:
+        return self._data.get(version_id)
+
+    def get_by_ref(self, model_id: UUID, external_ref: str) -> ModelVersion | None:
+        return next(
+            (
+                v
+                for v in self._data.values()
+                if v.model_id == model_id and v.external_ref == external_ref
+            ),
+            None,
+        )
+
+    def list(self, model_id: UUID) -> Sequence[ModelVersion]:
+        return sorted(
+            (v for v in self._data.values() if v.model_id == model_id), key=lambda v: v.version
+        )
+
+    def next_version(self, model_id: UUID) -> int:
+        return (
+            max((v.version for v in self._data.values() if v.model_id == model_id), default=0) + 1
+        )
+
+    def get_champion(self, model_id: UUID) -> ModelVersion | None:
+        return next(
+            (
+                v
+                for v in self._data.values()
+                if v.model_id == model_id and v.status is ModelStatus.CHAMPION
+            ),
+            None,
+        )
+
+    def update(self, version: ModelVersion, *, expected_status: ModelStatus) -> None:
+        current = self._data.get(version.id)
+        if current is None:
+            raise NotFound("model version", version.id)
+        if current.status is not expected_status:
+            raise Conflict(
+                f"model version {version.id} is {current.status.value}, not {expected_status.value}"
+            )
+        if version.status is ModelStatus.CHAMPION and any(
+            v.model_id == version.model_id
+            and v.status is ModelStatus.CHAMPION
+            and v.id != version.id
+            for v in self._data.values()
+        ):
+            raise Conflict(f"model {version.model_id} already has a champion")
+        self._data[version.id] = version
+
+
+class _Evaluations:
+    def __init__(self, data: dict[UUID, Evaluation]) -> None:
+        self._data = data
+
+    def add(self, evaluation: Evaluation) -> None:
+        self._data[evaluation.id] = evaluation
+
+    def get(self, evaluation_id: UUID) -> Evaluation | None:
+        return self._data.get(evaluation_id)
+
+    def list_for_version(self, version_id: UUID) -> Sequence[Evaluation]:
+        return sorted(
+            (e for e in self._data.values() if e.model_version_id == version_id),
+            key=lambda e: (e.created_at, e.id),
+        )
+
+    def update(self, evaluation: Evaluation, *, expected_status: EvaluationStatus) -> None:
+        current = self._data.get(evaluation.id)
+        if current is None:
+            raise NotFound("evaluation", evaluation.id)
+        if current.status is not expected_status:
+            raise Conflict(
+                f"evaluation {evaluation.id} is {current.status.value}, not {expected_status.value}"
+            )
+        self._data[evaluation.id] = evaluation
+
+
+class _Promotions:
+    def __init__(self, data: dict[UUID, Promotion]) -> None:
+        self._data = data
+
+    def add(self, promotion: Promotion) -> None:
+        self._data[promotion.id] = promotion
+
+    def list_for_versions(self, version_ids: Sequence[UUID]) -> Sequence[Promotion]:
+        wanted = set(version_ids)
+        return sorted(
+            (p for p in self._data.values() if p.model_version_id in wanted),
+            key=lambda p: (p.created_at, p.id),
+        )
+
+
 class _Audit:
     def __init__(self, data: list[AuditEvent]) -> None:
         self._data = data
@@ -282,6 +435,10 @@ class MemoryUnitOfWork:
         self._pipelines = dict(self._store.pipelines)
         self._pipeline_runs = dict(self._store.pipeline_runs)
         self._step_runs = dict(self._store.step_runs)
+        self._models = dict(self._store.models)
+        self._model_versions = dict(self._store.model_versions)
+        self._evaluations = dict(self._store.evaluations)
+        self._promotions = dict(self._store.promotions)
         self._audit = list(self._store.audit)
         self.projects = _Projects(self._projects)
         self.jobs = _Jobs(self._jobs)
@@ -289,6 +446,10 @@ class MemoryUnitOfWork:
         self.pipelines = _Pipelines(self._pipelines)
         self.pipeline_runs = _PipelineRuns(self._pipeline_runs, self._pipelines)
         self.step_runs = _StepRuns(self._step_runs)
+        self.models = _Models(self._models)
+        self.model_versions = _ModelVersions(self._model_versions)
+        self.evaluations = _Evaluations(self._evaluations)
+        self.promotions = _Promotions(self._promotions)
         self.audit = _Audit(self._audit)
         return self
 
@@ -307,4 +468,8 @@ class MemoryUnitOfWork:
         self._store.pipelines = self._pipelines
         self._store.pipeline_runs = self._pipeline_runs
         self._store.step_runs = self._step_runs
+        self._store.models = self._models
+        self._store.model_versions = self._model_versions
+        self._store.evaluations = self._evaluations
+        self._store.promotions = self._promotions
         self._store.audit = self._audit
