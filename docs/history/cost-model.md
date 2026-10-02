@@ -62,7 +62,7 @@ For anything that matters, all three of these should be inverted.
 | S3 gateway endpoint | NAT data-processing charges on artifact pulls | nothing — it is free |
 | Only `api` + `audit` logs | ~$20/mo vs all five log types | less control-plane forensics |
 
-SPOT is worth singling out: it is safe here *because* [M2](evidence/m2/pod-recovery.md)
+SPOT is worth singling out: it is safe here *because* [M2](../evidence/m2/pod-recovery.md)
 measured what happens when a node's pod disappears — replacement ready in 13s,
 Service never non-200. The cheap option is defensible because the behaviour
 under it was tested, not assumed.
@@ -71,7 +71,7 @@ under it was tested, not assumed.
 
 Disabled, and it should stay disabled until a workload needs it. The current
 model is a `Ridge` regressor whose prediction latency is **2.78 ms p95 on
-CPU** ([M5](evidence/m5/gate.md)). A GPU node would cost more than the entire
+CPU** ([M5](../evidence/m5/gate.md)). A GPU node would cost more than the entire
 rest of the platform and make that number worse, not better, once transfer
 overhead is counted.
 

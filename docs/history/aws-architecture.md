@@ -1,7 +1,7 @@
 # AWS architecture (M6 design)
 
 Nothing here has been applied. This document and
-[`infra/terraform/`](../infra/terraform/) describe the AWS counterpart of the
+[`infra/terraform/`](../../infra/terraform/) describe the AWS counterpart of the
 platform that M0–M5 built and measured locally. The point of writing it before
 spending anything is that every decision below can be checked against a local
 behaviour that was actually observed.
@@ -10,33 +10,33 @@ behaviour that was actually observed.
 
 | Local (M0–M5) | AWS | Terraform module |
 | --- | --- | --- |
-| kind cluster | EKS | [`modules/eks`](../infra/terraform/modules/eks/) |
-| Docker image on the host | ECR | [`modules/ecr`](../infra/terraform/modules/ecr/) |
-| MinIO | S3 | [`modules/s3`](../infra/terraform/modules/s3/) |
-| PostgreSQL container | RDS PostgreSQL | [`modules/rds`](../infra/terraform/modules/rds/) |
+| kind cluster | EKS | [`modules/eks`](../../infra/terraform/modules/eks/) |
+| Docker image on the host | ECR | [`modules/ecr`](../../infra/terraform/modules/ecr/) |
+| MinIO | S3 | [`modules/s3`](../../infra/terraform/modules/s3/) |
+| PostgreSQL container | RDS PostgreSQL | [`modules/rds`](../../infra/terraform/modules/rds/) |
 | NodePort Service on `localhost:30080` | ClusterIP + ALB | Helm `service.type` |
-| `Secret` with MinIO credentials | IAM role via IRSA | [`modules/iam`](../infra/terraform/modules/iam/) |
+| `Secret` with MinIO credentials | IAM role via IRSA | [`modules/iam`](../../infra/terraform/modules/iam/) |
 | `values-local.yaml` | `values-aws-dev.yaml` | same chart |
 | Argo `Application` → local cluster | Argo `Application` → EKS | same manifest shape |
 
 The Helm chart already supports the right-hand column: `artifactStore.mode=irsa`
 renders no Secret and drops `envFrom.secretRef`, and the ServiceAccount takes
 an `eks.amazonaws.com/role-arn` annotation. That was verified in
-[M3's gate](evidence/m3/gate.md) and is asserted in CI, so the migration does
+[M3's gate](../evidence/m3/gate.md) and is asserted in CI, so the migration does
 not require touching a template.
 
 ## Why each service
 
 **EKS, not ECS or plain EC2.** M2–M5 depend on Kubernetes primitives that were
 individually load-bearing, not incidental: readiness gating traffic separately
-from liveness ([M2](evidence/m2/readiness-failure.md)), `maxUnavailable: 0`
-holding capacity during a bad rollout ([M5](evidence/m5/bad-rollout.md)), and
+from liveness ([M2](../evidence/m2/readiness-failure.md)), `maxUnavailable: 0`
+holding capacity during a bad rollout ([M5](../evidence/m5/bad-rollout.md)), and
 Argo CD reconciling live resources. Moving to a different orchestrator would
 discard the behaviour this project spent five milestones proving.
 
 **S3, not EFS or a volume.** Artifacts are write-once, read-many, and read at
 pod start-up. Measured cold-start load from MinIO was 3.98s and 5.26s
-([M5](evidence/m5/gate.md)); S3 with a gateway VPC endpoint is the same access
+([M5](../evidence/m5/gate.md)); S3 with a gateway VPC endpoint is the same access
 pattern with less to operate.
 
 **RDS, not PostgreSQL on a node.** MLflow metadata is the one piece of state

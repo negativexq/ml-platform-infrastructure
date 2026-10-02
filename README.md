@@ -137,8 +137,8 @@ The full list of what is missing and what comes next: [`docs/roadmap.md`](docs/r
 * [Architecture](docs/architecture.md)
 * [Failure drills on the first infrastructure](docs/history/failure-engineering.md)
 * [SLOs measured on the first inference service](docs/history/slo.md)
-* [AWS design](docs/aws-architecture.md)
-* [Cost model](docs/cost-model.md)
+* [AWS design for the first infrastructure](docs/history/aws-architecture.md)
+* [Cost model for the first infrastructure](docs/history/cost-model.md)
 * [What to verify on a real cluster](docs/local-verification.md)
 
 ## Security

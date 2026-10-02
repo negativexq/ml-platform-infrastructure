@@ -115,7 +115,7 @@ docs/evidence/m0..m12/  the transcript behind every claim in the README
 ## Local → AWS mapping
 
 Frozen contract, full detail (identity boundaries, network design, cost
-model) in [aws-architecture.md](../aws-architecture.md):
+model) in [aws-architecture.md](aws-architecture.md):
 
 | Local (M0–M12) | AWS (M22+, not yet applied) |
 | --- | --- |

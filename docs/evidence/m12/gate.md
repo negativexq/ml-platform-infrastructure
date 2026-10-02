@@ -57,7 +57,7 @@ duplicated here to avoid the two copies drifting apart.
   to, not folded into new scope.
 - AWS work starts a new phase (M13+) with its own gates — it consumes this
   local platform's contract (the local→AWS mapping frozen in
-  [M6](../../aws-architecture.md)) rather than re-litigating it.
+  [M6](../../history/aws-architecture.md)) rather than re-litigating it.
 - The tag `local-v1.0.0` marks the exact commit this file describes.
 
 ## Gate result

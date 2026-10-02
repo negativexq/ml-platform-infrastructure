@@ -9,7 +9,7 @@ and this repository holds none.
 
 ## Local → AWS mapping frozen
 
-Recorded in [../../aws-architecture.md](../../aws-architecture.md) with a
+Recorded in [../../history/aws-architecture.md](../../history/aws-architecture.md) with a
 Terraform module named for each row. The mapping is a contract, not a sketch:
 the Helm chart already renders the AWS side of it without template changes.
 
@@ -67,7 +67,7 @@ rest of the repo avoids. Declared, and the run is clean.
 ## IAM design documented
 
 Four identities, no shared admin role — detail in
-[aws-architecture.md § Identity boundaries](../../aws-architecture.md#identity-boundaries):
+[aws-architecture.md § Identity boundaries](../../history/aws-architecture.md#identity-boundaries):
 
 | Identity | Assumed via | Permitted |
 | --- | --- | --- |
@@ -94,11 +94,11 @@ Public subnets carry the ALB and NAT; private subnets carry nodes and RDS. RDS
 takes ingress from the EKS cluster security group only — a security-group
 reference, never a CIDR. An S3 gateway endpoint keeps artifact traffic off NAT.
 Diagram in
-[aws-architecture.md § Network boundaries](../../aws-architecture.md#network-boundaries).
+[aws-architecture.md § Network boundaries](../../history/aws-architecture.md#network-boundaries).
 
 ## Cost model documented
 
-[../../cost-model.md](../../cost-model.md) — estimated **~$155–175/month** if
+[../../history/cost-model.md](../../history/cost-model.md) — estimated **~$155–175/month** if
 left running, with the honest headline that the EKS control plane plus NAT is
 about two thirds of that and does not scale down with usage. Hence: ephemeral
 by default, every module configured so `destroy` genuinely works, SPOT nodes,

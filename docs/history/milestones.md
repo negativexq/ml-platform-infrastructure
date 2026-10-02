@@ -226,9 +226,9 @@ boundary · `.terraform.lock.hcl` · secrets git'e girmez.
 **M6 CI:** `terraform fmt -check` · `terraform validate` · `tflint`. AWS auth
 olunca `terraform plan` eklenir. Automatic apply yok.
 
-**M6 docs:** `docs/aws-architecture.md` (why EKS/S3/RDS/ECR · identity +
+**M6 docs:** `docs/history/aws-architecture.md` (why EKS/S3/RDS/ECR · identity +
 network boundaries · local → AWS mapping · cost assumptions · known
-limitations) · `docs/cost-model.md` (ephemeral cluster · destroy after tests ·
+limitations) · `docs/history/cost-model.md` (ephemeral cluster · destroy after tests ·
 GPU disabled by default · cost tags · budget alerts before apply).
 
 **M6 Gate:** local→AWS mapping frozen · Terraform structure complete · module
