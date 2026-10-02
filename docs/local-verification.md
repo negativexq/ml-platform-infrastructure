@@ -17,6 +17,9 @@ namespace deleted by the real namespace controller.
 
 ---
 
+> Sections: 0 setup · 1 M14 gate · 2 M15 gate · 3 M16 gate · 4 untested code ·
+> 5 missing pieces.
+
 ## 0. Setup on your machine
 
 ```bash
@@ -30,7 +33,7 @@ kubectl apply -n argo -f https://github.com/argoproj/argo-workflows/releases/dow
 # PostgreSQL for the control plane: reuse the platform one or any local instance
 export CP_DATABASE_URL=postgresql+psycopg://USER:PASS@localhost:5432/controlplane
 export CP_KUBECONFIG=$HOME/.kube/config      # context must be the kind cluster
-make cp-migrate                    # alembic upgrade head  (0001 → 0003)
+make cp-migrate                    # alembic upgrade head  (0001 → 0004)
 
 make cp-run                        # API on :8080      (terminal 1)
 make cp-reconcile                  # reconcilers       (terminal 2)
@@ -112,11 +115,69 @@ namespace.
 
 ---
 
-## 3. Code that has never run against the real thing
+## 3. M16 gate — Pipeline DAG + MLflow tracking
+
+Extra setup: point the control plane at MLflow and make the steps able to reach it.
+
+```bash
+export CP_MLFLOW_TRACKING_URI=http://localhost:30500                       # control plane -> MLflow
+export CP_STEP_MLFLOW_TRACKING_URI=http://platform-mlflow.ml-platform.svc:5000   # what steps get (in-cluster; check your service name)
+make cp-migrate                      # 0004
+```
+
+Use the training image for real tracking: `docker/training/Dockerfile` →
+`kind load docker-image`, job `{"image": "ml-platform-training:dev", "command": ["python","scripts/train.py"]}`.
+`scripts/train.py` now reads the `MLP_*` env vars and writes them as MLflow tags.
+Check that the image's MinIO/S3 credentials reach the step pods (the project
+namespace is new; the M7 training Job got them from its own Secret).
+
+```bash
+curl -XPOST localhost:8080/projects/credit-risk/pipelines -H 'content-type: application/json' -d '{
+  "name":"flow","steps":[
+    {"name":"validate","job":"hello"},
+    {"name":"prepare","job":"hello","depends_on":["validate"]},
+    {"name":"train","job":"train-job","depends_on":["prepare"]},
+    {"name":"evaluate","job":"hello","depends_on":["train"]}]}'
+curl -XPOST localhost:8080/projects/credit-risk/pipelines/flow/runs -H 'Idempotency-Key: p1'
+curl localhost:8080/pipeline-runs/<id>            # per-step status
+curl localhost:8080/pipeline-runs/<id>/tracking   # params, metrics, artifact_uri — no MLflow id needed
+```
+
+| # | Gate | How to check |
+| --- | --- | --- |
+| 1 | PipelineDefinition versioned | repost the same body → 200 same version; change a step → `version: 2`; old version still readable with `?version=1` |
+| 2 | Cycle detection | `a→b→a` body → 422 `invalid_argument` ("dependency cycle") |
+| 3 | Invalid dependency rejected | unknown step / self-dependency / unknown job → 422 |
+| 4 | Compiles to an Argo DAG | `kubectl -n mlp-credit-risk get workflow pr-<16 hex> -o yaml` → `dag.tasks[*].dependencies` match the pipeline |
+| 5 | validate → prepare → train → evaluate really in order | compare `started_at`/`finished_at` of the four steps from `GET /pipeline-runs/{id}` (each starts after its predecessor finished) |
+| 6 | Parallel branch | diamond `a→(b,c)→d`; `b` and `c` overlap in time (use `sleep 20` in both) |
+| 7 | Failed upstream skips downstream | make `prepare` `exit 1`: `train` and `evaluate` → `SKIPPED`, run `FAILED`, `status_reason: failed steps: prepare`. **Check Argo reports omitted tasks** (see §4 item 1) |
+| 8 | Every StepRun in the DB | `select step_name,status,exit_code from step_runs where pipeline_run_id=…` — rows exist from creation, none left PENDING under a finished run |
+| 9 | Training creates an MLflow run | MLflow UI: experiment `mlp-credit-risk`, run tagged `platform_pipeline_run_id` |
+| 10 | Params / metrics / artifact | `GET …/tracking` → `params`, `metrics`, `artifact_uri`; the artifact exists in MinIO |
+| 11 | Mapping is deterministic | run `…/tracking` twice → identical; two pipeline runs never see each other's tracked runs |
+| 12 | Result without knowing an MLflow id | the `/tracking` response is the whole answer |
+
+**The critical gate:** `Run #N → MLflow run → artifact` from **one** platform
+query: `GET /pipeline-runs/{id}/tracking`.
+
+Fault tests: cancel mid-run (`POST /pipeline-runs/{id}/cancel`) → running step
+`CANCELLED`, pending steps `CANCELLED`, run `CANCELLED`; kill the reconciler
+mid-run and restart → it resumes, no second workflow.
+
+---
+
+## 4. Code that has never run against the real thing
 
 Written to the Argo API from knowledge of its schema; unit-tested only as
 manifests/dicts. Check each against a real Argo:
 
+0. **Omitted DAG tasks (M16)** — `_step_key`/`_NODE_PHASES` assume a task whose
+   dependency failed shows up as a node with `type: Skipped`, `phase: Omitted`
+   and `displayName` = task name. If steps stay `PENDING` after a failed
+   upstream, inspect `kubectl get workflow -o json | jq '.status.nodes'`; the
+   reconciler still closes them as `SKIPPED` once the run is terminal, so the
+   end state is right even if the intermediate reporting is not.
 1. **`adapters/workflow/argo.py` field names** — `status.phase` values,
    `status.nodes[*].{type,phase,message,templateName,id,outputs.exitCode}`,
    and that the pod name equals the node `id` (used by `get_logs`). Argo changed
@@ -138,7 +199,7 @@ manifests/dicts. Check each against a real Argo:
 
 ---
 
-## 4. Missing pieces (not written yet)
+## 5. Missing pieces (not written yet)
 
 - Argo Workflows install in `make local-up` / Helm / GitOps; the Argo
   controller's `workflowNamespaces`/RBAC must cover `mlp-*` namespaces.
@@ -150,6 +211,10 @@ manifests/dicts. Check each against a real Argo:
   `KubernetesClusterProvider` (currently only a manual smoke).
 - `docs/evidence/m14/gate.md`, `docs/evidence/m15/gate.md` and README rows once
   the tables above pass.
+- Step pods need MLflow/S3 credentials and a reachable tracking URI; there is
+  no per-project secret/config mechanism yet (the M7 Secret lives in `ml-platform`).
+- No retry for pipeline runs, no pipeline-run history cleanup, no per-step
+  resource defaults.
 - Run ids are plain UUIDs; the plan's `run_01J…` display form is not done.
 - Workflow pods are never garbage-collected; logs depend on pods surviving.
 - No log streaming (single read), no per-run timeout, no resource defaults for

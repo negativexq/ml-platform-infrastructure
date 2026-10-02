@@ -7,8 +7,11 @@ from fastapi import APIRouter, FastAPI, Query, Request, Response, status
 from fastapi.responses import JSONResponse
 
 from controlplane.api.jobs_runs import jobs_router, runs_router
+from controlplane.api.pipelines import pipeline_runs_router, pipelines_router
 from controlplane.api.schemas import ErrorOut, ProjectCreate, ProjectList, ProjectOut
 from controlplane.application.jobs import JobService
+from controlplane.application.pipeline_runs import PipelineRunService
+from controlplane.application.pipelines import PipelineService
 from controlplane.application.projects import (
     Clock,
     CreateProject,
@@ -16,7 +19,7 @@ from controlplane.application.projects import (
     UnitOfWorkFactory,
     utc_now,
 )
-from controlplane.application.providers import WorkflowProvider
+from controlplane.application.providers import ExperimentProvider, WorkflowProvider
 from controlplane.application.runs import RunService
 from controlplane.domain.errors import (
     AlreadyExists,
@@ -110,6 +113,7 @@ def create_app(
     uow_factory: UnitOfWorkFactory,
     clock: Clock = utc_now,
     workflow: WorkflowProvider | None = None,
+    experiments: ExperimentProvider | None = None,
 ) -> FastAPI:
     app = FastAPI(
         title="ML Platform Control Plane",
@@ -120,11 +124,16 @@ def create_app(
     app.state.projects = ProjectService(uow_factory, clock)
     app.state.jobs = JobService(uow_factory, clock)
     app.state.runs = RunService(uow_factory, clock)
+    app.state.pipelines = PipelineService(uow_factory, clock)
+    app.state.pipeline_runs = PipelineRunService(uow_factory, clock, experiments)
     app.state.workflow = workflow
+    app.state.experiments = experiments
     app.add_exception_handler(DomainError, _domain_error_handler)
     app.include_router(_projects_router())
     app.include_router(jobs_router())
     app.include_router(runs_router())
+    app.include_router(pipelines_router())
+    app.include_router(pipeline_runs_router())
 
     @app.get("/healthz", tags=["ops"], summary="Liveness")
     def healthz() -> dict[str, str]:

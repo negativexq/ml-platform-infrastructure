@@ -11,8 +11,10 @@ import time
 from collections.abc import Callable
 
 from controlplane.adapters.kubernetes import KubernetesClusterProvider, load_api_client
+from controlplane.adapters.mlflow import MlflowExperimentProvider
 from controlplane.adapters.workflow import ArgoWorkflowProvider
 from controlplane.persistence.sql import SqlUnitOfWork, make_engine, sql_uow_factory
+from controlplane.reconciliation.pipeline_runs import PipelineRunReconciler
 from controlplane.reconciliation.projects import ProjectReconciler
 from controlplane.reconciliation.runs import RunReconciler
 from controlplane.settings import Settings
@@ -35,6 +37,17 @@ def main() -> None:
     api = load_api_client(settings.kubeconfig or None)
     projects = ProjectReconciler(lambda: SqlUnitOfWork(sessions), KubernetesClusterProvider(api))
     runs = RunReconciler(lambda: SqlUnitOfWork(sessions), ArgoWorkflowProvider(api))
+    experiments = (
+        MlflowExperimentProvider(settings.mlflow_tracking_uri)
+        if settings.mlflow_tracking_uri
+        else None
+    )
+    pipeline_runs = PipelineRunReconciler(
+        lambda: SqlUnitOfWork(sessions),
+        ArgoWorkflowProvider(api),
+        experiments,
+        tracking_uri=settings.step_mlflow_tracking_uri or settings.mlflow_tracking_uri or None,
+    )
     while True:
         # Only report passes that did something; converged projects are silent.
         _pass(
@@ -42,6 +55,10 @@ def main() -> None:
             lambda: [r for r in projects.reconcile_all() if r.before != r.after or r.changed],
         )
         _pass("runs", lambda: [r for r in runs.reconcile_all() if r.before != r.after])
+        _pass(
+            "pipeline_runs",
+            lambda: [r for r in pipeline_runs.reconcile_all() if r.before != r.after],
+        )
         time.sleep(settings.reconcile_interval_seconds)
 
 

@@ -1,0 +1,91 @@
+"""ExperimentProvider backed by an MLflow tracking server (or a file store, for tests)."""
+
+from __future__ import annotations
+
+from collections.abc import Mapping, Sequence
+from uuid import UUID
+
+from mlflow import MlflowClient
+from mlflow.entities import Run as MlflowRun
+from mlflow.exceptions import MlflowException
+from mlflow.protos.databricks_pb2 import (
+    RESOURCE_ALREADY_EXISTS,
+    RESOURCE_DOES_NOT_EXIST,
+    ErrorCode,
+)
+
+from controlplane.application.providers import ExperimentRun
+from controlplane.domain.errors import NotFound
+
+_MAX_RUNS = 1000
+
+
+def _run(run: MlflowRun) -> ExperimentRun:
+    return ExperimentRun(
+        ref=run.info.run_id,
+        params=dict(run.data.params),
+        metrics=dict(run.data.metrics),
+        # `mlflow.*` tags are the tracker's own bookkeeping, not ours.
+        tags={k: v for k, v in run.data.tags.items() if not k.startswith("mlflow.")},
+        artifact_uri=run.info.artifact_uri,
+    )
+
+
+def _is(exc: MlflowException, code: int) -> bool:
+    """`MlflowException.error_code` is the enum *name*, not its number."""
+    return bool(exc.error_code == ErrorCode.Name(code))
+
+
+def _quote(value: str) -> str:
+    return "'" + value.replace("'", "\\'") + "'"
+
+
+class MlflowExperimentProvider:
+    def __init__(self, tracking_uri: str) -> None:
+        self._client = MlflowClient(tracking_uri=tracking_uri)
+
+    def ensure_experiment(self, project_id: UUID, name: str) -> str:
+        """Create-or-get. Deterministic: the same name always maps to the same experiment."""
+        existing = self._client.get_experiment_by_name(name)
+        if existing is not None:
+            return str(existing.experiment_id)
+        try:
+            return str(
+                self._client.create_experiment(name, tags={"platform_project_id": str(project_id)})
+            )
+        except MlflowException as exc:
+            if not _is(exc, RESOURCE_ALREADY_EXISTS):
+                raise
+        raced = self._client.get_experiment_by_name(name)  # created by a concurrent caller
+        if raced is None:
+            raise NotFound("experiment", name)
+        return str(raced.experiment_id)
+
+    def get_run(self, ref: str) -> ExperimentRun:
+        try:
+            return _run(self._client.get_run(ref))
+        except MlflowException as exc:
+            if _is(exc, RESOURCE_DOES_NOT_EXIST):
+                raise NotFound("experiment run", ref) from None
+            raise
+
+    def find_runs(self, experiment_ref: str, tags: Mapping[str, str]) -> Sequence[ExperimentRun]:
+        clauses = [f"tags.`{key}` = {_quote(value)}" for key, value in tags.items()]
+        runs = self._client.search_runs(
+            [experiment_ref],
+            filter_string=" and ".join(clauses),
+            max_results=_MAX_RUNS,
+            order_by=["attributes.start_time ASC"],
+        )
+        return [_run(r) for r in runs]
+
+    def set_model_alias(self, model: str, alias: str, version_ref: str) -> None:
+        self._client.set_registered_model_alias(model, alias, version_ref)
+
+    def get_model_alias(self, model: str, alias: str) -> str | None:
+        try:
+            return str(self._client.get_model_version_by_alias(model, alias).version)
+        except MlflowException as exc:
+            if _is(exc, RESOURCE_DOES_NOT_EXIST):
+                return None
+            raise

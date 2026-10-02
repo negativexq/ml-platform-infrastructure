@@ -8,8 +8,15 @@ from typing import Protocol, Self
 from uuid import UUID
 
 from controlplane.domain.audit import AuditEvent
-from controlplane.domain.entities import JobDefinition, Project, Run
-from controlplane.domain.states import ProjectStatus, RunStatus
+from controlplane.domain.entities import (
+    JobDefinition,
+    PipelineDefinition,
+    PipelineRun,
+    Project,
+    Run,
+    StepRun,
+)
+from controlplane.domain.states import ProjectStatus, RunStatus, StepStatus
 
 
 class ProjectRepository(Protocol):
@@ -61,6 +68,49 @@ class RunRepository(Protocol):
         """Compare-and-swap on status. Conflict if another writer moved the run first."""
 
 
+class PipelineRepository(Protocol):
+    def add(self, definition: PipelineDefinition) -> None:
+        """Raises AlreadyExists if (project, name, version) exists."""
+
+    def get(self, definition_id: UUID) -> PipelineDefinition | None: ...
+
+    def get_version(
+        self, project_id: UUID, name: str, version: int | None
+    ) -> PipelineDefinition | None:
+        """`version=None` is the latest version."""
+
+    def list_latest(self, project_id: UUID) -> Sequence[PipelineDefinition]:
+        """The newest version of every pipeline in the project."""
+
+
+class PipelineRunRepository(Protocol):
+    def add(self, run: PipelineRun) -> None:
+        """Raises AlreadyExists if (project, idempotency_key) is already used."""
+
+    def get(self, run_id: UUID) -> PipelineRun | None: ...
+
+    def get_by_idempotency_key(self, project_id: UUID, key: str) -> PipelineRun | None: ...
+
+    def list(
+        self, project_id: UUID, *, definition_ids: Sequence[UUID] | None, limit: int, offset: int
+    ) -> Sequence[PipelineRun]:
+        """Newest first."""
+
+    def list_active(self) -> Sequence[PipelineRun]: ...
+
+    def update(self, run: PipelineRun, *, expected_status: RunStatus) -> None:
+        """Compare-and-swap on status."""
+
+
+class StepRunRepository(Protocol):
+    def add_many(self, steps: Sequence[StepRun]) -> None: ...
+
+    def list(self, pipeline_run_id: UUID) -> Sequence[StepRun]: ...
+
+    def update(self, step: StepRun, *, expected_status: StepStatus) -> None:
+        """Compare-and-swap on status."""
+
+
 class AuditLog(Protocol):
     def record(self, event: AuditEvent) -> None: ...
 
@@ -80,6 +130,15 @@ class UnitOfWork(Protocol):
 
     @property
     def runs(self) -> RunRepository: ...
+
+    @property
+    def pipelines(self) -> PipelineRepository: ...
+
+    @property
+    def pipeline_runs(self) -> PipelineRunRepository: ...
+
+    @property
+    def step_runs(self) -> StepRunRepository: ...
 
     @property
     def audit(self) -> AuditLog: ...

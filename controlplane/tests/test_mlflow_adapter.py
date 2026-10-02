@@ -1,0 +1,67 @@
+"""The MLflow adapter against a real MLflow (local store, no server needed)."""
+
+from __future__ import annotations
+
+from pathlib import Path
+from uuid import uuid4
+
+import pytest
+from mlflow import MlflowClient
+
+from controlplane.adapters.mlflow import MlflowExperimentProvider
+from controlplane.application.providers import ExperimentProvider
+from controlplane.application.workflow_compiler import TAG_PIPELINE_RUN_ID, TAG_STEP
+from controlplane.domain.errors import NotFound
+
+
+@pytest.fixture
+def uri(tmp_path: Path) -> str:
+    return f"sqlite:///{tmp_path / 'mlflow.db'}"
+
+
+def test_satisfies_the_port(uri: str) -> None:
+    assert isinstance(MlflowExperimentProvider(uri), ExperimentProvider)
+
+
+def test_ensure_experiment_is_deterministic(uri: str) -> None:
+    provider = MlflowExperimentProvider(uri)
+    pid = uuid4()
+    first = provider.ensure_experiment(pid, "mlp-credit-risk")
+    assert provider.ensure_experiment(pid, "mlp-credit-risk") == first
+    assert provider.ensure_experiment(pid, "mlp-other") != first
+
+
+def test_runs_are_found_by_platform_tags_with_params_metrics_and_artifact(uri: str) -> None:
+    provider = MlflowExperimentProvider(uri)
+    experiment = provider.ensure_experiment(uuid4(), "mlp-credit-risk")
+    client = MlflowClient(tracking_uri=uri)
+    mine, other = str(uuid4()), str(uuid4())
+    for pipeline_run, step, auc in (
+        (mine, "train", 0.93),
+        (mine, "evaluate", 0.91),
+        (other, "train", 0.5),
+    ):
+        run = client.create_run(
+            experiment, tags={TAG_PIPELINE_RUN_ID: pipeline_run, TAG_STEP: step}
+        )
+        client.log_param(run.info.run_id, "alpha", "1.0")
+        client.log_metric(run.info.run_id, "auc", auc)
+        client.set_terminated(run.info.run_id)
+
+    found = provider.find_runs(experiment, {TAG_PIPELINE_RUN_ID: mine})
+    assert sorted(r.tags[TAG_STEP] for r in found) == ["evaluate", "train"]
+    train = next(r for r in found if r.tags[TAG_STEP] == "train")
+    assert train.params == {"alpha": "1.0"} and train.metrics == {"auc": 0.93}
+    assert train.artifact_uri
+    assert not any(k.startswith("mlflow.") for r in found for k in r.tags)
+
+    both = provider.find_runs(experiment, {TAG_PIPELINE_RUN_ID: mine, TAG_STEP: "train"})
+    assert len(both) == 1 and provider.get_run(both[0].ref) == both[0]
+    assert provider.find_runs(experiment, {TAG_PIPELINE_RUN_ID: str(uuid4())}) == []
+
+
+def test_unknown_run_and_alias(uri: str) -> None:
+    provider = MlflowExperimentProvider(uri)
+    with pytest.raises(NotFound):
+        provider.get_run("does-not-exist")
+    assert provider.get_model_alias("no-such-model", "champion") is None

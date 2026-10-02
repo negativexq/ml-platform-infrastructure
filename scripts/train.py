@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import argparse
 import os
+from collections.abc import Mapping
 
 import mlflow
 import mlflow.sklearn
@@ -32,9 +33,25 @@ def make_dataset(n: int = 500) -> tuple[np.ndarray, np.ndarray]:
     return x, y
 
 
+# env var injected by the platform -> tracker tag the platform queries by
+PLATFORM_TAGS = {
+    "MLP_PROJECT_ID": "platform_project_id",
+    "MLP_PIPELINE_RUN_ID": "platform_pipeline_run_id",
+    "MLP_STEP": "platform_step",
+    "MLP_COMMIT_SHA": "commit_sha",
+    "MLP_IMAGE": "image",
+}
+
+
+def platform_tags(env: Mapping[str, str]) -> dict[str, str]:
+    return {tag: env[var] for var, tag in PLATFORM_TAGS.items() if env.get(var)}
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--experiment", default="ml-platform")
+    parser.add_argument(
+        "--experiment", default=os.environ.get("MLFLOW_EXPERIMENT_NAME", "ml-platform")
+    )
     parser.add_argument("--alpha", type=float, default=1.0)
     parser.add_argument("--samples", type=int, default=500)
     parser.add_argument(
@@ -74,6 +91,9 @@ def main() -> None:
         }
         mlflow.log_metrics(metrics)
         mlflow.set_tag("stage", "candidate")
+        # When the platform runs this step it injects MLP_* env vars; recording them as
+        # tags is what lets the platform find this run again without knowing its id.
+        mlflow.set_tags(platform_tags(os.environ))
 
         mlflow.sklearn.log_model(
             sk_model=model,

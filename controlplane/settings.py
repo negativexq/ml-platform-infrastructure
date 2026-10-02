@@ -10,3 +10,7 @@ class Settings(BaseSettings):
     # Empty: in-cluster config, then ~/.kube/config.
     kubeconfig: str = ""
     reconcile_interval_seconds: float = 10.0
+    # MLflow tracking server the control plane queries. Empty: tracking is not configured.
+    mlflow_tracking_uri: str = ""
+    # URI injected into pipeline steps (in-cluster address). Defaults to the one above.
+    step_mlflow_tracking_uri: str = ""

@@ -32,10 +32,10 @@ _SLUG = re.compile(r"^[a-z][a-z0-9]*(-[a-z0-9]+)*$")
 SLUG_MIN, SLUG_MAX = 3, 40
 
 
-def validate_slug(value: str, what: str = "name") -> str:
-    if not SLUG_MIN <= len(value) <= SLUG_MAX or not _SLUG.match(value):
+def validate_slug(value: str, what: str = "name", min_len: int = SLUG_MIN) -> str:
+    if not min_len <= len(value) <= SLUG_MAX or not _SLUG.match(value):
         raise InvalidArgument(
-            f"{what} must be {SLUG_MIN}-{SLUG_MAX} chars of lowercase letters, digits and "
+            f"{what} must be {min_len}-{SLUG_MAX} chars of lowercase letters, digits and "
             f"single hyphens, starting with a letter: got {value!r}"
         )
     return value
@@ -143,6 +143,48 @@ class StepSpec:
     depends_on: tuple[str, ...] = ()
 
 
+MAX_STEPS = 50
+
+
+def validate_dag(steps: tuple[StepSpec, ...]) -> tuple[str, ...]:
+    """Reject empty pipelines, duplicate names, unknown/self dependencies and
+    cycles. Returns the step names in a valid execution order (declaration order
+    wherever the graph allows it)."""
+    if not steps:
+        raise InvalidArgument("a pipeline needs at least one step")
+    if len(steps) > MAX_STEPS:
+        raise InvalidArgument(f"a pipeline may have at most {MAX_STEPS} steps")
+    names = [step.name for step in steps]
+    for name in names:
+        validate_slug(name, "step name", min_len=1)
+    duplicates = sorted({n for n in names if names.count(n) > 1})
+    if duplicates:
+        raise InvalidArgument(f"duplicate step names: {duplicates}")
+    known = set(names)
+    for step in steps:
+        validate_slug(step.job, "job name")
+        if len(set(step.depends_on)) != len(step.depends_on):
+            raise InvalidArgument(f"step {step.name!r} lists a dependency twice")
+        for dep in step.depends_on:
+            if dep == step.name:
+                raise InvalidArgument(f"step {step.name!r} depends on itself")
+            if dep not in known:
+                raise InvalidArgument(f"step {step.name!r} depends on unknown step {dep!r}")
+
+    remaining = {step.name: set(step.depends_on) for step in steps}
+    order: list[str] = []
+    while remaining:
+        ready = [name for name in names if name in remaining and not remaining[name]]
+        if not ready:
+            raise InvalidArgument(f"dependency cycle among steps: {sorted(remaining)}")
+        for name in ready:
+            order.append(name)
+            del remaining[name]
+        for deps in remaining.values():
+            deps.difference_update(ready)
+    return tuple(order)
+
+
 @dataclass(frozen=True, slots=True, kw_only=True)
 class PipelineDefinition:
     """One immutable version of a pipeline. Changing a pipeline creates version+1."""
@@ -154,6 +196,27 @@ class PipelineDefinition:
     steps: tuple[StepSpec, ...]
     created_at: datetime
 
+    @classmethod
+    def create(
+        cls,
+        *,
+        project_id: UUID,
+        name: str,
+        version: int,
+        steps: tuple[StepSpec, ...],
+        now: datetime,
+    ) -> Self:
+        validate_slug(name, "pipeline name")
+        validate_dag(steps)
+        return cls(project_id=project_id, name=name, version=version, steps=steps, created_at=now)
+
+    @property
+    def execution_order(self) -> tuple[str, ...]:
+        return validate_dag(self.steps)
+
+    def same_content(self, other: PipelineDefinition) -> bool:
+        return self.steps == other.steps
+
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class PipelineRun:
@@ -161,13 +224,47 @@ class PipelineRun:
     project_id: UUID
     pipeline_definition_id: UUID
     status: RunStatus = RunStatus.PENDING
-    external_ref: str | None = None  # e.g. the Argo Workflow uid; never exposed as identity
+    status_reason: str | None = None
+    external_ref: str | None = None  # e.g. the Argo Workflow reference; never exposed as identity
+    cancel_requested: bool = False
+    commit_sha: str | None = None
+    idempotency_key: str | None = None
     created_at: datetime
     updated_at: datetime
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
 
-    def transition_to(self, status: RunStatus, now: datetime) -> Self:
+    @property
+    def is_terminal(self) -> bool:
+        return states.PIPELINE_RUN.is_terminal(self.status)
+
+    @property
+    def duration_seconds(self) -> float | None:
+        if self.started_at is None or self.finished_at is None:
+            return None
+        return (self.finished_at - self.started_at).total_seconds()
+
+    def transition_to(
+        self,
+        status: RunStatus,
+        now: datetime,
+        *,
+        reason: str | None = None,
+        external_ref: str | None = None,
+    ) -> Self:
         states.PIPELINE_RUN.ensure(self.status, status)
-        return replace(self, status=status, updated_at=now)
+        return replace(
+            self,
+            status=status,
+            status_reason=reason if reason is not None else self.status_reason,
+            external_ref=external_ref if external_ref is not None else self.external_ref,
+            started_at=now if status is RunStatus.RUNNING else self.started_at,
+            finished_at=now if states.PIPELINE_RUN.is_terminal(status) else self.finished_at,
+            updated_at=now,
+        )
+
+    def with_cancel_requested(self, now: datetime) -> Self:
+        return replace(self, cancel_requested=True, updated_at=now)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -231,12 +328,41 @@ class StepRun:
     pipeline_run_id: UUID
     step_name: str
     status: StepStatus = StepStatus.PENDING
+    status_reason: str | None = None
+    exit_code: int | None = None
     created_at: datetime
     updated_at: datetime
+    started_at: datetime | None = None
+    finished_at: datetime | None = None
 
-    def transition_to(self, status: StepStatus, now: datetime) -> Self:
+    @property
+    def is_terminal(self) -> bool:
+        return states.STEP_RUN.is_terminal(self.status)
+
+    @property
+    def duration_seconds(self) -> float | None:
+        if self.started_at is None or self.finished_at is None:
+            return None
+        return (self.finished_at - self.started_at).total_seconds()
+
+    def transition_to(
+        self,
+        status: StepStatus,
+        now: datetime,
+        *,
+        reason: str | None = None,
+        exit_code: int | None = None,
+    ) -> Self:
         states.STEP_RUN.ensure(self.status, status)
-        return replace(self, status=status, updated_at=now)
+        return replace(
+            self,
+            status=status,
+            status_reason=reason if reason is not None else self.status_reason,
+            exit_code=exit_code if exit_code is not None else self.exit_code,
+            started_at=now if status is StepStatus.RUNNING else self.started_at,
+            finished_at=now if states.STEP_RUN.is_terminal(status) else self.finished_at,
+            updated_at=now,
+        )
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)

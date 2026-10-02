@@ -6,7 +6,7 @@ Nothing here names them; adapters under `controlplane.adapters` implement them.
 
 from __future__ import annotations
 
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Protocol, runtime_checkable
@@ -21,6 +21,7 @@ class ExternalState(StrEnum):
     SUCCEEDED = "SUCCEEDED"
     FAILED = "FAILED"
     CANCELLED = "CANCELLED"
+    SKIPPED = "SKIPPED"  # a step that never ran because an upstream step did not succeed
 
 
 # --- experiment tracking ---------------------------------------------------
@@ -41,6 +42,10 @@ class ExperimentProvider(Protocol):
         """Create-or-get the experiment for a project. Deterministic for a given project."""
 
     def get_run(self, ref: str) -> ExperimentRun: ...
+
+    def find_runs(self, experiment_ref: str, tags: Mapping[str, str]) -> Sequence[ExperimentRun]:
+        """Runs in the experiment carrying every one of `tags`. This is how a
+        platform run is joined to its tracked runs without storing tracker ids."""
 
     def set_model_alias(self, model: str, alias: str, version_ref: str) -> None: ...
 

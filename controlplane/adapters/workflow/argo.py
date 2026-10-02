@@ -35,6 +35,24 @@ _PHASES = {
 }
 
 
+# Node phases add "Omitted"/"Skipped": a DAG task whose dependency failed never runs.
+_NODE_PHASES = {
+    **_PHASES,
+    "Omitted": ExternalState.SKIPPED,
+    "Skipped": ExternalState.SKIPPED,
+}
+
+
+def _step_key(node: dict[str, Any]) -> str | None:
+    """Pod nodes are named after their template; omitted tasks have no pod, only a
+    display name. Both equal our step name because we name templates after steps."""
+    if node.get("type") == "Pod":
+        return node.get("templateName")
+    if node.get("type") == "Skipped":
+        return node.get("displayName")
+    return None
+
+
 def _ref(namespace: str, name: str) -> str:
     return f"{namespace}/{name}"
 
@@ -135,11 +153,7 @@ class ArgoWorkflowProvider:
         nodes: dict[str, Any] = status.get("nodes") or {}
         state = _PHASES.get(status.get("phase", ""), ExternalState.PENDING)
         reason: str | None = status.get("message") or None
-        steps = {
-            n["templateName"]: _node_state(n)
-            for n in nodes.values()
-            if n.get("type") == "Pod" and "templateName" in n
-        }
+        steps = {key: _node_state(n) for n in nodes.values() if (key := _step_key(n)) is not None}
         exit_codes = {
             n["templateName"]: int(n["outputs"]["exitCode"])
             for n in nodes.values()
@@ -192,4 +206,4 @@ class ArgoWorkflowProvider:
 
 
 def _node_state(node: dict[str, Any]) -> ExternalState:
-    return _PHASES.get(node.get("phase", ""), ExternalState.PENDING)
+    return _NODE_PHASES.get(node.get("phase", ""), ExternalState.PENDING)

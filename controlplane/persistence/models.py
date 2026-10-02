@@ -107,14 +107,24 @@ class PipelineDefinitionRow(Base):
 
 class PipelineRunRow(Base):
     __tablename__ = "pipeline_runs"
+    __table_args__ = (
+        UniqueConstraint("project_id", "idempotency_key", name="uq_pipeline_runs_idempotency_key"),
+        Index("ix_pipeline_runs_status", "status"),
+    )
 
     id: Mapped[UUID] = _pk()
     project_id: Mapped[UUID] = _fk("projects.id")
     pipeline_definition_id: Mapped[UUID] = _fk("pipeline_definitions.id")
     status: Mapped[str] = mapped_column(String(32), nullable=False)
+    status_reason: Mapped[str | None] = mapped_column(Text)
     external_ref: Mapped[str | None] = mapped_column(Text)
+    cancel_requested: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    commit_sha: Mapped[str | None] = mapped_column(String(64))
+    idempotency_key: Mapped[str | None] = mapped_column(String(200))
     created_at: Mapped[datetime] = _ts()
     updated_at: Mapped[datetime] = _ts()
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class StepRunRow(Base):
@@ -125,8 +135,12 @@ class StepRunRow(Base):
     pipeline_run_id: Mapped[UUID] = _fk("pipeline_runs.id")
     step_name: Mapped[str] = mapped_column(String(40), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
+    status_reason: Mapped[str | None] = mapped_column(Text)
+    exit_code: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = _ts()
     updated_at: Mapped[datetime] = _ts()
+    started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class ModelRow(Base):

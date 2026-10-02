@@ -11,10 +11,26 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.sql import Select
 
 from controlplane.domain.audit import AuditEvent
-from controlplane.domain.entities import JobDefinition, Project, Run
+from controlplane.domain.entities import (
+    JobDefinition,
+    PipelineDefinition,
+    PipelineRun,
+    Project,
+    Run,
+    StepRun,
+    StepSpec,
+)
 from controlplane.domain.errors import AlreadyExists, Conflict, NotFound
-from controlplane.domain.states import ProjectStatus, RunStatus
-from controlplane.persistence.models import AuditEventRow, JobDefinitionRow, ProjectRow, RunRow
+from controlplane.domain.states import ProjectStatus, RunStatus, StepStatus
+from controlplane.persistence.models import (
+    AuditEventRow,
+    JobDefinitionRow,
+    PipelineDefinitionRow,
+    PipelineRunRow,
+    ProjectRow,
+    RunRow,
+    StepRunRow,
+)
 
 _UNIQUE_VIOLATION = "23505"
 
@@ -268,6 +284,225 @@ class SqlRuns:
         raise Conflict(f"run {run.id} is no longer {expected_status.value}")
 
 
+def _definition(row: PipelineDefinitionRow) -> PipelineDefinition:
+    return PipelineDefinition(
+        id=row.id,
+        project_id=row.project_id,
+        name=row.name,
+        version=row.version,
+        steps=tuple(
+            StepSpec(name=d["name"], job=d["job"], depends_on=tuple(d["depends_on"]))
+            for d in row.steps
+        ),
+        created_at=row.created_at,
+    )
+
+
+def _pipeline_run(row: PipelineRunRow) -> PipelineRun:
+    return PipelineRun(
+        id=row.id,
+        project_id=row.project_id,
+        pipeline_definition_id=row.pipeline_definition_id,
+        status=RunStatus(row.status),
+        status_reason=row.status_reason,
+        external_ref=row.external_ref,
+        cancel_requested=row.cancel_requested,
+        commit_sha=row.commit_sha,
+        idempotency_key=row.idempotency_key,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+        started_at=row.started_at,
+        finished_at=row.finished_at,
+    )
+
+
+def _step_run(row: StepRunRow) -> StepRun:
+    return StepRun(
+        id=row.id,
+        pipeline_run_id=row.pipeline_run_id,
+        step_name=row.step_name,
+        status=StepStatus(row.status),
+        status_reason=row.status_reason,
+        exit_code=row.exit_code,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+        started_at=row.started_at,
+        finished_at=row.finished_at,
+    )
+
+
+class SqlPipelines:
+    def __init__(self, session: Session) -> None:
+        self._s = session
+
+    def add(self, definition: PipelineDefinition) -> None:
+        self._s.add(
+            PipelineDefinitionRow(
+                id=definition.id,
+                project_id=definition.project_id,
+                name=definition.name,
+                version=definition.version,
+                steps=[
+                    {"name": st.name, "job": st.job, "depends_on": list(st.depends_on)}
+                    for st in definition.steps
+                ],
+                created_at=definition.created_at,
+            )
+        )
+        _flush_unique(self._s, "pipeline", f"{definition.name}@{definition.version}")
+
+    def get(self, definition_id: UUID) -> PipelineDefinition | None:
+        row = self._s.get(PipelineDefinitionRow, definition_id)
+        return _definition(row) if row else None
+
+    def get_version(
+        self, project_id: UUID, name: str, version: int | None
+    ) -> PipelineDefinition | None:
+        stmt = select(PipelineDefinitionRow).where(
+            PipelineDefinitionRow.project_id == project_id, PipelineDefinitionRow.name == name
+        )
+        if version is not None:
+            stmt = stmt.where(PipelineDefinitionRow.version == version)
+        row = self._s.scalars(stmt.order_by(PipelineDefinitionRow.version.desc())).first()
+        return _definition(row) if row else None
+
+    def list_latest(self, project_id: UUID) -> Sequence[PipelineDefinition]:
+        rows = self._s.scalars(
+            select(PipelineDefinitionRow)
+            .where(PipelineDefinitionRow.project_id == project_id)
+            .order_by(PipelineDefinitionRow.name, PipelineDefinitionRow.version.desc())
+        )
+        latest: dict[str, PipelineDefinitionRow] = {}
+        for row in rows:
+            latest.setdefault(row.name, row)
+        return [_definition(r) for r in latest.values()]
+
+
+class SqlPipelineRuns:
+    def __init__(self, session: Session) -> None:
+        self._s = session
+
+    def add(self, run: PipelineRun) -> None:
+        self._s.add(
+            PipelineRunRow(
+                id=run.id,
+                project_id=run.project_id,
+                pipeline_definition_id=run.pipeline_definition_id,
+                status=run.status.value,
+                status_reason=run.status_reason,
+                external_ref=run.external_ref,
+                cancel_requested=run.cancel_requested,
+                commit_sha=run.commit_sha,
+                idempotency_key=run.idempotency_key,
+                created_at=run.created_at,
+                updated_at=run.updated_at,
+                started_at=run.started_at,
+                finished_at=run.finished_at,
+            )
+        )
+        _flush_unique(self._s, "pipeline run", run.idempotency_key)
+
+    def get(self, run_id: UUID) -> PipelineRun | None:
+        row = self._s.get(PipelineRunRow, run_id)
+        return _pipeline_run(row) if row else None
+
+    def get_by_idempotency_key(self, project_id: UUID, key: str) -> PipelineRun | None:
+        row = self._s.scalars(
+            select(PipelineRunRow).where(
+                PipelineRunRow.project_id == project_id, PipelineRunRow.idempotency_key == key
+            )
+        ).first()
+        return _pipeline_run(row) if row else None
+
+    def list(
+        self, project_id: UUID, *, definition_ids: Sequence[UUID] | None, limit: int, offset: int
+    ) -> Sequence[PipelineRun]:
+        stmt = select(PipelineRunRow).where(PipelineRunRow.project_id == project_id)
+        if definition_ids is not None:
+            stmt = stmt.where(PipelineRunRow.pipeline_definition_id.in_(list(definition_ids)))
+        stmt = stmt.order_by(PipelineRunRow.created_at.desc(), PipelineRunRow.id.desc())
+        return [_pipeline_run(r) for r in self._s.scalars(stmt.limit(limit).offset(offset))]
+
+    def list_active(self) -> Sequence[PipelineRun]:
+        terminal = [s.value for s in (RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED)]
+        rows = self._s.scalars(
+            select(PipelineRunRow)
+            .where(PipelineRunRow.status.not_in(terminal))
+            .order_by(PipelineRunRow.created_at, PipelineRunRow.id)
+        )
+        return [_pipeline_run(r) for r in rows]
+
+    def update(self, run: PipelineRun, *, expected_status: RunStatus) -> None:
+        result = self._s.execute(
+            update(PipelineRunRow)
+            .where(PipelineRunRow.id == run.id, PipelineRunRow.status == expected_status.value)
+            .values(
+                status=run.status.value,
+                status_reason=run.status_reason,
+                external_ref=run.external_ref,
+                cancel_requested=run.cancel_requested,
+                updated_at=run.updated_at,
+                started_at=run.started_at,
+                finished_at=run.finished_at,
+            )
+        )
+        if getattr(result, "rowcount", 0) == 1:
+            return
+        if self._s.get(PipelineRunRow, run.id) is None:
+            raise NotFound("pipeline run", run.id)
+        raise Conflict(f"pipeline run {run.id} is no longer {expected_status.value}")
+
+
+class SqlStepRuns:
+    def __init__(self, session: Session) -> None:
+        self._s = session
+
+    def add_many(self, steps: Sequence[StepRun]) -> None:
+        for step in steps:
+            self._s.add(
+                StepRunRow(
+                    id=step.id,
+                    pipeline_run_id=step.pipeline_run_id,
+                    step_name=step.step_name,
+                    status=step.status.value,
+                    status_reason=step.status_reason,
+                    exit_code=step.exit_code,
+                    created_at=step.created_at,
+                    updated_at=step.updated_at,
+                    started_at=step.started_at,
+                    finished_at=step.finished_at,
+                )
+            )
+        self._s.flush()
+
+    def list(self, pipeline_run_id: UUID) -> Sequence[StepRun]:
+        rows = self._s.scalars(
+            select(StepRunRow)
+            .where(StepRunRow.pipeline_run_id == pipeline_run_id)
+            .order_by(StepRunRow.created_at, StepRunRow.step_name)
+        )
+        return [_step_run(r) for r in rows]
+
+    def update(self, step: StepRun, *, expected_status: StepStatus) -> None:
+        result = self._s.execute(
+            update(StepRunRow)
+            .where(StepRunRow.id == step.id, StepRunRow.status == expected_status.value)
+            .values(
+                status=step.status.value,
+                status_reason=step.status_reason,
+                exit_code=step.exit_code,
+                updated_at=step.updated_at,
+                started_at=step.started_at,
+                finished_at=step.finished_at,
+            )
+        )
+        if getattr(result, "rowcount", 0) == 1:
+            return
+        if self._s.get(StepRunRow, step.id) is None:
+            raise NotFound("step run", step.id)
+        raise Conflict(f"step run {step.id} is no longer {expected_status.value}")
+
+
 class SqlAudit:
     def __init__(self, session: Session) -> None:
         self._s = session
@@ -306,6 +541,9 @@ class SqlUnitOfWork:
         self.projects = SqlProjects(self._session)
         self.jobs = SqlJobs(self._session)
         self.runs = SqlRuns(self._session)
+        self.pipelines = SqlPipelines(self._session)
+        self.pipeline_runs = SqlPipelineRuns(self._session)
+        self.step_runs = SqlStepRuns(self._session)
         self.audit = SqlAudit(self._session)
         return self
 

@@ -3,7 +3,7 @@ from __future__ import annotations
 import threading
 from collections.abc import Callable
 from types import TracebackType
-from typing import Any, Self
+from typing import Any, Self, cast
 
 import pytest
 
@@ -107,13 +107,8 @@ class _Wrapped:
 
         return Proxy()
 
-    @property
-    def jobs(self) -> Any:
-        return self._inner.jobs
-
-    @property
-    def runs(self) -> Any:
-        return self._inner.runs
+    def __getattr__(self, name: str) -> Any:
+        return getattr(self._inner, name)  # every repository we do not intercept
 
     @property
     def audit(self) -> Any:
@@ -144,7 +139,9 @@ def test_losing_a_creation_race_replays_the_winner(
 ) -> None:
     ProjectService(uow_factory, clock).create(CreateProject(name="credit-risk"))
     hide = [True]
-    racy = ProjectService(lambda: _Wrapped(uow_factory(), hide_first_lookup=hide), clock)
+    racy = ProjectService(
+        lambda: cast(UnitOfWork, _Wrapped(uow_factory(), hide_first_lookup=hide)), clock
+    )
     project, created = racy.create(CreateProject(name="credit-risk"))
     assert not created and hide == []  # the unique constraint, not the lookup, caught it
     assert len(_audit(uow_factory)) == 1
@@ -153,7 +150,7 @@ def test_losing_a_creation_race_replays_the_winner(
 def test_a_failed_audit_write_rolls_the_project_back(
     uow_factory: Factory, clock: Callable[[], Any]
 ) -> None:
-    svc = ProjectService(lambda: _Wrapped(uow_factory(), audit_fails=True), clock)
+    svc = ProjectService(lambda: cast(UnitOfWork, _Wrapped(uow_factory(), audit_fails=True)), clock)
     with pytest.raises(RuntimeError):
         svc.create(CreateProject(name="credit-risk"))
     assert ProjectService(uow_factory, clock).list() == []

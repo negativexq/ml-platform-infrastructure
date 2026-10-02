@@ -4,7 +4,7 @@ Kubernetes present, and double as executable documentation of each port's contra
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from uuid import UUID
 
 from controlplane.application.providers import (
@@ -38,6 +38,14 @@ class FakeExperimentProvider:
             return self.runs[ref]
         except KeyError:
             raise NotFound("experiment run", ref) from None
+
+    def find_runs(self, experiment_ref: str, tags: Mapping[str, str]) -> Sequence[ExperimentRun]:
+        return [
+            run
+            for ref, run in self.runs.items()
+            if ref.startswith(f"{experiment_ref}/")
+            and all(run.tags.get(k) == v for k, v in tags.items())
+        ]
 
     def set_model_alias(self, model: str, alias: str, version_ref: str) -> None:
         self._aliases[(model, alias)] = version_ref
@@ -88,6 +96,20 @@ class FakeWorkflowProvider:
     ) -> None:
         exit_codes = {} if exit_code is None else {"main": exit_code}
         self._status[ref] = WorkflowStatus(state, reason=reason, exit_codes=exit_codes)
+
+    def set_steps(
+        self,
+        ref: str,
+        steps: Mapping[str, ExternalState],
+        state: ExternalState,
+        *,
+        reason: str | None = None,
+        exit_codes: Mapping[str, int] | None = None,
+    ) -> None:
+        """Report per-step states plus the overall workflow state, as Argo does for a DAG."""
+        self._status[ref] = WorkflowStatus(
+            state, steps=dict(steps), reason=reason, exit_codes=dict(exit_codes or {})
+        )
 
     def set_logs(self, ref: str, step: str, text: str) -> None:
         self._logs[(ref, step)] = text
