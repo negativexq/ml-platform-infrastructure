@@ -138,9 +138,9 @@ see [local-verification.md](local-verification.md).
 
 ### UI/UX pass (after M20)
 
-Still the no-build, CSP-locked UI (no framework, no bundle step): theme, command palette,
-shortcuts, filters, create/run forms, step timeline, log tools, activity with trace ids. Tests
-in `controlplane/tests/test_ui.py`; see [local-verification.md](local-verification.md) §7.
+React + TypeScript + Vite (typed from the OpenAPI, bundle committed, CSP unchanged): theme,
+command palette, shortcuts, filters, create/run forms, step timeline, log tools, activity with
+trace ids. Tests in `controlplane/tests/test_ui.py`; see [local-verification.md](local-verification.md) §7.
 
 ### Observability (cross-cutting, after M20)
 

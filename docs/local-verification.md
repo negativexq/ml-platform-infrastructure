@@ -411,9 +411,19 @@ Judgement calls to confirm:
 
 ---
 
-### UI/UX additions (after M20)
+### UI/UX additions (after M20) and the move to React
 
-Verified in a real browser against the demo, like the rest of M20 (`make cp-test`):
+The UI is now **React + TypeScript** (Vite, TanStack Query for loading and live refresh,
+TanStack Router on the URL hash, native `<dialog>` for modals), in `controlplane/ui/web`.
+The API client is typed from the control plane's OpenAPI (`make ui-api`), so a changed API that
+the UI no longer matches fails `tsc`. The built bundle is committed under `controlplane/ui/static`
+(fixed file names, reproducible build): Python tests and pip installs need no Node, and CI
+rebuilds and fails on any difference. `make ui-dev` gives hot reload against `make cp-demo`.
+The CSP is unchanged (`script-src 'self'; style-src 'self'; connect-src 'self'`). The rules
+(only the API client calls the network, no subsystem names, no inline styles, no
+`dangerouslySetInnerHTML`) are checked on the TypeScript source.
+
+Verified in a real browser against the demo, like the rest of M20 (`make cp-test`, 59 UI tests):
 
 - Chrome: light / dark / system theme (remembered; the only thing the UI stores, guarded),
   Ctrl/⌘+K command palette (fuzzy jump to project, model, deployment), `/` focuses the page

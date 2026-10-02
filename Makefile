@@ -6,7 +6,7 @@
         alert-rules-test alert-rules-apply loadtest drill-autoscale drill-drain \
         local-up local-test local-down \
         tf-fmt tf-validate tf-lint tf-check \
-        cp-install cp-test cp-check cp-migrate cp-run cp-reconcile cp-demo lock envtest-up envtest-down
+        ui-install ui-build ui-api ui-dev cp-install cp-test cp-check cp-migrate cp-run cp-reconcile cp-demo lock envtest-up envtest-down
 
 IMAGE ?= ml-platform-inference:dev
 
@@ -209,6 +209,19 @@ envtest-down:
 
 ## The UI on in-memory fakes: no PostgreSQL, Kubernetes, Argo, MLflow or KServe needed.
 ## http://localhost:8080  (Abort / Cancel work: a reconcile loop runs in the background)
+## UI (controlplane/ui/web): the built bundle in controlplane/ui/static is committed
+ui-install:
+	cd controlplane/ui/web && npm ci
+
+ui-build:
+	cd controlplane/ui/web && npm run build
+
+ui-api:  # regenerate the typed API client from the control plane's OpenAPI
+	cd controlplane/ui/web && PYTHONPATH=$(CURDIR) npm run gen:api
+
+ui-dev:  # hot reload on :5173, proxying the API to `make cp-demo` on :8080
+	cd controlplane/ui/web && npm run dev
+
 cp-demo:
 	python -m controlplane.demo
 

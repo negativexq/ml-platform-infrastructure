@@ -110,6 +110,22 @@ jobs:
       - run: python -m playwright install --with-deps chromium
       - run: ruff check controlplane
       - run: mypy controlplane
+      # The UI is TypeScript (controlplane/ui/web); the bundle it builds is committed, so the
+      # Python tests and pip installs need no Node. These steps make sure it cannot go stale.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+          cache-dependency-path: controlplane/ui/web/package-lock.json
+      - name: UI typecheck, unit tests, and the committed bundle and API types are up to date
+        working-directory: controlplane/ui/web
+        run: |
+          npm ci
+          npm run typecheck
+          npm test
+          PYTHONPATH="$GITHUB_WORKSPACE" npm run gen:api
+          npm run build
+          git diff --exit-code -- src/api ../static
       # Includes the dependency-isolation gate (no MLflow/Argo/Kubernetes needed)
       # and the migration gates against a clean PostgreSQL.
       - run: pytest controlplane/tests -p no:warnings

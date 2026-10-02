@@ -54,9 +54,20 @@ def test_every_module_the_ui_imports_is_served(client: TestClient) -> None:
         assert client.get(url).status_code == 200, url
 
 
-# -- the rules the UI must obey (checked on the source) ----------------------------
+# -- the rules the UI must obey (checked on the TypeScript source) -------------------
+# The served bundle is generated from controlplane/ui/web/src; the rules apply to what people
+# write, not to minified output (React's own runtime legitimately contains `innerHTML`).
 
-SOURCES = sorted(p for p in STATIC_DIR.rglob("*") if p.suffix in {".js", ".html", ".css"})
+WEB = STATIC_DIR.parent / "web"
+SOURCES = sorted(
+    [
+        p
+        for p in (WEB / "src").rglob("*")
+        if p.suffix in {".ts", ".tsx", ".css"}
+        and not p.name.endswith((".d.ts", ".test.ts"))  # generated types and unit tests
+    ]
+    + [WEB / "index.html", STATIC_DIR / "index.html"]
+)
 FORBIDDEN_APIS = (
     "innerHTML",
     "outerHTML",
@@ -70,13 +81,14 @@ FORBIDDEN_APIS = (
     "sendBeacon",
     "importScripts",
     "localStorage",
+    "dangerouslySetInnerHTML",
 )
 # The UI knows the Platform API and nothing behind it.
 SUBSYSTEMS = ("mlflow", "argo", "kubernetes", "kubectl", "kserve", "knative", "prometheus", "minio")
 
 
 def test_the_ui_has_sources() -> None:
-    assert {p.name for p in SOURCES} >= {"index.html", "app.js", "api.js", "app.css"}
+    assert {p.name for p in SOURCES} >= {"index.html", "main.tsx", "client.ts", "app.css"}
 
 
 def code_only(text: str) -> str:
@@ -94,7 +106,7 @@ def test_ui_never_talks_to_the_subsystems(path: Path) -> None:
     for word in SUBSYSTEMS:
         assert word not in lowered, f"{path.name} mentions {word!r}"
     for api in FORBIDDEN_APIS:
-        if api == "localStorage" and path.name == "prefs.js":
+        if api == "localStorage" and path.name == "theme.ts":
             continue  # the one sanctioned use: the theme preference (guarded, optional)
         assert api not in code, f"{path.name} uses {api}"
     urls = re.findall(r"https?://[^\s'\"`)]+", text)
@@ -106,16 +118,17 @@ def test_ui_never_talks_to_the_subsystems(path: Path) -> None:
 def test_no_inline_style_strings() -> None:
     """The CSP drops inline style attributes silently, so none may be written."""
     for path in SOURCES:
-        if path.suffix == ".js":
+        if path.suffix in {".ts", ".tsx"}:
             code = code_only(path.read_text())
             assert not re.search(r"style:\s*['\"`]", code), f"{path.name}: style string"
+            assert not re.search(r"style=['\"]", code), f"{path.name}: style attribute string"
         if path.suffix == ".html":
             assert "style=" not in path.read_text() and "<style" not in path.read_text()
 
 
 def test_only_the_api_client_uses_the_network() -> None:
     for path in SOURCES:
-        if path.suffix == ".js" and path.name != "api.js":
+        if path.suffix in {".ts", ".tsx"} and path.name != "client.ts":
             assert "fetch(" not in code_only(path.read_text()), f"{path.name} calls fetch directly"
 
 
@@ -123,7 +136,11 @@ def test_api_paths_in_the_ui_exist_in_the_platform_api(demo: Demo) -> None:
     """Every literal API path the UI builds must be a real route (catches typos)."""
     known = demo.app.openapi()["paths"]  # the authoritative list of API routes
     normalised = {re.sub(r"\{[^}]+\}", "{}", p) for p in known}
-    source = "\n".join(p.read_text() for p in SOURCES if p.suffix == ".js")
+    source = "\n".join(
+        p.read_text()
+        for p in SOURCES
+        if p.suffix in {".ts", ".tsx"} and p.name != "router.tsx"  # route patterns, not API calls
+    )
     for literal in re.findall(
         r"[`'\"](/(?:projects|pipeline-runs|runs|model-versions|rollouts)[^`'\"]*)[`'\"]", source
     ):
@@ -634,3 +651,9 @@ def test_keyboard_help_and_skip_link(page: Page, server: Server) -> None:
     expect(page.locator("main")).to_be_focused()
     assert page.url.endswith("#/projects")
     shot(page, "11-ux-projects")
+
+
+def test_an_unknown_route_goes_to_the_project_list(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/nonsense")
+    expect(page.locator("main h1")).to_have_text("Projects")
+    assert page.url.endswith("#/projects")
