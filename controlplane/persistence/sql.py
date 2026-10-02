@@ -282,6 +282,14 @@ class SqlRuns:
         stmt = stmt.order_by(RunRow.created_at.desc(), RunRow.id.desc()).limit(limit).offset(offset)
         return [_run(r) for r in self._s.scalars(stmt)]
 
+    def count(self, project_id: UUID) -> int:
+        return int(
+            self._s.scalar(
+                select(func.count()).select_from(RunRow).where(RunRow.project_id == project_id)
+            )
+            or 0
+        )
+
     def list_active(self) -> Sequence[Run]:
         terminal = [s.value for s in (RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED)]
         rows = self._s.scalars(
@@ -451,6 +459,16 @@ class SqlPipelineRuns:
             stmt = stmt.where(PipelineRunRow.pipeline_definition_id.in_(list(definition_ids)))
         stmt = stmt.order_by(PipelineRunRow.created_at.desc(), PipelineRunRow.id.desc())
         return [_pipeline_run(r) for r in self._s.scalars(stmt.limit(limit).offset(offset))]
+
+    def count(self, project_id: UUID) -> int:
+        return int(
+            self._s.scalar(
+                select(func.count())
+                .select_from(PipelineRunRow)
+                .where(PipelineRunRow.project_id == project_id)
+            )
+            or 0
+        )
 
     def list_active(self) -> Sequence[PipelineRun]:
         terminal = [s.value for s in (RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED)]

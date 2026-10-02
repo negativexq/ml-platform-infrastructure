@@ -6,7 +6,7 @@
         alert-rules-test alert-rules-apply loadtest drill-autoscale drill-drain \
         local-up local-test local-down \
         tf-fmt tf-validate tf-lint tf-check \
-        cp-install cp-test cp-check cp-migrate cp-run cp-reconcile envtest-up envtest-down
+        cp-install cp-test cp-check cp-migrate cp-run cp-reconcile cp-demo envtest-up envtest-down
 
 IMAGE ?= ml-platform-inference:dev
 
@@ -206,3 +206,8 @@ envtest-up:
 
 envtest-down:
 	./scripts/envtest.sh down
+
+## The UI on in-memory fakes: no PostgreSQL, Kubernetes, Argo, MLflow or KServe needed.
+## http://localhost:8080  (Abort / Cancel work: a reconcile loop runs in the background)
+cp-demo:
+	python -m controlplane.demo

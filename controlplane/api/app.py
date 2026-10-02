@@ -4,17 +4,20 @@ from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, FastAPI, Query, Request, Response, status
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 from controlplane.api.deployments import deployments_router
 from controlplane.api.jobs_runs import jobs_router, runs_router
 from controlplane.api.models import model_versions_router, models_router
+from controlplane.api.overview import overview_router
 from controlplane.api.pipelines import pipeline_runs_router, pipelines_router
 from controlplane.api.rollouts import rollouts_router
 from controlplane.api.schemas import ErrorOut, ProjectCreate, ProjectList, ProjectOut
 from controlplane.application.deployments import DeploymentService
 from controlplane.application.jobs import JobService
 from controlplane.application.models import EvaluationService, ModelService, PromotionService
+from controlplane.application.overview import OverviewService
 from controlplane.application.pipeline_runs import PipelineRunService
 from controlplane.application.pipelines import PipelineService
 from controlplane.application.projects import (
@@ -26,6 +29,7 @@ from controlplane.application.projects import (
 )
 from controlplane.application.providers import (
     ExperimentProvider,
+    MetricsProvider,
     ServingProvider,
     WorkflowProvider,
 )
@@ -39,6 +43,7 @@ from controlplane.domain.errors import (
     InvalidArgument,
     NotFound,
 )
+from controlplane.ui import CONTENT_SECURITY_POLICY, STATIC_DIR
 
 _STATUS_FOR: dict[type[DomainError], tuple[int, str]] = {
     NotFound: (status.HTTP_404_NOT_FOUND, "not_found"),
@@ -125,6 +130,8 @@ def create_app(
     workflow: WorkflowProvider | None = None,
     experiments: ExperimentProvider | None = None,
     serving: ServingProvider | None = None,
+    metrics: MetricsProvider | None = None,
+    ui: bool = True,
 ) -> FastAPI:
     app = FastAPI(
         title="ML Platform Control Plane",
@@ -144,6 +151,7 @@ def create_app(
     app.state.promotions = PromotionService(uow_factory, clock)
     app.state.deployments = DeploymentService(uow_factory, clock, experiments, serving)
     app.state.rollouts = RolloutService(uow_factory, app.state.deployments, clock)
+    app.state.overview = OverviewService(uow_factory, serving, metrics)
     app.state.workflow = workflow
     app.state.experiments = experiments
     app.add_exception_handler(DomainError, _domain_error_handler)
@@ -156,9 +164,31 @@ def create_app(
     app.include_router(model_versions_router())
     app.include_router(deployments_router())
     app.include_router(rollouts_router())
+    app.include_router(overview_router())
+
+    if ui:
+        _mount_ui(app)
 
     @app.get("/healthz", tags=["ops"], summary="Liveness")
     def healthz() -> dict[str, str]:
         return {"status": "ok"}
 
     return app
+
+
+def _mount_ui(app: FastAPI) -> None:
+    app.mount("/ui", StaticFiles(directory=STATIC_DIR, html=True), name="ui")
+
+    @app.middleware("http")
+    async def ui_security_headers(request: Request, call_next: Any) -> Response:
+        response: Response = await call_next(request)
+        if request.url.path.startswith("/ui"):
+            response.headers["Content-Security-Policy"] = CONTENT_SECURITY_POLICY
+            response.headers["X-Content-Type-Options"] = "nosniff"
+            response.headers["Referrer-Policy"] = "no-referrer"
+            response.headers["Cache-Control"] = "no-cache"
+        return response
+
+    @app.get("/", include_in_schema=False)
+    def root() -> RedirectResponse:
+        return RedirectResponse("/ui/")

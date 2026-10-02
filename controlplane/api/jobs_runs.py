@@ -115,12 +115,20 @@ def runs_router() -> APIRouter:
         limit: Annotated[int, Query(ge=1, le=200)] = 50,
         offset: Annotated[int, Query(ge=0)] = 0,
     ) -> RunList:
-        items = svc(request).list(project, job_name=job, limit=limit, offset=offset)
-        return RunList(items=[RunOut.from_domain(r) for r in items], limit=limit, offset=offset)
+        service = svc(request)
+        items = service.list(project, job_name=job, limit=limit, offset=offset)
+        names = service.job_names(items[0].project_id) if items else {}
+        return RunList(
+            items=[RunOut.from_domain(r, names.get(r.job_definition_id)) for r in items],
+            limit=limit,
+            offset=offset,
+        )
 
     @router.get("/runs/{run_id}", response_model=RunOut, responses=_ERRORS, summary="Get a run")
     def get_run(run_id: UUID, request: Request) -> RunOut:
-        return RunOut.from_domain(svc(request).get(run_id))
+        service = svc(request)
+        run = service.get(run_id)
+        return RunOut.from_domain(run, service.job_names(run.project_id).get(run.job_definition_id))
 
     @router.post(
         "/runs/{run_id}/cancel",

@@ -90,6 +90,11 @@ class RunService:
             uow.commit()
             return run, True
 
+    def job_names(self, project_id: UUID) -> dict[UUID, str]:
+        """Job definition id -> name, so a listing can show readable names."""
+        with self._uow_factory() as uow:
+            return {j.id: j.name for j in uow.jobs.list(project_id)}
+
     def get(self, run_id: UUID) -> Run:
         with self._uow_factory() as uow:
             run = uow.runs.get(run_id)

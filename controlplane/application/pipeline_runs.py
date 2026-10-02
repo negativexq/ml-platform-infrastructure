@@ -184,6 +184,16 @@ class PipelineRunService:
                 project.id, definition_ids=ids, limit=limit, offset=offset
             )
 
+    def definition_labels(self, runs: Sequence[PipelineRun]) -> dict[UUID, tuple[str, int]]:
+        """pipeline definition id -> (name, version) for the runs given."""
+        with self._uow_factory() as uow:
+            labels = {}
+            for definition_id in {r.pipeline_definition_id for r in runs}:
+                definition = uow.pipelines.get(definition_id)
+                if definition is not None:
+                    labels[definition_id] = (definition.name, definition.version)
+            return labels
+
     def request_cancel(self, run_id: UUID) -> PipelineRunView:
         """Idempotent. A PENDING run has no workload: it and its steps are cancelled at
         once. A submitted run is flagged and the reconciler stops the workload."""

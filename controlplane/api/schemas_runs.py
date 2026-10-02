@@ -56,6 +56,7 @@ class RunOut(BaseModel):
     id: UUID
     project_id: UUID
     job_id: UUID
+    job: str | None = None
     status: RunStatus
     status_reason: str | None
     exit_code: int | None
@@ -67,11 +68,12 @@ class RunOut(BaseModel):
     duration_seconds: float | None
 
     @classmethod
-    def from_domain(cls, run: Run) -> RunOut:
+    def from_domain(cls, run: Run, job: str | None = None) -> RunOut:
         return cls(
             id=run.id,
             project_id=run.project_id,
             job_id=run.job_definition_id,
+            job=job,
             status=run.status,
             status_reason=run.status_reason,
             exit_code=run.exit_code,

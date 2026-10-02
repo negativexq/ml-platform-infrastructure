@@ -78,6 +78,8 @@ class RunRepository(Protocol):
     ) -> Sequence[Run]:
         """Newest first."""
 
+    def count(self, project_id: UUID) -> int: ...
+
     def list_active(self) -> Sequence[Run]:
         """Runs that are not in a terminal state, oldest first."""
 
@@ -112,6 +114,8 @@ class PipelineRunRepository(Protocol):
         self, project_id: UUID, *, definition_ids: Sequence[UUID] | None, limit: int, offset: int
     ) -> Sequence[PipelineRun]:
         """Newest first."""
+
+    def count(self, project_id: UUID) -> int: ...
 
     def list_active(self) -> Sequence[PipelineRun]: ...
 

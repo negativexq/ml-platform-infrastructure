@@ -77,7 +77,7 @@ controlplane/
 | **M17** 🚧 | Model, evaluation & promotion | `ModelVersion` from training output; threshold-driven evaluation; REJECTED can't be promoted; atomic audited promotion; champion history kept; MLflow alias synced with platform state; manual alias move detected as `DRIFT` |
 | **M18** 🚧 | Deployment & endpoint abstraction | `ServingProvider` (KServe first); non-approved model can't go to production; DB object first, reconciler creates the resource; READY only after the model really loads and a prediction succeeds; immutable revisions; deleted KServe resource is recreated |
 | **M19** 🚧 | Canary, safety & rollback | traffic split with per-revision metrics; latency/error-rate gates; injected 500s → traffic back to 100% old champion, candidate FAILED, champion unchanged; rollback audited |
-| **M20** | Minimal UI | talks only to the Platform API (never MLflow/Argo/Kubernetes); projects, runs/DAG/logs, models/evaluations/promote, deployments/metrics/rollback |
+| **M20** ✅ | Minimal UI | talks only to the Platform API (never MLflow/Argo/Kubernetes); projects, runs/DAG/logs, models/evaluations/promote, deployments/metrics/rollback |
 | **M21** | Platform MVP freeze (`v0.1.0`) | `make platform-e2e` on a fresh kind cluster: project → pipeline → run → track → register → evaluate → candidate → deploy → predict → second model → canary → promote → rollback; audit trail reconstructs the whole lifecycle; destroy/recreate works |
 
 ### M14 status
@@ -127,6 +127,14 @@ deployment rollback, Prometheus metrics adapter, KServe canary support, migratio
 0007). Gates, the failure drill and the champion-after-evidence rule are tested
 against fakes; the KServe canary and Prometheus adapters have not run for real.
 See [local-verification.md](local-verification.md).
+
+### M20 status
+
+Done and verified in a real browser: a no-build UI (`controlplane/ui/static`, served at
+`/ui`) that can only talk to the Platform API (CSP + tests), with projects, pipeline-run DAG
+and logs, models / evaluations / promote, deployments / canary / metrics / rollback.
+`make cp-demo` runs it on in-memory fakes. What remains is looking at it with real data;
+see [local-verification.md](local-verification.md).
 
 ### Not before M21
 

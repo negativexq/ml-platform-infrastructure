@@ -140,9 +140,16 @@ def pipelines_router() -> APIRouter:
         limit: Annotated[int, Query(ge=1, le=200)] = 50,
         offset: Annotated[int, Query(ge=0)] = 0,
     ) -> PipelineRunList:
-        items = runs(request).list(project, pipeline_name=pipeline, limit=limit, offset=offset)
+        service = runs(request)
+        items = service.list(project, pipeline_name=pipeline, limit=limit, offset=offset)
+        labels = service.definition_labels(items)
         return PipelineRunList(
-            items=[PipelineRunSummary.from_domain(r) for r in items], limit=limit, offset=offset
+            items=[
+                PipelineRunSummary.from_domain(r, labels.get(r.pipeline_definition_id))
+                for r in items
+            ],
+            limit=limit,
+            offset=offset,
         )
 
     return router

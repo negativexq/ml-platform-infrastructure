@@ -93,6 +93,8 @@ class PipelineRunSummary(BaseModel):
     id: UUID
     project_id: UUID
     pipeline_definition_id: UUID
+    pipeline: str | None = None
+    pipeline_version: int | None = None
     status: RunStatus
     status_reason: str | None
     cancel_requested: bool
@@ -103,11 +105,15 @@ class PipelineRunSummary(BaseModel):
     duration_seconds: float | None
 
     @classmethod
-    def from_domain(cls, run: PipelineRun) -> PipelineRunSummary:
+    def from_domain(
+        cls, run: PipelineRun, label: tuple[str, int] | None = None
+    ) -> PipelineRunSummary:
         return cls(
             id=run.id,
             project_id=run.project_id,
             pipeline_definition_id=run.pipeline_definition_id,
+            pipeline=label[0] if label else None,
+            pipeline_version=label[1] if label else None,
             status=run.status,
             status_reason=run.status_reason,
             cancel_requested=run.cancel_requested,
@@ -120,7 +126,7 @@ class PipelineRunSummary(BaseModel):
 
 
 class PipelineRunOut(PipelineRunSummary):
-    pipeline: str
+    pipeline: str  # always known on a single run
     pipeline_version: int
     steps: list[StepRunOut]
 
@@ -128,9 +134,9 @@ class PipelineRunOut(PipelineRunSummary):
     def from_view(cls, view: PipelineRunView) -> PipelineRunOut:
         deps = {s.name: list(s.depends_on) for s in view.definition.steps}
         return cls(
-            **PipelineRunSummary.from_domain(view.run).model_dump(),
-            pipeline=view.definition.name,
-            pipeline_version=view.definition.version,
+            **PipelineRunSummary.from_domain(
+                view.run, (view.definition.name, view.definition.version)
+            ).model_dump(),
             steps=[StepRunOut.from_domain(s, deps[s.step_name]) for s in view.steps],
         )
 

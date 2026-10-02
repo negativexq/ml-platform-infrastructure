@@ -18,7 +18,7 @@ namespace deleted by the real namespace controller.
 ---
 
 > Sections: 0 setup · 1 M14 gate · 2 M15 gate · 3 M16 gate · 4 M17 gate ·
-> 5 M18 gate · 6 M19 gate · 7 untested code · 8 missing pieces.
+> 5 M18 gate · 6 M19 gate · 7 M20 gate (UI) · 8 untested code · 9 missing pieces.
 
 ## 0. Setup on your machine
 
@@ -351,7 +351,67 @@ Judgement calls to confirm:
 
 ---
 
-## 7. Code that has never run against the real thing
+## 7. M20 gate — Minimal platform UI
+
+Unlike M14–M19 this one **was verified here, in a real browser** (Chromium via
+Playwright, against the demo control plane on in-memory fakes). What is left for you is
+looking at it with *real* data, and the browsers I did not have.
+
+```bash
+make cp-demo            # http://localhost:8080 — seeded story, no infrastructure at all
+make cp-test            # includes 36 UI tests (static rules + real-browser flows)
+CP_UI_SCREENSHOTS=/tmp/shots pytest controlplane/tests/test_ui.py   # writes screenshots
+```
+
+Against the real stack the UI is the same: `make cp-run` serves it at `/ui` (and `/`
+redirects there). It needs no extra configuration.
+
+| # | Gate | Status |
+| --- | --- | --- |
+| 1 | UI talks only to the Platform API | **verified**: CSP `connect-src 'self'` (a script's `fetch` to another host is blocked — tested via the `securitypolicyviolation` event), only `api.js` calls `fetch`, no absolute URLs, no mention of MLflow/Argo/Kubernetes/KServe/Prometheus anywhere in the UI sources, and every browser request in every test went to the same origin |
+| 2 | Not MLflow / Argo / Kubernetes | same as above (static + browser checks) |
+| 3 | Project list / detail | **verified** with demo data (counts, statuses, PENDING project) |
+| 4 | Pipeline run DAG / status | **verified**: succeeded, failed (downstream skipped), running |
+| 5 | Run logs | **verified** (step logs, auto-selects the failed step) |
+| 6 | Model versions / evaluations | **verified** (per-threshold checks, promotion history) |
+| 7 | Promote action | **verified** (confirm dialog, champion/archived swap shown) |
+| 8 | Deployment status | **verified** |
+| 9 | Endpoint metrics | **verified** against the fake metrics provider; real Prometheus numbers still need your eyes |
+| 10 | Rollback action | **verified**, including that the model's champion state follows |
+
+New read APIs the UI needed (all under `/projects/{p}/`): `summary`, `endpoints`,
+`endpoints/{name}/metrics` (per revision, never errors on provider failure), `audit`;
+run listings now carry the pipeline / job name.
+
+**To check on your machine with real data:**
+
+- A real Argo DAG with many steps / wide fan-out: the layout is "columns by longest
+  dependency chain"; very wide graphs scroll horizontally inside the card.
+- Long logs: the log panel is a plain `<pre>` capped at 280 px with scrolling; there is no
+  streaming (it re-reads on every 3 s poll, which is fine for KBs, not for MBs).
+- Real endpoint metrics from Prometheus (section 6): `5xx rate`, `p95`, `requests/s`
+  per revision while a canary runs; and the "Metrics unavailable" banner when
+  `CP_PROMETHEUS_URL` is unset or wrong.
+- Many projects / runs (the lists are capped at 8 recent runs per project; there is no
+  pagination UI yet).
+- Firefox and Safari. Only Chromium was exercised. The UI uses `<dialog>`,
+  ES modules and CSS variables, all supported by current versions of both.
+- Behind a reverse proxy / ingress: the CSP and `/ui` prefix assume the UI and API share an
+  origin. If you put them on different hosts you must relax `connect-src` deliberately.
+
+Judgement calls to confirm:
+
+- **Actions in the UI:** promote, evaluate, discover versions, cancel run, abort rollout,
+  rollback. **Not** in the UI: starting a rollout, creating anything. They stay API-only.
+- **No authentication.** Anyone who can reach the UI can promote or roll back, exactly
+  like the API today. Do not expose it beyond a trusted network until M21+ adds auth.
+- **Live updates are polling** (3 s, only while something is in flight; the deployment
+  page always polls because metrics are live). No WebSocket.
+- **Styling is deliberately plain:** system fonts, one CSS file, light/dark by OS setting.
+
+---
+
+## 8. Code that has never run against the real thing
 
 Written to the Argo API from knowledge of its schema; unit-tested only as
 manifests/dicts. Check each against a real Argo:
@@ -401,7 +461,7 @@ manifests/dicts. Check each against a real Argo:
 
 ---
 
-## 8. Missing pieces (not written yet)
+## 9. Missing pieces (not written yet)
 
 - Argo Workflows install in `make local-up` / Helm / GitOps; the Argo
   controller's `workflowNamespaces`/RBAC must cover `mlp-*` namespaces.
@@ -417,6 +477,10 @@ manifests/dicts. Check each against a real Argo:
   no per-project secret/config mechanism yet (the M7 Secret lives in `ml-platform`).
 - No retry for pipeline runs, no pipeline-run history cleanup, no per-step
   resource defaults.
+- UI: no pagination, search or filtering; no create/edit forms; no per-user views; the
+  audit timeline is shown only on the deployment page; accessibility was checked for
+  keyboard operation of the DAG and dialogs and for non-colour status cues, but not with
+  a screen reader.
 - No `DELETE` for deployments, no per-revision serving state in the database (the
   rollout row is the only record of the split).
 - Rollouts need Serverless KServe + Prometheus; there is no RawDeployment/own-gateway

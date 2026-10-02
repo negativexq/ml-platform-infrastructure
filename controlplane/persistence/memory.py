@@ -153,6 +153,9 @@ class _Runs:
         rows.sort(key=lambda r: (r.created_at, r.id), reverse=True)
         return rows[offset : offset + limit]
 
+    def count(self, project_id: UUID) -> int:
+        return sum(1 for r in self._data.values() if r.project_id == project_id)
+
     def list_active(self) -> Sequence[Run]:
         return sorted(
             (r for r in self._data.values() if not r.is_terminal),
@@ -235,6 +238,9 @@ class _PipelineRuns:
         ]
         rows.sort(key=lambda r: (r.created_at, r.id), reverse=True)
         return rows[offset : offset + limit]
+
+    def count(self, project_id: UUID) -> int:
+        return sum(1 for r in self._data.values() if r.project_id == project_id)
 
     def list_active(self) -> Sequence[PipelineRun]:
         return sorted(
