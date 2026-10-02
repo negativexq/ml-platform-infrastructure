@@ -6,7 +6,7 @@ observability, all running on Kubernetes and validated with real drills
 instead of descriptions. AWS is designed as code but has not been built yet.
 
 **Status: `local-v1.0.0`.** The local implementation (M0–M12) is validated and
-frozen. AWS work (M13+) has not started — no cloud resource has been created,
+frozen. AWS work (M22+) has not started — no cloud resource has been created,
 and Terraform is currently at the design/static-validation level only (`fmt`,
 `validate`, `tflint`; no `plan`, no `apply`).
 
@@ -41,7 +41,9 @@ destroyed first, then `local-up` → `local-test` from the repo alone.
 | M10 | Scaling, SLO & alerting | [gate](docs/evidence/m10/gate.md) |
 | M11 | End-to-end reproducibility | [gate](docs/evidence/m11/gate.md) |
 | M12 | Local Release Candidate — this freeze | [gate](docs/evidence/m12/gate.md) |
-| M13+ | AWS — **not started, no cloud resource has been created** | — |
+| M13 | Platform domain foundation — control plane, PostgreSQL-owned lifecycle state | [gate](docs/evidence/m13/gate.md) |
+| M14–M21 | Platform MVP: projects, runs, pipelines, models, serving, canary, UI | [plan](docs/platform-roadmap.md) |
+| M22+ | AWS — **not started, no cloud resource has been created** | — |
 
 ## Architecture
 
@@ -172,7 +174,7 @@ just asking), then fixed. Full writeups:
 - `local-up`/`local-test` were proven manually from a destroyed-and-rebuilt
   environment ([M11](docs/evidence/m11/gate.md)) but do not yet run
   automatically in CI.
-- AWS (M13+) will replace each local dependency with its managed equivalent
+- AWS (M22+) will replace each local dependency with its managed equivalent
   (kind→EKS, MinIO→S3, PostgreSQL→RDS, local image→ECR) and re-run the
   equivalent gates — it does not change anything above.
 

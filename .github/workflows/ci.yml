@@ -86,6 +86,32 @@ jobs:
       # in CI holds AWS credentials, so nothing in CI can create billable
       # infrastructure. Adding plan means adding a read-only role first.
 
+  controlplane:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: postgres
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U postgres" --health-interval 5s
+          --health-timeout 5s --health-retries 10
+    env:
+      CP_TEST_DATABASE_URL: postgresql+psycopg://postgres:postgres@localhost:5432/postgres
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: python -m pip install --upgrade pip && pip install -e ".[dev,controlplane]" openapi-spec-validator
+      - run: ruff check controlplane
+      - run: mypy controlplane
+      # Includes the dependency-isolation gate (no MLflow/Argo/Kubernetes needed)
+      # and the migration gates against a clean PostgreSQL.
+      - run: pytest controlplane/tests -p no:warnings
+
   security:
     runs-on: ubuntu-latest
     steps:

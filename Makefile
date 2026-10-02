@@ -5,7 +5,8 @@
         observability-up grafana prometheus verify-dashboards security-scan drill-netpol \
         alert-rules-test alert-rules-apply loadtest drill-autoscale drill-drain \
         local-up local-test local-down \
-        tf-fmt tf-validate tf-lint tf-check
+        tf-fmt tf-validate tf-lint tf-check \
+        cp-install cp-test cp-check cp-migrate cp-run
 
 IMAGE ?= ml-platform-inference:dev
 
@@ -176,3 +177,22 @@ tf-check: tf-fmt tf-validate tf-lint
 
 clean:
 	rm -rf .pytest_cache .mypy_cache .ruff_cache artifacts
+
+## M13+ control plane (controlplane/). Its tests start an embedded PostgreSQL
+## unless CP_TEST_DATABASE_URL points at one.
+cp-install:
+	pip install -e ".[dev,controlplane,controlplane-dev]"
+
+cp-test:
+	pytest controlplane/tests -p no:warnings
+
+cp-check:
+	ruff check controlplane
+	mypy controlplane
+	pytest controlplane/tests -p no:warnings
+
+cp-migrate:
+	python -m controlplane.persistence.migrate upgrade
+
+cp-run:
+	uvicorn controlplane.main:app_factory --factory --reload --port 8080

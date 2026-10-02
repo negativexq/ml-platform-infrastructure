@@ -7,7 +7,7 @@
 # minioadmin/minioadmin) are the same disposable defaults PostgreSQL's and
 # MinIO's own upstream charts ship with. The cluster they run in never leaves
 # this machine and is never reachable from outside it. Never reuse these as-is
-# in a shared or production environment — M6/M13 replace them with IAM/IRSA.
+# in a shared or production environment — M6/M22 replace them with IAM/IRSA.
 
 nameOverride: ""
 commonLabels: {}

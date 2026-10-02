@@ -1,7 +1,7 @@
 # ML Platform Infrastructure Roadmap — frozen v2
 
 Status: **frozen v2** (2026-09-11). Milestones are closed in order M0 → M12,
-then AWS from M13. The goal through M12 is to extract every piece of real
+then the control-plane platform (M13–M21, see platform-roadmap.md), then AWS from M22. The goal through M12 is to extract every piece of real
 engineering evidence that can be produced locally — before spending a cent of
 AWS credit. After M12 the local architecture is frozen; the AWS work swaps
 each local dependency for its managed counterpart and re-runs the same gates.
@@ -21,11 +21,13 @@ each local dependency for its managed counterpart and re-runs the same gates.
 | M10 | Scaling, SLO & alerting | HPA + load + PDB + tested alert rules | ✅ |
 | M11 | End-to-end reproducibility | Fresh cluster tek komutla acceptance PASS | ✅ |
 | M12 | Local Release Candidate | `local-v1.0.0` freeze | ✅ |
-| M13+ | AWS | terraform apply, gerçek EKS/RDS/S3/ECR | ⬜ |
+| M13 | Platform domain foundation (control plane, PostgreSQL-owned state) | [gate](evidence/m13/gate.md) | ✅ |
+| M14–M21 | Project lifecycle → workloads → pipelines → models → serving → canary → UI → MVP freeze | [platform-roadmap.md](platform-roadmap.md) | ⬜ |
+| M22+ | AWS (deferred until the platform MVP is frozen) | terraform apply, gerçek EKS/RDS/S3/ECR | ⬜ |
 
-## Local → AWS dependency swap (the M13 contract)
+## Local → AWS dependency swap (the M22 contract)
 
-| Local (M7–M12) | AWS (M13+) |
+| Local (M7–M12) | AWS (M22+) |
 | --- | --- |
 | PostgreSQL StatefulSet + PVC | RDS PostgreSQL |
 | MinIO StatefulSet + PVC | S3 |
