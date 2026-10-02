@@ -4,7 +4,9 @@ version = "0.1.0"
 description = "Containerized inference service — ML platform infrastructure lab"
 requires-python = ">=3.12"
 dependencies = [
-    "fastapi>=0.115",
+    # 0.142 introduced native OpenTelemetry (`FastAPI(telemetry=...)`, `fastapi[opentelemetry]`).
+    # The series is new: stay inside it until the API has settled. See constraints/ for the lock.
+    "fastapi[opentelemetry]>=0.142,<0.143",
     "uvicorn[standard]>=0.32",
     "pydantic>=2.9",
     "pydantic-settings>=2.6",
@@ -34,6 +36,7 @@ controlplane = [
     "alembic>=1.13",
     "psycopg[binary]>=3.2",
     "kubernetes>=31",
+    "opentelemetry-instrumentation-sqlalchemy>=0.50b0",
 ]
 controlplane-dev = [
     "pgserver>=0.1.4",

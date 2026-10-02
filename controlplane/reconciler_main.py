@@ -1,20 +1,28 @@
 """Reconciler entrypoint: `python -m controlplane.reconciler_main`.
 
-Runs the project and run reconcilers in one loop. Each pass is independent: a
-failure in one reconciler is logged and does not stop the other.
+Runs every reconciler in one loop. Each pass is independent: a failure in one reconciler is
+logged and does not stop the others. Telemetry is configured from OTEL_* (see
+`controlplane.observability.setup`); with none set it costs nothing.
 """
 
 from __future__ import annotations
 
-import logging
+import signal
 import time
 from collections.abc import Callable
+from typing import Any
+from uuid import UUID
 
+import structlog
+
+from controlplane import observability
 from controlplane.adapters.kubernetes import KubernetesClusterProvider, load_api_client
 from controlplane.adapters.metrics import PrometheusMetricsProvider
 from controlplane.adapters.mlflow import MlflowExperimentProvider
 from controlplane.adapters.serving import KServeServingProvider
 from controlplane.adapters.workflow import ArgoWorkflowProvider
+from controlplane.application.ports import UnitOfWork
+from controlplane.observability import instrument_reconciler, observe, observed_uow_factory
 from controlplane.persistence.sql import SqlUnitOfWork, make_engine, sql_uow_factory
 from controlplane.reconciliation.deployments import DeploymentReconciler
 from controlplane.reconciliation.model_aliases import ModelAliasReconciler
@@ -24,78 +32,130 @@ from controlplane.reconciliation.rollouts import RolloutReconciler
 from controlplane.reconciliation.runs import RunReconciler
 from controlplane.settings import Settings
 
-log = logging.getLogger("controlplane.reconciler")
+SERVICE_NAME = "mlp-controlplane-reconciler"
+log = structlog.get_logger("controlplane.reconciler")
 
 
-def _pass(name: str, step: Callable[[], list[object]]) -> None:
+def _traceparent(
+    getter: Callable[[UnitOfWork], Callable[[UUID], Any]],
+) -> Callable[[UnitOfWork, UUID], str | None]:
+    """How to read the trace an entity was created in (so its changes join that trace)."""
+
+    def read(uow: UnitOfWork, entity_id: UUID) -> str | None:
+        entity = getter(uow)(entity_id)
+        return None if entity is None else entity.traceparent
+
+    return read
+
+
+def _pass(name: str, step: Callable[[], list[Any]]) -> None:
     try:
         for result in step():
-            log.info("%s: %s", name, result)
+            log.info("reconciled", reconciler=name, result=str(result))
     except Exception:  # noqa: BLE001 - one bad pass must not kill the loop
-        log.exception("%s pass failed", name)
+        log.exception("pass failed", reconciler=name)
 
 
 def main() -> None:
-    logging.basicConfig(level=logging.INFO)
     settings = Settings()
+    telemetry = observability.configure(
+        SERVICE_NAME, json_logs=settings.log_json, log_level=settings.log_level
+    )
+    signal.signal(signal.SIGTERM, lambda *_: (_ for _ in ()).throw(SystemExit(0)))
+
     sessions = sql_uow_factory(make_engine(settings.database_url))
+    uow = observed_uow_factory(lambda: SqlUnitOfWork(sessions))
     api = load_api_client(settings.kubeconfig or None)
-    projects = ProjectReconciler(lambda: SqlUnitOfWork(sessions), KubernetesClusterProvider(api))
-    runs = RunReconciler(lambda: SqlUnitOfWork(sessions), ArgoWorkflowProvider(api))
+
+    cluster = observe(KubernetesClusterProvider(api), "cluster", observability.CLUSTER_MUTATIONS)
+    workflow = observe(ArgoWorkflowProvider(api), "workflow", observability.WORKFLOW_MUTATIONS)
+    serving = observe(KServeServingProvider(api), "serving", observability.SERVING_MUTATIONS)
     experiments = (
-        MlflowExperimentProvider(settings.mlflow_tracking_uri)
+        observe(
+            MlflowExperimentProvider(settings.mlflow_tracking_uri),
+            "experiments",
+            observability.EXPERIMENT_MUTATIONS,
+        )
         if settings.mlflow_tracking_uri
         else None
     )
-    pipeline_runs = PipelineRunReconciler(
-        lambda: SqlUnitOfWork(sessions),
-        ArgoWorkflowProvider(api),
-        experiments,
-        tracking_uri=settings.step_mlflow_tracking_uri or settings.mlflow_tracking_uri or None,
+
+    def instrumented(name: str, reconciler: Any, getter: Any = None) -> Any:
+        read = _traceparent(getter) if getter is not None else None
+        return instrument_reconciler(reconciler, name, uow, read)
+
+    projects = instrumented("projects", ProjectReconciler(uow, cluster), lambda u: u.projects.get)
+    runs = instrumented("runs", RunReconciler(uow, workflow), lambda u: u.runs.get)
+    pipeline_runs = instrumented(
+        "pipeline_runs",
+        PipelineRunReconciler(
+            uow,
+            workflow,
+            experiments,
+            tracking_uri=settings.step_mlflow_tracking_uri or settings.mlflow_tracking_uri or None,
+        ),
+        lambda u: u.pipeline_runs.get,
     )
+    deployments = instrumented(
+        "deployments", DeploymentReconciler(uow, serving), lambda u: u.deployments.get
+    )
+    rollouts = None
+    if settings.prometheus_url:
+        rollouts = instrumented(
+            "rollouts",
+            RolloutReconciler(
+                uow,
+                serving,
+                observe(
+                    PrometheusMetricsProvider(settings.prometheus_url),
+                    "metrics",
+                    observability.NO_MUTATIONS,
+                ),
+            ),
+            lambda u: u.rollouts.get,
+        )
+    else:
+        log.warning("CP_PROMETHEUS_URL is not set: canary rollouts will not be driven")
     aliases = (
-        ModelAliasReconciler(lambda: SqlUnitOfWork(sessions), experiments)
+        instrumented("model_aliases", ModelAliasReconciler(uow, experiments))
         if experiments is not None
         else None
     )
-    deployments = DeploymentReconciler(lambda: SqlUnitOfWork(sessions), KServeServingProvider(api))
-    rollouts = (
-        RolloutReconciler(
-            lambda: SqlUnitOfWork(sessions),
-            KServeServingProvider(api),
-            PrometheusMetricsProvider(settings.prometheus_url),
-        )
-        if settings.prometheus_url
-        else None
-    )
-    if rollouts is None:
-        log.warning("CP_PROMETHEUS_URL is not set: canary rollouts will not be driven")
-    while True:
-        # Only report passes that did something; converged projects are silent.
-        _pass(
-            "projects",
-            lambda: [r for r in projects.reconcile_all() if r.before != r.after or r.changed],
-        )
-        _pass("runs", lambda: [r for r in runs.reconcile_all() if r.before != r.after])
-        _pass(
-            "pipeline_runs",
-            lambda: [r for r in pipeline_runs.reconcile_all() if r.before != r.after],
-        )
-        _pass(
-            "deployments",
-            lambda: [r for r in deployments.reconcile_all() if r.before != r.after or r.applied],
-        )
-        if rollouts is not None:
+
+    log.info("reconciler started", telemetry=telemetry.enabled)
+    try:
+        while True:
+            # Only report passes that did something; converged entities are silent.
             _pass(
-                "rollouts",
-                lambda: [r for r in rollouts.reconcile_all() if r.before != r.after or r.percent],
+                "projects",
+                lambda: [r for r in projects.reconcile_all() if r.before != r.after or r.changed],
             )
-        if aliases is not None:
+            _pass("runs", lambda: [r for r in runs.reconcile_all() if r.before != r.after])
             _pass(
-                "model_aliases",
-                lambda: [r for r in aliases.reconcile_all() if r.synced or r.drift],
+                "pipeline_runs",
+                lambda: [r for r in pipeline_runs.reconcile_all() if r.before != r.after],
             )
-        time.sleep(settings.reconcile_interval_seconds)
+            _pass(
+                "deployments",
+                lambda: [
+                    r for r in deployments.reconcile_all() if r.before != r.after or r.applied
+                ],
+            )
+            if rollouts is not None:
+                _pass(
+                    "rollouts",
+                    lambda: [
+                        r for r in rollouts.reconcile_all() if r.before != r.after or r.percent
+                    ],
+                )
+            if aliases is not None:
+                _pass(
+                    "model_aliases",
+                    lambda: [r for r in aliases.reconcile_all() if r.synced or r.drift],
+                )
+            time.sleep(settings.reconcile_interval_seconds)
+    finally:
+        telemetry.shutdown()
 
 
 if __name__ == "__main__":

@@ -92,3 +92,16 @@ def test_control_plane_runs_with_every_external_system_unavailable() -> None:
     )
     assert out.returncode == 0, out.stderr
     assert "isolated-ok" in out.stdout
+
+
+def test_only_composition_roots_import_observability() -> None:
+    roots = {"main.py", "reconciler_main.py", "demo.py"}
+    for path in sorted(ROOT.rglob("*.py")):
+        rel = path.relative_to(ROOT)
+        if rel.parts[0] in {"observability", "tests"} or rel.name in roots:
+            continue
+        for module in _imports(path):
+            assert not module.startswith("controlplane.observability"), f"{rel} imports {module}"
+            assert module.split(".")[0] != "opentelemetry" or rel.parts[0] in {"api"}, (
+                f"{rel} imports {module}"
+            )

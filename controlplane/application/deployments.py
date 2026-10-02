@@ -13,6 +13,7 @@ from datetime import datetime
 from typing import Any
 from uuid import UUID
 
+from controlplane.application.context import current_traceparent
 from controlplane.application.jobs import resolve_project
 from controlplane.application.models import restore_champion
 from controlplane.application.ports import UnitOfWork
@@ -99,7 +100,9 @@ class DeploymentService:
         with self._uow_factory() as uow:
             project = resolve_project(uow, project_ref)
             now = self._clock()
-            deployment = Deployment.create(project_id=project.id, name=name, now=now)
+            deployment = Deployment.create(
+                project_id=project.id, name=name, now=now, traceparent=current_traceparent()
+            )
             existing = uow.deployments.get_by_name(project.id, deployment.name)
             if existing is not None:
                 return self._view(uow, existing), False
@@ -202,7 +205,7 @@ class DeploymentService:
                 created_at=now,
             )
             uow.revisions.add(revision)
-            updated = deployment.with_desired(revision.revision, now)
+            updated = deployment.with_desired(revision.revision, now, current_traceparent())
             if updated.status is not DeploymentStatus.DEPLOYING:
                 updated = updated.transition_to(DeploymentStatus.DEPLOYING, now)
             uow.deployments.update(updated, expected_status=deployment.status)
@@ -329,7 +332,7 @@ class DeploymentService:
                     f"revision {target} serves a {restoring.status.value} model; "
                     "only a former or current champion can be rolled back to"
                 )
-            updated = deployment.with_desired(target, now)
+            updated = deployment.with_desired(target, now, current_traceparent())
             if updated.status is not DeploymentStatus.DEPLOYING:
                 updated = updated.transition_to(DeploymentStatus.DEPLOYING, now)
             uow.deployments.update(updated, expected_status=deployment.status)

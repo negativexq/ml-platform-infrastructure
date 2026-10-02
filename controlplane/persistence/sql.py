@@ -76,6 +76,7 @@ def _project(row: ProjectRow) -> Project:
         description=row.description,
         status=ProjectStatus(row.status),
         status_reason=row.status_reason,
+        traceparent=row.traceparent,
         created_at=row.created_at,
         updated_at=row.updated_at,
     )
@@ -91,6 +92,7 @@ def _audit(row: AuditEventRow) -> AuditEvent:
         entity_id=row.entity_id,
         project_id=row.project_id,
         payload=row.payload,
+        trace_id=row.trace_id,
     )
 
 
@@ -107,6 +109,7 @@ class SqlProjects:
                 description=project.description,
                 status=project.status.value,
                 status_reason=project.status_reason,
+                traceparent=project.traceparent,
                 created_at=project.created_at,
                 updated_at=project.updated_at,
             )
@@ -182,6 +185,7 @@ def _run(row: RunRow) -> Run:
         cancel_requested=row.cancel_requested,
         retry_of=row.retry_of,
         idempotency_key=row.idempotency_key,
+        traceparent=row.traceparent,
         created_at=row.created_at,
         updated_at=row.updated_at,
         started_at=row.started_at,
@@ -255,6 +259,7 @@ class SqlRuns:
                 cancel_requested=run.cancel_requested,
                 retry_of=run.retry_of,
                 idempotency_key=run.idempotency_key,
+                traceparent=run.traceparent,
                 created_at=run.created_at,
                 updated_at=run.updated_at,
                 started_at=run.started_at,
@@ -346,6 +351,7 @@ def _pipeline_run(row: PipelineRunRow) -> PipelineRun:
         cancel_requested=row.cancel_requested,
         commit_sha=row.commit_sha,
         idempotency_key=row.idempotency_key,
+        traceparent=row.traceparent,
         created_at=row.created_at,
         updated_at=row.updated_at,
         started_at=row.started_at,
@@ -431,6 +437,7 @@ class SqlPipelineRuns:
                 cancel_requested=run.cancel_requested,
                 commit_sha=run.commit_sha,
                 idempotency_key=run.idempotency_key,
+                traceparent=run.traceparent,
                 created_at=run.created_at,
                 updated_at=run.updated_at,
                 started_at=run.started_at,
@@ -834,6 +841,7 @@ def _deployment(row: DeploymentRow) -> Deployment:
         status=DeploymentStatus(row.status),
         status_reason=row.status_reason,
         desired_revision=row.desired_revision,
+        traceparent=row.traceparent,
         active_revision=row.active_revision,
         created_at=row.created_at,
         updated_at=row.updated_at,
@@ -877,6 +885,7 @@ class SqlDeployments:
                 status=deployment.status.value,
                 status_reason=deployment.status_reason,
                 desired_revision=deployment.desired_revision,
+                traceparent=deployment.traceparent,
                 active_revision=deployment.active_revision,
                 created_at=deployment.created_at,
                 updated_at=deployment.updated_at,
@@ -920,6 +929,7 @@ class SqlDeployments:
                 status=deployment.status.value,
                 status_reason=deployment.status_reason,
                 desired_revision=deployment.desired_revision,
+                traceparent=deployment.traceparent,
                 active_revision=deployment.active_revision,
                 updated_at=deployment.updated_at,
             )
@@ -1034,6 +1044,7 @@ def _rollout(row: RolloutRow) -> Rollout:
         gate=RolloutGate(**row.gate),
         step_started_at=row.step_started_at,
         abort_requested=row.abort_requested,
+        traceparent=row.traceparent,
         created_at=row.created_at,
         updated_at=row.updated_at,
         finished_at=row.finished_at,
@@ -1068,6 +1079,7 @@ class SqlRollouts:
                 gate={f: getattr(rollout.gate, f) for f in _GATE_FIELDS},
                 step_started_at=rollout.step_started_at,
                 abort_requested=rollout.abort_requested,
+                traceparent=rollout.traceparent,
                 created_at=rollout.created_at,
                 updated_at=rollout.updated_at,
                 finished_at=rollout.finished_at,
@@ -1146,6 +1158,7 @@ class SqlAudit:
                 entity_id=event.entity_id,
                 project_id=event.project_id,
                 payload=dict(event.payload),
+                trace_id=event.trace_id,
             )
         )
 

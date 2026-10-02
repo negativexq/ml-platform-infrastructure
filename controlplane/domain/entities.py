@@ -52,6 +52,9 @@ class Project:
     description: str = ""
     status: ProjectStatus = ProjectStatus.PENDING
     status_reason: str | None = None
+    traceparent: str | None = (
+        None  # the request that created it; lets reconcilers continue its trace
+    )
     created_at: datetime
     updated_at: datetime
 
@@ -62,7 +65,13 @@ class Project:
 
     @classmethod
     def create(
-        cls, *, name: str, display_name: str | None, description: str, now: datetime
+        cls,
+        *,
+        name: str,
+        display_name: str | None,
+        description: str,
+        now: datetime,
+        traceparent: str | None = None,
     ) -> Self:
         validate_slug(name)
         display = (display_name or name).strip()
@@ -71,7 +80,12 @@ class Project:
         if len(description) > 2000:
             raise InvalidArgument("description must be at most 2000 characters")
         return cls(
-            name=name, display_name=display, description=description, created_at=now, updated_at=now
+            name=name,
+            display_name=display,
+            description=description,
+            traceparent=traceparent,
+            created_at=now,
+            updated_at=now,
         )
 
     def transition_to(
@@ -232,6 +246,7 @@ class PipelineRun:
     cancel_requested: bool = False
     commit_sha: str | None = None
     idempotency_key: str | None = None
+    traceparent: str | None = None
     created_at: datetime
     updated_at: datetime
     started_at: datetime | None = None
@@ -285,6 +300,7 @@ class Run:
     cancel_requested: bool = False
     retry_of: UUID | None = None
     idempotency_key: str | None = None
+    traceparent: str | None = None
     created_at: datetime
     updated_at: datetime
     started_at: datetime | None = None
@@ -515,13 +531,23 @@ class Deployment:
     status_reason: str | None = None
     desired_revision: int | None = None
     active_revision: int | None = None
+    # The request that last changed what should be serving (create / new revision / rollback).
+    traceparent: str | None = None
     created_at: datetime
     updated_at: datetime
 
     @classmethod
-    def create(cls, *, project_id: UUID, name: str, now: datetime) -> Self:
+    def create(
+        cls, *, project_id: UUID, name: str, now: datetime, traceparent: str | None = None
+    ) -> Self:
         validate_slug(name, "deployment name")
-        return cls(project_id=project_id, name=name, created_at=now, updated_at=now)
+        return cls(
+            project_id=project_id,
+            name=name,
+            traceparent=traceparent,
+            created_at=now,
+            updated_at=now,
+        )
 
     def transition_to(
         self, status: DeploymentStatus, now: datetime, reason: str | None = None
@@ -529,8 +555,13 @@ class Deployment:
         states.DEPLOYMENT.ensure(self.status, status)
         return replace(self, status=status, status_reason=reason, updated_at=now)
 
-    def with_desired(self, revision: int, now: datetime) -> Self:
-        return replace(self, desired_revision=revision, updated_at=now)
+    def with_desired(self, revision: int, now: datetime, traceparent: str | None = None) -> Self:
+        return replace(
+            self,
+            desired_revision=revision,
+            traceparent=traceparent if traceparent is not None else self.traceparent,
+            updated_at=now,
+        )
 
     def with_active(self, revision: int | None, now: datetime) -> Self:
         return replace(self, active_revision=revision, updated_at=now)
@@ -671,6 +702,7 @@ class Rollout:
     gate: RolloutGate = field(default_factory=RolloutGate)
     step_started_at: datetime | None = None  # when the canary became ready at this step
     abort_requested: bool = False
+    traceparent: str | None = None
     created_at: datetime
     updated_at: datetime
     finished_at: datetime | None = None

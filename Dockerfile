@@ -10,9 +10,11 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 COPY pyproject.toml ./
+COPY constraints/inference.txt ./constraints/inference.txt
 COPY app ./app
 COPY scripts ./scripts
-RUN pip install --upgrade pip && pip install --prefix=/install .
+# Versions come from the lock (scripts/lock.sh), so the same commit builds the same image.
+RUN pip install --upgrade pip && pip install -c constraints/inference.txt --prefix=/install .
 
 # ---------------------------------------------------------------------------
 FROM python:3.12-slim AS runtime

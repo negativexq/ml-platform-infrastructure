@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Header, HTTPException, Query, Request, Response, status
 from fastapi.responses import PlainTextResponse
 
+from controlplane.api.errors import PlatformRoute
 from controlplane.api.schemas import ErrorOut
 from controlplane.api.schemas_runs import JobCreate, JobList, JobOut, RunList, RunOut
 from controlplane.application.jobs import CreateJob, JobService
@@ -29,7 +30,7 @@ IdempotencyKey = Annotated[
 
 
 def jobs_router() -> APIRouter:
-    router = APIRouter(prefix="/projects/{project}/jobs", tags=["jobs"])
+    router = APIRouter(route_class=PlatformRoute, prefix="/projects/{project}/jobs", tags=["jobs"])
 
     def svc(request: Request) -> JobService:
         service: JobService = request.app.state.jobs
@@ -96,7 +97,7 @@ def jobs_router() -> APIRouter:
 
 
 def runs_router() -> APIRouter:
-    router = APIRouter(tags=["runs"])
+    router = APIRouter(route_class=PlatformRoute, tags=["runs"])
 
     def svc(request: Request) -> RunService:
         service: RunService = request.app.state.runs

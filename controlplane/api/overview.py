@@ -7,6 +7,7 @@ from uuid import UUID
 from fastapi import APIRouter, Query, Request
 from pydantic import BaseModel
 
+from controlplane.api.errors import PlatformRoute
 from controlplane.api.schemas import ErrorOut
 from controlplane.application.overview import OverviewService
 from controlplane.domain.states import DeploymentStatus, EndpointStatus
@@ -74,7 +75,7 @@ class AuditOut(BaseModel):
 
 
 def overview_router() -> APIRouter:
-    router = APIRouter(prefix="/projects/{project}", tags=["overview"])
+    router = APIRouter(route_class=PlatformRoute, prefix="/projects/{project}", tags=["overview"])
 
     def svc(request: Request) -> OverviewService:
         service: OverviewService = request.app.state.overview

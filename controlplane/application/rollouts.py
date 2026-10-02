@@ -7,6 +7,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
+from controlplane.application.context import current_traceparent
 from controlplane.application.deployments import DeploymentService
 from controlplane.application.jobs import resolve_project
 from controlplane.application.ports import UnitOfWork
@@ -95,6 +96,7 @@ class RolloutService:
                 model_version_id=revision.model_version_id,
                 steps=chosen,
                 gate=gate or RolloutGate(),
+                traceparent=current_traceparent(),
                 created_at=now,
                 updated_at=now,
             )

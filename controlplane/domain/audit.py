@@ -22,3 +22,5 @@ class AuditEvent:
     entity_id: UUID
     project_id: UUID | None = None
     payload: Mapping[str, Any] = field(default_factory=dict)
+    # The trace this change belongs to, so an audit row can be opened as a trace.
+    trace_id: str | None = None

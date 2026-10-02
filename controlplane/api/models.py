@@ -5,6 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 
+from controlplane.api.errors import PlatformRoute
 from controlplane.api.schemas import ErrorOut
 from controlplane.api.schemas_models import (
     DiscoveryOut,
@@ -26,7 +27,9 @@ _ERRORS: dict[int | str, dict[str, Any]] = {
 
 
 def models_router() -> APIRouter:
-    router = APIRouter(prefix="/projects/{project}/models", tags=["models"])
+    router = APIRouter(
+        route_class=PlatformRoute, prefix="/projects/{project}/models", tags=["models"]
+    )
 
     def svc(request: Request) -> ModelService:
         service: ModelService = request.app.state.models
@@ -94,7 +97,7 @@ def models_router() -> APIRouter:
 
 
 def model_versions_router() -> APIRouter:
-    router = APIRouter(prefix="/model-versions", tags=["models"])
+    router = APIRouter(route_class=PlatformRoute, prefix="/model-versions", tags=["models"])
 
     @router.get(
         "/{version_id}",

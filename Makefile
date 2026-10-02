@@ -6,7 +6,7 @@
         alert-rules-test alert-rules-apply loadtest drill-autoscale drill-drain \
         local-up local-test local-down \
         tf-fmt tf-validate tf-lint tf-check \
-        cp-install cp-test cp-check cp-migrate cp-run cp-reconcile cp-demo envtest-up envtest-down
+        cp-install cp-test cp-check cp-migrate cp-run cp-reconcile cp-demo lock envtest-up envtest-down
 
 IMAGE ?= ml-platform-inference:dev
 
@@ -181,7 +181,7 @@ clean:
 ## M13+ control plane (controlplane/). Its tests start an embedded PostgreSQL
 ## unless CP_TEST_DATABASE_URL points at one.
 cp-install:
-	pip install -e ".[dev,controlplane,controlplane-dev]"
+	pip install -c constraints/controlplane.txt -e ".[dev,controlplane,controlplane-dev]"
 
 cp-test:
 	pytest controlplane/tests -p no:warnings
@@ -211,3 +211,7 @@ envtest-down:
 ## http://localhost:8080  (Abort / Cancel work: a reconcile loop runs in the background)
 cp-demo:
 	python -m controlplane.demo
+
+## Regenerate constraints/*.txt (pinned versions for the images and the control plane).
+lock:
+	./scripts/lock.sh

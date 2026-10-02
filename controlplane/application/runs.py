@@ -3,6 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 from uuid import UUID
 
+from controlplane.application.context import current_traceparent
 from controlplane.application.jobs import resolve_project
 from controlplane.application.ports import UnitOfWork
 from controlplane.application.projects import ANONYMOUS, Clock, UnitOfWorkFactory, utc_now
@@ -78,6 +79,7 @@ class RunService:
                 job_definition_id=job.id,
                 retry_of=retry_of,
                 idempotency_key=key,
+                traceparent=current_traceparent(),
                 created_at=now,
                 updated_at=now,
             )

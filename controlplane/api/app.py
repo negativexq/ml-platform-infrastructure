@@ -1,13 +1,16 @@
 from __future__ import annotations
 
+from collections.abc import MutableMapping
 from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, FastAPI, Query, Request, Response, status
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
+from fastapi.telemetry import TelemetryConfig
 
 from controlplane.api.deployments import deployments_router
+from controlplane.api.errors import DomainHttpError, PlatformRoute, handle_domain_error
 from controlplane.api.jobs_runs import jobs_router, runs_router
 from controlplane.api.models import model_versions_router, models_router
 from controlplane.api.overview import overview_router
@@ -36,34 +39,13 @@ from controlplane.application.providers import (
 from controlplane.application.rollouts import RolloutService
 from controlplane.application.runs import RunService
 from controlplane.domain.errors import (
-    AlreadyExists,
-    Conflict,
     DomainError,
-    IllegalTransition,
-    InvalidArgument,
-    NotFound,
 )
 from controlplane.ui import CONTENT_SECURITY_POLICY, STATIC_DIR
 
-_STATUS_FOR: dict[type[DomainError], tuple[int, str]] = {
-    NotFound: (status.HTTP_404_NOT_FOUND, "not_found"),
-    AlreadyExists: (status.HTTP_409_CONFLICT, "already_exists"),
-    Conflict: (status.HTTP_409_CONFLICT, "conflict"),
-    IllegalTransition: (status.HTTP_409_CONFLICT, "illegal_transition"),
-    InvalidArgument: (status.HTTP_422_UNPROCESSABLE_CONTENT, "invalid_argument"),
-}
-
-
-def _domain_error_handler(_: Request, exc: Exception) -> JSONResponse:
-    code, label = next(
-        (v for k, v in _STATUS_FOR.items() if isinstance(exc, k)),
-        (status.HTTP_500_INTERNAL_SERVER_ERROR, "internal_error"),
-    )
-    return JSONResponse(status_code=code, content={"error": {"code": label, "message": str(exc)}})
-
 
 def _projects_router() -> APIRouter:
-    router = APIRouter(prefix="/projects", tags=["projects"])
+    router = APIRouter(route_class=PlatformRoute, prefix="/projects", tags=["projects"])
     errors: dict[int | str, dict[str, Any]] = {
         404: {"model": ErrorOut},
         409: {"model": ErrorOut},
@@ -124,6 +106,21 @@ def _projects_router() -> APIRouter:
     return router
 
 
+def _skip_telemetry(scope: MutableMapping[str, Any]) -> bool:
+    """Probes and static UI files are noise in a trace backend."""
+    path = scope.get("path", "")
+    return bool(path == "/healthz" or path.startswith("/ui"))
+
+
+def _telemetry_config(extra: TelemetryConfig | None) -> TelemetryConfig:
+    # FastAPI's native OpenTelemetry (>= 0.142). Providers are set up by
+    # `controlplane.observability.configure`, so FastAPI must not add exporters of its own;
+    # logs stay out of OTLP (structured stdout logs carry the trace ids instead).
+    config: TelemetryConfig = {"exclude": _skip_telemetry, "auto_configure": False, "logs": False}
+    config.update(extra or {})
+    return config
+
+
 def create_app(
     uow_factory: UnitOfWorkFactory,
     clock: Clock = utc_now,
@@ -132,12 +129,14 @@ def create_app(
     serving: ServingProvider | None = None,
     metrics: MetricsProvider | None = None,
     ui: bool = True,
+    telemetry: TelemetryConfig | None = None,
 ) -> FastAPI:
     app = FastAPI(
         title="ML Platform Control Plane",
         version="0.1.0",
         description="Platform API. PostgreSQL owns lifecycle state; MLflow, Argo and "
         "KServe are adapters behind it.",
+        telemetry=_telemetry_config(telemetry),
     )
     app.state.projects = ProjectService(uow_factory, clock)
     app.state.jobs = JobService(uow_factory, clock)
@@ -154,7 +153,8 @@ def create_app(
     app.state.overview = OverviewService(uow_factory, serving, metrics)
     app.state.workflow = workflow
     app.state.experiments = experiments
-    app.add_exception_handler(DomainError, _domain_error_handler)
+    app.add_exception_handler(DomainError, handle_domain_error)
+    app.add_exception_handler(DomainHttpError, handle_domain_error)
     app.include_router(_projects_router())
     app.include_router(jobs_router())
     app.include_router(runs_router())

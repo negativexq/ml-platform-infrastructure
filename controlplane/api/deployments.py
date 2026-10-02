@@ -4,6 +4,7 @@ from typing import Any
 
 from fastapi import APIRouter, HTTPException, Request, Response, status
 
+from controlplane.api.errors import PlatformRoute
 from controlplane.api.schemas import ErrorOut
 from controlplane.api.schemas_deployments import (
     DeploymentCreate,
@@ -24,7 +25,9 @@ _ERRORS: dict[int | str, dict[str, Any]] = {
 
 
 def deployments_router() -> APIRouter:
-    router = APIRouter(prefix="/projects/{project}", tags=["deployments"])
+    router = APIRouter(
+        route_class=PlatformRoute, prefix="/projects/{project}", tags=["deployments"]
+    )
 
     def svc(request: Request) -> DeploymentService:
         service: DeploymentService = request.app.state.deployments

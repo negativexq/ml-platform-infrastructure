@@ -49,6 +49,7 @@ class ProjectRow(Base):
     description: Mapped[str] = mapped_column(Text, nullable=False, default="")
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     status_reason: Mapped[str | None] = mapped_column(Text)
+    traceparent: Mapped[str | None] = mapped_column(String(128))
     created_at: Mapped[datetime] = _ts()
     updated_at: Mapped[datetime] = _ts()
 
@@ -86,6 +87,7 @@ class RunRow(Base):
         Uuid, ForeignKey("runs.id", ondelete="RESTRICT"), index=True
     )
     idempotency_key: Mapped[str | None] = mapped_column(String(200))
+    traceparent: Mapped[str | None] = mapped_column(String(128))
     created_at: Mapped[datetime] = _ts()
     updated_at: Mapped[datetime] = _ts()
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -122,6 +124,7 @@ class PipelineRunRow(Base):
     cancel_requested: Mapped[bool] = mapped_column(Boolean, nullable=False)
     commit_sha: Mapped[str | None] = mapped_column(String(64))
     idempotency_key: Mapped[str | None] = mapped_column(String(200))
+    traceparent: Mapped[str | None] = mapped_column(String(128))
     created_at: Mapped[datetime] = _ts()
     updated_at: Mapped[datetime] = _ts()
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -219,6 +222,7 @@ class DeploymentRow(Base):
     status_reason: Mapped[str | None] = mapped_column(Text)
     desired_revision: Mapped[int | None] = mapped_column(Integer)
     active_revision: Mapped[int | None] = mapped_column(Integer)
+    traceparent: Mapped[str | None] = mapped_column(String(128))
     created_at: Mapped[datetime] = _ts()
     updated_at: Mapped[datetime] = _ts()
 
@@ -261,6 +265,7 @@ class RolloutRow(Base):
     gate: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     step_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     abort_requested: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    traceparent: Mapped[str | None] = mapped_column(String(128))
     created_at: Mapped[datetime] = _ts()
     updated_at: Mapped[datetime] = _ts()
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -293,3 +298,5 @@ class AuditEventRow(Base):
     # Deliberately not a foreign key: the audit trail must outlive what it describes.
     project_id: Mapped[UUID | None] = mapped_column(Uuid, index=True)
     payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    # The trace the change was made in: an audit row can be opened as a trace.
+    trace_id: Mapped[str | None] = mapped_column(String(32), index=True)

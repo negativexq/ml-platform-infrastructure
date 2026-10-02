@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from uuid import UUID
 
+from controlplane.application.context import current_traceparent
 from controlplane.application.ports import UnitOfWork
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import Project
@@ -46,6 +47,7 @@ class ProjectService:
             display_name=cmd.display_name,
             description=cmd.description,
             now=self._clock(),
+            traceparent=current_traceparent(),
         )
         try:
             with self._uow_factory() as uow:

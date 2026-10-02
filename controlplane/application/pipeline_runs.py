@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
 
+from controlplane.application.context import current_traceparent
 from controlplane.application.jobs import resolve_project
 from controlplane.application.ports import UnitOfWork
 from controlplane.application.projects import ANONYMOUS, Clock, UnitOfWorkFactory, utc_now
@@ -121,6 +122,7 @@ class PipelineRunService:
                 pipeline_definition_id=definition.id,
                 commit_sha=commit_sha,
                 idempotency_key=key,
+                traceparent=current_traceparent(),
                 created_at=now,
                 updated_at=now,
             )

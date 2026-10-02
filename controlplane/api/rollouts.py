@@ -5,6 +5,7 @@ from uuid import UUID
 
 from fastapi import APIRouter, Request, status
 
+from controlplane.api.errors import PlatformRoute
 from controlplane.api.schemas import ErrorOut
 from controlplane.api.schemas_deployments import DeploymentOut
 from controlplane.api.schemas_rollouts import (
@@ -24,7 +25,7 @@ _ERRORS: dict[int | str, dict[str, Any]] = {
 
 
 def rollouts_router() -> APIRouter:
-    router = APIRouter(tags=["rollouts"])
+    router = APIRouter(route_class=PlatformRoute, tags=["rollouts"])
 
     def svc(request: Request) -> RolloutService:
         service: RolloutService = request.app.state.rollouts

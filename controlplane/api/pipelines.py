@@ -6,6 +6,7 @@ from uuid import UUID
 from fastapi import APIRouter, Header, HTTPException, Query, Request, Response, status
 from fastapi.responses import PlainTextResponse
 
+from controlplane.api.errors import PlatformRoute
 from controlplane.api.schemas import ErrorOut
 from controlplane.api.schemas_pipelines import (
     PipelineCreate,
@@ -38,7 +39,7 @@ IdempotencyKey = Annotated[
 
 
 def pipelines_router() -> APIRouter:
-    router = APIRouter(prefix="/projects/{project}", tags=["pipelines"])
+    router = APIRouter(route_class=PlatformRoute, prefix="/projects/{project}", tags=["pipelines"])
 
     def defs(request: Request) -> PipelineService:
         service: PipelineService = request.app.state.pipelines
@@ -156,7 +157,7 @@ def pipelines_router() -> APIRouter:
 
 
 def pipeline_runs_router() -> APIRouter:
-    router = APIRouter(prefix="/pipeline-runs", tags=["pipeline runs"])
+    router = APIRouter(route_class=PlatformRoute, prefix="/pipeline-runs", tags=["pipeline runs"])
 
     def svc(request: Request) -> PipelineRunService:
         service: PipelineRunService = request.app.state.pipeline_runs

@@ -16,3 +16,6 @@ class Settings(BaseSettings):
     step_mlflow_tracking_uri: str = ""
     # Prometheus the rollout gates read per-revision metrics from. Empty: rollouts are not driven.
     prometheus_url: str = ""
+    # Logging. JSON by default (cluster log collectors want it); set false for a console.
+    log_json: bool = True
+    log_level: str = "INFO"
