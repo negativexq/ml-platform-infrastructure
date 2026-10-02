@@ -25,17 +25,28 @@ export function ModelsPage({ project }: { project: string }) {
   async function register() {
     const model = await form<S['ModelOut']>({
       title: 'Register a model', submitLabel: 'Register',
-      intro: 'Versions are discovered from the registry; the acceptance thresholds decide which ones may become candidates.',
+      intro: 'Versions come from the registry (or, for an LLM, from the Hugging Face Hub); the acceptance thresholds decide which ones may become candidates.',
       fields: [
         { name: 'name', label: 'Name', required: true, pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$', placeholder: 'scorer', hint: 'Lowercase letters, digits and dashes.' },
+        { name: 'kind', label: 'Kind', required: true, value: 'classic', options: [
+          { value: 'classic', label: 'Classic model (predictive, from the registry)' }, { value: 'llm', label: 'LLM (served on GPUs, chat API)' }] },
+        { name: 'gpus', label: 'GPUs per replica', value: '1', pattern: '[1-8]', hint: 'LLMs only. Taken from the project’s GPU quota; a canary needs them twice.' },
+        { name: 'context', label: 'Context length (tokens)', pattern: '[0-9]{3,7}', placeholder: 'the model’s own', hint: 'LLMs only. Longer contexts need more GPU memory.' },
         { name: 'thresholds', label: 'Acceptance thresholds', type: 'textarea', placeholder: 'auc >= 0.9\nrmse <= 0.3',
           hint: 'One per line: metric >= number or metric <= number. A version that misses one is rejected.' },
       ],
       submit: (v) => {
         let thresholds;
         try { thresholds = parseThresholds(v.thresholds ?? ''); } catch (e) { throw new ApiError(422, 'invalid_argument', e instanceof Error ? e.message : 'invalid'); }
-        return api.post<S['ModelOut']>(`/projects/${p}/models`, { name: v.name, thresholds });
+        const llm = v.kind === 'llm';
+        return api.post<S['ModelOut']>(`/projects/${p}/models`, {
+          name: v.name, thresholds, kind: v.kind,
+          llm: llm ? { gpus: Number(v.gpus || 1), context_length: v.context ? Number(v.context) : null } : null,
+        });
       },
+      preview: (v) => (v.kind === 'llm'
+        ? <p>{`${v.name || 'This model'} is an LLM: each serving replica holds ${v.gpus || 1} GPU${v.gpus === '1' || !v.gpus ? '' : 's'} of the project's quota, and it answers OpenAI-style chat completions. Register its versions from the Hugging Face Hub with the results of your own evaluation.`}</p>
+        : <p>{`${v.name || 'This model'} is served by the platform's model server; its versions are discovered from the registry after training.`}</p>),
     });
     if (model) { toast(`Model ${model.name} registered`); go(routes.model(project, model.name)); }
   }
@@ -58,7 +69,7 @@ export function ModelsPage({ project }: { project: string }) {
                 const ev = champion?.evaluations[champion.evaluations.length - 1];
                 return (
                   <tr key={model.id} className="click" data-testid="model-row" onClick={() => go(routes.model(project, model.name))}>
-                    <td><a href={routes.model(project, model.name)}>{model.name}</a>{model.alias_drift && <> <Badge status="DRIFTED" /></>}</td>
+                    <td><a href={routes.model(project, model.name)}>{model.name}</a>{model.kind === 'llm' && <span className="chip model-kind" data-testid="kind-llm">LLM</span>}{model.alias_drift && <> <Badge status="DRIFTED" /></>}</td>
                     <td>{champion ? <><Badge status="CHAMPION" />{` v${champion.version}`}{metric && ev?.metrics[metric] != null && <span className="muted small">{` · ${metric} ${num(ev.metrics[metric], 3)}`}</span>}</> : <span className="muted">none</span>}</td>
                     <td>{candidates.length ? candidates.map((v) => <span className="chip" key={v.id}>{`v${v.version}`}</span>) : '—'}</td>
                     <td className="num">{versions.filter((v) => v.status === 'REJECTED').length}</td>

@@ -401,6 +401,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{project}/endpoints/{name}/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** One chat completion from an LLM endpoint through the platform (the playground) */
+        post: operations["chat_projects__project__endpoints__name__chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/projects/{project}/endpoints/{name}/metrics": {
         parameters: {
             query?: never;
@@ -462,6 +479,23 @@ export interface paths {
         /** Calls through the gateway, by caller */
         get: operations["get_usage_projects__project__endpoints__name__usage_get"];
         put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/gpu-quota": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Set how many GPUs a project may hold (platform admins only) */
+        put: operations["set_gpu_quota_projects__project__gpu_quota_put"];
         post?: never;
         delete?: never;
         options?: never;
@@ -635,7 +669,8 @@ export interface paths {
         /** List versions */
         get: operations["list_versions_projects__project__models__name__versions_get"];
         put?: never;
-        post?: never;
+        /** Register an LLM version from a model hub, with its offline results (idempotent) */
+        post: operations["register_from_hub_projects__project__models__name__versions_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -956,10 +991,20 @@ export interface components {
         CallerUsageOut: {
             /** Caller */
             caller: string;
+            /**
+             * Completion Tokens
+             * @description LLMs: tokens generated
+             */
+            completion_tokens?: number | null;
             /** Errors */
             errors: number;
             /** Points */
             points: components["schemas"]["UsagePointOut"][];
+            /**
+             * Prompt Tokens
+             * @description LLMs: tokens sent, in the window
+             */
+            prompt_tokens?: number | null;
             /** Rejected */
             rejected: number;
             /**
@@ -967,6 +1012,25 @@ export interface components {
              * @description in the window
              */
             units: number;
+        };
+        /** ChatMessage */
+        ChatMessage: {
+            /** Content */
+            content: string;
+            /** Role */
+            role: string;
+        };
+        /**
+         * ChatRequest
+         * @description The playground's request: an OpenAI-style chat, answered in one piece (not streamed).
+         */
+        ChatRequest: {
+            /** Max Tokens */
+            max_tokens?: number | null;
+            /** Messages */
+            messages: components["schemas"]["ChatMessage"][];
+            /** Temperature */
+            temperature?: number | null;
         };
         /** CheckOut */
         CheckOut: {
@@ -1297,6 +1361,14 @@ export interface components {
              */
             step_seconds: number;
         };
+        /** GpuQuotaIn */
+        GpuQuotaIn: {
+            /**
+             * Gpus
+             * @description GPUs the project's workloads may hold together
+             */
+            gpus: number;
+        };
         /** HTTPValidationError */
         HTTPValidationError: {
             /** Detail */
@@ -1316,6 +1388,26 @@ export interface components {
             at: string;
             /** Label */
             label: string;
+        };
+        /** HubVersionCreate */
+        HubVersionCreate: {
+            /**
+             * Metrics
+             * @description offline evaluation results the version is judged on
+             * @example {
+             *       "helpfulness": 0.82,
+             *       "toxicity": 0.002
+             *     }
+             */
+            metrics?: {
+                [key: string]: number;
+            };
+            /**
+             * Source
+             * @description hf://<org>/<model>[@<revision>]; pin a revision so the version always means the same weights
+             * @example hf://Qwen/Qwen2.5-7B-Instruct@a09a354
+             */
+            source: string;
         };
         /** InventoryOut */
         InventoryOut: {
@@ -1403,6 +1495,20 @@ export interface components {
                 [key: string]: string;
             };
         };
+        /** LlmServingIn */
+        LlmServingIn: {
+            /**
+             * Context Length
+             * @description max tokens in a request; null: the model's
+             */
+            context_length?: number | null;
+            /**
+             * Gpus
+             * @description GPUs per replica (tensor parallel above 1)
+             * @default 1
+             */
+            gpus: number;
+        };
         /** MeOut */
         MeOut: {
             /**
@@ -1475,6 +1581,13 @@ export interface components {
         };
         /** ModelCreate */
         ModelCreate: {
+            /**
+             * @description classic, or llm
+             * @default classic
+             */
+            kind: components["schemas"]["ModelKind"];
+            /** @description how an LLM is served (kind llm only) */
+            llm?: components["schemas"]["LlmServingIn"] | null;
             /** Name */
             name: string;
             /**
@@ -1492,6 +1605,14 @@ export interface components {
                 [key: string]: components["schemas"]["ThresholdIn"];
             };
         };
+        /**
+         * ModelKind
+         * @description CLASSIC: a predictive model served by the MLflow model server (v2 protocol).
+         *     LLM: a language model served by an LLM runtime (vLLM through KServe's Hugging Face
+         *     server), answering OpenAI-compatible chat completions.
+         * @enum {string}
+         */
+        ModelKind: "classic" | "llm";
         /** ModelList */
         ModelList: {
             /** Items */
@@ -1512,6 +1633,8 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            kind: components["schemas"]["ModelKind"];
+            llm: components["schemas"]["LlmServingIn"] | null;
             /** Name */
             name: string;
             /**
@@ -1551,6 +1674,13 @@ export interface components {
              */
             id: string;
             /**
+             * Metrics
+             * @description results it came with
+             */
+            metrics?: {
+                [key: string]: number;
+            };
+            /**
              * Model Id
              * Format: uuid
              */
@@ -1561,6 +1691,11 @@ export interface components {
             promotions: components["schemas"]["PromotionOut"][];
             /** Source Pipeline Run Id */
             source_pipeline_run_id: string | null;
+            /**
+             * Source Uri
+             * @description hub source, for versions not in the registry
+             */
+            source_uri?: string | null;
             status: components["schemas"]["ModelStatus"];
             /**
              * Updated At
@@ -1586,12 +1721,24 @@ export interface components {
              */
             id: string;
             /**
+             * Metrics
+             * @description results it came with
+             */
+            metrics?: {
+                [key: string]: number;
+            };
+            /**
              * Model Id
              * Format: uuid
              */
             model_id: string;
             /** Source Pipeline Run Id */
             source_pipeline_run_id: string | null;
+            /**
+             * Source Uri
+             * @description hub source, for versions not in the registry
+             */
+            source_uri?: string | null;
             status: components["schemas"]["ModelStatus"];
             /**
              * Updated At
@@ -1773,7 +1920,7 @@ export interface components {
          * @description The control plane's own health, as its telemetry backend records it.
          * @enum {string}
          */
-        PlatformSignal: "api_requests" | "api_errors" | "api_latency" | "reconcile_passes" | "reconcile_errors" | "provider_errors" | "provider_latency" | "transitions" | "gateway_requests" | "gateway_errors" | "gateway_latency";
+        PlatformSignal: "api_requests" | "api_errors" | "api_latency" | "reconcile_passes" | "reconcile_errors" | "provider_errors" | "provider_latency" | "transitions" | "gateway_requests" | "gateway_errors" | "gateway_latency" | "gateway_tokens";
         /**
          * PredictRequest
          * @description Passed to the model server unchanged (e.g. `{"instances": [[1, 2, 3]]}`).
@@ -1816,6 +1963,11 @@ export interface components {
             description: string;
             /** Display Name */
             display_name: string;
+            /**
+             * Gpu Quota
+             * @default 0
+             */
+            gpu_quota: number;
             /**
              * Id
              * Format: uuid
@@ -1921,6 +2073,8 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            /** Gpus */
+            gpus: number;
             /** Model */
             model: string;
             /** Model Version */
@@ -1932,6 +2086,7 @@ export interface components {
             model_version_id: string;
             /** Revision */
             revision: number;
+            runtime: components["schemas"]["ServingRuntime"];
         };
         /** RollbackRequest */
         RollbackRequest: {
@@ -2120,6 +2275,11 @@ export interface components {
             points: components["schemas"]["SampleOut"][];
             status: components["schemas"]["Health"];
         };
+        /**
+         * ServingRuntime
+         * @enum {string}
+         */
+        ServingRuntime: "mlflow" | "huggingface";
         /** SignalHealthOut */
         SignalHealthOut: {
             /** Critical */
@@ -2205,6 +2365,16 @@ export interface components {
             deployments_ready: number;
             /** Endpoints */
             endpoints: number;
+            /**
+             * Gpu Quota
+             * @description GPUs the project may hold (set by platform admins)
+             */
+            gpu_quota: number;
+            /**
+             * Gpus In Use
+             * @description held by serving revisions, canaries included
+             */
+            gpus_in_use: number;
             /** Jobs */
             jobs: number;
             /** Models */
@@ -3764,6 +3934,71 @@ export interface operations {
             };
         };
     };
+    chat_projects__project__endpoints__name__chat_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
     endpoint_metrics_projects__project__endpoints__name__metrics_get: {
         parameters: {
             query?: never;
@@ -3934,6 +4169,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EndpointUsageOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    set_gpu_quota_projects__project__gpu_quota_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["GpuQuotaIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ProjectOut"];
                 };
             };
             /** @description Not Found */
@@ -4677,6 +4965,69 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["VersionList"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    register_from_hub_projects__project__models__name__versions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HubVersionCreate"];
+            };
+        };
+        responses: {
+            /** @description Already registered */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelVersionSummary"];
+                };
+            };
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelVersionSummary"];
                 };
             };
             /** @description Not Found */

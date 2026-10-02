@@ -64,6 +64,23 @@ how much are they?":
 
 Settings has the project's **API keys** list. See `docs/gateway.md`.
 
+## LLMs
+
+* **Models:** creating a model offers its kind. An LLM also takes its GPUs per replica and
+  its context length; the preview says what that holds of the project's quota.
+* **Model page:** an LLM has **Register from hub**. It takes a pinned `hf://` source and the
+  results of an offline evaluation, and previews whether the version would become a
+  candidate or be rejected. Hub versions show their source in the versions table.
+* **Deployment page:**
+  * **Playground:** an LLM deployment has a playground instead of "Try it". It is a
+    conversation with a system prompt, max tokens and temperature, and every reply shows
+    the prompt and completion tokens it cost.
+  * **Revisions** say what serves them (LLM runtime and GPUs).
+  * **API access** shows the chat path, a streamed curl and an OpenAI SDK snippet. Its
+    limits and usage are in tokens, with prompt and completion per caller.
+* **Settings:** **GPUs** shows the quota and what is in use. Only platform admins can
+  change the quota, and the preview refuses a quota below current use.
+
 ## Charts
 
 Built to the `dataviz` method (form first, colour last, computed not eyeballed):

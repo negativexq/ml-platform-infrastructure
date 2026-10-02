@@ -1136,3 +1136,61 @@ def test_revoking_and_closing_are_confirmed_and_take_effect(page: Page, server: 
     assert activity is None or activity.ok
     expect(page.locator("main")).to_contain_text("API key revoked")
     expect(page.locator("main")).to_contain_text("Endpoint exposure changed")
+
+
+# -- LLMs ------------------------------------------------------------------------------------
+
+
+def test_an_llm_deployment_has_a_playground_and_openai_snippets(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects/customer-support/deployments/assistant-prod")
+    expect(page.get_by_test_id("try-it")).to_have_count(0)
+    expect(page.get_by_test_id("revision-row").first).to_contain_text("LLM runtime, 1 GPU")
+    page.get_by_test_id("chat-input").fill("Why was my card declined?")
+    page.get_by_test_id("chat-input").press("Enter")
+    reply = page.get_by_test_id("chat-log").locator("[data-role=assistant]")
+    expect(reply).to_contain_text("Why was my card declined?")
+    expect(reply.get_by_test_id("chat-usage")).to_contain_text("prompt +")
+    expect(page.get_by_test_id("chat-spent")).to_contain_text("tokens in this conversation")
+    access = page.get_by_test_id("api-access")
+    expect(access).to_contain_text("tokens per minute, all callers together")
+    expect(access.get_by_test_id("public-url")).to_contain_text("/chat/completions")
+    access.locator("summary", has_text="OpenAI SDK").click()
+    expect(access).to_contain_text("from openai import OpenAI")
+    expect(access.get_by_test_id("prompt-tokens").first).not_to_have_text("—")
+
+
+def test_creating_an_llm_and_registering_a_hub_version(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects/customer-support/models")
+    expect(page.get_by_test_id("kind-llm")).to_have_count(1)
+    page.get_by_test_id("register-model").click()
+    page.locator("#f-name").fill("summarizer")
+    page.locator("#f-kind").select_option("llm")
+    page.locator("#f-thresholds").fill("rouge >= 0.4")
+    expect(page.get_by_test_id("form-preview")).to_contain_text("each serving replica holds 1 GPU")
+    page.locator("dialog[open] button[type=submit]").click()
+    expect(page.locator("main h1")).to_have_text("summarizer")
+    expect(page.get_by_test_id("llm-serving")).to_contain_text("1 GPU per replica")
+
+    page.get_by_test_id("register-hub").click()
+    page.locator("#f-source").fill("hf://Qwen/Qwen2.5-7B-Instruct@a09a354")
+    page.locator("#f-metrics").fill("rouge = 0.31")
+    expect(page.get_by_test_id("form-preview")).to_contain_text("would be rejected")
+    page.locator("#f-metrics").fill("rouge = 0.45")
+    expect(page.get_by_test_id("form-preview")).to_contain_text("would become a candidate")
+    page.locator("dialog[open] button[type=submit]").click()
+    row = page.locator("[data-testid=version-row][data-version='1']")
+    expect(row.get_by_test_id("version-source")).to_contain_text("Qwen/Qwen2.5-7B-Instruct@a09a354")
+    row.get_by_test_id("evaluate").click()
+    expect(row).to_contain_text("candidate")
+
+
+def test_gpu_quota_shows_use_and_refuses_going_below_it(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects/customer-support/settings")
+    card = page.get_by_test_id("gpu-quota")
+    expect(card.get_by_test_id("gpu-use")).to_contain_text("1 of 2")
+    card.get_by_test_id("change-gpu-quota").click()  # local mode: a platform admin
+    page.locator("#f-gpus").fill("0")
+    expect(page.get_by_test_id("form-preview")).to_contain_text("refuses a quota below that")
+    page.locator("#f-gpus").fill("4")
+    page.locator("dialog[open] button[type=submit]").click()
+    expect(card.get_by_test_id("gpu-use")).to_contain_text("1 of 4")

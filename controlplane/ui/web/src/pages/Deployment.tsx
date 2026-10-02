@@ -3,6 +3,7 @@ import { Alert, Badge, CopyButton, Section, Table, Time } from '../components/bi
 import { useOverlays } from '../components/overlays';
 import { useDeploy } from '../components/Deploy';
 import { TryIt } from '../components/TryIt';
+import { Playground } from '../components/Playground';
 import { ApiAccessCard } from '../components/ApiAccess';
 import { MetricTrends } from '../components/MetricTrends';
 import { GateMeters } from '../components/charts/Meters';
@@ -75,7 +76,9 @@ export function DeploymentPage({ project, name }: { project: string; name: strin
             <div className="cols"><EndpointCard endpoint={d.endpoint} metrics={metrics} live={live} /><Revisions d={d} /></div>
             <MetricTrends project={project} endpoint={d.endpoint.name} />
             <ApiAccessCard project={project} endpoint={d.endpoint} />
-            <TryIt project={project} endpoint={d.endpoint} allowed={access.may('invoker')} />
+            {d.endpoint.kind === 'llm'
+              ? <Playground project={project} endpoint={d.endpoint} allowed={access.may('invoker')} />
+              : <TryIt project={project} endpoint={d.endpoint} allowed={access.may('invoker')} />}
             {rollouts.some((r) => r !== live) && (
               <Section title="Rollout history"><History rows={rollouts.filter((r) => r !== live)} /></Section>)}
             <div className="section card"><h2>Recent activity</h2>
@@ -144,10 +147,12 @@ function EndpointCard({ endpoint, metrics, live }: { endpoint: S['EndpointOut'];
 function Revisions({ d }: { d: S['DeploymentOut'] }) {
   return (
     <div className="card" data-testid="revisions"><h2>Revisions</h2>
-      <Table head={['Revision', 'Model', 'Created', '']}>
+      <Table head={['Revision', 'Model', 'Served by', 'Created', '']}>
         {[...d.revisions].reverse().map((r) => (
-          <tr key={r.revision}>
-            <td className="mono">{`r${r.revision}`}</td><td>{`${r.model} v${r.model_version}`}</td><td><Time iso={r.created_at} /></td>
+          <tr key={r.revision} data-testid="revision-row">
+            <td className="mono">{`r${r.revision}`}</td><td>{`${r.model} v${r.model_version}`}</td>
+            <td className="small">{r.runtime === 'huggingface' ? `LLM runtime, ${r.gpus} GPU${r.gpus === 1 ? '' : 's'}` : 'model server'}</td>
+            <td><Time iso={r.created_at} /></td>
             <td>{r.revision === d.active_revision ? <Badge status="READY" /> : r.revision === d.desired_revision ? <Badge status="DEPLOYING" /> : null}</td>
           </tr>))}
       </Table>

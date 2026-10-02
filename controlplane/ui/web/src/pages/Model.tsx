@@ -7,7 +7,7 @@ import { MetricLegend, MetricStrip } from '../components/charts/MetricStrip';
 import { useOverlays } from '../components/overlays';
 import { useAccess } from '../lib/me';
 import { useCrumbs } from '../lib/chrome';
-import { formatThresholds, lowerIsBetter, num, parseThresholds, routes, shortId, type Thresholds } from '../lib/format';
+import { formatThresholds, lowerIsBetter, num, parsePairs, parseThresholds, routes, shortId, type Thresholds } from '../lib/format';
 import { QueryView, useAct, useLiveQuery } from '../lib/query';
 
 const EVALUATABLE = new Set(['REGISTERED', 'EVALUATING']);
@@ -50,6 +50,33 @@ export function ModelPage({ project, name }: { project: string; name: string }) 
     if (done) { toast('Thresholds saved'); await query.refetch(); }
   }
 
+  async function registerFromHub(model: S['ModelOut']) {
+    const thresholds = model.thresholds as Thresholds;
+    const done = await form<S['ModelVersionSummary']>({
+      title: 'Register a version from the hub', submitLabel: 'Register',
+      intro: 'A version is a model on the Hugging Face Hub, pinned to a revision so it always means the same weights, with the results of your own offline evaluation. It is judged on those results like any other version.',
+      fields: [
+        { name: 'source', label: 'Source', required: true, pattern: '^hf://[A-Za-z0-9][\\w.-]*/[\\w.-]+(@[\\w.-]+)?$', placeholder: 'hf://Qwen/Qwen2.5-7B-Instruct@a09a354',
+          hint: 'hf://<org>/<model>@<revision>. Gated models need the project’s Hugging Face token.' },
+        { name: 'metrics', label: 'Evaluation results', type: 'textarea', placeholder: Object.keys(thresholds).map((m) => `${m} = 0.8`).join('\n') || 'helpfulness = 0.82',
+          hint: 'One per line: metric = number. Use the metrics the thresholds name.' },
+      ],
+      preview: (v) => <HubPreview text={v.metrics ?? ''} thresholds={thresholds} />,
+      submit: (v) => {
+        let metrics: Record<string, number>;
+        try {
+          metrics = Object.fromEntries(Object.entries(parsePairs(v.metrics ?? '')).map(([k, x]) => {
+            const n = Number(x);
+            if (!Number.isFinite(n)) throw new Error(`${k}: "${x}" is not a number`);
+            return [k, n];
+          }));
+        } catch (e) { throw new ApiError(422, 'invalid_argument', e instanceof Error ? e.message : 'invalid'); }
+        return api.post<S['ModelVersionSummary']>(`${base}/versions`, { source: v.source, metrics });
+      },
+    });
+    if (done) { toast(`Registered v${done.version}; evaluate it to see if it qualifies`); await query.refetch(); }
+  }
+
   return (
     <QueryView query={query}>
       {({ model, versions }) => {
@@ -64,6 +91,9 @@ export function ModelPage({ project, name }: { project: string; name: string }) 
             <div className="page-head">
               <h1>{model.name}</h1>{model.champion && <Badge status="CHAMPION" />}
               <div className="actions">
+                {model.kind === 'llm' && (
+                  <button className="btn" data-testid="register-hub" disabled={!access.may('operator')} title={access.why('operator') ?? 'Register a version from the Hugging Face Hub'}
+                    onClick={() => registerFromHub(model)}>Register from hub</button>)}
                 <button className="btn" data-testid="discover" disabled={!access.may('operator')} title={access.why('operator')} onClick={() => act(async () => {
                   const r = await api.post<{ created: unknown[] }>(`${base}/discover`);
                   toast(r.created.length ? `Registered ${r.created.length} new version(s)` : 'No new versions found');
@@ -72,6 +102,8 @@ export function ModelPage({ project, name }: { project: string; name: string }) 
               </div>
             </div>
             <p className="sub">
+              {model.kind === 'llm' && model.llm && (
+                <span className="chip" data-testid="llm-serving">{`LLM · ${model.llm.gpus} GPU${model.llm.gpus === 1 ? '' : 's'} per replica · context ${model.llm.context_length ?? 'model default'}`}</span>)}
               Registry name <span className="mono">{model.registry_name}</span>{' · acceptance thresholds '}
               {Object.keys(model.thresholds).length
                 ? Object.entries(model.thresholds).map(([m, t]) => (
@@ -80,7 +112,7 @@ export function ModelPage({ project, name }: { project: string; name: string }) 
             </p>
             {model.alias_drift && <Alert>{`Registry alias drift: ${model.alias_drift}`}</Alert>}
             {versions.length ? (
-              <Table testid="versions" head={['Version', 'Status', ...metrics, 'Source run', '']}>
+              <Table testid="versions" head={['Version', 'Status', ...metrics, 'Source', '']}>
                 {versions.map((v) => {
                   const ev = latest(v);
                   return (
@@ -88,8 +120,10 @@ export function ModelPage({ project, name }: { project: string; name: string }) 
                       <td className="mono">{`v${v.version}`}</td><td><Badge status={v.status} /></td>
                       {metrics.map((m) => <td key={m} className="num mono"><Metric value={ev?.metrics[m]} base={v.id === champion?.id ? undefined : championEval?.metrics[m]}
                         lower={lowerIsBetter(m, model.thresholds as Thresholds)} /></td>)}
-                      <td>{v.source_pipeline_run_id
-                        ? <a href={routes.pipelineRun(project, v.source_pipeline_run_id)} onClick={(e) => e.stopPropagation()}>{shortId(v.source_pipeline_run_id)}</a> : '—'}</td>
+                      <td>{v.source_uri
+                        ? <span className="mono small clip" title={v.source_uri} data-testid="version-source">{v.source_uri.replace(/^hf:\/\//, '')}</span>
+                        : v.source_pipeline_run_id
+                          ? <a href={routes.pipelineRun(project, v.source_pipeline_run_id)} onClick={(e) => e.stopPropagation()}>{shortId(v.source_pipeline_run_id)}</a> : '—'}</td>
                       <td className="num">
                         {EVALUATABLE.has(v.status) && (
                           <button className="btn small" data-testid="evaluate" disabled={!access.may('operator')} title={access.why('operator')} onClick={(e) => { e.stopPropagation(); act(() => api.post(`/model-versions/${v.id}/evaluate`), `Evaluated v${v.version}`); }}>Evaluate</button>)}
@@ -221,5 +255,24 @@ function Lineage({ v, project }: { v: Version; project: string }) {
       {r?.commit_sha && <>{' at commit '}<span className="mono">{r.commit_sha}</span></>}
       {r && <>{', '}<Time iso={r.finished_at ?? r.created_at} /></>}
     </p>
+  );
+}
+
+/** Which thresholds the entered results would pass, before the version is registered. */
+function HubPreview({ text, thresholds }: { text: string; thresholds: Thresholds }) {
+  let given: Record<string, string>;
+  try { given = parsePairs(text); } catch (e) { return <p className="fail">{e instanceof Error ? e.message : 'Invalid results'}</p>; }
+  const rows = Object.entries(thresholds).map(([metric, t]) => {
+    const value = given[metric] == null ? undefined : Number(given[metric]);
+    const ok = value != null && Number.isFinite(value) && (t.min == null || value >= t.min) && (t.max == null || value <= t.max);
+    return { metric, value, ok, need: `${t.min != null ? `≥ ${t.min}` : ''}${t.min != null && t.max != null ? ', ' : ''}${t.max != null ? `≤ ${t.max}` : ''}` };
+  });
+  if (!rows.length) return <p>This model has no thresholds, so evaluation will have nothing to judge against.</p>;
+  const passes = rows.every((r) => r.ok);
+  return (
+    <>
+      <p className={passes ? 'pass' : 'fail'}>{passes ? 'Evaluated, this version would become a candidate.' : 'Evaluated, this version would be rejected.'}</p>
+      <ul>{rows.map((r) => <li key={r.metric} className={r.ok ? 'pass' : 'fail'}>{`${r.metric}: ${r.value ?? 'missing'} (needs ${r.need})`}</li>)}</ul>
+    </>
   );
 }

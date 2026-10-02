@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { api, ApiError, enc, type S } from '../api/client';
 import { ApiKeys } from '../components/ApiAccess';
+import { GpuQuota } from '../components/GpuQuota';
 import { Badge, Empty, Kv, Table, Time } from '../components/bits';
 import { useAccess, useMe } from '../lib/me';
 import { useOverlays } from '../components/overlays';
@@ -46,6 +47,7 @@ export function SettingsPage({ project }: { project: string }) {
             ]} />
           </div>
           <Members project={project} />
+          <GpuQuota project={project} />
           <ApiKeys project={project} />
           <div className="section card danger-zone" data-testid="danger-zone">
             <h2>Delete project</h2>

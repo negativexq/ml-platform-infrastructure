@@ -131,6 +131,7 @@ def test_a_viewer_sees_but_cannot_act(page: Page, server: Server, idp: FakeIdP) 
     expect(page.get_by_test_id("member-row")).to_have_count(2)
     expect(page.get_by_test_id("add-member")).to_be_disabled()
     expect(page.get_by_test_id("delete-project")).to_be_disabled()
+    expect(page.get_by_test_id("change-gpu-quota")).to_be_disabled()  # platform admins only
     shot(page, "21-viewer-settings")
 
 

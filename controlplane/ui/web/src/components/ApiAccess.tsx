@@ -36,7 +36,7 @@ function useIssueKey(project: string) {
       fields: [
         { name: 'name', label: 'Who is it for', required: true, pattern: SLUG, placeholder: 'partner-acme', hint: 'Lowercase, digits and hyphens. Shown in usage and in the audit trail.' },
         ...(endpoint ? [] : [{ name: 'endpoints', label: 'Endpoints it may call', required: true, placeholder: 'credit-risk-prod, ranker-staging', hint: 'Comma-separated endpoint names.' }]),
-        { name: 'limit', label: 'Its own limit, requests per minute', pattern: '[0-9]{1,7}', placeholder: 'the endpoint’s limit', hint: 'Optional. Leave empty to share the endpoint’s limit.' },
+        { name: 'limit', label: 'Its own limit per minute (requests, or tokens for an LLM)', pattern: '[0-9]{1,7}', placeholder: 'the endpoint’s limit', hint: 'Optional. Leave empty to share the endpoint’s limit.' },
         { name: 'expires', label: 'Expires', value: 'never', options: EXPIRY.map(([value, label]) => ({ value, label })) },
       ],
       preview: (v) => {
@@ -45,7 +45,7 @@ function useIssueKey(project: string) {
         return (
           <>
             <p>{`${v.name || 'This key'} will be able to call ${targets.length ? targets.join(', ') : 'no endpoint yet'}`}
-              {v.limit ? `, at most ${v.limit} requests per minute` : ', within each endpoint’s limit'}
+              {v.limit ? `, at most ${v.limit} units (requests, or tokens for an LLM) per minute` : ', within each endpoint’s limit'}
               {days ? `, until ${new Date(Date.now() + days * 86_400_000).toLocaleDateString()}` : ', with no expiry'}.</p>
             <p>The secret is shown once, right after this. Revoking it takes effect within seconds.</p>
           </>
@@ -144,13 +144,15 @@ export function ApiAccessCard({ project, endpoint }: { project: string; endpoint
           const isPublic = a.exposure === 'public';
           const active = a.keys.filter((k) => k.state === 'active');
           const L = a.limits;
+          const llm = a.protocol === 'openai';
+          const unit = llm ? 'tokens' : 'requests';
           async function toggle() {
             const opening = !isPublic;
             const ok = await confirm({
               title: opening ? `Make ${a.endpoint} public?` : `Make ${a.endpoint} internal?`,
               confirmLabel: opening ? 'Make public' : 'Make internal', danger: !opening,
               body: opening
-                ? `Anyone holding a key for ${a.endpoint} can call it${a.public_url ? ` at ${a.public_url}` : ' through the gateway'}, up to ${L.units_per_minute} requests per minute in total. ${active.length} active key${active.length === 1 ? '' : 's'} can already call it.`
+                ? `Anyone holding a key for ${a.endpoint} can call it${a.public_url ? ` at ${a.public_url}` : ' through the gateway'}, up to ${L.units_per_minute} ${unit} per minute in total. ${active.length} active key${active.length === 1 ? '' : 's'} can already call it.`
                 : `Calls through the gateway are refused within seconds. ${active.length} active key${active.length === 1 ? ' loses' : 's lose'} access; the keys are kept and work again if you reopen it. Calls inside the platform are not affected.`,
             });
             if (ok) await act(() => api.patch(path, { exposure: opening ? 'public' : 'internal' }), opening ? `${a.endpoint} is public` : `${a.endpoint} is internal`);
@@ -160,7 +162,7 @@ export function ApiAccessCard({ project, endpoint }: { project: string; endpoint
               title: `Limits for ${a.endpoint}`, submitLabel: 'Save limits',
               intro: 'The gateway enforces these for every caller together. A key can have a smaller limit of its own.',
               fields: [
-                { name: 'units_per_minute', label: 'Requests per minute, all callers', required: true, pattern: '[0-9]{1,7}', value: String(L.units_per_minute) },
+                { name: 'units_per_minute', label: `${llm ? 'Tokens' : 'Requests'} per minute, all callers`, required: true, pattern: '[0-9]{1,7}', value: String(L.units_per_minute) },
                 { name: 'max_body_kb', label: 'Largest request body, KB', required: true, pattern: '[0-9]{1,5}', value: String(L.max_body_kb) },
                 { name: 'timeout_seconds', label: 'Timeout, seconds', required: true, pattern: '[0-9]{1,3}', value: String(L.timeout_seconds) },
               ],
@@ -172,8 +174,8 @@ export function ApiAccessCard({ project, endpoint }: { project: string; endpoint
                     {peak != null && (
                       <p className={peak > limit ? 'fail' : 'pass'}>
                         {peak > limit
-                          ? `The busiest minute in the last hour had ${num(peak, 0)} requests: at ${limit} some of them would have been refused (429).`
-                          : `The busiest minute in the last hour had ${num(peak, 0)} requests, within the new limit.`}
+                          ? `The busiest minute in the last hour used ${num(peak, 0)} ${unit}: at ${limit} some calls would have been refused (429).`
+                          : `The busiest minute in the last hour used ${num(peak, 0)} ${unit}, within the new limit.`}
                       </p>)}
                     <p>{`Calls over ${limit} per minute get 429 with Retry-After; bodies over ${v.max_body_kb} KB get 413; no answer within ${v.timeout_seconds} s is a 504.`}</p>
                   </>
@@ -184,13 +186,35 @@ export function ApiAccessCard({ project, endpoint }: { project: string; endpoint
               } }),
             }).then(async (done) => { if (done !== null) await act(async () => undefined, 'Limits saved'); });
           }
-          const curl = a.public_url && [
+          const base = a.public_url?.replace(/\/chat\/completions$/, '');
+          const curl = a.public_url && (llm ? [
+            `curl -N ${shellQuote(a.public_url)} \\`,
+            `  -H 'Authorization: Bearer $MLP_API_KEY' \\`,
+            `  -H 'Content-Type: application/json' \\`,
+            `  -d '{"messages": [{"role": "user", "content": "Hello"}], "max_tokens": 256, "stream": true}'`,
+          ] : [
             `curl ${shellQuote(a.public_url)} \\`,
             `  -H 'Authorization: Bearer $MLP_API_KEY' \\`,
             `  -H 'Content-Type: application/json' \\`,
             `  -d '{"instances": [[1.0, 2.0, 3.0]]}'`,
-          ].join('\n');
-          const python = a.public_url && [
+          ]).join('\n');
+          const python = a.public_url && (llm ? [
+            'import os',
+            'from openai import OpenAI',
+            '',
+            'client = OpenAI(',
+            `    base_url="${base}",`,
+            '    api_key=os.environ["MLP_API_KEY"],',
+            ')',
+            'stream = client.chat.completions.create(',
+            `    model="${a.endpoint}",  # any name: the gateway addresses the served model`,
+            '    messages=[{"role": "user", "content": "Hello"}],',
+            '    stream=True,',
+            ')',
+            'for chunk in stream:',
+            '    if chunk.choices:',
+            '        print(chunk.choices[0].delta.content or "", end="")',
+          ] : [
             'import os, requests',
             '',
             'reply = requests.post(',
@@ -201,7 +225,7 @@ export function ApiAccessCard({ project, endpoint }: { project: string; endpoint
             ')',
             'reply.raise_for_status()',
             'print(reply.json()["predictions"])',
-          ].join('\n');
+          ]).join('\n');
           return (
             <>
               <div className="section-head">
@@ -222,13 +246,15 @@ export function ApiAccessCard({ project, endpoint }: { project: string; endpoint
                 ) : <p className="muted">No gateway address is configured (CP_GATEWAY_URL), so the public URL cannot be shown.</p>
               ) : <p className="muted">Only reachable inside the platform. Make it public to let services outside call it with a key.</p>}
               <Kv entries={[
-                ['Limit', `${L.units_per_minute} requests per minute, all callers together`],
+                ['Limit', `${L.units_per_minute} ${unit} per minute, all callers together`],
                 ['Request body', `up to ${L.max_body_kb} KB`],
                 ['Timeout', `${L.timeout_seconds} s`],
-                ['Protocol', `${a.protocol}: POST …/${a.operation} with {"instances": [...]}`],
+                ['Protocol', llm
+                  ? `OpenAI-compatible chat: POST …/${a.operation} with {"messages": [...]}, streamed with "stream": true`
+                  : `${a.protocol}: POST …/${a.operation} with {"instances": [...]}`],
               ]} />
-              {curl && <Snippet label="Call it with curl" code={curl} />}
-              {python && <Snippet label="Call it from Python" code={python} />}
+              {curl && <Snippet label={llm ? 'Call it with curl (streamed)' : 'Call it with curl'} code={curl} />}
+              {python && <Snippet label={llm ? 'Call it with the OpenAI SDK' : 'Call it from Python'} code={python} />}
               <div className="section-head sub-section">
                 <h3>{`Keys that can call it (${active.length} active)`}</h3>
                 <button className="btn small" type="button" data-testid="new-key" disabled={!admin} title={access.why('admin') ?? 'Issue a key for this endpoint'}
@@ -247,7 +273,7 @@ export function ApiAccessCard({ project, endpoint }: { project: string; endpoint
   );
 }
 
-/** All callers' requests per minute, summed at each moment. */
+/** All callers' units (requests or tokens) per minute, summed at each moment. */
 function totalsOf(u: S['EndpointUsageOut'] | undefined) {
   const totals = new Map<number, number>();
   for (const c of u?.callers ?? []) for (const p of c.points) totals.set(Date.parse(p.at), (totals.get(Date.parse(p.at)) ?? 0) + p.units);
@@ -271,6 +297,8 @@ function Usage({ project, endpoint, limit }: { project: string; endpoint: string
   });
   const u = query.data;
   const total = totalsOf(u);
+  const tokens = u?.unit === 'tokens';
+  const Unit = tokens ? 'Tokens' : 'Requests';
   const peak = total.length ? Math.max(...total.map((p) => p.v)) : 0;
   // Draw the limit only when it is near the traffic; far above, it would flatten the line.
   const near = limit <= peak * 3;
@@ -290,7 +318,7 @@ function Usage({ project, endpoint, limit }: { project: string; endpoint: string
         : (
           <div className={query.isPlaceholderData ? 'refetching' : ''}>
             <div className="trends">
-              <TrendChart testid="usage-total" title={near ? 'Requests per minute, all callers' : `Requests per minute, all callers: peak ${num(peak, 0)}, ${num((100 * peak) / limit, 0)}% of the ${limit} limit`}
+              <TrendChart testid="usage-total" title={near ? `${Unit} per minute, all callers` : `${Unit} per minute, all callers: peak ${num(peak, 0)}, ${num((100 * peak) / limit, 0)}% of the ${limit} limit`}
                 start={start} end={end} markers={[]}
                 format={(v) => num(v, v < 10 ? 1 : 0)} reference={near ? { value: limit, label: `limit ${limit}` } : undefined}
                 series={[{ key: 'all', label: 'all callers', short: '', color: 'var(--series-1)', points: total }]} />
@@ -301,17 +329,21 @@ function Usage({ project, endpoint, limit }: { project: string; endpoint: string
             </div>
             <div className="table-scroll">
               <table className="t" data-testid="usage-callers">
-                <thead><tr><th>Caller</th><th className="num">Requests</th><th className="num">Share</th><th className="num">Refused</th><th className="num">Failed</th><th>Requests per minute</th></tr></thead>
+                <thead><tr><th>Caller</th><th className="num">{Unit}</th>{tokens && <><th className="num">Prompt</th><th className="num">Completion</th></>}<th className="num">Share</th><th className="num">Refused calls</th><th className="num">Failed calls</th><th>{`${Unit} per minute`}</th></tr></thead>
                 <tbody>
                   {u.callers.map((c) => (
                     <tr key={c.caller} data-caller={c.caller}>
                       <td>{c.caller}</td>
                       <td className="num">{num(c.units, 0)}</td>
+                      {tokens && <>
+                        <td className="num" data-testid="prompt-tokens">{c.prompt_tokens == null ? '—' : num(c.prompt_tokens, 0)}</td>
+                        <td className="num" data-testid="completion-tokens">{c.completion_tokens == null ? '—' : num(c.completion_tokens, 0)}</td>
+                      </>}
                       <td className="num">{all ? `${num((100 * c.units) / all, 0)}%` : '—'}</td>
                       <td className="num" title="Refused by the gateway: limits, keys, body size (4xx)">{num(c.rejected, 0)}</td>
                       <td className="num" title="The model failed or timed out (5xx)">{num(c.errors, 0)}</td>
                       <td><Sparkline points={c.points.map((p) => ({ t: Date.parse(p.at), v: p.units }))} threshold={null}
-                        label={`${c.caller}: ${num(c.units, 0)} requests in the range`} /></td>
+                        label={`${c.caller}: ${num(c.units, 0)} ${tokens ? 'tokens' : 'requests'} in the range`} /></td>
                     </tr>))}
                 </tbody>
               </table>

@@ -11,28 +11,12 @@ code; the original milestone plan is in [history/](history/).
 | **Training** | Jobs and pipeline DAGs on Argo Workflows. Retry, cancel and logs; step timelines and failure reasons. Lineage from a run to the model versions it produced |
 | **Models** | Versions from the MLflow registry, or for LLMs from the Hugging Face Hub. Thresholds and evaluation, promotion to champion, registry aliases kept in sync |
 | **Serving** | Immutable revisions. Canary rollouts with gates (error rate, p95, minimum traffic) that roll back automatically. Manual rollback. Metrics and trends per revision |
-| **LLMs (API)** | LLM models with GPU and context settings. KServe's Hugging Face runtime (vLLM) on GPUs. Per-project GPU quota, set by platform admins and checked on deploy and canary |
+| **LLMs** | LLM models with GPU and context settings. Versions from the Hugging Face Hub, judged on offline results. KServe's Hugging Face runtime (vLLM) on GPUs. Per-project GPU quota, set by platform admins and checked on deploy and canary. In the UI: model and hub forms with verdict previews, a chat playground, OpenAI snippets, token usage per caller, and GPU quota and use |
 | **Gateway** | A separate service that makes endpoints public. Per-caller API keys, shown once and stored hashed. Limits per endpoint and per key: requests, or tokens for LLMs. Streaming, OpenAI-compatible chat completions, usage by caller. Ingress, TLS and NetworkPolicy manifests |
 | **Monitoring** | Monitor page (reconcilers, API, gateway, external systems). Grafana dashboard, 10 promtool-tested alerts, traces from request to reconciler |
 | **Web UI** | App shell with a sidebar and project switcher. Pages for runs, pipelines, models, deployments, activity, settings, members and API access. Charts built to a data-viz spec. Previews before risky changes. Light, dark and mobile |
 
 ## Missing in the code
-
-### LLMs in the UI
-- **"Try it" is wrong for LLMs.** On an LLM deployment it calls `predict` and fails. It
-  should be a chat playground; the backend route (`POST /projects/{p}/endpoints/{name}/chat`)
-  already exists.
-- **API access shows the wrong snippets for LLMs.** On an LLM endpoint it shows the
-  classic-model example (`/predict`, `instances`). It should show `chat/completions` with
-  curl, streaming and the OpenAI SDK.
-- **No form to create an LLM model** (kind, GPUs, context length).
-- **No form to register a version from the Hugging Face Hub** (source and offline metrics).
-- **Tokens are not shown per direction.** The usage table should show prompt and completion
-  tokens; the API already returns them.
-- **GPU quota and use are not shown** in project settings or the overview. Only platform
-  admins should be able to edit the quota.
-- **Revisions do not show** their runtime or GPU count.
-- **No browser tests** for any of the above.
 
 ### LLM docs and checks
 - **`docs/gateway.md`:** add chat completions, streaming, token metering and token limits.
@@ -107,8 +91,7 @@ Already verified for real here:
 
 ## Next, in order
 
-1. **Finish LLMs:** the UI, docs and tests above. This closes phase 2 and removes the
-   errors that show in the demo.
+1. **Finish LLMs:** the docs and the end-to-end check above (the UI is done).
 2. **Make it installable:** the control plane image, the Helm chart, and Argo in
    `local-up`. Then the platform can run on a real cluster for the first time.
 3. **Verify on a real cluster:** KServe, Argo, a GPU node, ingress and TLS, following
