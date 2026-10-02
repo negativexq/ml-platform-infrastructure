@@ -1,0 +1,94 @@
+# Generated from observability/controlplane-alert-rules.yaml by
+# scripts/render-prometheus-rule.sh — do not edit by hand.
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: ml-platform-controlplane
+  namespace: observability
+  labels:
+    release: monitoring
+spec:
+  groups:
+  - name: ml-platform-controlplane
+    rules:
+    - alert: ReconcilerStalled
+      expr: "sum by (reconciler) (\n  increase(mlp_reconcile_passes_total{job=\"mlp-controlplane-reconciler\"\
+        }[10m])\n) == 0\n"
+      for: 2m
+      labels:
+        severity: critical
+      annotations:
+        summary: The {{ $labels.reconciler }} reconciler has stopped completing passes
+        description: No full reconcile pass in 10 minutes. Desired state is no longer
+          being driven toward reality.
+    - alert: ReconcilerGone
+      expr: absent(mlp_reconcile_passes_total{job="mlp-controlplane-reconciler"})
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: No reconciler is reporting
+        description: 'mlp_reconcile_passes_total has no series: the reconciler is
+          down or cannot reach the collector.'
+    - alert: ReconcileErrors
+      expr: "sum by (reconciler) (\n  rate(mlp_reconcile_runs_total{job=\"mlp-controlplane-reconciler\"\
+        ,outcome=\"error\"}[10m])\n) > 0\n"
+      for: 10m
+      labels:
+        severity: warning
+      annotations:
+        summary: The {{ $labels.reconciler }} reconciler keeps failing
+        description: Reconcile errors for 10 minutes ({{ $value | humanize }}/s).
+          Open the failing trace in Tempo by service mlp-controlplane-reconciler,
+          status error.
+    - alert: ProviderCallsFailing
+      expr: 'sum by (provider) (rate(mlp_provider_calls_total{outcome="error"}[5m]))
+        > 0
+
+        '
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: Calls to {{ $labels.provider }} are failing
+        description: '{{ $value | humanize }} errors/s calling the {{ $labels.provider
+          }} backend (Argo, KServe, MLflow, Prometheus or the Kubernetes API).'
+    - alert: RolloutRolledBack
+      expr: sum(increase(mlp_state_transitions_total{action="rollout.rolled_back"}[15m]))
+        > 0
+      labels:
+        severity: warning
+      annotations:
+        summary: A rollout was rolled back
+        description: A canary failed its gates and traffic returned to the previous
+          revision. The rollout's audit events and trace say which gate.
+    - alert: DeploymentFailed
+      expr: sum(increase(mlp_state_transitions_total{action="deployment.failed"}[15m]))
+        > 0
+      labels:
+        severity: warning
+      annotations:
+        summary: A deployment failed
+        description: A deployment moved to FAILED in the last 15 minutes.
+    - alert: ControlPlaneHighErrorRate
+      expr: 'sum(rate(http_server_request_duration_seconds_count{job="mlp-controlplane-api",http_response_status_code=~"5.."}[5m]))
+        / clamp_min(sum(rate(http_server_request_duration_seconds_count{job="mlp-controlplane-api"}[5m])),
+        0.0001) > 0.05
+
+        '
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: Control-plane API 5xx rate above 5%
+        description: '{{ $value | humanizePercentage }} of API requests failed over
+          the last 5 minutes.'
+    - alert: ControlPlaneHighLatency
+      expr: "histogram_quantile(0.95,\n  sum(rate(http_server_request_duration_seconds_bucket{job=\"\
+        mlp-controlplane-api\"}[5m])) by (le)\n) > 1\n"
+      for: 5m
+      labels:
+        severity: warning
+      annotations:
+        summary: Control-plane API p95 latency above 1s
+        description: p95 latency is {{ $value | humanizeDuration }}.

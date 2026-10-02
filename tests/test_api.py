@@ -57,10 +57,23 @@ def test_metrics_endpoint_exposes_declared_series(client_ready):
         "model_info",
     ):
         assert name in body, f"{name} missing from /metrics"
-    assert 'model_ready 1.0' in body
+    assert "model_ready 1.0" in body
 
 
 def test_metrics_report_not_ready_when_model_missing(client_no_model):
     body = client_no_model.get("/metrics").text
     assert "model_ready 0.0" in body
     assert "model_load_failures_total" in body
+
+
+def test_log_lines_carry_the_active_trace():
+    from opentelemetry import trace
+    from opentelemetry.sdk.trace import TracerProvider
+
+    from app.main import _add_trace_context
+
+    with TracerProvider().get_tracer("t").start_as_current_span("work") as span:
+        event = _add_trace_context(None, "info", {"event": "hi"})
+        assert event["trace_id"] == f"{span.get_span_context().trace_id:032x}"
+    assert "trace_id" not in _add_trace_context(None, "info", {"event": "idle"})
+    assert trace.get_current_span().get_span_context().is_valid is False

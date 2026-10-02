@@ -19,6 +19,7 @@ from kubernetes import client
 from kubernetes.client.exceptions import ApiException
 
 from controlplane.adapters.kubernetes import load_api_client
+from controlplane.application.context import current_traceparent
 from controlplane.application.providers import ServingSpec, ServingState, ServingStatus
 
 GROUP, VERSION, PLURAL = "serving.kserve.io", "v1beta1", "inferenceservices"
@@ -55,6 +56,15 @@ def build_inference_service(spec: ServingSpec) -> dict[str, Any]:
             }
         },
     }
+
+
+def _headers() -> dict[str, str]:
+    """Carry the caller's trace into the model server (the W3C `traceparent` header)."""
+    headers = {"content-type": "application/json"}
+    traceparent = current_traceparent()
+    if traceparent:
+        headers["traceparent"] = traceparent
+    return headers
 
 
 def _int(raw: str | None) -> int | None:
@@ -192,7 +202,7 @@ class KServeServingProvider:
         request = urllib.request.Request(
             f"{status.url.rstrip('/')}/v2/models/{name}/infer",
             data=json.dumps(dict(payload)).encode(),
-            headers={"content-type": "application/json"},
+            headers=_headers(),
             method="POST",
         )
         try:

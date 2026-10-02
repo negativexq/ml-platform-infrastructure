@@ -31,10 +31,26 @@ for dashboard in observability/dashboards/*.json; do
   echo "loaded $name"
 done
 
+step "Installing the OpenTelemetry Collector and Tempo"
+# The configs are plain files in observability/otel (validated in CI with the real binaries);
+# they become ConfigMaps here so there is one source of truth.
+for pair in "otel-collector-config:collector.yaml" "tempo-config:tempo.yaml"; do
+  name="${pair%%:*}"; file="${pair##*:}"
+  kubectl -n "$NAMESPACE" create configmap "$name" \
+    --from-file="$file=observability/otel/$file" \
+    --dry-run=client -o yaml | kubectl apply -f - >/dev/null
+done
+kubectl apply -f k8s/observability/ >/dev/null
+kubectl -n "$NAMESPACE" rollout status deployment/tempo deployment/otel-collector --timeout=3m
+./scripts/render-prometheus-rule.sh >/dev/null
+kubectl apply -f observability/controlplane-prometheus-rule.generated.yaml >/dev/null
+echo "control-plane telemetry endpoint: http://otel-collector.$NAMESPACE.svc.cluster.local:4318"
+
 step "Ready"
 cat <<EOF
 Grafana:    kubectl -n $NAMESPACE port-forward svc/${RELEASE}-grafana 3000:80
             http://localhost:3000  (admin / admin)
 Prometheus: kubectl -n $NAMESPACE port-forward svc/${RELEASE}-prometheus 9090:9090
             http://localhost:9090
+Traces:     Grafana -> Explore -> Tempo (datasource provisioned)
 EOF

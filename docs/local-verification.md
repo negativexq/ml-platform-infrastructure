@@ -501,3 +501,27 @@ manifests/dicts. Check each against a real Argo:
 - Sandbox blocker for future milestones (M15+ in the cloud): nested `runc`.
   Options: run the gates on your machine, or find a sandbox with a working
   container runtime (e.g. rootless `kind` with a userns-capable kernel).
+
+## 10. Observability gate — OpenTelemetry (traces, metrics, alerts)
+
+Verified in the sandbox with the real binaries (see `docs/observability.md`). What is left is
+the in-cluster part.
+
+```bash
+make observability-up               # kube-prometheus-stack + Collector + Tempo + datasource + rules
+kubectl -n observability get pods   # tempo, otel-collector Running
+make alert-rules-test               # promtool: inference + control-plane rules
+```
+
+| # | Gate | Status |
+| --- | --- | --- |
+| 1 | Collector and Tempo configs valid | **verified**: `otelcol-contrib validate`, `tempo -config.verify=true` |
+| 2 | Request → reconciler is one trace | **verified** in Tempo (demo, in-memory fakes) and in CI with an in-memory exporter |
+| 3 | Metrics reach Prometheus, dashboard queries return data | **verified** (names and labels as documented) |
+| 4 | Alerts fire as specified | **verified**: promtool tests |
+| 5 | Manifests are valid Kubernetes | **verified**: kubeconform. **Not** applied to a cluster |
+| 6 | Pods come up (`tempo` `/ready`, collector `13133`) with `readOnlyRootFilesystem` | **you**: Tempo writes under `/var/tempo` (emptyDir); confirm no other path needs to be writable |
+| 7 | Grafana shows the Tempo datasource and the *Control plane* dashboard | **you**: the datasource sidecar label is `grafana_datasource`, set in `kube-prometheus-stack-values.yaml` (rerun `make observability-up`) |
+| 8 | `ServiceMonitor` is picked up (`release: monitoring`), `job` is the service name | **you**: Prometheus → Targets; `honorLabels: true` is what makes `job="mlp-controlplane-reconciler"` |
+| 9 | With the real stack: `ReconcilerStalled` fires after `kubectl scale deploy/reconciler --replicas=0`, clears after scale up | **you** (needs the control plane deployed; its manifests are still in §9) |
+| 10 | Applications reach the Collector (`OTEL_EXPORTER_OTLP_ENDPOINT`) through NetworkPolicy | **you**: `ml-platform` policies may need an egress rule to `observability:4318` |

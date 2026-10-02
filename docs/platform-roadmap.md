@@ -136,6 +136,15 @@ and logs, models / evaluations / promote, deployments / canary / metrics / rollb
 `make cp-demo` runs it on in-memory fakes. What remains is looking at it with real data;
 see [local-verification.md](local-verification.md).
 
+### Observability (cross-cutting, after M20)
+
+OpenTelemetry end to end: FastAPI's native tracing/metrics, a lifecycle span per audit event,
+the request's trace carried across the API → reconciler boundary, `trace_id` on logs and audit
+rows, Collector + Tempo manifests, a control-plane dashboard and promtool-tested alerts.
+Verified here with the real Collector, Tempo and Prometheus; the in-cluster part is
+[local-verification.md](local-verification.md) §10. Design and metric names:
+[observability.md](observability.md).
+
 ### Not before M21
 
 Feast · Redis/Valkey online store · Kafka · lakeFS · Kueue · Keycloak · OPA ·

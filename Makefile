@@ -144,7 +144,7 @@ local-down:
 
 ## M10 scaling & alerting
 alert-rules-test:
-	cd observability && promtool test rules alert-rules.test.yaml
+	cd observability && promtool test rules alert-rules.test.yaml controlplane-alert-rules.test.yaml
 
 alert-rules-apply: alert-rules-test
 	./scripts/render-prometheus-rule.sh

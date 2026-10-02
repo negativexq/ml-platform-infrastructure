@@ -1,0 +1,78 @@
+# The collector's config lives in observability/otel/collector.yaml and is loaded as the
+# ConfigMap `otel-collector-config` by scripts/observability-up.sh (one source of truth).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: otel-collector
+  namespace: observability
+  labels: {app.kubernetes.io/name: otel-collector, app.kubernetes.io/part-of: ml-platform}
+spec:
+  replicas: 1
+  selector:
+    matchLabels: {app.kubernetes.io/name: otel-collector}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: otel-collector, app.kubernetes.io/part-of: ml-platform}
+    spec:
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: collector
+          image: otel/opentelemetry-collector-contrib:0.116.1
+          args: ["--config=/conf/collector.yaml"]
+          ports:
+            - {name: otlp-http, containerPort: 4318}
+            - {name: otlp-grpc, containerPort: 4317}
+            - {name: prom-app, containerPort: 8889}
+            - {name: prom-self, containerPort: 8888}
+            - {name: health, containerPort: 13133}
+          readinessProbe:
+            httpGet: {path: /, port: health}
+          livenessProbe:
+            httpGet: {path: /, port: health}
+            initialDelaySeconds: 10
+          resources:
+            requests: {cpu: 50m, memory: 128Mi}
+            limits: {memory: 256Mi}
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: config, mountPath: /conf, readOnly: true}
+      volumes:
+        - name: config
+          configMap: {name: otel-collector-config}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: otel-collector
+  namespace: observability
+  labels: {app.kubernetes.io/name: otel-collector}
+spec:
+  selector: {app.kubernetes.io/name: otel-collector}
+  ports:
+    - {name: otlp-http, port: 4318, targetPort: otlp-http}
+    - {name: otlp-grpc, port: 4317, targetPort: otlp-grpc}
+    - {name: prom-app, port: 8889, targetPort: prom-app}
+    - {name: prom-self, port: 8888, targetPort: prom-self}
+---
+# The platform's own metrics (everything under mlp_*, plus the HTTP server metrics FastAPI
+# emits natively) are served by the collector's Prometheus exporter; the collector's own
+# health metrics are on another port.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: otel-collector
+  namespace: observability
+  labels: {release: monitoring}
+spec:
+  selector:
+    matchLabels: {app.kubernetes.io/name: otel-collector}
+  namespaceSelector: {matchNames: [observability]}
+  endpoints:
+    - {port: prom-app, interval: 15s, honorLabels: true}
+    - {port: prom-self, interval: 30s}

@@ -114,6 +114,39 @@ jobs:
       # and the migration gates against a clean PostgreSQL.
       - run: pytest controlplane/tests -p no:warnings
 
+  observability:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install pyyaml
+      - name: promtool
+        run: |
+          curl -sSL https://github.com/prometheus/prometheus/releases/download/v3.1.0/prometheus-3.1.0.linux-amd64.tar.gz | tar xz
+          echo "$PWD/prometheus-3.1.0.linux-amd64" >> "$GITHUB_PATH"
+      - name: alert rules
+        run: |
+          promtool check rules observability/alert-rules.yaml observability/controlplane-alert-rules.yaml
+          cd observability && promtool test rules alert-rules.test.yaml controlplane-alert-rules.test.yaml
+      - name: generated PrometheusRules are up to date
+        run: |
+          PYTHON=python3 ./scripts/render-prometheus-rule.sh
+          git diff --exit-code observability/
+      - name: collector and tempo configs
+        run: |
+          curl -sSL https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.116.1/otelcol-contrib_0.116.1_linux_amd64.tar.gz | tar xz otelcol-contrib
+          ./otelcol-contrib validate --config=observability/otel/collector.yaml
+          curl -sSL https://github.com/grafana/tempo/releases/download/v2.7.1/tempo_2.7.1_linux_amd64.tar.gz | tar xz tempo
+          ./tempo -config.file=observability/otel/tempo.yaml -config.verify=true
+      - name: manifests
+        run: |
+          curl -sSL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar xz kubeconform
+          ./kubeconform -strict -ignore-missing-schemas -summary k8s/observability/
+      - name: dashboards are valid JSON
+        run: for f in observability/dashboards/*.json; do python3 -m json.tool "$f" >/dev/null; done
+
   security:
     runs-on: ubuntu-latest
     steps:

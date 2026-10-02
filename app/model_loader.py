@@ -53,9 +53,7 @@ def _load_mlflow(model_uri: str) -> LoadedModel:
     os.environ.setdefault(
         "MLFLOW_HTTP_REQUEST_MAX_RETRIES", str(settings.mlflow_http_request_max_retries)
     )
-    os.environ.setdefault(
-        "MLFLOW_HTTP_REQUEST_TIMEOUT", str(settings.mlflow_http_request_timeout)
-    )
+    os.environ.setdefault("MLFLOW_HTTP_REQUEST_TIMEOUT", str(settings.mlflow_http_request_timeout))
     if settings.mlflow_tracking_uri:
         mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
 

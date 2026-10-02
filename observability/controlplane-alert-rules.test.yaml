@@ -1,0 +1,120 @@
+rule_files:
+  - controlplane-alert-rules.yaml
+
+evaluation_interval: 1m
+
+tests:
+  # -- Reconciler heartbeat: passes for 5 minutes, then silence ----------------
+  - interval: 1m
+    input_series:
+      - series: 'mlp_reconcile_passes_total{job="mlp-controlplane-reconciler",reconciler="runs"}'
+        values: "0+1x5 5x20"
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: ReconcilerStalled
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: ReconcilerStalled
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              reconciler: runs
+            exp_annotations:
+              summary: "The runs reconciler has stopped completing passes"
+              description: "No full reconcile pass in 10 minutes. Desired state is no longer being driven toward reality."
+
+  # -- No reconciler at all (series expired in the collector) -------------------
+  - interval: 1m
+    input_series:
+      - series: 'up{job="something-else"}'
+        values: "1x10"
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: ReconcilerGone
+        exp_alerts: []
+      - eval_time: 8m
+        alertname: ReconcilerGone
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              job: mlp-controlplane-reconciler
+            exp_annotations:
+              summary: "No reconciler is reporting"
+              description: "mlp_reconcile_passes_total has no series: the reconciler is down or cannot reach the collector."
+
+  # -- Reconcile errors that persist ------------------------------------------
+  - interval: 1m
+    input_series:
+      - series: 'mlp_reconcile_runs_total{job="mlp-controlplane-reconciler",reconciler="deployments",outcome="error"}'
+        values: "0+1x30"
+      - series: 'mlp_reconcile_runs_total{job="mlp-controlplane-reconciler",reconciler="projects",outcome="unchanged"}'
+        values: "0+10x30"
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: ReconcileErrors
+        exp_alerts: []
+      - eval_time: 20m
+        alertname: ReconcileErrors
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              reconciler: deployments
+            exp_annotations:
+              summary: "The deployments reconciler keeps failing"
+              description: "Reconcile errors for 10 minutes (16.67m/s). Open the failing trace in Tempo by service mlp-controlplane-reconciler, status error."
+
+  # -- Provider failures, only the failing provider fires ------------------------
+  - interval: 1m
+    input_series:
+      - series: 'mlp_provider_calls_total{provider="serving",operation="deploy",outcome="error"}'
+        values: "0+2x15"
+      - series: 'mlp_provider_calls_total{provider="workflow",operation="submit",outcome="ok"}'
+        values: "0+5x15"
+    alert_rule_test:
+      - eval_time: 12m
+        alertname: ProviderCallsFailing
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              provider: serving
+            exp_annotations:
+              summary: "Calls to serving are failing"
+              description: "33.33m errors/s calling the serving backend (Argo, KServe, MLflow, Prometheus or the Kubernetes API)."
+
+  # -- A rollback happened ----------------------------------------------------
+  - interval: 1m
+    input_series:
+      - series: 'mlp_state_transitions_total{entity_type="rollout",action="rollout.rolled_back"}'
+        values: "0 0 0 1 1 1 1 1"
+    alert_rule_test:
+      - eval_time: 2m
+        alertname: RolloutRolledBack
+        exp_alerts: []
+      - eval_time: 5m
+        alertname: RolloutRolledBack
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+            exp_annotations:
+              summary: "A rollout was rolled back"
+              description: "A canary failed its gates and traffic returned to the previous revision. The rollout's audit events and trace say which gate."
+
+  # -- API 5xx ------------------------------------------------------------------
+  - interval: 1m
+    input_series:
+      - series: 'http_server_request_duration_seconds_count{job="mlp-controlplane-api",http_response_status_code="200"}'
+        values: "0+100x15"
+      - series: 'http_server_request_duration_seconds_count{job="mlp-controlplane-api",http_response_status_code="500"}'
+        values: "0+10x15"
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: ControlPlaneHighErrorRate
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: ControlPlaneHighErrorRate
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+            exp_annotations:
+              summary: "Control-plane API 5xx rate above 5%"
+              description: "9.091% of API requests failed over the last 5 minutes."

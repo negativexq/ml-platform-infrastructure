@@ -51,7 +51,7 @@ hpa=$(kubectl -n "$NS" get hpa ml-platform-inference -o jsonpath='{.spec.minRepl
 [[ -n "$hpa" ]] && ok "HPA present (min/max: $hpa)" || bad "HPA not found"
 pdb=$(kubectl -n "$NS" get pdb ml-platform-inference -o jsonpath='{.spec.minAvailable}' 2>/dev/null)
 [[ -n "$pdb" ]] && ok "PodDisruptionBudget present (minAvailable: $pdb)" || bad "PDB not found"
-run "alert rules unit tests" bash -c "cd observability && promtool test rules alert-rules.test.yaml"
+run "alert rules unit tests" bash -c "cd observability && promtool test rules alert-rules.test.yaml controlplane-alert-rules.test.yaml"
 rule_health=$(kubectl -n ml-platform get prometheusrule ml-platform-inference >/dev/null 2>&1 && echo present || echo missing)
 [[ "$rule_health" == "present" ]] && ok "PrometheusRule applied" || bad "PrometheusRule missing"
 

@@ -1,0 +1,27 @@
+# Grafana Tempo, single binary, local storage. Sized for a laptop-scale kind cluster:
+# traces are kept for a day and lost with the pod. For anything durable, point `storage`
+# at object storage (the MinIO the platform already runs would do).
+stream_over_http_enabled: true
+server:
+  http_listen_port: 3200
+
+distributor:
+  receivers:
+    otlp:
+      protocols:
+        grpc:
+          endpoint: 0.0.0.0:4317
+        http:
+          endpoint: 0.0.0.0:4318
+
+compactor:
+  compaction:
+    block_retention: 24h
+
+storage:
+  trace:
+    backend: local
+    wal:
+      path: /var/tempo/wal
+    local:
+      path: /var/tempo/blocks

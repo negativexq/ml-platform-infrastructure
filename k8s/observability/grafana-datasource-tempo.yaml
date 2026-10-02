@@ -1,0 +1,21 @@
+# Picked up by Grafana's datasource sidecar (label grafana_datasource, see
+# observability/kube-prometheus-stack-values.yaml). Trace -> logs/metrics links stay off:
+# the platform ships no log backend, and the trace_id in every log line is the manual join.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: grafana-datasource-tempo
+  namespace: observability
+  labels: {grafana_datasource: "1"}
+data:
+  tempo.yaml: |
+    apiVersion: 1
+    datasources:
+      - name: Tempo
+        uid: tempo
+        type: tempo
+        access: proxy
+        url: http://tempo.observability.svc.cluster.local:3200
+        jsonData:
+          nodeGraph: {enabled: true}
+          serviceMap: {datasourceUid: prometheus}

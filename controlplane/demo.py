@@ -118,7 +118,9 @@ class _Reconcilers:
         self.aliases.reconcile_all()
 
 
-def build_demo() -> Demo:
+def build_demo(observed: bool = False) -> Demo:
+    """`observed` wires the same telemetry the real deployment has (traces, metrics, trace
+    context across the reconciler) around the fakes, *after* the history is seeded."""
     store = MemoryStore()
 
     def factory() -> MemoryUnitOfWork:
@@ -135,6 +137,9 @@ def build_demo() -> Demo:
     ids = _seed(factory, clock, fakes, rec)
     clock.go_live()
 
+    if observed:
+        factory, fakes, rec = _observed(factory, clock, fakes)
+
     app = create_app(
         factory,
         clock,
@@ -144,6 +149,39 @@ def build_demo() -> Demo:
         metrics=fakes["metrics"],
     )
     return Demo(app, clock, rec.all, ids)
+
+
+def _observed(
+    factory: Callable[..., Any], clock: DemoClock, fakes: dict[str, Any]
+) -> tuple[Callable[..., Any], dict[str, Any], _Reconcilers]:
+    from controlplane import observability as obs
+
+    uow = obs.observed_uow_factory(factory)
+    wrapped = {
+        "workflow": obs.observe(fakes["workflow"], "workflow", obs.WORKFLOW_MUTATIONS),
+        "experiments": obs.observe(fakes["experiments"], "experiments", obs.EXPERIMENT_MUTATIONS),
+        "serving": obs.observe(fakes["serving"], "serving", obs.SERVING_MUTATIONS),
+        "metrics": obs.observe(fakes["metrics"], "metrics", obs.NO_MUTATIONS),
+    }
+    rec = _Reconcilers(uow, clock, wrapped)
+
+    def origin(getter: str) -> Callable[[Any, UUID], str | None]:
+        def read(u: Any, entity_id: UUID) -> str | None:
+            entity = getattr(u, getter).get(entity_id)
+            return None if entity is None else entity.traceparent
+
+        return read
+
+    for name, reconciler, getter in (
+        ("projects", rec.projects, "projects"),
+        ("runs", rec.runs, "runs"),
+        ("pipeline_runs", rec.pipeline_runs, "pipeline_runs"),
+        ("deployments", rec.deployments, "deployments"),
+        ("rollouts", rec.rollouts, "rollouts"),
+        ("model_aliases", rec.aliases, None),
+    ):
+        obs.instrument_reconciler(reconciler, name, uow, origin(getter) if getter else None)
+    return uow, wrapped, rec
 
 
 # -- seeding ------------------------------------------------------------------
@@ -488,7 +526,10 @@ def _seed(
 def main() -> None:
     import uvicorn
 
-    demo = build_demo()
+    from controlplane import observability
+
+    telemetry = observability.configure("mlp-controlplane-demo", json_logs=False)
+    demo = build_demo(observed=telemetry.enabled)
 
     def loop() -> None:
         while True:  # lets the UI's Abort / Cancel buttons take effect
@@ -501,6 +542,7 @@ def main() -> None:
     threading.Thread(target=loop, daemon=True).start()
     print("Demo control plane (in-memory fakes) on http://localhost:8080  ->  /ui")
     uvicorn.run(demo.app, host="127.0.0.1", port=8080, log_level="warning")
+    telemetry.shutdown()
 
 
 if __name__ == "__main__":
