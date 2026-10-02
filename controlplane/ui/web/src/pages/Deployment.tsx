@@ -3,6 +3,7 @@ import { Alert, Badge, CopyButton, Section, Table, Time } from '../components/bi
 import { useOverlays } from '../components/overlays';
 import { useDeploy } from '../components/Deploy';
 import { TryIt } from '../components/TryIt';
+import { MetricTrends } from '../components/MetricTrends';
 import { GateMeters } from '../components/charts/Meters';
 import { TrafficSplit } from '../components/charts/TrafficSplit';
 import { useAccess } from '../lib/me';
@@ -70,6 +71,7 @@ export function DeploymentPage({ project, name }: { project: string; name: strin
                 await act(() => api.post(`/rollouts/${live.id}/abort`), 'Abort requested');
             }} />}
             <div className="cols"><EndpointCard endpoint={d.endpoint} metrics={metrics} live={live} /><Revisions d={d} /></div>
+            <MetricTrends project={project} endpoint={d.endpoint.name} />
             <TryIt project={project} endpoint={d.endpoint} allowed={access.may('operator')} />
             {rollouts.some((r) => r !== live) && (
               <Section title="Rollout history"><History rows={rollouts.filter((r) => r !== live)} /></Section>)}

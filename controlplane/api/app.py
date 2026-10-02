@@ -169,7 +169,7 @@ def create_app(
     app.state.promotions = PromotionService(uow_factory, clock)
     app.state.deployments = DeploymentService(uow_factory, clock, experiments, serving)
     app.state.rollouts = RolloutService(uow_factory, app.state.deployments, clock)
-    app.state.overview = OverviewService(uow_factory, serving, metrics)
+    app.state.overview = OverviewService(uow_factory, serving, metrics, clock)
     app.state.workflow = workflow
     app.state.experiments = experiments
     app.add_exception_handler(DomainError, handle_domain_error)

@@ -967,3 +967,39 @@ def test_lineage_from_version_to_run_and_back(page: Page, server: Server) -> Non
     produced = page.get_by_test_id("produced")
     expect(produced).to_contain_text("scorer v2")
     expect(produced.locator("[data-status=CHAMPION]")).to_be_visible()
+
+
+def test_serving_trends_per_revision_against_the_gate(page: Page, server: Server) -> None:
+    # the demo's canary started a few hours ago: a 6h window shows it begin
+    page.goto(f"{server.url}/ui/#/projects/credit-risk/deployments/credit-risk-prod?range=6h")
+    trends = page.get_by_test_id("trends")
+    p95 = trends.get_by_test_id("trend-p95")
+    expect(p95.locator("path")).to_have_count(2)  # stable and canary, one line each
+    expect(p95).to_contain_text("gate 500 ms")
+    expect(trends.get_by_test_id("trend-errors")).to_contain_text("gate 1.0%")
+    expect(p95).to_contain_text("canary started")
+    expect(p95.locator(".legend")).to_contain_text("r2 canary scorer v3")
+    p95.locator("svg").focus()  # keyboard reads the latest moment, arrows move it
+    expect(p95.locator(".tooltip")).to_contain_text("r1 stable scorer v2")
+    page.keyboard.press("ArrowLeft")
+    expect(p95.locator(".tooltip")).to_be_visible()
+    trends.locator("[data-range='24h']").click()
+    assert "range=24h" in page.url
+    trends.get_by_test_id("trend-table").locator("summary").click()
+    expect(trends.get_by_test_id("trend-table").locator("tbody tr").first).to_be_visible()
+
+
+def test_metric_history_api(client: TestClient) -> None:
+    r = client.get("/projects/credit-risk/endpoints/credit-risk-prod/metrics/history?minutes=60")
+    body = r.json()
+    assert r.status_code == 200 and body["available"]
+    assert {x["role"] for x in body["revisions"]} == {"stable", "canary"}
+    assert body["max_error_rate"] == 0.01 and body["step_seconds"] == 15
+    assert all(len(x["points"]) > 100 for x in body["revisions"])
+    single = client.get("/projects/credit-risk/endpoints/ranker-staging/metrics/history").json()
+    assert [x["role"] for x in single["revisions"]] == ["serving"]
+    assert single["max_error_rate"] is None  # no canary, no gate
+    assert client.get("/projects/credit-risk/endpoints/x/metrics/history").status_code == 404
+    assert (
+        client.get("/projects/credit-risk/endpoints/credit-risk-prod/metrics/history?minutes=2")
+    ).status_code == 422

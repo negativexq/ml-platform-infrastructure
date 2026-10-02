@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from datetime import datetime
 from enum import StrEnum
 from typing import Any, Protocol, runtime_checkable
 from uuid import UUID
@@ -211,12 +212,35 @@ class RevisionMetrics:
     requests: float | None = None  # requests observed in the window
 
 
+@dataclass(frozen=True, slots=True)
+class MetricsPoint:
+    """One revision's serving metrics at one moment (each over the provider's rate window)."""
+
+    at: datetime
+    p95_latency_ms: float | None
+    error_rate: float | None  # 0..1
+    requests_per_second: float | None
+
+
 @runtime_checkable
 class MetricsProvider(Protocol):
     def revision_metrics(
         self, endpoint_ref: str, revision: int, backend_revision: str | None = None
     ) -> RevisionMetrics:
         """Metrics of one revision only, so a canary can be judged apart from stable."""
+
+    def revision_history(
+        self,
+        endpoint_ref: str,
+        revision: int,
+        backend_revision: str | None,
+        *,
+        start: datetime,
+        end: datetime,
+        step_seconds: int,
+    ) -> Sequence[MetricsPoint]:
+        """The same metrics over time, oldest first, about one point per step. Moments with
+        no traffic have no point (or None values): a gap, never a made-up zero."""
 
 
 @runtime_checkable

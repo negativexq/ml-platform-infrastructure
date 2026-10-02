@@ -5,7 +5,7 @@ from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Query, Request
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 
 from controlplane.api.errors import PlatformRoute
 from controlplane.api.schemas import ErrorOut
@@ -58,6 +58,39 @@ class EndpointMetricsOut(BaseModel):
     available: bool
     error: str | None
     revisions: list[RevisionMetricsOut]
+
+
+class MetricsPointOut(BaseModel):
+    at: datetime
+    p95_latency_ms: float | None
+    error_rate: float | None
+    requests_per_second: float | None
+
+
+class RevisionHistoryOut(BaseModel):
+    revision: int
+    model: str
+    model_version: int
+    role: str = Field(description="stable, canary, or serving (no rollout)")
+    points: list[MetricsPointOut]
+
+
+class HistoryMarkerOut(BaseModel):
+    at: datetime
+    label: str
+
+
+class EndpointHistoryOut(BaseModel):
+    endpoint: str
+    available: bool
+    error: str | None
+    start: datetime
+    end: datetime
+    step_seconds: int
+    revisions: list[RevisionHistoryOut]
+    max_error_rate: float | None = Field(description="the live canary's gate, if any")
+    max_p95_latency_ms: float | None
+    markers: list[HistoryMarkerOut]
 
 
 class AuditEventOut(BaseModel):
@@ -144,6 +177,49 @@ def overview_router() -> APIRouter:
                 )
                 for r in v.revisions
             ],
+        )
+
+    @router.get(
+        "/endpoints/{name}/metrics/history",
+        response_model=EndpointHistoryOut,
+        responses=_ERRORS,
+        summary="p95 / error rate / RPS over time, per revision serving now",
+    )
+    def endpoint_history(
+        project: str,
+        name: str,
+        request: Request,
+        minutes: Annotated[int, Query(ge=5, le=1440)] = 60,
+    ) -> EndpointHistoryOut:
+        v = svc(request).endpoint_history(project, name, minutes=minutes)
+        return EndpointHistoryOut(
+            endpoint=v.endpoint,
+            available=v.available,
+            error=v.error,
+            start=v.start,
+            end=v.end,
+            step_seconds=v.step_seconds,
+            revisions=[
+                RevisionHistoryOut(
+                    revision=r.revision,
+                    model=r.model,
+                    model_version=r.model_version,
+                    role=r.role,
+                    points=[
+                        MetricsPointOut(
+                            at=p.at,
+                            p95_latency_ms=p.p95_latency_ms,
+                            error_rate=p.error_rate,
+                            requests_per_second=p.requests_per_second,
+                        )
+                        for p in r.points
+                    ],
+                )
+                for r in v.revisions
+            ],
+            max_error_rate=v.max_error_rate,
+            max_p95_latency_ms=v.max_p95_latency_ms,
+            markers=[HistoryMarkerOut(at=m.at, label=m.label) for m in v.markers],
         )
 
     @router.get(

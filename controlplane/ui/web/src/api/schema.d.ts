@@ -348,6 +348,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{project}/endpoints/{name}/metrics/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** p95 / error rate / RPS over time, per revision serving now */
+        get: operations["endpoint_history_projects__project__endpoints__name__metrics_history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/projects/{project}/endpoints/{name}/predict": {
         parameters: {
             query?: never;
@@ -852,6 +869,38 @@ export interface components {
             /** Created */
             created: components["schemas"]["ModelVersionSummary"][];
         };
+        /** EndpointHistoryOut */
+        EndpointHistoryOut: {
+            /** Available */
+            available: boolean;
+            /**
+             * End
+             * Format: date-time
+             */
+            end: string;
+            /** Endpoint */
+            endpoint: string;
+            /** Error */
+            error: string | null;
+            /** Markers */
+            markers: components["schemas"]["HistoryMarkerOut"][];
+            /**
+             * Max Error Rate
+             * @description the live canary's gate, if any
+             */
+            max_error_rate: number | null;
+            /** Max P95 Latency Ms */
+            max_p95_latency_ms: number | null;
+            /** Revisions */
+            revisions: components["schemas"]["RevisionHistoryOut"][];
+            /**
+             * Start
+             * Format: date-time
+             */
+            start: string;
+            /** Step Seconds */
+            step_seconds: number;
+        };
         /** EndpointItemOut */
         EndpointItemOut: {
             /** Active Revision */
@@ -982,6 +1031,16 @@ export interface components {
             /** Detail */
             detail?: components["schemas"]["ValidationError"][];
         };
+        /** HistoryMarkerOut */
+        HistoryMarkerOut: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Label */
+            label: string;
+        };
         /** JobCreate */
         JobCreate: {
             /** Command */
@@ -1097,6 +1156,20 @@ export interface components {
         /** MemberRoleIn */
         MemberRoleIn: {
             role: components["schemas"]["ProjectRole"];
+        };
+        /** MetricsPointOut */
+        MetricsPointOut: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Error Rate */
+            error_rate: number | null;
+            /** P95 Latency Ms */
+            p95_latency_ms: number | null;
+            /** Requests Per Second */
+            requests_per_second: number | null;
         };
         /** ModelCreate */
         ModelCreate: {
@@ -1462,6 +1535,22 @@ export interface components {
              * @description Platform version number of the model
              */
             version: number;
+        };
+        /** RevisionHistoryOut */
+        RevisionHistoryOut: {
+            /** Model */
+            model: string;
+            /** Model Version */
+            model_version: number;
+            /** Points */
+            points: components["schemas"]["MetricsPointOut"][];
+            /** Revision */
+            revision: number;
+            /**
+             * Role
+             * @description stable, canary, or serving (no rollout)
+             */
+            role: string;
         };
         /** RevisionMetricsOut */
         RevisionMetricsOut: {
@@ -2979,6 +3068,49 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["EndpointMetricsOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    endpoint_history_projects__project__endpoints__name__metrics_history_get: {
+        parameters: {
+            query?: {
+                minutes?: number;
+            };
+            header?: never;
+            path: {
+                project: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EndpointHistoryOut"];
                 };
             };
             /** @description Not Found */

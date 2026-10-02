@@ -4,13 +4,15 @@ Kubernetes present, and double as executable documentation of each port's contra
 from __future__ import annotations
 
 import hashlib
-from collections.abc import Mapping, Sequence
+from collections.abc import Callable, Mapping, Sequence
+from datetime import datetime, timedelta
 from typing import Any
 from uuid import UUID
 
 from controlplane.application.providers import (
     ExperimentRun,
     ExternalState,
+    MetricsPoint,
     NamespaceSpec,
     NamespaceState,
     Observation,
@@ -225,11 +227,53 @@ class FakeServingProvider:
 class FakeMetricsProvider:
     def __init__(self) -> None:
         self.by_revision: dict[tuple[str, int], RevisionMetrics] = {}
+        # raw samples per (endpoint ref, revision); revision_history averages them per step
+        self.history: dict[tuple[str, int], list[MetricsPoint]] = {}
+        # or a function of time, sampled at query time, for a series that keeps going (demo)
+        self.series: dict[tuple[str, int], Callable[[datetime], MetricsPoint | None]] = {}
 
     def revision_metrics(
         self, endpoint_ref: str, revision: int, backend_revision: str | None = None
     ) -> RevisionMetrics:
         return self.by_revision.get((endpoint_ref, revision), RevisionMetrics(None, None, None))
+
+    def revision_history(
+        self,
+        endpoint_ref: str,
+        revision: int,
+        backend_revision: str | None,
+        *,
+        start: datetime,
+        end: datetime,
+        step_seconds: int,
+    ) -> Sequence[MetricsPoint]:
+        live = self.series.get((endpoint_ref, revision))
+        if live is not None:
+            total = int((end - start).total_seconds())
+            moments = (
+                start + timedelta(seconds=s) for s in range(step_seconds, total + 1, step_seconds)
+            )
+            return [p for p in map(live, moments) if p is not None]
+        samples = [
+            p for p in self.history.get((endpoint_ref, revision), []) if start <= p.at <= end
+        ]
+        buckets: dict[int, list[MetricsPoint]] = {}
+        for p in samples:
+            buckets.setdefault(int((p.at - start).total_seconds() // step_seconds), []).append(p)
+
+        def mean(values: list[float | None]) -> float | None:
+            present = [v for v in values if v is not None]
+            return sum(present) / len(present) if present else None
+
+        return [
+            MetricsPoint(
+                at=start + timedelta(seconds=(i + 1) * step_seconds),
+                p95_latency_ms=mean([p.p95_latency_ms for p in group]),
+                error_rate=mean([p.error_rate for p in group]),
+                requests_per_second=mean([p.requests_per_second for p in group]),
+            )
+            for i, group in sorted(buckets.items())
+        ]
 
 
 class FakeArtifactProvider:

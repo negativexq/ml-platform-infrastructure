@@ -16,6 +16,8 @@ The seeded story (project `credit-risk`):
 
 from __future__ import annotations
 
+import math
+import random
 import threading
 import time
 from collections.abc import Callable
@@ -44,6 +46,7 @@ from controlplane.application.projects import CreateProject, ProjectService
 from controlplane.application.providers import (
     ExperimentRun,
     ExternalState,
+    MetricsPoint,
     RegisteredVersion,
     RevisionMetrics,
 )
@@ -188,6 +191,32 @@ def _observed(
 
 
 # -- seeding ------------------------------------------------------------------
+
+
+def _traffic(
+    *, p95: float, errors: float, rps: float, seed: int, since: datetime | None = None
+) -> Callable[[datetime], MetricsPoint | None]:
+    """Believable serving metrics as a function of time: a daily cycle, noise, the odd
+    latency spike. Deterministic per moment, so a refresh redraws the same past."""
+
+    def at(t: datetime) -> MetricsPoint | None:
+        if since is not None and t < since:
+            return None
+        s = t.timestamp()
+        # Smooth like a 2-minute rate window: a daily cycle, slower drifts, a little noise.
+        rng = random.Random(int(s // 15) * 7919 + seed)
+        day = math.sin(s / 86400 * 2 * math.pi)
+        drift = 0.06 * math.sin(s / 700 + seed) + 0.04 * math.sin(s / 173 + 2 * seed)
+        noise = 0.04 * (rng.random() - 0.5)
+        spike = p95 * 0.6 if rng.random() < 0.004 else 0.0
+        return MetricsPoint(
+            at=t,
+            p95_latency_ms=p95 * (1 + 0.12 * day + drift + noise) + spike,
+            error_rate=max(0.0, errors * (1 + 2.5 * drift + 4 * noise)),
+            requests_per_second=rps * (1 + 0.3 * day + drift / 2 + noise / 2),
+        )
+
+    return at
 
 
 def _seed(
@@ -452,6 +481,11 @@ def _seed(
         gate=RolloutGate(step_seconds=3600, min_requests=50),
     )
     rid = started.rollout.id
+    canary_since = started.rollout.created_at
+    metrics.series[(ref, 1)] = _traffic(p95=92.0, errors=0.002, rps=31.0, seed=1)
+    metrics.series[(ref, 2)] = _traffic(
+        p95=118.0, errors=0.004, rps=10.4, seed=2, since=canary_since
+    )
     rec.rollouts.reconcile(rid)  # 10%
     rec.rollouts.reconcile(rid)  # observing
     # an earlier step already passed its gate: show it at 25%
@@ -494,6 +528,8 @@ def _seed(
     deployments.deploy("credit-risk", "ranker-staging", "ranker", 1)
     settle()
     ref2 = "mlp-credit-risk/ranker-staging"
+    metrics.series[(ref2, 1)] = _traffic(p95=55.0, errors=0.001, rps=12.0, seed=3)
+    metrics.series[(ref2, 2)] = _traffic(p95=61.0, errors=0.0015, rps=12.0, seed=4)
     metrics.by_revision[(ref2, 1)] = RevisionMetrics(55.0, 0.001, 12.0, 900)
     metrics.by_revision[(ref2, 2)] = RevisionMetrics(61.0, 0.002, 12.0, 900)
     done = rollouts.start(
