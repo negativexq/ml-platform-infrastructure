@@ -7,9 +7,10 @@ they may do depends on their role in the project.
 
 | Role | May |
 | --- | --- |
-| **viewer** | read everything in the project |
-| **operator** | + start, cancel and retry runs; register, evaluate and promote models; create deployments, deploy, start and abort canaries, roll back, send test requests |
-| **admin** | + delete the project, change acceptance thresholds, decide who is a member |
+| **invoker** | only call the project's models: through the gateway (public endpoints) or the platform's predict route. Reads nothing. For services and partners that sign in with their own credentials (OAuth client credentials); a plain API key is the other way in (`docs/gateway.md`) |
+| **viewer** | + read everything in the project |
+| **operator** | + start, cancel and retry runs; register, evaluate and promote models; create deployments, deploy, start and abort canaries, roll back |
+| **admin** | + delete the project, change acceptance thresholds, decide who is a member, open endpoints to the outside, issue and revoke API keys |
 
 * A **member** is a user (`user:alice`) or a group from the identity provider (`group:ml-team`).
   A person's role is the highest of their own and their groups'.
@@ -25,7 +26,7 @@ they may do depends on their role in the project.
   or the UI (project **Settings → Members**), audited like everything else
   (`membership.granted / changed / revoked`).
 
-No OPA: roles are three ranks checked in the application. Policy rules that span systems
+No OPA: roles are four ranks checked in the application. Policy rules that span systems
 (e.g. "prod deploys need a canary", shared with admission control) are where OPA would earn
 its place; none exist yet.
 

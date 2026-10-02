@@ -13,7 +13,17 @@ import pytest
 
 ROOT = Path(__file__).resolve().parents[1]
 
-EXTERNAL = {"mlflow", "kubernetes", "argo_workflows", "hera", "kserve", "boto3", "requests", "jwt"}
+EXTERNAL = {
+    "mlflow",
+    "kubernetes",
+    "argo_workflows",
+    "hera",
+    "kserve",
+    "boto3",
+    "requests",
+    "jwt",
+    "httpx",
+}
 FRAMEWORKS = {"sqlalchemy", "alembic", "psycopg", "fastapi", "starlette", "pydantic_settings"}
 
 # layer -> top-level modules it must never import
@@ -21,11 +31,13 @@ FORBIDDEN: dict[str, set[str]] = {
     "domain": EXTERNAL | FRAMEWORKS | {"pydantic"},
     "application": EXTERNAL | FRAMEWORKS | {"pydantic"},
     "api": EXTERNAL | {"sqlalchemy", "alembic", "psycopg"},
+    "gateway": EXTERNAL | {"sqlalchemy", "alembic", "psycopg"},
 }
 FORBIDDEN_INTERNAL: dict[str, set[str]] = {
     "domain": {"application", "api", "persistence", "adapters", "reconciliation"},
     "application": {"api", "persistence", "adapters", "reconciliation"},
     "api": {"persistence", "adapters"},
+    "gateway": {"persistence", "adapters", "api"},
 }
 
 
@@ -95,7 +107,7 @@ def test_control_plane_runs_with_every_external_system_unavailable() -> None:
 
 
 def test_only_composition_roots_import_observability() -> None:
-    roots = {"main.py", "reconciler_main.py", "demo.py"}
+    roots = {"main.py", "reconciler_main.py", "gateway_main.py", "demo.py"}
     for path in sorted(ROOT.rglob("*.py")):
         rel = path.relative_to(ROOT)
         if rel.parts[0] in {"observability", "tests"} or rel.name in roots:

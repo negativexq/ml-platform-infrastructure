@@ -364,3 +364,18 @@ table.t tr:first-child.group-start td { border-top: 0; }
   [data-testid=health-checks] th, [data-testid=health-checks] td { padding: 7px 8px; white-space: normal !important; }
 }
 .table-scroll { overflow-x: auto; }
+
+/* -- API access ------------------------------------------------------------------------------ */
+.actions-inline { display: flex; gap: 8px; flex-wrap: wrap; }
+.chip.exposure { margin-left: 8px; font-weight: 600; }
+.chip.exposure.public { border-color: var(--accent); color: var(--accent); }
+.public-url { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin: 4px 0 12px; padding: 8px 12px;
+  background: var(--surface-2); border: 1px solid var(--border); border-radius: 8px; }
+.public-url .mono { word-break: break-all; }
+.public-url .method { font: 700 11.5px var(--mono); color: var(--accent); }
+.sub-section { margin-top: 18px; }
+.sub-section h3 { margin: 0; }
+.secret-row { display: flex; gap: 8px; align-items: center; margin-top: 10px; }
+.secret-row input { flex: 1; min-width: 0; }
+.usage .trends { margin-top: 4px; }
+table.t tr.inactive td { color: var(--muted); }

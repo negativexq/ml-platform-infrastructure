@@ -353,3 +353,24 @@ def test_platform_health_counts_only_the_callers_projects(env: Env) -> None:
     admin = env.client.get("/platform/health", headers=env.as_("root", ["platform-admins"])).json()
     assert admin["inventory"]["projects"] == 2
     assert env.client.get("/platform/health").status_code == 401
+
+
+def test_invokers_call_models_and_only_admins_open_them(env: Env) -> None:
+    project = env.project()
+    env.grant(project, "user:ivan", "invoker")
+    env.grant(project, "user:olga", "operator")
+    ivan, olga, alice = env.as_("ivan"), env.as_("olga"), env.as_("alice")
+    base = f"/projects/{project}"
+    assert env.client.get(f"{base}/runs", headers=ivan).status_code == 403  # no reading
+    # may call a model (no serving here, so 409, which is past the role check)
+    assert env.client.post(f"{base}/endpoints/x/predict", json={}, headers=ivan).status_code == 409
+    keys = {"name": "partner-acme", "endpoints": ["x"]}
+    assert env.client.post(f"{base}/api-keys", json=keys, headers=olga).status_code == 403
+    assert (
+        env.client.patch(
+            f"{base}/endpoints/x", json={"exposure": "public"}, headers=olga
+        ).status_code
+        == 403
+    )
+    assert env.client.post(f"{base}/api-keys", json=keys, headers=alice).status_code == 422
+    assert env.client.get(f"{base}/api-keys", headers=olga).status_code == 200

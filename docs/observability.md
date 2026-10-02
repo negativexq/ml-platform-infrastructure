@@ -67,6 +67,9 @@ Settings: `CP_LOG_JSON` (default true), `CP_LOG_LEVEL` (default INFO).
 | `mlp_state_transitions_total` | `entity_type`, `action` | every audit event |
 | `mlp_provider_calls_total` | `provider`, `operation`, `outcome` (`ok` `not_found` `error`) | health of Argo, KServe, MLflow, Prometheus, Kubernetes API |
 | `mlp_provider_duration_seconds` | `provider`, `operation` | histogram |
+| `mlp_gateway_requests_total` | `project`, `endpoint`, `caller`, `code` | every public call through the gateway |
+| `mlp_gateway_units_total` | `project`, `endpoint`, `caller`, `unit` | what quotas count (requests; tokens for LLMs later) |
+| `mlp_gateway_duration_seconds` | `project`, `endpoint` | histogram, whole call including streaming |
 | `http_server_request_duration_seconds_*` | `http_route`, `http_response_status_code`, ... | API traffic, from FastAPI itself |
 
 The same metrics are read back by the control plane for the UI's **Monitor** page
@@ -83,14 +86,15 @@ are written on them.
 ```
 observability/otel/collector.yaml       Collector config (OTLP in; Tempo + Prometheus exporter out)
 observability/otel/tempo.yaml           Tempo, single binary
-observability/controlplane-alert-rules.yaml (+ .test.yaml)   8 alerts, promtool-tested
+observability/controlplane-alert-rules.yaml (+ .test.yaml)   10 alerts, promtool-tested
 observability/dashboards/controlplane.json
 k8s/observability/                      Collector, Tempo, ServiceMonitor, Grafana datasource
 scripts/observability-up.sh             installs all of it next to kube-prometheus-stack
 ```
 
 Alerts: `ReconcilerStalled`, `ReconcilerGone`, `ReconcileErrors`, `ProviderCallsFailing`,
-`RolloutRolledBack`, `DeploymentFailed`, `ControlPlaneHighErrorRate`, `ControlPlaneHighLatency`.
+`RolloutRolledBack`, `DeploymentFailed`, `ControlPlaneHighErrorRate`, `ControlPlaneHighLatency`,
+`GatewayHighErrorRate`, `GatewayHighLatency` (per project and endpoint).
 
 ## Verified here (and what was not)
 

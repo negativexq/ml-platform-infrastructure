@@ -6,7 +6,7 @@
         alert-rules-test alert-rules-apply loadtest drill-autoscale drill-drain \
         local-up local-test local-down \
         tf-fmt tf-validate tf-lint tf-check \
-        identity-up ui-install ui-build ui-api ui-dev cp-install cp-test cp-check cp-migrate cp-run cp-reconcile cp-demo lock envtest-up envtest-down
+        identity-up ui-install ui-build ui-api ui-dev cp-install cp-test cp-check cp-migrate cp-run cp-reconcile cp-gateway gateway-e2e cp-demo lock envtest-up envtest-down
 
 IMAGE ?= ml-platform-inference:dev
 
@@ -196,6 +196,12 @@ cp-migrate:
 
 cp-run:
 	CP_AUTH_MODE=$${CP_AUTH_MODE:-none} uvicorn controlplane.main:app_factory --factory --reload --port 8080
+
+cp-gateway:  # the inference gateway on :8081, against CP_DATABASE_URL (API keys only by default)
+	CP_AUTH_MODE=$${CP_AUTH_MODE:-none} uvicorn controlplane.gateway_main:app_factory --factory --reload --port 8081
+
+gateway-e2e:  # real PostgreSQL + the real gateway process + a v2-protocol model server
+	python scripts/gateway_e2e.py
 
 cp-reconcile:
 	python -m controlplane.reconciler_main

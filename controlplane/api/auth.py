@@ -175,6 +175,12 @@ POLICY: dict[tuple[str, str], str | ProjectRole] = {
     ("PUT", "/projects/{project}/models/{name}/thresholds"): ProjectRole.ADMIN,
     ("PUT", "/projects/{project}/members/{subject}"): ProjectRole.ADMIN,
     ("DELETE", "/projects/{project}/members/{subject}"): ProjectRole.ADMIN,
+    # Opening an endpoint to the outside and handing out keys is governance.
+    ("PATCH", "/projects/{project}/endpoints/{name}"): ProjectRole.ADMIN,
+    ("POST", "/projects/{project}/api-keys"): ProjectRole.ADMIN,
+    ("DELETE", "/projects/{project}/api-keys/{key_id}"): ProjectRole.ADMIN,
+    # Calling a model changes nothing: the lowest role that may call one is enough.
+    ("POST", "/projects/{project}/endpoints/{name}/predict"): ProjectRole.INVOKER,
 }
 
 

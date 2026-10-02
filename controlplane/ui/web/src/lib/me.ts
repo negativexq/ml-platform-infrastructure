@@ -1,8 +1,8 @@
 import { useQuery } from '@tanstack/react-query';
 import { api, type S } from '../api/client';
 
-export type Role = 'viewer' | 'operator' | 'admin';
-const RANK: Record<Role, number> = { viewer: 1, operator: 2, admin: 3 };
+export type Role = 'invoker' | 'viewer' | 'operator' | 'admin';
+const RANK: Record<Role, number> = { invoker: 0, viewer: 1, operator: 2, admin: 3 };
 
 /** Who is signed in and their role in each project; refreshed when memberships change. */
 export const useMe = () => useQuery({ queryKey: ['me'], queryFn: () => api.get<S['MeOut']>('/me'), retry: false, staleTime: 30_000 });

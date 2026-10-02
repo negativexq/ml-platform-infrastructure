@@ -92,3 +92,29 @@ spec:
       annotations:
         summary: Control-plane API p95 latency above 1s
         description: p95 latency is {{ $value | humanizeDuration }}.
+    - alert: GatewayHighErrorRate
+      expr: 'sum by (project, endpoint) (rate(mlp_gateway_requests_total{code=~"5.."}[5m]))
+        / clamp_min(sum by (project, endpoint) (rate(mlp_gateway_requests_total[5m])),
+        0.0001) > 0.05
+
+        '
+      for: 5m
+      labels:
+        severity: critical
+      annotations:
+        summary: Public calls to {{ $labels.project }}/{{ $labels.endpoint }} are
+          failing
+        description: '{{ $value | humanizePercentage }} of calls through the gateway
+          got a 5xx: the model did not answer or timed out. Refusals (keys, limits)
+          are not counted.'
+    - alert: GatewayHighLatency
+      expr: "histogram_quantile(0.95,\n  sum by (le, project, endpoint) (rate(mlp_gateway_duration_seconds_bucket[5m]))\n\
+        ) > 3\n"
+      for: 10m
+      labels:
+        severity: warning
+      annotations:
+        summary: Public calls to {{ $labels.project }}/{{ $labels.endpoint }} are
+          slow
+        description: p95 through the gateway is {{ $value | humanizeDuration }}, model
+          time included.

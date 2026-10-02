@@ -18,7 +18,11 @@ from typing import Any
 
 import pytest
 
-from controlplane.adapters.metrics import PrometheusMetricsProvider, PrometheusPlatformTelemetry
+from controlplane.adapters.metrics import (
+    PrometheusMetricsProvider,
+    PrometheusPlatformTelemetry,
+    PrometheusUsage,
+)
 from controlplane.application.platform import Health, PlatformService
 from controlplane.application.providers import PlatformSignal
 from controlplane.persistence.memory import MemoryStore, MemoryUnitOfWork
@@ -102,6 +106,40 @@ def _platform_lines(start: int, end: int) -> list[str]:
                 )
             out.append(f"http_server_request_duration_seconds_count{{{sel}}} {n:.1f} {t}")
             out.append(f"http_server_request_duration_seconds_sum{{{sel}}} {n * 0.05:.2f} {t}")
+    return out + _gateway_lines(start, end)
+
+
+def _gateway_lines(start: int, end: int) -> list[str]:
+    """Gateway traffic to credit-risk-prod: partner-acme 120 calls/min with 1 in 60 refused,
+    batch-job 30 calls/min with 1 in 30 failing upstream. Calls take ~0.2s."""
+    where = 'project="credit-risk",endpoint="credit-risk-prod"'
+    flows = (  # caller, code, calls per minute
+        ("partner-acme", "200", 118),
+        ("partner-acme", "429", 2),
+        ("batch-job", "200", 29),
+        ("batch-job", "502", 1),
+    )
+    out = ["# TYPE mlp_gateway_requests counter"]
+    for caller, code, per_min in flows:
+        for t in range(start, end + 1, STEP):
+            n = (t - start) * per_min / 60
+            sel = f'{where},caller="{caller}",code="{code}"'
+            out.append(f"mlp_gateway_requests_total{{{sel}}} {n:.2f} {t}")
+    out.append("# TYPE mlp_gateway_units counter")
+    for caller, per_min in (("partner-acme", 118), ("batch-job", 29)):
+        for t in range(start, end + 1, STEP):
+            n = (t - start) * per_min / 60
+            sel = f'{where},caller="{caller}",unit="requests"'
+            out.append(f"mlp_gateway_units_total{{{sel}}} {n:.2f} {t}")
+    out.append("# TYPE mlp_gateway_duration_seconds histogram")
+    for t in range(start, end + 1, STEP):
+        n = (t - start) * 150 / 60
+        for le, under in (("0.1", 0.1), ("0.25", 0.97), ("1", 1.0), ("+Inf", 1.0)):
+            out.append(
+                f'mlp_gateway_duration_seconds_bucket{{{where},le="{le}"}} {n * under:.2f} {t}'
+            )
+        out.append(f"mlp_gateway_duration_seconds_count{{{where}}} {n:.2f} {t}")
+        out.append(f"mlp_gateway_duration_seconds_sum{{{where}}} {n * 0.2:.2f} {t}")
     return out
 
 
@@ -231,3 +269,25 @@ def test_platform_signals_from_real_prometheus(prometheus: tuple[str, int]) -> N
     assert by_key[PlatformSignal.PROVIDER_ERRORS].status is Health.WARNING
     assert by_key[PlatformSignal.API_ERRORS].status is Health.WARNING
     assert health.status is Health.CRITICAL and health.available
+
+
+def test_gateway_usage_by_caller_from_real_prometheus(prometheus: tuple[str, int]) -> None:
+    url, end = prometheus
+    at = datetime.fromtimestamp(end, UTC)
+    usage = PrometheusUsage(url).endpoint_usage(
+        "credit-risk", "credit-risk-prod", start=at - timedelta(minutes=30), end=at, step_seconds=60
+    )
+    acme, batch = usage.callers["partner-acme"][-1], usage.callers["batch-job"][-1]
+    assert acme.units == pytest.approx(118, rel=0.05) and acme.rejected == pytest.approx(2, rel=0.1)
+    assert acme.errors == 0
+    assert batch.units == pytest.approx(29, rel=0.05) and batch.errors == pytest.approx(1, rel=0.1)
+    assert 100 < usage.p95_latency_ms[-1].value < 250  # ms, from second buckets
+    with pytest.raises(ValueError):
+        PrometheusUsage(url).endpoint_usage('x"}', "y", start=at, end=at, step_seconds=60)
+
+    telemetry = PrometheusPlatformTelemetry(url)
+    window = {"start": at - timedelta(minutes=30), "end": at, "step_seconds": 60}
+    rate = telemetry.platform_series(PlatformSignal.GATEWAY_REQUESTS, **window)  # type: ignore[arg-type]
+    assert rate[""][-1].value == pytest.approx(150 / 60, rel=0.05)
+    errors = telemetry.platform_series(PlatformSignal.GATEWAY_ERRORS, **window)  # type: ignore[arg-type]
+    assert errors[""][-1].value == pytest.approx(1 / 150, rel=0.1)

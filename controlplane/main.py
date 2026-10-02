@@ -9,7 +9,11 @@ from fastapi import FastAPI
 
 from controlplane import observability
 from controlplane.adapters.identity import OidcProvider
-from controlplane.adapters.metrics import PrometheusMetricsProvider, PrometheusPlatformTelemetry
+from controlplane.adapters.metrics import (
+    PrometheusMetricsProvider,
+    PrometheusPlatformTelemetry,
+    PrometheusUsage,
+)
 from controlplane.adapters.mlflow import MlflowExperimentProvider
 from controlplane.adapters.serving import KServeServingProvider
 from controlplane.adapters.workflow import ArgoWorkflowProvider
@@ -77,6 +81,12 @@ def app_factory() -> FastAPI:
             if settings.prometheus_url
             else None
         ),
+        usage=(
+            observe(PrometheusUsage(settings.prometheus_url), "metrics", observability.NO_MUTATIONS)
+            if settings.prometheus_url
+            else None
+        ),
+        gateway_url=settings.gateway_url,
     )
 
 

@@ -120,7 +120,11 @@ def test_a_viewer_sees_but_cannot_act(page: Page, server: Server, idp: FakeIdP) 
     page.goto(f"{server.url}/ui/#/projects/credit-risk/deployments/credit-risk-prod")
     expect(page.get_by_test_id("rollback")).to_be_disabled()
     expect(page.get_by_test_id("abort")).to_be_disabled()
-    expect(page.get_by_test_id("try-send")).to_be_disabled()
+    expect(page.get_by_test_id("try-send")).to_be_enabled()  # calling a model changes nothing
+    access = page.get_by_test_id("api-access")
+    for control in ("toggle-exposure", "edit-limits", "new-key"):
+        expect(access.get_by_test_id(control)).to_be_disabled()
+    expect(access.get_by_test_id("new-key")).to_have_attribute("title", re.compile("Needs the admin"))
     page.goto(f"{server.url}/ui/#/projects/credit-risk/settings")
     expect(page.get_by_test_id("member-row")).to_have_count(2)
     expect(page.get_by_test_id("add-member")).to_be_disabled()

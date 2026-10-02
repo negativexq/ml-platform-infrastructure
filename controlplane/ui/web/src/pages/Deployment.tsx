@@ -3,6 +3,7 @@ import { Alert, Badge, CopyButton, Section, Table, Time } from '../components/bi
 import { useOverlays } from '../components/overlays';
 import { useDeploy } from '../components/Deploy';
 import { TryIt } from '../components/TryIt';
+import { ApiAccessCard } from '../components/ApiAccess';
 import { MetricTrends } from '../components/MetricTrends';
 import { GateMeters } from '../components/charts/Meters';
 import { TrafficSplit } from '../components/charts/TrafficSplit';
@@ -18,6 +19,7 @@ const LABELS: Record<string, string> = {
   'deployment.created': 'Deployment created', 'deployment.revision_created': 'New revision', 'deployment.ready': 'Became ready',
   'deployment.drift_detected': 'Serving drift detected', 'deployment.redeploying': 'Recreating serving resource',
   'deployment.failed': 'Failed', 'deployment.rolled_back': 'Rolled back', 'endpoint.ready': 'Endpoint ready',
+  'endpoint.exposure_changed': 'Exposure changed',
 };
 
 export function DeploymentPage({ project, name }: { project: string; name: string }) {
@@ -72,7 +74,8 @@ export function DeploymentPage({ project, name }: { project: string; name: strin
             }} />}
             <div className="cols"><EndpointCard endpoint={d.endpoint} metrics={metrics} live={live} /><Revisions d={d} /></div>
             <MetricTrends project={project} endpoint={d.endpoint.name} />
-            <TryIt project={project} endpoint={d.endpoint} allowed={access.may('operator')} />
+            <ApiAccessCard project={project} endpoint={d.endpoint} />
+            <TryIt project={project} endpoint={d.endpoint} allowed={access.may('invoker')} />
             {rollouts.some((r) => r !== live) && (
               <Section title="Rollout history"><History rows={rollouts.filter((r) => r !== live)} /></Section>)}
             <div className="section card"><h2>Recent activity</h2>

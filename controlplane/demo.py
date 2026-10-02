@@ -17,11 +17,12 @@ The seeded story (project `credit-risk`):
 from __future__ import annotations
 
 import math
+import os
 import random
 import threading
 import time
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import UTC, datetime, timedelta
 from typing import Any
 from uuid import UUID
@@ -34,11 +35,15 @@ from controlplane.adapters.fakes import (
     FakeMetricsProvider,
     FakePlatformTelemetry,
     FakeServingProvider,
+    FakeUsage,
     FakeWorkflowProvider,
 )
+from controlplane.adapters.gateway import ServingUpstream, TokenBucketLimiter
 from controlplane.api.app import create_app
 from controlplane.api.auth import AuthConfig
+from controlplane.application.api_access import ApiAccessService
 from controlplane.application.deployments import DeploymentService
+from controlplane.application.gateway import GatewayService
 from controlplane.application.jobs import CreateJob, JobService
 from controlplane.application.models import EvaluationService, ModelService, PromotionService
 from controlplane.application.pipeline_runs import PipelineRunService
@@ -60,7 +65,9 @@ from controlplane.application.workflow_compiler import (
     TAG_STEP,
     tracking_experiment_name,
 )
-from controlplane.domain.entities import RolloutGate, Threshold
+from controlplane.domain.entities import EndpointLimits, RolloutGate, Threshold
+from controlplane.domain.states import Exposure
+from controlplane.gateway import create_gateway
 from controlplane.persistence.memory import MemoryStore, MemoryUnitOfWork
 from controlplane.reconciliation.deployments import DeploymentReconciler
 from controlplane.reconciliation.model_aliases import ModelAliasReconciler
@@ -101,6 +108,24 @@ class Demo:
     reconcile: Callable[[], None]
     ids: dict[str, UUID]
     uow_factory: Callable[[], Any] = lambda: None  # noqa: E731 - the store behind the app
+    gateway: FastAPI | None = None
+    keys: dict[str, str] = field(default_factory=dict)  # demo API keys by name, full tokens
+
+    @property
+    def asgi(self) -> Any:
+        """The API and, under /gateway, the inference gateway, in one process for the demo.
+        In a real deployment they are separate services (see k8s/gateway)."""
+        api, gateway = self.app, self.gateway
+
+        async def app(scope: Any, receive: Any, send: Any) -> None:
+            path = scope.get("path", "")
+            if gateway is not None and scope["type"] == "http" and path.startswith("/gateway/"):
+                scope = {**scope, "path": path.removeprefix("/gateway")}
+                await gateway(scope, receive, send)
+            else:
+                await api(scope, receive, send)
+
+        return app
 
 
 class _Reconcilers:
@@ -144,9 +169,22 @@ def build_demo(observed: bool = False, auth: AuthConfig | None = None) -> Demo:
     ids = _seed(factory, clock, fakes, rec)
     clock.go_live()
 
+    usage = _usage_history(clock)
+    keys = _open_to_partners(factory, clock)
+
     if observed:
         factory, fakes, rec = _observed(factory, clock, fakes)
 
+    gateway = create_gateway(
+        GatewayService(
+            factory,
+            ServingUpstream(fakes["serving"]),
+            TokenBucketLimiter(),
+            recorders=[usage],
+            authenticator=auth.authenticator if auth is not None else None,
+            clock=clock,
+        )
+    )
     app = create_app(
         factory,
         clock,
@@ -156,8 +194,51 @@ def build_demo(observed: bool = False, auth: AuthConfig | None = None) -> Demo:
         metrics=fakes["metrics"],
         auth=auth,
         platform=_platform_telemetry(),
+        usage=usage,
+        gateway_url=os.environ.get("CP_DEMO_GATEWAY_URL", "http://localhost:8080/gateway"),
     )
-    return Demo(app, clock, rec.all, ids, factory)
+    return Demo(app, clock, rec.all, ids, factory, gateway, keys)
+
+
+def _open_to_partners(factory: Callable[..., Any], clock: DemoClock) -> dict[str, str]:
+    """credit-risk-prod is public with two partner keys (and one revoked); ranker-staging
+    stays internal."""
+    access = ApiAccessService(factory, clock)
+    access.expose(
+        "credit-risk",
+        "credit-risk-prod",
+        Exposure.PUBLIC,
+        EndpointLimits(units_per_minute=600, max_body_kb=256, timeout_seconds=10),
+    )
+    keys = {}
+    for name, per_minute in (("partner-acme", 120), ("batch-scoring", None), ("old-partner", None)):
+        key, token = access.create_key(
+            "credit-risk", name=name, endpoints=["credit-risk-prod"], units_per_minute=per_minute
+        )
+        keys[name] = token
+        if name == "old-partner":
+            access.revoke_key("credit-risk", key.key_id)
+    return keys
+
+
+def _usage_history(clock: DemoClock) -> FakeUsage:
+    """A day of partner traffic on credit-risk-prod, plus whatever the demo gateway serves."""
+    usage = FakeUsage(clock)
+    acme, batch = _wave(42, seed=61, swing=0.3), _wave(14, seed=62, swing=0.6)
+    refused = _wave(0.6, seed=63, swing=0.8, noise=0.4)
+    usage.series[("credit-risk", "credit-risk-prod", "partner-acme")] = lambda t: (
+        acme(t) or 0.0,
+        refused(t) or 0.0,
+        0.0,
+    )
+    failing = _wave(0.08, seed=64, swing=0.9, noise=0.5)
+    usage.series[("credit-risk", "credit-risk-prod", "batch-scoring")] = lambda t: (
+        batch(t) or 0.0,
+        0.0,
+        failing(t) or 0.0,
+    )
+    usage.p95[("credit-risk", "credit-risk-prod")] = _wave(96, seed=65, swing=0.12)
+    return usage
 
 
 def _observed(
@@ -259,6 +340,9 @@ def _platform_telemetry() -> FakePlatformTelemetry:
     for i, (name, (errors, p95)) in enumerate(systems.items()):
         fake.series[(sig.PROVIDER_ERRORS, name)] = _wave(errors, seed=30 + i, swing=0.3)
         fake.series[(sig.PROVIDER_LATENCY, name)] = _wave(p95, seed=40 + i, swing=0.2)
+    fake.series[(sig.GATEWAY_REQUESTS, "")] = _wave(0.95, seed=70, swing=0.3)
+    fake.series[(sig.GATEWAY_ERRORS, "")] = _wave(0.0018, seed=71, swing=0.6, noise=0.2)
+    fake.series[(sig.GATEWAY_LATENCY, "")] = _wave(118, seed=72, swing=0.12)
     for i, (name, rate) in enumerate(
         {"run": 1.4, "pipeline_run": 0.8, "deployment": 0.3, "rollout": 0.2}.items()
     ):
@@ -631,14 +715,19 @@ def main() -> None:
 
     threading.Thread(target=loop, daemon=True).start()
     print("Demo control plane (in-memory fakes) on http://localhost:8080  ->  /ui")
-    uvicorn.run(demo.app, host="127.0.0.1", port=8080, log_level="warning")
+    print("Gateway on http://localhost:8080/gateway, try:")
+    print(
+        f"  curl -s -H 'Authorization: Bearer {demo.keys['partner-acme']}' "
+        "-d '{\"instances\": [[0.4, 1200, 3, 0.2]]}' "
+        "http://localhost:8080/gateway/v1/credit-risk/credit-risk-prod/predict"
+    )
+    uvicorn.run(demo.asgi, host="127.0.0.1", port=8080, log_level="warning")
     telemetry.shutdown()
 
 
 def _auth_from_env() -> AuthConfig | None:
     """`CP_AUTH_MODE=oidc` plus the usual CP_OIDC_* settings turn sign-in on, e.g. against the
     local Keycloak (docs/identity.md). Without it the demo runs open, as before."""
-    import os
 
     if os.environ.get("CP_AUTH_MODE") != "oidc":
         return None

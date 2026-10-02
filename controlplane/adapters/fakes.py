@@ -10,6 +10,7 @@ from typing import Any
 from uuid import UUID
 
 from controlplane.application.providers import (
+    EndpointUsageSeries,
     ExperimentRun,
     ExternalState,
     MetricsPoint,
@@ -23,6 +24,7 @@ from controlplane.application.providers import (
     ServingSpec,
     ServingState,
     ServingStatus,
+    UsagePoint,
     WorkflowSpec,
     WorkflowStatus,
 )
@@ -302,6 +304,56 @@ class FakePlatformTelemetry:
             if points:
                 out[group] = points
         return out
+
+
+class FakeUsage:
+    """Gateway usage in memory. Records calls like the gateway's metrics do (so a demo
+    gateway's calls show up in the usage panel) and can be seeded with per-minute series."""
+
+    def __init__(self, clock: Callable[[], datetime] | None = None) -> None:
+        self.series: dict[
+            tuple[str, str, str], Callable[[datetime], tuple[float, float, float] | None]
+        ] = {}  # (project, endpoint, caller) -> (units, rejected, errors) per minute
+        self.p95: dict[tuple[str, str], Callable[[datetime], float | None]] = {}
+        self.calls: list[tuple[datetime, Any]] = []
+        self._clock = clock
+
+    def record(self, call: Any) -> None:  # a gateway CallRecord
+        if self._clock is not None:
+            self.calls.append((self._clock(), call))
+
+    def endpoint_usage(
+        self, project: str, endpoint: str, *, start: datetime, end: datetime, step_seconds: int
+    ) -> EndpointUsageSeries:
+        total = int((end - start).total_seconds())
+        steps = range(step_seconds, total + 1, step_seconds)
+        moments = [start + timedelta(seconds=s) for s in steps]
+        rates: dict[str, dict[datetime, list[float]]] = {}
+        for (p, e, caller), value_at in sorted(self.series.items()):
+            if (p, e) == (project, endpoint):
+                for at in moments:
+                    if (value := value_at(at)) is not None:
+                        rates.setdefault(caller, {})[at] = list(value)
+        per_minute = 60 / step_seconds
+        for at, call in self.calls:
+            if (call.project, call.endpoint) != (project, endpoint) or not start < at <= end:
+                continue
+            moment = moments[
+                min(len(moments) - 1, int((at - start).total_seconds()) // step_seconds)
+            ]
+            rate = rates.setdefault(call.caller, {}).setdefault(moment, [0.0, 0.0, 0.0])
+            rate[0] += call.units * per_minute
+            rate[1] += per_minute if 400 <= call.status < 500 else 0
+            rate[2] += per_minute if call.status >= 500 else 0
+        callers = {
+            caller: [UsagePoint(at, *by_at[at]) for at in sorted(by_at)]
+            for caller, by_at in sorted(rates.items())
+        }
+        latency_at = self.p95.get((project, endpoint))
+        p95 = [
+            Sample(at, ms) for at in moments if latency_at and (ms := latency_at(at)) is not None
+        ]
+        return EndpointUsageSeries(callers=callers, p95_latency_ms=p95)
 
 
 class FakeArtifactProvider:

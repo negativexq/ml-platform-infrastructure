@@ -91,6 +91,28 @@ SIGNALS: tuple[SignalSpec, ...] = (
     ),
     SignalSpec(PlatformSignal.API_REQUESTS, "API traffic", "req/s", None, help="Requests served."),
     SignalSpec(
+        PlatformSignal.GATEWAY_ERRORS,
+        "Gateway error rate",
+        "ratio",
+        None,
+        warn=0.01,
+        critical=0.05,
+        help="Share of public calls through the gateway that failed (5xx: the model did not "
+        "answer or timed out). Refusals for keys and limits are not errors.",
+    ),
+    SignalSpec(
+        PlatformSignal.GATEWAY_LATENCY,
+        "Gateway latency p95",
+        "ms",
+        None,
+        warn=1000.0,
+        critical=3000.0,
+        help="95th percentile of a public call, model time included.",
+    ),
+    SignalSpec(
+        PlatformSignal.GATEWAY_REQUESTS, "Gateway traffic", "req/s", None, help="Public calls."
+    ),
+    SignalSpec(
         PlatformSignal.PROVIDER_ERRORS,
         "External system errors",
         "ratio",

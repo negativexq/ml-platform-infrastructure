@@ -18,10 +18,12 @@ from datetime import UTC, datetime
 from typing import Any
 
 from controlplane.application.providers import (
+    EndpointUsageSeries,
     MetricsPoint,
     PlatformSignal,
     RevisionMetrics,
     Sample,
+    UsagePoint,
 )
 
 _SAFE_LABEL = re.compile(r"^[A-Za-z0-9._-]+$")
@@ -145,6 +147,7 @@ def platform_queries(window: str) -> dict[PlatformSignal, tuple[str, str]]:
     http = "http_server_request_duration_seconds"
     runs = "mlp_reconcile_runs_total"
     calls = "mlp_provider_calls_total"
+    gateway = "mlp_gateway_requests_total"
     return {
         PlatformSignal.API_REQUESTS: (f"sum(rate({http}_count{{{api}}}[{w}]))", ""),
         PlatformSignal.API_ERRORS: (
@@ -184,6 +187,19 @@ def platform_queries(window: str) -> dict[PlatformSignal, tuple[str, str]]:
         PlatformSignal.TRANSITIONS: (
             f"60 * sum by (entity_type) (rate(mlp_state_transitions_total[{w}]))",
             "entity_type",
+        ),
+        PlatformSignal.GATEWAY_REQUESTS: (f"sum(rate({gateway}[{w}]))", ""),
+        PlatformSignal.GATEWAY_ERRORS: (
+            _ratio(
+                f'sum(rate({gateway}{{code=~"5.."}}[{w}]))',
+                f"sum(rate({gateway}[{w}]))",
+            ),
+            "",
+        ),
+        PlatformSignal.GATEWAY_LATENCY: (
+            "1000 * histogram_quantile(0.95, sum by (le) "
+            f"(rate(mlp_gateway_duration_seconds_bucket[{w}])))",
+            "",
         ),
     }
 
@@ -229,3 +245,70 @@ def _get(url: str) -> dict[str, Any]:
     except urllib.error.URLError as exc:
         raise ConnectionError(f"prometheus query failed: {exc}") from exc
     return body
+
+
+class PrometheusUsage:
+    """Gateway usage per caller, read back from the gateway's own metrics."""
+
+    def __init__(self, base_url: str, window: str = "5m") -> None:
+        self._base = base_url.rstrip("/")
+        self._window = window
+
+    def endpoint_usage(
+        self, project: str, endpoint: str, *, start: datetime, end: datetime, step_seconds: int
+    ) -> EndpointUsageSeries:
+        for value in (project, endpoint):
+            if not _SAFE_LABEL.match(value):
+                raise ValueError(f"unsafe label value {value!r}")
+        sel = f'project="{project}",endpoint="{endpoint}"'
+        w = self._window
+        requests = "mlp_gateway_requests_total"
+        window = {"start": start.timestamp(), "end": end.timestamp(), "step": f"{step_seconds}s"}
+        units = self._by_caller(
+            f"60 * sum by (caller) (rate(mlp_gateway_units_total{{{sel}}}[{w}]))", window
+        )
+        rejected = self._by_caller(
+            f'60 * sum by (caller) (rate({requests}{{{sel},code=~"4.."}}[{w}]))', window
+        )
+        errors = self._by_caller(
+            f'60 * sum by (caller) (rate({requests}{{{sel},code=~"5.."}}[{w}]))', window
+        )
+        callers: dict[str, list[UsagePoint]] = {}
+        for caller in sorted(set(units) | set(rejected) | set(errors)):
+            if caller in ("(anonymous)",):
+                continue
+            moments = sorted(
+                set(units.get(caller, {}))
+                | set(rejected.get(caller, {}))
+                | set(errors.get(caller, {}))
+            )
+            callers[caller] = [
+                UsagePoint(
+                    at=datetime.fromtimestamp(ts, UTC),
+                    units=units.get(caller, {}).get(ts, 0.0),
+                    rejected=rejected.get(caller, {}).get(ts, 0.0),
+                    errors=errors.get(caller, {}).get(ts, 0.0),
+                )
+                for ts in moments
+            ]
+        buckets = f"sum by (le) (rate(mlp_gateway_duration_seconds_bucket{{{sel}}}[{w}]))"
+        p95 = self._by_caller(f"1000 * histogram_quantile(0.95, {buckets})", window).get("", {})
+        return EndpointUsageSeries(
+            callers=callers,
+            p95_latency_ms=[
+                Sample(datetime.fromtimestamp(t, UTC), v) for t, v in sorted(p95.items())
+            ],
+        )
+
+    def _by_caller(self, query: str, window: dict[str, Any]) -> dict[str, dict[float, float]]:
+        params = urllib.parse.urlencode({"query": query, **window})
+        body = _get(f"{self._base}/api/v1/query_range?{params}")
+        out: dict[str, dict[float, float]] = {}
+        for result in body.get("data", {}).get("result", []):
+            caller = result.get("metric", {}).get("caller", "")
+            values = {
+                float(ts): float(raw) for ts, raw in result["values"] if float(raw) == float(raw)
+            }
+            if values:
+                out.setdefault(caller, {}).update(values)
+        return out

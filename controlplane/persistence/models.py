@@ -281,8 +281,34 @@ class EndpointRow(Base):
     name: Mapped[str] = mapped_column(String(40), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     url: Mapped[str | None] = mapped_column(Text)
+    kind: Mapped[str] = mapped_column(String(16), nullable=False, server_default="model")
+    protocol: Mapped[str] = mapped_column(String(16), nullable=False, server_default="v2-infer")
+    exposure: Mapped[str] = mapped_column(String(16), nullable=False, server_default="internal")
+    limit_units_per_minute: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="600"
+    )
+    limit_max_body_kb: Mapped[int] = mapped_column(Integer, nullable=False, server_default="256")
+    limit_timeout_seconds: Mapped[int] = mapped_column(Integer, nullable=False, server_default="30")
     created_at: Mapped[datetime] = _ts()
     updated_at: Mapped[datetime] = _ts()
+
+
+class ApiKeyRow(Base):
+    __tablename__ = "api_keys"
+    __table_args__ = (UniqueConstraint("project_id", "name", name="uq_api_keys_name"),)
+
+    id: Mapped[UUID] = _pk()
+    key_id: Mapped[str] = mapped_column(String(8), nullable=False, unique=True)
+    project_id: Mapped[UUID] = _fk("projects.id")
+    name: Mapped[str] = mapped_column(String(40), nullable=False)
+    endpoints: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    units_per_minute: Mapped[int | None] = mapped_column(Integer)
+    secret_hash: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_by: Mapped[str] = mapped_column(String(120), nullable=False)
+    created_at: Mapped[datetime] = _ts()
+    expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    revoked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    last_used_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class MembershipRow(Base):

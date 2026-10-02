@@ -245,7 +245,7 @@ class Server:
             self.port = s.getsockname()[1]
         self.demo = demo
         self.server = uvicorn.Server(
-            uvicorn.Config(demo.app, host="127.0.0.1", port=self.port, log_level="error")
+            uvicorn.Config(demo.asgi, host="127.0.0.1", port=self.port, log_level="error")
         )
         self.thread = threading.Thread(target=self.server.run, daemon=True)
         self.thread.start()
@@ -1056,3 +1056,83 @@ def test_platform_health_api(client: TestClient) -> None:
     assert body["available"] is True and body["status"] == "warning"
     assert body["inventory"]["projects"] == 3
     assert {s["key"] for s in body["signals"]} >= {"reconcile_passes", "api_errors"}
+
+
+# -- API access: public endpoints, keys, usage ------------------------------------------------
+
+
+def _gateway_call(server: Server, token: str, endpoint: str = "credit-risk-prod") -> int:
+    import httpx
+
+    reply = httpx.post(
+        f"{server.url}/gateway/v1/credit-risk/{endpoint}/predict",
+        json={"instances": [[1, 2, 3]]},
+        headers={"authorization": f"Bearer {token}"},
+    )
+    return reply.status_code
+
+
+def test_api_access_shows_url_limits_keys_and_usage(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects/credit-risk/deployments/credit-risk-prod")
+    panel = page.get_by_test_id("api-access")
+    expect(panel.get_by_test_id("exposure")).to_have_text("Public")
+    expect(panel.get_by_test_id("public-url")).to_contain_text(
+        "/gateway/v1/credit-risk/credit-risk-prod/predict"
+    )
+    expect(panel).to_contain_text("600 requests per minute, all callers together")
+    keys = panel.get_by_test_id("keys-table")
+    expect(keys.locator("[data-key=partner-acme]")).to_contain_text("120")
+    expect(keys.locator("[data-key=old-partner]")).to_contain_text("revoked")
+    expect(keys.locator("[data-key=old-partner] [data-testid=revoke-key]")).to_have_count(0)
+    callers = panel.get_by_test_id("usage-callers")
+    expect(callers.locator("[data-caller=partner-acme]")).to_be_visible()
+    expect(panel.get_by_test_id("usage-total").locator("path").first).to_be_visible()
+    panel.locator("summary", has_text="Call it with curl").click()
+    expect(panel).to_contain_text("Authorization: Bearer $MLP_API_KEY")
+    assert _gateway_call(server, server.demo.keys["partner-acme"]) == 200
+    assert _gateway_call(server, server.demo.keys["old-partner"]) == 401
+
+
+def test_a_new_key_is_shown_once_and_works(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects/credit-risk/settings")
+    page.get_by_test_id("new-project-key").click()
+    page.locator("#f-name").fill("mobile-app")
+    page.locator("#f-endpoints").fill("credit-risk-prod")
+    expect(page.get_by_test_id("form-preview")).to_contain_text(
+        "mobile-app will be able to call credit-risk-prod"
+    )
+    page.locator("dialog[open] button[type=submit]").click()
+    secret = page.get_by_test_id("key-secret").input_value()
+    assert secret.startswith("mlp_live_")
+    page.get_by_role("button", name="I have stored it").click()
+    expect(page.get_by_test_id("api-keys").locator("[data-key=mobile-app]")).to_contain_text(
+        "active"
+    )
+    page.reload()
+    expect(page.get_by_test_id("api-keys").locator("[data-key=mobile-app]")).to_be_visible()
+    assert secret not in page.content()  # never shown again
+    assert _gateway_call(server, secret) == 200
+
+
+def test_revoking_and_closing_are_confirmed_and_take_effect(page: Page, server: Server) -> None:
+    token = server.demo.keys["partner-acme"]
+    page.goto(f"{server.url}/ui/#/projects/credit-risk/deployments/credit-risk-prod")
+    panel = page.get_by_test_id("api-access")
+    panel.locator("[data-key=partner-acme] [data-testid=revoke-key]").click()
+    expect(page.locator("dialog[open]")).to_contain_text("refused within seconds")
+    page.locator("dialog[open]").get_by_role("button", name="Revoke key").click()
+    expect(panel.locator("[data-key=partner-acme]")).to_contain_text("revoked")
+
+    panel.get_by_test_id("toggle-exposure").click()
+    expect(page.locator("dialog[open]")).to_contain_text("1 active key loses access")
+    page.locator("dialog[open]").get_by_role("button", name="Make internal").click()
+    expect(panel.get_by_test_id("exposure")).to_have_text("Internal")
+    import time as _time
+
+    _time.sleep(5.5)  # the gateway's cache
+    assert _gateway_call(server, server.demo.keys["batch-scoring"]) == 404
+    assert _gateway_call(server, token) == 401
+    activity = page.goto(f"{server.url}/ui/#/projects/credit-risk/activity?all=1")
+    assert activity is None or activity.ok
+    expect(page.locator("main")).to_contain_text("API key revoked")
+    expect(page.locator("main")).to_contain_text("Endpoint exposure changed")

@@ -317,3 +317,20 @@ def test_grpc_is_rejected_with_a_clear_message() -> None:
         OTEL_EXPORTER_OTLP_PROTOCOL="grpc",
     )
     assert result.returncode != 0 and "http/protobuf" in result.stderr
+
+
+def test_gateway_usage_becomes_metrics(reader: InMemoryMetricReader) -> None:
+    from controlplane.application.gateway import CallRecord
+    from controlplane.observability.metrics import GatewayUsageMetrics
+
+    before = _counter(reader, "mlp.gateway.requests")
+    usage = GatewayUsageMetrics()
+    usage.record(CallRecord("credit-risk", "prod", "partner-acme", 200, 1, "requests", 0.05))
+    usage.record(CallRecord("credit-risk", "prod", "partner-acme", 429, 0, "requests", 0.001))
+    after = _counter(reader, "mlp.gateway.requests")
+    where = (("caller", "partner-acme"), ("endpoint", "prod"), ("project", "credit-risk"))
+    for code in ("200", "429"):
+        key = tuple(sorted((*where, ("code", code))))
+        assert after[key] - before.get(key, 0) == 1
+    units = _counter(reader, "mlp.gateway.units")
+    assert units[tuple(sorted((*where, ("unit", "requests"))))] >= 1

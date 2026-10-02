@@ -26,6 +26,7 @@ from controlplane.domain.ids import new_id
 
 
 class ProjectRole(StrEnum):
+    INVOKER = "invoker"  # may only call the project's public endpoints through the gateway
     VIEWER = "viewer"
     OPERATOR = "operator"
     ADMIN = "admin"
@@ -38,7 +39,12 @@ class ProjectRole(StrEnum):
         return self.rank >= other.rank
 
 
-_RANK = {ProjectRole.VIEWER: 1, ProjectRole.OPERATOR: 2, ProjectRole.ADMIN: 3}
+_RANK = {
+    ProjectRole.INVOKER: 0,
+    ProjectRole.VIEWER: 1,
+    ProjectRole.OPERATOR: 2,
+    ProjectRole.ADMIN: 3,
+}
 
 # `user:<name>` or `group:<name>`. Names are what the identity provider says (a username or
 # an email for users, a group name or path for groups), so they are kept as given.

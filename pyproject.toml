@@ -39,6 +39,8 @@ controlplane = [
     "opentelemetry-instrumentation-sqlalchemy>=0.50b0",
     # OpenID Connect: verifying bearer and ID tokens (JWKS, RS256/ES256).
     "pyjwt[crypto]>=2.9",
+    # The inference gateway forwards to serving with it (streamed, async).
+    "httpx>=0.27",
 ]
 controlplane-dev = [
     "pgserver>=0.1.4",

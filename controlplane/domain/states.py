@@ -212,6 +212,26 @@ DEPLOYMENT = StateMachine(
 )
 
 
+class EndpointKind(StrEnum):
+    """What answers behind an endpoint. Only models are served today; the others are reserved
+    so the public contract (URL, keys, limits) does not change when they arrive."""
+
+    MODEL = "model"
+    LLM = "llm"
+    FUNCTION = "function"
+
+
+class EndpointProtocol(StrEnum):
+    V2_INFER = "v2-infer"  # {"instances": ...} -> {"predictions": ...}
+    OPENAI = "openai"  # chat completions, streamed (reserved for LLMs)
+    HTTP = "http"  # any JSON in, any JSON out (reserved for functions)
+
+
+class Exposure(StrEnum):
+    INTERNAL = "internal"  # reachable inside the platform only
+    PUBLIC = "public"  # reachable through the gateway with a key
+
+
 class EndpointStatus(StrEnum):
     PENDING = "PENDING"
     READY = "READY"

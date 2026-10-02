@@ -9,6 +9,7 @@ from fastapi.responses import RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.telemetry import TelemetryConfig
 
+from controlplane.api.api_access import api_access_router
 from controlplane.api.auth import AuthConfig, AuthMiddleware, authorize, request_principal
 from controlplane.api.deployments import deployments_router
 from controlplane.api.errors import DomainHttpError, PlatformRoute, handle_domain_error
@@ -20,6 +21,7 @@ from controlplane.api.pipelines import pipeline_runs_router, pipelines_router
 from controlplane.api.platform import platform_router
 from controlplane.api.rollouts import rollouts_router
 from controlplane.api.schemas import ErrorOut, ProjectCreate, ProjectList, ProjectOut
+from controlplane.application.api_access import ApiAccessService
 from controlplane.application.deployments import DeploymentService
 from controlplane.application.identity import visible_project_ids
 from controlplane.application.jobs import JobService
@@ -41,6 +43,7 @@ from controlplane.application.providers import (
     MetricsProvider,
     PlatformTelemetry,
     ServingProvider,
+    UsageProvider,
     WorkflowProvider,
 )
 from controlplane.application.rollouts import RolloutService
@@ -147,6 +150,8 @@ def create_app(
     telemetry: TelemetryConfig | None = None,
     auth: AuthConfig | None = None,
     platform: PlatformTelemetry | None = None,
+    usage: UsageProvider | None = None,
+    gateway_url: str = "",
 ) -> FastAPI:
     """`auth=None` runs without sign-in: every caller is an anonymous platform admin. That is
     for local development, the demo and tests; production passes an `AuthConfig`."""
@@ -175,6 +180,9 @@ def create_app(
     app.state.rollouts = RolloutService(uow_factory, app.state.deployments, clock)
     app.state.overview = OverviewService(uow_factory, serving, metrics, clock)
     app.state.platform = PlatformService(uow_factory, platform, clock)
+    app.state.api_access = ApiAccessService(uow_factory, clock, usage)
+    app.state.gateway_url = gateway_url.rstrip("/") or None
+    app.state.clock = clock
     app.state.workflow = workflow
     app.state.experiments = experiments
     app.add_exception_handler(DomainError, handle_domain_error)
@@ -190,6 +198,7 @@ def create_app(
     app.include_router(rollouts_router())
     app.include_router(overview_router())
     app.include_router(platform_router())
+    app.include_router(api_access_router())
     app.include_router(identity_router())
     if auth is not None and auth.login is not None:
         app.include_router(login_router(auth))

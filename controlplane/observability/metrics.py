@@ -12,12 +12,16 @@ Names as Prometheus sees them (the collector's Prometheus exporter appends the u
   mlp_state_transitions_total{entity_type,action}   every audit event, i.e. every real state change
   mlp_provider_calls_total{provider,operation,outcome}   outcome: ok | not_found | error
   mlp_provider_duration_seconds{provider,operation}
+  mlp_gateway_requests_total{project,endpoint,caller,code}   every public call, by HTTP status
+  mlp_gateway_units_total{project,endpoint,caller,unit}      what quotas count (requests, tokens)
+  mlp_gateway_duration_seconds{project,endpoint}             whole call, streaming included
 """
 
 from __future__ import annotations
 
 from dataclasses import dataclass
 from functools import cache
+from typing import Any
 
 from opentelemetry import metrics
 from opentelemetry.metrics import Counter, Histogram
@@ -33,6 +37,9 @@ class _Instruments:
     transitions: Counter
     calls: Counter
     call_duration: Histogram
+    gateway_requests: Counter
+    gateway_units: Counter
+    gateway_duration: Histogram
 
 
 @cache
@@ -63,6 +70,18 @@ def _instruments() -> _Instruments:
             description="Latency of calls to external systems",
             explicit_bucket_boundaries_advisory=_BUCKETS,
         ),
+        gateway_requests=meter.create_counter(
+            "mlp.gateway.requests", unit="{request}", description="Calls through the gateway"
+        ),
+        gateway_units=meter.create_counter(
+            "mlp.gateway.units", unit="{unit}", description="Quota units used through the gateway"
+        ),
+        gateway_duration=meter.create_histogram(
+            "mlp.gateway.duration",
+            unit="s",
+            description="Time to serve a call through the gateway",
+            explicit_bucket_boundaries_advisory=_BUCKETS,
+        ),
     )
 
 
@@ -85,3 +104,30 @@ def record_provider_call(provider: str, operation: str, outcome: str, seconds: f
     attrs = {"provider": provider, "operation": operation}
     i.calls.add(1, {**attrs, "outcome": outcome})
     i.call_duration.record(seconds, attrs)
+
+
+def record_gateway_call(
+    project: str, endpoint: str, caller: str, code: int, units: float, unit: str, seconds: float
+) -> None:
+    i = _instruments()
+    where = {"project": project, "endpoint": endpoint}
+    i.gateway_requests.add(1, {**where, "caller": caller, "code": str(code)})
+    if units:
+        i.gateway_units.add(units, {**where, "caller": caller, "unit": unit})
+    i.gateway_duration.record(seconds, where)
+
+
+class GatewayUsageMetrics:
+    """The gateway's UsageRecorder: usage as metrics, which Prometheus keeps and the
+    control plane reads back for the usage panel."""
+
+    def record(self, call: Any) -> None:  # a controlplane.application.gateway.CallRecord
+        record_gateway_call(
+            call.project,
+            call.endpoint,
+            call.caller,
+            call.status,
+            call.units,
+            call.unit,
+            call.seconds,
+        )

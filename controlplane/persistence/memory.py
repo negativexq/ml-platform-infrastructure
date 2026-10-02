@@ -13,6 +13,7 @@ from typing import Self
 from uuid import UUID
 
 from controlplane.domain.access import Membership
+from controlplane.domain.api_keys import ApiKey
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import (
     Deployment,
@@ -61,6 +62,29 @@ class MemoryStore:
     rollouts: dict[UUID, Rollout] = field(default_factory=dict)
     audit: list[AuditEvent] = field(default_factory=list)
     memberships: dict[UUID, Membership] = field(default_factory=dict)
+    api_keys: dict[str, ApiKey] = field(default_factory=dict)
+
+
+class _ApiKeys:
+    def __init__(self, data: dict[str, ApiKey]) -> None:
+        self._data = data
+
+    def add(self, key: ApiKey) -> None:
+        if any(k.project_id == key.project_id and k.name == key.name for k in self._data.values()):
+            raise AlreadyExists("api key", key.name)
+        self._data[key.key_id] = key
+
+    def get(self, key_id: str) -> ApiKey | None:
+        return self._data.get(key_id)
+
+    def list(self, project_id: UUID) -> Sequence[ApiKey]:
+        mine = [k for k in self._data.values() if k.project_id == project_id]
+        return sorted(mine, key=lambda k: k.created_at, reverse=True)
+
+    def update(self, key: ApiKey) -> None:
+        if key.key_id not in self._data:
+            raise NotFound("api key", key.key_id)
+        self._data[key.key_id] = key
 
 
 class _Memberships:
@@ -665,6 +689,8 @@ class MemoryUnitOfWork:
         self._audit = list(self._store.audit)
         self._memberships = dict(self._store.memberships)
         self.memberships = _Memberships(self._memberships)
+        self._api_keys = dict(self._store.api_keys)
+        self.api_keys = _ApiKeys(self._api_keys)
         self.projects = _Projects(self._projects)
         self.jobs = _Jobs(self._jobs)
         self.runs = _Runs(self._runs)
@@ -707,3 +733,4 @@ class MemoryUnitOfWork:
         self._store.rollouts = self._rollouts
         self._store.audit = self._audit
         self._store.memberships = self._memberships
+        self._store.api_keys = self._api_keys

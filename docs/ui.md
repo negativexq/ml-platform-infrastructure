@@ -51,6 +51,19 @@ rules in `observability/controlplane-alert-rules.yaml`. A reconciler heartbeat t
 silent is critical (it stopped), not "no data". Without `CP_PROMETHEUS_URL` the page says so
 and still shows the workload counts.
 
+## API access (public endpoints)
+
+The deployment page's **API access** card answers "can someone outside call this, how, and
+how much are they?":
+* Exposure (Public or Internal), the public URL, limits, and curl and Python snippets.
+* The keys that can call it, and usage by caller against the endpoint's limit.
+* Opening, closing, limits and keys are admin actions with previews:
+  * closing says how many keys lose access;
+  * a new limit is checked against the busiest minute of the last hour;
+  * a new key's secret is shown once, in a dialog that says so.
+
+Settings has the project's **API keys** list. See `docs/gateway.md`.
+
 ## Charts
 
 Built to the `dataviz` method (form first, colour last, computed not eyeballed):
@@ -65,6 +78,7 @@ Built to the `dataviz` method (form first, colour last, computed not eyeballed):
 | Serving trends (deployment) | How has each revision served over time, against the gate? | lines, one axis per chart, gate line, event markers | categorical by role |
 | Platform API (monitor) | Is the API answering, fast, without errors? | line per measure, warning threshold line | one series, no legend |
 | Check sparklines (monitor) | Which way is each check going? | 1.5px line in a table cell, threshold dashed | one series |
+| Gateway usage (deployment) | How close are callers to the limit, who uses it? | total line with the limit drawn only when near; per-caller sparklines in a table | one series; callers are rows, never colours |
 
 Every chart has a table twin on the same page, a tooltip on hover **and** keyboard focus, and
 never relies on colour alone. The two categorical colours were validated against our light

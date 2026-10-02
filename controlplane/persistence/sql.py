@@ -11,12 +11,14 @@ from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.sql import Select
 
 from controlplane.domain.access import Membership, ProjectRole
+from controlplane.domain.api_keys import ApiKey
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import (
     Check,
     Deployment,
     DeploymentRevision,
     Endpoint,
+    EndpointLimits,
     Evaluation,
     JobDefinition,
     Model,
@@ -35,8 +37,11 @@ from controlplane.domain.entities import (
 from controlplane.domain.errors import AlreadyExists, Conflict, NotFound
 from controlplane.domain.states import (
     DeploymentStatus,
+    EndpointKind,
+    EndpointProtocol,
     EndpointStatus,
     EvaluationStatus,
+    Exposure,
     ModelStatus,
     ProjectStatus,
     PromotionStatus,
@@ -45,6 +50,7 @@ from controlplane.domain.states import (
     StepStatus,
 )
 from controlplane.persistence.models import (
+    ApiKeyRow,
     AuditEventRow,
     DeploymentRevisionRow,
     DeploymentRow,
@@ -885,9 +891,31 @@ def _endpoint(row: EndpointRow) -> Endpoint:
         name=row.name,
         status=EndpointStatus(row.status),
         url=row.url,
+        kind=EndpointKind(row.kind),
+        protocol=EndpointProtocol(row.protocol),
+        exposure=Exposure(row.exposure),
+        limits=EndpointLimits(
+            units_per_minute=row.limit_units_per_minute,
+            max_body_kb=row.limit_max_body_kb,
+            timeout_seconds=row.limit_timeout_seconds,
+        ),
         created_at=row.created_at,
         updated_at=row.updated_at,
     )
+
+
+def _endpoint_values(endpoint: Endpoint) -> dict[str, object]:
+    return {
+        "status": endpoint.status.value,
+        "url": endpoint.url,
+        "kind": endpoint.kind.value,
+        "protocol": endpoint.protocol.value,
+        "exposure": endpoint.exposure.value,
+        "limit_units_per_minute": endpoint.limits.units_per_minute,
+        "limit_max_body_kb": endpoint.limits.max_body_kb,
+        "limit_timeout_seconds": endpoint.limits.timeout_seconds,
+        "updated_at": endpoint.updated_at,
+    }
 
 
 class SqlDeployments:
@@ -1013,10 +1041,8 @@ class SqlEndpoints:
                 project_id=endpoint.project_id,
                 deployment_id=endpoint.deployment_id,
                 name=endpoint.name,
-                status=endpoint.status.value,
-                url=endpoint.url,
                 created_at=endpoint.created_at,
-                updated_at=endpoint.updated_at,
+                **_endpoint_values(endpoint),
             )
         )
         _flush_unique(self._s, "endpoint", endpoint.name)
@@ -1039,7 +1065,7 @@ class SqlEndpoints:
         result = self._s.execute(
             update(EndpointRow)
             .where(EndpointRow.id == endpoint.id, EndpointRow.status == expected_status.value)
-            .values(status=endpoint.status.value, url=endpoint.url, updated_at=endpoint.updated_at)
+            .values(**_endpoint_values(endpoint))
         )
         if getattr(result, "rowcount", 0) == 1:
             return
@@ -1262,6 +1288,74 @@ class SqlMemberships:
             raise NotFound("member", subject)
 
 
+def _api_key(row: ApiKeyRow) -> ApiKey:
+    return ApiKey(
+        id=row.id,
+        key_id=row.key_id,
+        project_id=row.project_id,
+        name=row.name,
+        endpoints=tuple(row.endpoints),
+        units_per_minute=row.units_per_minute,
+        secret_hash=row.secret_hash,
+        created_by=row.created_by,
+        created_at=row.created_at,
+        expires_at=row.expires_at,
+        revoked_at=row.revoked_at,
+        last_used_at=row.last_used_at,
+    )
+
+
+class SqlApiKeys:
+    def __init__(self, session: Session) -> None:
+        self._s = session
+
+    def add(self, key: ApiKey) -> None:
+        self._s.add(
+            ApiKeyRow(
+                id=key.id,
+                key_id=key.key_id,
+                project_id=key.project_id,
+                name=key.name,
+                endpoints=list(key.endpoints),
+                units_per_minute=key.units_per_minute,
+                secret_hash=key.secret_hash,
+                created_by=key.created_by,
+                created_at=key.created_at,
+                expires_at=key.expires_at,
+                revoked_at=key.revoked_at,
+                last_used_at=key.last_used_at,
+            )
+        )
+        _flush_unique(self._s, "api key", key.name)
+
+    def get(self, key_id: str) -> ApiKey | None:
+        row = self._s.scalars(select(ApiKeyRow).where(ApiKeyRow.key_id == key_id)).first()
+        return _api_key(row) if row else None
+
+    def list(self, project_id: UUID) -> Sequence[ApiKey]:
+        rows = self._s.scalars(
+            select(ApiKeyRow)
+            .where(ApiKeyRow.project_id == project_id)
+            .order_by(ApiKeyRow.created_at.desc())
+        )
+        return [_api_key(r) for r in rows]
+
+    def update(self, key: ApiKey) -> None:
+        result = self._s.execute(
+            update(ApiKeyRow)
+            .where(ApiKeyRow.key_id == key.key_id)
+            .values(
+                endpoints=list(key.endpoints),
+                units_per_minute=key.units_per_minute,
+                expires_at=key.expires_at,
+                revoked_at=key.revoked_at,
+                last_used_at=key.last_used_at,
+            )
+        )
+        if getattr(result, "rowcount", 0) != 1:
+            raise NotFound("api key", key.key_id)
+
+
 class SqlUnitOfWork:
     def __init__(self, session_factory: sessionmaker[Session]) -> None:
         self._factory = session_factory
@@ -1284,6 +1378,7 @@ class SqlUnitOfWork:
         self.rollouts = SqlRollouts(self._session)
         self.audit = SqlAudit(self._session)
         self.memberships = SqlMemberships(self._session)
+        self.api_keys = SqlApiKeys(self._session)
         return self
 
     def __exit__(

@@ -1,0 +1,203 @@
+# The inference gateway: the one public way in to projects' endpoints
+# (POST /v1/{project}/{endpoint}/predict with an API key). See docs/gateway.md.
+#
+# Separate from the control plane's API on purpose: prediction traffic scales on its own and
+# never competes with management calls. It reads endpoints and keys from the platform
+# database (cached for 5 s) and forwards to KServe through Knative's in-cluster gateway.
+#
+# Needs: the control plane's image and database Secret (the control plane's own manifests
+# are still to be written, docs/local-verification.md §9), an ingress controller and
+# cert-manager for TLS. Set the host below and CP_GATEWAY_URL on the control plane API.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mlp-system
+  labels:
+    app.kubernetes.io/part-of: ml-platform
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: mlp-gateway
+  namespace: mlp-system
+automountServiceAccountToken: false  # talks to no Kubernetes API
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mlp-gateway
+  namespace: mlp-system
+  labels: &labels
+    app.kubernetes.io/name: mlp-gateway
+    app.kubernetes.io/part-of: ml-platform
+spec:
+  replicas: 2
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mlp-gateway
+  template:
+    metadata:
+      labels: *labels
+    spec:
+      serviceAccountName: mlp-gateway
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: gateway
+          image: mlp-controlplane:dev
+          command:
+            - uvicorn
+            - controlplane.gateway_main:app_factory
+            - --factory
+            - --host=0.0.0.0
+            - --port=8081
+            - --no-access-log  # request ids and metrics carry what is needed
+          ports:
+            - name: http
+              containerPort: 8081
+          env:
+            - name: CP_DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: mlp-controlplane-db
+                  key: url
+            # Signed-in callers (OAuth client credentials) besides API keys: same issuer as
+            # the API. Set CP_AUTH_MODE=none to accept API keys only.
+            - name: CP_AUTH_MODE
+              value: oidc
+            - name: CP_OIDC_ISSUER
+              value: https://keycloak.example.com/realms/mlp
+            - name: OTEL_SERVICE_NAME
+              value: mlp-gateway
+            - name: OTEL_EXPORTER_OTLP_ENDPOINT
+              value: http://otel-collector.observability:4318
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 5
+          livenessProbe:
+            httpGet:
+              path: /healthz
+              port: http
+            periodSeconds: 10
+          resources:
+            requests:
+              cpu: 250m
+              memory: 256Mi
+            limits:
+              cpu: "1"
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: mlp-gateway
+  namespace: mlp-system
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mlp-gateway
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mlp-gateway
+  namespace: mlp-system
+  labels:
+    app.kubernetes.io/name: mlp-gateway
+spec:
+  selector:
+    app.kubernetes.io/name: mlp-gateway
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mlp-gateway
+  namespace: mlp-system
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt
+    nginx.ingress.kubernetes.io/proxy-body-size: 10m        # each endpoint has its own, smaller limit
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "600"   # the longest endpoint timeout allowed
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"      # stream replies through (LLM tokens, later)
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [api.mlp.example.com]
+      secretName: mlp-gateway-tls
+  rules:
+    - host: api.mlp.example.com
+      http:
+        paths:
+          - path: /v1/
+            pathType: Prefix
+            backend:
+              service:
+                name: mlp-gateway
+                port:
+                  name: http
+---
+# In from the ingress controller only; out to DNS, the database, the collector and the
+# serving path (Knative's local gateway and the projects' namespaces).
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: mlp-gateway
+  namespace: mlp-system
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/name: mlp-gateway
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+      ports:
+        - port: 8081
+  egress:
+    - to:
+        - namespaceSelector: {}
+          podSelector:
+            matchLabels:
+              k8s-app: kube-dns
+      ports:
+        - port: 53
+          protocol: UDP
+        - port: 53
+          protocol: TCP
+    - to:
+        - podSelector:
+            matchLabels:
+              app.kubernetes.io/name: postgresql
+      ports:
+        - port: 5432
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: observability
+      ports:
+        - port: 4318
+    - to:
+        - namespaceSelector:
+            matchExpressions:
+              - key: kubernetes.io/metadata.name
+                operator: In
+                values: [kourier-system, istio-system, knative-serving]
+        - namespaceSelector:
+            matchLabels:
+              app.kubernetes.io/managed-by: mlp-controlplane

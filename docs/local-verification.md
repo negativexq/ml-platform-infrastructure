@@ -531,8 +531,8 @@ manifests/dicts. Check each against a real Argo:
   fallback, no pause/resume, no manual "promote now" or step skip, and no automatic
   retry of a rollout.
 - The Prometheus window is fixed (`2m`) and independent of `step_seconds`.
-- Predict is a thin pass-through with a 10 s timeout; no auth, rate limiting or
-  request logging, and no stable external URL (a gateway).
+- The platform's own predict route is a thin pass-through for trying a model; outside
+  callers use the gateway (`docs/gateway.md`, §12).
 - Per-project serving credentials are manual (see section 5); the control plane
   does not create them.
 - No automatic discovery after a pipeline run succeeds (discovery is an explicit
@@ -582,3 +582,29 @@ Verified here, including against a real Keycloak 26.4 (see `docs/identity.md`). 
 | 3 | Your real identity provider: discovery, a `groups` claim (or set `CP_OIDC_GROUPS_CLAIM`), the `mlp` audience on access tokens | **you** |
 | 4 | Behind TLS: `CP_PUBLIC_URL=https://...` makes the cookies `Secure`; sign-in still round-trips | **you** |
 | 5 | A CI service account (client credentials) calling the API with a membership | **you** |
+
+## 12. Gateway gate: public endpoints and API keys
+
+Verified here (see `docs/gateway.md`):
+* `make gateway-e2e` runs real PostgreSQL, the real gateway process and a model server
+  speaking the v2 protocol over HTTP.
+* Browser tests cover issuing a key, showing it once, calling with it, revoking it and closing
+  the endpoint.
+* The usage and health queries ran against Prometheus 3.1.0.
+* The alerts pass promtool and the manifests pass kubeconform.
+
+Left for you:
+
+```bash
+kubectl apply -f k8s/gateway/gateway.yaml   # after setting the host, the issuer and the image
+```
+
+| # | Gate | Status |
+| --- | --- | --- |
+| 1 | Gateway pods Ready (`/healthz`), PDB holds one during a drain | **you** |
+| 2 | Through the ingress with TLS: `curl https://<host>/v1/<project>/<endpoint>/predict -H 'Authorization: Bearer <key>'` gives the model's answer | **you**: needs the ingress controller and cert-manager |
+| 3 | The gateway reaches KServe at the endpoint's in-cluster URL (`/v2/models/<name>/infer`) through Knative's local gateway | **you**: KServe Serverless; the NetworkPolicy allows `kourier-system`, `istio-system`, `knative-serving` and the project namespaces |
+| 4 | A long answer is streamed, not buffered | **you**: `proxy-buffering: off` on the ingress; matters for LLM endpoints later |
+| 5 | Two replicas: the effective limit is up to twice the configured one (per-replica buckets) | **you**: accept, or add a shared store behind the `RateLimiter` port |
+| 6 | Prometheus scrapes `mlp_gateway_*` (OTLP → Collector → Prometheus), the usage panel and Monitor show data, `GatewayHighErrorRate` fires when the model is scaled to zero with no activator | **you** |
+| 7 | A client-credentials token from Keycloak with the invoker role is accepted, without the role 403 | **you**: same issuer settings as the API |

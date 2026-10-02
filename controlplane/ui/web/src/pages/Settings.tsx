@@ -1,5 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { api, ApiError, enc, type S } from '../api/client';
+import { ApiKeys } from '../components/ApiAccess';
 import { Badge, Empty, Kv, Table, Time } from '../components/bits';
 import { useAccess, useMe } from '../lib/me';
 import { useOverlays } from '../components/overlays';
@@ -45,6 +46,7 @@ export function SettingsPage({ project }: { project: string }) {
             ]} />
           </div>
           <Members project={project} />
+          <ApiKeys project={project} />
           <div className="section card danger-zone" data-testid="danger-zone">
             <h2>Delete project</h2>
             <p className="muted">Removes the project's namespace and workloads. Deployments stop serving.</p>
@@ -59,6 +61,7 @@ export function SettingsPage({ project }: { project: string }) {
 }
 
 const ROLES = [
+  { value: 'invoker', label: 'Invoker: only calls public endpoints (services, partners)' },
   { value: 'viewer', label: 'Viewer: reads everything' },
   { value: 'operator', label: 'Operator: runs, deploys, rolls out' },
   { value: 'admin', label: 'Admin: also members, thresholds, deletion' },
@@ -133,9 +136,10 @@ function Members({ project }: { project: string }) {
         <table className="t role-guide">
           <thead><tr><th>Role</th><th>Can</th></tr></thead>
           <tbody>
+            <tr><td>invoker</td><td>Only call the project's public endpoints through the gateway (or a model through the platform). Sees nothing else. For services and partners signing in with their own credentials; for a plain key, use API keys below.</td></tr>
             <tr><td>viewer</td><td>See everything in the project: runs, logs, models, deployments, activity.</td></tr>
             <tr><td>operator</td><td>Also start, cancel and retry runs; evaluate and promote models; deploy, run canaries, roll back, send test requests.</td></tr>
-            <tr><td>admin</td><td>Also change acceptance thresholds, manage members, delete the project.</td></tr>
+            <tr><td>admin</td><td>Also change acceptance thresholds, manage members, open endpoints to the outside, issue and revoke API keys, delete the project.</td></tr>
           </tbody>
         </table>
       </details>
@@ -144,7 +148,7 @@ function Members({ project }: { project: string }) {
   );
 }
 
-const RANK: Record<string, number> = { viewer: 1, operator: 2, admin: 3 };
+const RANK: Record<string, number> = { invoker: 0, viewer: 1, operator: 2, admin: 3 };
 
 /** The signed-in person's effective role here and where it comes from: their own grant, a
  * group's, or platform admin. "Why can I (not) do this?" answered on the page. */

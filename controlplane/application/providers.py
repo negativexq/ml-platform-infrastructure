@@ -254,6 +254,9 @@ class PlatformSignal(StrEnum):
     PROVIDER_ERRORS = "provider_errors"  # share of external calls that errored, by system
     PROVIDER_LATENCY = "provider_latency"  # p95 of external calls in ms, by system
     TRANSITIONS = "transitions"  # state changes per minute, by entity type
+    GATEWAY_REQUESTS = "gateway_requests"  # public calls per second
+    GATEWAY_ERRORS = "gateway_errors"  # share of public calls that failed (5xx), 0..1
+    GATEWAY_LATENCY = "gateway_latency"  # p95 of a public call in ms, model time included
 
 
 @dataclass(frozen=True, slots=True)
@@ -269,6 +272,30 @@ class PlatformTelemetry(Protocol):
     ) -> Mapping[str, Sequence[Sample]]:
         """One series per group (a reconciler, an external system...), keyed by the group's
         name, or by "" for a signal with no groups. Oldest first; no data is a gap."""
+
+
+@dataclass(frozen=True, slots=True)
+class UsagePoint:
+    """One caller's use of one endpoint at one moment, each per minute."""
+
+    at: datetime
+    units: float  # what quotas count: requests for a model
+    rejected: float  # refused by the gateway (4xx: limits, keys, body size)
+    errors: float  # failed upstream (5xx)
+
+
+@dataclass(frozen=True, slots=True)
+class EndpointUsageSeries:
+    callers: Mapping[str, Sequence[UsagePoint]]  # caller (a key's name) -> points, oldest first
+    p95_latency_ms: Sequence[Sample]  # all callers together
+
+
+@runtime_checkable
+class UsageProvider(Protocol):
+    def endpoint_usage(
+        self, project: str, endpoint: str, *, start: datetime, end: datetime, step_seconds: int
+    ) -> EndpointUsageSeries:
+        """Public calls to one endpoint through the gateway, by caller."""
 
 
 @runtime_checkable

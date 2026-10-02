@@ -118,3 +118,53 @@ tests:
             exp_annotations:
               summary: "Control-plane API 5xx rate above 5%"
               description: "9.091% of API requests failed over the last 5 minutes."
+
+  # -- Gateway 5xx, per endpoint ----------------------------------------------------
+  - interval: 1m
+    input_series:
+      - series: 'mlp_gateway_requests_total{project="credit-risk",endpoint="prod",caller="acme",code="200"}'
+        values: "0+90x20"
+      - series: 'mlp_gateway_requests_total{project="credit-risk",endpoint="prod",caller="acme",code="502"}'
+        values: "0+10x20"
+      - series: 'mlp_gateway_requests_total{project="credit-risk",endpoint="prod",caller="acme",code="429"}'
+        values: "0+50x20"
+      - series: 'mlp_gateway_requests_total{project="fraud",endpoint="scorer",caller="bank",code="200"}'
+        values: "0+100x20"
+    alert_rule_test:
+      - eval_time: 3m
+        alertname: GatewayHighErrorRate
+        exp_alerts: []
+      - eval_time: 12m
+        alertname: GatewayHighErrorRate
+        exp_alerts:
+          - exp_labels:
+              severity: critical
+              project: credit-risk
+              endpoint: prod
+            exp_annotations:
+              summary: "Public calls to credit-risk/prod are failing"
+              description: "6.667% of calls through the gateway got a 5xx: the model did not answer or timed out. Refusals (keys, limits) are not counted."
+
+  # -- Gateway latency ----------------------------------------------------------------
+  - interval: 1m
+    input_series:
+      - series: 'mlp_gateway_duration_seconds_bucket{project="credit-risk",endpoint="prod",le="1"}'
+        values: "0+10x20"
+      - series: 'mlp_gateway_duration_seconds_bucket{project="credit-risk",endpoint="prod",le="5"}'
+        values: "0+100x20"
+      - series: 'mlp_gateway_duration_seconds_bucket{project="credit-risk",endpoint="prod",le="+Inf"}'
+        values: "0+100x20"
+    alert_rule_test:
+      - eval_time: 5m
+        alertname: GatewayHighLatency
+        exp_alerts: []
+      - eval_time: 18m
+        alertname: GatewayHighLatency
+        exp_alerts:
+          - exp_labels:
+              severity: warning
+              project: credit-risk
+              endpoint: prod
+            exp_annotations:
+              summary: "Public calls to credit-risk/prod are slow"
+              description: "p95 through the gateway is 4.778s, model time included."

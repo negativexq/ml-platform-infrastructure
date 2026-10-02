@@ -18,6 +18,9 @@ class Settings(BaseSettings):
     step_mlflow_tracking_uri: str = ""
     # Prometheus the rollout gates read per-revision metrics from. Empty: rollouts are not driven.
     prometheus_url: str = ""
+    # Where outside callers reach the gateway (https://api.example.com). Shown in the UI and
+    # used to build each public endpoint's URL. Empty: no gateway is deployed.
+    gateway_url: str = ""
     # Logging. JSON by default (cluster log collectors want it); set false for a console.
     log_json: bool = True
     log_level: str = "INFO"

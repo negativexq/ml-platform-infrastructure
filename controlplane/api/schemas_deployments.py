@@ -8,7 +8,13 @@ from pydantic import BaseModel, ConfigDict, Field
 
 from controlplane.application.deployments import DeploymentView, RevisionView
 from controlplane.domain.entities import Endpoint
-from controlplane.domain.states import DeploymentStatus, EndpointStatus
+from controlplane.domain.states import (
+    DeploymentStatus,
+    EndpointKind,
+    EndpointProtocol,
+    EndpointStatus,
+    Exposure,
+)
 
 
 class DeploymentCreate(BaseModel):
@@ -24,16 +30,42 @@ class RevisionCreate(BaseModel):
     version: int = Field(ge=1, description="Platform version number of the model")
 
 
+class EndpointLimitsBody(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    units_per_minute: int = Field(600, ge=1, le=1_000_000, description="all callers together")
+    max_body_kb: int = Field(256, ge=1, le=10_240)
+    timeout_seconds: int = Field(30, ge=1, le=600)
+
+
 class EndpointOut(BaseModel):
     id: UUID
     name: str
     status: EndpointStatus
-    url: str | None
+    url: str | None = Field(description="inside the cluster; the public address is the gateway's")
+    kind: EndpointKind
+    protocol: EndpointProtocol
+    exposure: Exposure
+    limits: EndpointLimitsBody
     updated_at: datetime
 
     @classmethod
     def from_domain(cls, e: Endpoint) -> EndpointOut:
-        return cls(id=e.id, name=e.name, status=e.status, url=e.url, updated_at=e.updated_at)
+        return cls(
+            id=e.id,
+            name=e.name,
+            status=e.status,
+            url=e.url,
+            kind=e.kind,
+            protocol=e.protocol,
+            exposure=e.exposure,
+            limits=EndpointLimitsBody(
+                units_per_minute=e.limits.units_per_minute,
+                max_body_kb=e.limits.max_body_kb,
+                timeout_seconds=e.limits.timeout_seconds,
+            ),
+            updated_at=e.updated_at,
+        )
 
 
 class RevisionOut(BaseModel):

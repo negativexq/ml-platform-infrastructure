@@ -8,6 +8,7 @@ from typing import Protocol, Self
 from uuid import UUID
 
 from controlplane.domain.access import Membership
+from controlplane.domain.api_keys import ApiKey
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import (
     Deployment,
@@ -284,6 +285,18 @@ class MembershipRepository(Protocol):
     def remove(self, project_id: UUID, subject: str) -> None: ...
 
 
+class ApiKeyRepository(Protocol):
+    def add(self, key: ApiKey) -> None:
+        """AlreadyExists if the project has a key with that name."""
+
+    def get(self, key_id: str) -> ApiKey | None: ...
+
+    def list(self, project_id: UUID) -> Sequence[ApiKey]:
+        """Newest first, revoked ones included."""
+
+    def update(self, key: ApiKey) -> None: ...
+
+
 class UnitOfWork(Protocol):
     """One transaction. Leaving the block without `commit()` rolls everything back."""
 
@@ -292,6 +305,9 @@ class UnitOfWork(Protocol):
 
     @property
     def memberships(self) -> MembershipRepository: ...
+
+    @property
+    def api_keys(self) -> ApiKeyRepository: ...
 
     @property
     def jobs(self) -> JobRepository: ...

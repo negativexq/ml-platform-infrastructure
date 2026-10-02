@@ -210,6 +210,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{project}/api-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List API keys */
+        get: operations["list_keys_projects__project__api_keys_get"];
+        put?: never;
+        /** Issue an API key (the secret is in this response only) */
+        post: operations["create_key_projects__project__api_keys_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/api-keys/{key_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        /** Revoke an API key (idempotent; the gateway stops accepting it within seconds) */
+        delete: operations["revoke_key_projects__project__api_keys__key_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/projects/{project}/audit": {
         parameters: {
             query?: never;
@@ -345,6 +380,24 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
+        /** Open an endpoint to the gateway (public) or close it (internal), with limits */
+        patch: operations["set_exposure_projects__project__endpoints__name__patch"];
+        trace?: never;
+    };
+    "/projects/{project}/endpoints/{name}/access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** How an endpoint is reached from outside: exposure, limits, URL, keys */
+        get: operations["get_access_projects__project__endpoints__name__access_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
         patch?: never;
         trace?: never;
     };
@@ -393,6 +446,23 @@ export interface paths {
         put?: never;
         /** Inference through the platform (409 unless the endpoint is READY) */
         post: operations["predict_projects__project__endpoints__name__predict_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/endpoints/{name}/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Calls through the gateway, by caller */
+        get: operations["get_usage_projects__project__endpoints__name__usage_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -781,6 +851,72 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ApiKeyCreate */
+        ApiKeyCreate: {
+            /**
+             * Endpoints
+             * @description endpoint names this key may call
+             */
+            endpoints: string[];
+            /** Expires At */
+            expires_at?: string | null;
+            /**
+             * Name
+             * @description who it is for, e.g. partner-acme
+             */
+            name: string;
+            /**
+             * Units Per Minute
+             * @description this key's own limit; null: the endpoint's
+             */
+            units_per_minute?: number | null;
+        };
+        /** ApiKeyCreated */
+        ApiKeyCreated: {
+            key: components["schemas"]["ApiKeyOut"];
+            /**
+             * Secret
+             * @description the full key; shown this once and never again
+             */
+            secret: string;
+        };
+        /** ApiKeyList */
+        ApiKeyList: {
+            /** Items */
+            items: components["schemas"]["ApiKeyOut"][];
+        };
+        /** ApiKeyOut */
+        ApiKeyOut: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Created By */
+            created_by: string;
+            /** Endpoints */
+            endpoints: string[];
+            /** Expires At */
+            expires_at: string | null;
+            /**
+             * Key Id
+             * @description the public part of the key, safe to show and log
+             */
+            key_id: string;
+            /** Last Used At */
+            last_used_at: string | null;
+            /** Name */
+            name: string;
+            /** Revoked At */
+            revoked_at: string | null;
+            /**
+             * State
+             * @description active, revoked or expired
+             */
+            state: string;
+            /** Units Per Minute */
+            units_per_minute: number | null;
+        };
         /** AuditEventOut */
         AuditEventOut: {
             /** Action */
@@ -815,6 +951,22 @@ export interface components {
         AuditOut: {
             /** Items */
             items: components["schemas"]["AuditEventOut"][];
+        };
+        /** CallerUsageOut */
+        CallerUsageOut: {
+            /** Caller */
+            caller: string;
+            /** Errors */
+            errors: number;
+            /** Points */
+            points: components["schemas"]["UsagePointOut"][];
+            /** Rejected */
+            rejected: number;
+            /**
+             * Units
+             * @description in the window
+             */
+            units: number;
         };
         /** CheckOut */
         CheckOut: {
@@ -886,6 +1038,37 @@ export interface components {
             /** Created */
             created: components["schemas"]["ModelVersionSummary"][];
         };
+        /** EndpointAccessOut */
+        EndpointAccessOut: {
+            /** Endpoint */
+            endpoint: string;
+            exposure: components["schemas"]["Exposure"];
+            /**
+             * Keys
+             * @description keys that may call this endpoint
+             */
+            keys: components["schemas"]["ApiKeyOut"][];
+            kind: components["schemas"]["EndpointKind"];
+            limits: components["schemas"]["EndpointLimitsBody"];
+            /**
+             * Operation
+             * @description the last part of the public path, e.g. predict
+             */
+            operation: string;
+            protocol: components["schemas"]["EndpointProtocol"];
+            /**
+             * Public Url
+             * @description null when no gateway URL is configured
+             */
+            public_url: string | null;
+        };
+        /** EndpointExposure */
+        EndpointExposure: {
+            /** @description public: callable through the gateway with a key */
+            exposure: components["schemas"]["Exposure"];
+            /** @description omit to keep the current ones */
+            limits?: components["schemas"]["EndpointLimitsBody"] | null;
+        };
         /** EndpointHistoryOut */
         EndpointHistoryOut: {
             /** Available */
@@ -934,6 +1117,32 @@ export interface components {
             /** Url */
             url: string | null;
         };
+        /**
+         * EndpointKind
+         * @description What answers behind an endpoint. Only models are served today; the others are reserved
+         *     so the public contract (URL, keys, limits) does not change when they arrive.
+         * @enum {string}
+         */
+        EndpointKind: "model" | "llm" | "function";
+        /** EndpointLimitsBody */
+        EndpointLimitsBody: {
+            /**
+             * Max Body Kb
+             * @default 256
+             */
+            max_body_kb: number;
+            /**
+             * Timeout Seconds
+             * @default 30
+             */
+            timeout_seconds: number;
+            /**
+             * Units Per Minute
+             * @description all callers together
+             * @default 600
+             */
+            units_per_minute: number;
+        };
         /** EndpointListOut */
         EndpointListOut: {
             /** Items */
@@ -952,27 +1161,67 @@ export interface components {
         };
         /** EndpointOut */
         EndpointOut: {
+            exposure: components["schemas"]["Exposure"];
             /**
              * Id
              * Format: uuid
              */
             id: string;
+            kind: components["schemas"]["EndpointKind"];
+            limits: components["schemas"]["EndpointLimitsBody"];
             /** Name */
             name: string;
+            protocol: components["schemas"]["EndpointProtocol"];
             status: components["schemas"]["EndpointStatus"];
             /**
              * Updated At
              * Format: date-time
              */
             updated_at: string;
-            /** Url */
+            /**
+             * Url
+             * @description inside the cluster; the public address is the gateway's
+             */
             url: string | null;
         };
+        /**
+         * EndpointProtocol
+         * @enum {string}
+         */
+        EndpointProtocol: "v2-infer" | "openai" | "http";
         /**
          * EndpointStatus
          * @enum {string}
          */
         EndpointStatus: "PENDING" | "READY" | "UNAVAILABLE";
+        /** EndpointUsageOut */
+        EndpointUsageOut: {
+            /** Available */
+            available: boolean;
+            /** Callers */
+            callers: components["schemas"]["CallerUsageOut"][];
+            /**
+             * End
+             * Format: date-time
+             */
+            end: string;
+            /** Error */
+            error: string | null;
+            /** P95 Latency Ms */
+            p95_latency_ms: components["schemas"]["SampleValueOut"][];
+            /**
+             * Start
+             * Format: date-time
+             */
+            start: string;
+            /** Step Seconds */
+            step_seconds: number;
+            /**
+             * Unit
+             * @description what quotas count: requests (models) or tokens (LLMs)
+             */
+            unit: string;
+        };
         /** ErrorBody */
         ErrorBody: {
             /** Code */
@@ -1011,6 +1260,11 @@ export interface components {
          * @enum {string}
          */
         EvaluationStatus: "PENDING" | "RUNNING" | "PASSED" | "FAILED";
+        /**
+         * Exposure
+         * @enum {string}
+         */
+        Exposure: "internal" | "public";
         /** GateIn */
         GateIn: {
             /**
@@ -1519,7 +1773,7 @@ export interface components {
          * @description The control plane's own health, as its telemetry backend records it.
          * @enum {string}
          */
-        PlatformSignal: "api_requests" | "api_errors" | "api_latency" | "reconcile_passes" | "reconcile_errors" | "provider_errors" | "provider_latency" | "transitions";
+        PlatformSignal: "api_requests" | "api_errors" | "api_latency" | "reconcile_passes" | "reconcile_errors" | "provider_errors" | "provider_latency" | "transitions" | "gateway_requests" | "gateway_errors" | "gateway_latency";
         /**
          * PredictRequest
          * @description Passed to the model server unchanged (e.g. `{"instances": [[1, 2, 3]]}`).
@@ -1582,7 +1836,7 @@ export interface components {
          * ProjectRole
          * @enum {string}
          */
-        ProjectRole: "viewer" | "operator" | "admin";
+        ProjectRole: "invoker" | "viewer" | "operator" | "admin";
         /**
          * ProjectStatus
          * @enum {string}
@@ -1840,6 +2094,16 @@ export interface components {
             /** Value */
             value: number;
         };
+        /** SampleValueOut */
+        SampleValueOut: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /** Value */
+            value: number;
+        };
         /** SeriesHealthOut */
         SeriesHealthOut: {
             /**
@@ -1999,6 +2263,29 @@ export interface components {
             pipeline_run_id: string;
             /** Runs */
             runs: components["schemas"]["TrackedRunOut"][];
+        };
+        /** UsagePointOut */
+        UsagePointOut: {
+            /**
+             * At
+             * Format: date-time
+             */
+            at: string;
+            /**
+             * Errors
+             * @description per minute, failed upstream (5xx)
+             */
+            errors: number;
+            /**
+             * Rejected
+             * @description per minute, refused by the gateway (4xx)
+             */
+            rejected: number;
+            /**
+             * Units
+             * @description per minute
+             */
+            units: number;
         };
         /** ValidationError */
         ValidationError: {
@@ -2706,6 +2993,158 @@ export interface operations {
             };
         };
     };
+    list_keys_projects__project__api_keys_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiKeyList"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    create_key_projects__project__api_keys_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ApiKeyCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiKeyCreated"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    revoke_key_projects__project__api_keys__key_id__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+                key_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ApiKeyOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
     audit_projects__project__audit_get: {
         parameters: {
             query?: {
@@ -3221,6 +3660,110 @@ export interface operations {
             };
         };
     };
+    set_exposure_projects__project__endpoints__name__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EndpointExposure"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EndpointOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    get_access_projects__project__endpoints__name__access_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EndpointAccessOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
     endpoint_metrics_projects__project__endpoints__name__metrics_get: {
         parameters: {
             query?: never;
@@ -3361,6 +3904,58 @@ export interface operations {
             };
             /** @description Bad Gateway */
             502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    get_usage_projects__project__endpoints__name__usage_get: {
+        parameters: {
+            query?: {
+                minutes?: number;
+            };
+            header?: never;
+            path: {
+                project: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EndpointUsageOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
                 headers: {
                     [name: string]: unknown;
                 };

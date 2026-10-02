@@ -23,6 +23,8 @@ const LABELS: Record<string, string> = {
   'deployment.failed': 'Deployment failed', 'deployment.rolled_back': 'Deployment rolled back', 'endpoint.ready': 'Endpoint ready',
   'rollout.started': 'Canary started', 'rollout.step_applied': 'Canary traffic increased', 'rollout.observing': 'Canary under observation',
   'rollout.succeeded': 'Canary promoted', 'rollout.rolled_back': 'Canary rolled back', 'rollout.abort_requested': 'Canary abort requested',
+  'endpoint.exposure_changed': 'Endpoint exposure changed', 'api_key.created': 'API key issued', 'api_key.revoked': 'API key revoked',
+  'membership.granted': 'Member added', 'membership.changed': 'Member role changed', 'membership.revoked': 'Member removed',
 };
 
 export const describeAction = (action: string) => LABELS[action] ?? action.replace(/[._]/g, ' ');

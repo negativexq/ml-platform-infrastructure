@@ -19,8 +19,11 @@ from controlplane.domain.errors import InvalidArgument
 from controlplane.domain.ids import new_id
 from controlplane.domain.states import (
     DeploymentStatus,
+    EndpointKind,
+    EndpointProtocol,
     EndpointStatus,
     EvaluationStatus,
+    Exposure,
     ModelStatus,
     ProjectStatus,
     PromotionStatus,
@@ -581,6 +584,24 @@ class DeploymentRevision:
     created_at: datetime
 
 
+@dataclass(frozen=True, slots=True)
+class EndpointLimits:
+    """What the gateway enforces for one endpoint. A unit is one request for a model."""
+
+    units_per_minute: int = 600
+    max_body_kb: int = 256
+    timeout_seconds: int = 30
+
+    def __post_init__(self) -> None:
+        for name, value, top in (
+            ("units_per_minute", self.units_per_minute, 1_000_000),
+            ("max_body_kb", self.max_body_kb, 10_240),
+            ("timeout_seconds", self.timeout_seconds, 600),
+        ):
+            if not 1 <= value <= top:
+                raise InvalidArgument(f"{name} must be between 1 and {top}")
+
+
 @dataclass(frozen=True, slots=True, kw_only=True)
 class Endpoint:
     id: UUID = field(default_factory=new_id)
@@ -588,9 +609,16 @@ class Endpoint:
     deployment_id: UUID
     name: str
     status: EndpointStatus = EndpointStatus.PENDING
-    url: str | None = None
+    url: str | None = None  # inside the cluster; the public address is the gateway's
+    kind: EndpointKind = EndpointKind.MODEL
+    protocol: EndpointProtocol = EndpointProtocol.V2_INFER
+    exposure: Exposure = Exposure.INTERNAL
+    limits: EndpointLimits = field(default_factory=EndpointLimits)
     created_at: datetime
     updated_at: datetime
+
+    def exposed(self, exposure: Exposure, limits: EndpointLimits, now: datetime) -> Self:
+        return replace(self, exposure=exposure, limits=limits, updated_at=now)
 
     def transition_to(self, status: EndpointStatus, now: datetime, url: str | None = None) -> Self:
         states.ENDPOINT.ensure(self.status, status)
