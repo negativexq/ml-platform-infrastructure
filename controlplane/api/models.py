@@ -9,6 +9,7 @@ from controlplane.api.errors import PlatformRoute
 from controlplane.api.schemas import ErrorOut
 from controlplane.api.schemas_models import (
     DiscoveryOut,
+    HubVersionCreate,
     ModelCreate,
     ModelList,
     ModelOut,
@@ -18,6 +19,7 @@ from controlplane.api.schemas_models import (
     VersionList,
 )
 from controlplane.application.models import EvaluationService, ModelService, PromotionService
+from controlplane.domain.states import ModelKind
 
 _ERRORS: dict[int | str, dict[str, Any]] = {
     404: {"model": ErrorOut},
@@ -48,8 +50,14 @@ def models_router() -> APIRouter:
     def create_model(
         project: str, body: ModelCreate, request: Request, response: Response
     ) -> ModelOut:
+        if body.llm is not None and body.kind is not ModelKind.LLM:
+            raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "llm settings need kind llm")
         view, created = svc(request).create(
-            project, body.name, {k: t.to_domain() for k, t in body.thresholds.items()}
+            project,
+            body.name,
+            {k: t.to_domain() for k, t in body.thresholds.items()},
+            kind=body.kind,
+            serving=body.serving(),
         )
         if not created:
             response.status_code = status.HTTP_200_OK
@@ -85,6 +93,24 @@ def models_router() -> APIRouter:
         return VersionList(items=[ModelVersionSummary.from_domain(v) for v in view.versions])
 
     @router.post(
+        "/{name}/versions",
+        response_model=ModelVersionSummary,
+        status_code=status.HTTP_201_CREATED,
+        responses={
+            200: {"model": ModelVersionSummary, "description": "Already registered"},
+            **_ERRORS,
+        },
+        summary="Register an LLM version from a model hub, with its offline results (idempotent)",
+    )
+    def register_from_hub(
+        project: str, name: str, body: HubVersionCreate, request: Request, response: Response
+    ) -> ModelVersionSummary:
+        version, created = svc(request).register_from_hub(project, name, body.source, body.metrics)
+        if not created:
+            response.status_code = status.HTTP_200_OK
+        return ModelVersionSummary.from_domain(version)
+
+    @router.post(
         "/{name}/discover",
         response_model=DiscoveryOut,
         responses=_ERRORS,
@@ -116,9 +142,7 @@ def model_versions_router() -> APIRouter:
         summary="Evaluate against the model's thresholds: CANDIDATE or REJECTED",
     )
     def evaluate(version_id: UUID, request: Request) -> ModelVersionOut:
-        service: EvaluationService | None = request.app.state.evaluations
-        if service is None:
-            raise HTTPException(status.HTTP_503_SERVICE_UNAVAILABLE, "no model registry configured")
+        service: EvaluationService = request.app.state.evaluations
         return ModelVersionOut.from_view(service.evaluate(version_id))
 
     @router.post(

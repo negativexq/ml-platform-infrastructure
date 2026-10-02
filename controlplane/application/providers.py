@@ -131,6 +131,11 @@ class ServingSpec:
     # None: this revision takes all traffic. Otherwise it takes this share and the
     # previously serving revision keeps the rest (a canary).
     canary_percent: int | None = None
+    # How it is served: "mlflow" (v2 protocol) or "huggingface" (an LLM runtime answering
+    # OpenAI-compatible chat completions), with GPUs and a context window for LLMs.
+    runtime: str = "mlflow"
+    gpus: int = 0
+    context_length: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -156,6 +161,9 @@ class ServingProvider(Protocol):
 
     def predict(self, ref: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         """Send an inference request to the live endpoint and return its response."""
+
+    def chat(self, ref: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        """One OpenAI-style chat completion from a live LLM endpoint (not streamed)."""
 
     def delete(self, ref: str) -> None: ...
 
@@ -257,6 +265,7 @@ class PlatformSignal(StrEnum):
     GATEWAY_REQUESTS = "gateway_requests"  # public calls per second
     GATEWAY_ERRORS = "gateway_errors"  # share of public calls that failed (5xx), 0..1
     GATEWAY_LATENCY = "gateway_latency"  # p95 of a public call in ms, model time included
+    GATEWAY_TOKENS = "gateway_tokens"  # LLM tokens per minute, by direction (prompt, completion)
 
 
 @dataclass(frozen=True, slots=True)
@@ -288,6 +297,8 @@ class UsagePoint:
 class EndpointUsageSeries:
     callers: Mapping[str, Sequence[UsagePoint]]  # caller (a key's name) -> points, oldest first
     p95_latency_ms: Sequence[Sample]  # all callers together
+    # LLMs: tokens in the window by caller, (prompt, completion)
+    tokens: Mapping[str, tuple[float, float]] = field(default_factory=dict)
 
 
 @runtime_checkable

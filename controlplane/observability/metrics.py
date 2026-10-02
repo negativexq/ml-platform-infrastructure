@@ -15,6 +15,7 @@ Names as Prometheus sees them (the collector's Prometheus exporter appends the u
   mlp_gateway_requests_total{project,endpoint,caller,code}   every public call, by HTTP status
   mlp_gateway_units_total{project,endpoint,caller,unit}      what quotas count (requests, tokens)
   mlp_gateway_duration_seconds{project,endpoint}             whole call, streaming included
+  mlp_gateway_tokens_total{project,endpoint,caller,direction}  LLMs: prompt | completion
 """
 
 from __future__ import annotations
@@ -40,6 +41,7 @@ class _Instruments:
     gateway_requests: Counter
     gateway_units: Counter
     gateway_duration: Histogram
+    gateway_tokens: Counter
 
 
 @cache
@@ -82,6 +84,9 @@ def _instruments() -> _Instruments:
             description="Time to serve a call through the gateway",
             explicit_bucket_boundaries_advisory=_BUCKETS,
         ),
+        gateway_tokens=meter.create_counter(
+            "mlp.gateway.tokens", unit="{token}", description="LLM tokens through the gateway"
+        ),
     )
 
 
@@ -107,13 +112,24 @@ def record_provider_call(provider: str, operation: str, outcome: str, seconds: f
 
 
 def record_gateway_call(
-    project: str, endpoint: str, caller: str, code: int, units: float, unit: str, seconds: float
+    project: str,
+    endpoint: str,
+    caller: str,
+    code: int,
+    units: float,
+    unit: str,
+    seconds: float,
+    prompt_tokens: int = 0,
+    completion_tokens: int = 0,
 ) -> None:
     i = _instruments()
     where = {"project": project, "endpoint": endpoint}
     i.gateway_requests.add(1, {**where, "caller": caller, "code": str(code)})
     if units:
         i.gateway_units.add(units, {**where, "caller": caller, "unit": unit})
+    for direction, tokens in (("prompt", prompt_tokens), ("completion", completion_tokens)):
+        if tokens:
+            i.gateway_tokens.add(tokens, {**where, "caller": caller, "direction": direction})
     i.gateway_duration.record(seconds, where)
 
 
@@ -130,4 +146,6 @@ class GatewayUsageMetrics:
             call.units,
             call.unit,
             call.seconds,
+            call.prompt_tokens,
+            call.completion_tokens,
         )

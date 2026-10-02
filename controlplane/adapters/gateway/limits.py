@@ -36,6 +36,22 @@ class TokenBucketLimiter:
             left = levels[name] - units
             return Allowance(True, limit, int(left), math.ceil((limit - left) / (limit / 60)))
 
+    def admit(self, buckets: Sequence[tuple[str, int]]) -> Allowance:
+        with self._lock:
+            now = self._now()
+            levels = {name: self._level(name, limit, now) for name, limit in buckets}
+            name, limit = min(buckets, key=lambda b: levels[b[0]])
+            level = levels[name]
+            if level < 1:
+                return Allowance(False, limit, 0, math.ceil((1 - level) / (limit / 60)))
+            return Allowance(True, limit, int(level), math.ceil((limit - level) / (limit / 60)))
+
+    def charge(self, buckets: Sequence[tuple[str, int]], units: int) -> None:
+        with self._lock:
+            now = self._now()
+            for name, limit in buckets:
+                self._buckets[name] = (self._level(name, limit, now) - units, now)
+
     def _level(self, name: str, limit: int, now: float) -> float:
         tokens, at = self._buckets.get(name, (float(limit), now))
         return min(float(limit), tokens + (now - at) * limit / 60)

@@ -113,6 +113,13 @@ SIGNALS: tuple[SignalSpec, ...] = (
         PlatformSignal.GATEWAY_REQUESTS, "Gateway traffic", "req/s", None, help="Public calls."
     ),
     SignalSpec(
+        PlatformSignal.GATEWAY_TOKENS,
+        "LLM tokens",
+        "/min",
+        "direction",
+        help="Tokens through the gateway: prompt (sent) and completion (generated).",
+    ),
+    SignalSpec(
         PlatformSignal.PROVIDER_ERRORS,
         "External system errors",
         "ratio",

@@ -21,15 +21,17 @@ from controlplane.application.workflow_compiler import TAG_PIPELINE_RUN_ID
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import (
     Evaluation,
+    LlmServing,
     Model,
     ModelVersion,
     Project,
     Promotion,
     Threshold,
     run_checks,
+    validate_hub_source,
 )
-from controlplane.domain.errors import AlreadyExists, Conflict, NotFound
-from controlplane.domain.states import EvaluationStatus, ModelStatus, PromotionStatus
+from controlplane.domain.errors import AlreadyExists, Conflict, InvalidArgument, NotFound
+from controlplane.domain.states import EvaluationStatus, ModelKind, ModelStatus, PromotionStatus
 
 ALIAS_CHAMPION = "champion"
 ALIAS_CANDIDATE = "candidate"
@@ -93,22 +95,38 @@ class ModelService:
     # -- models -------------------------------------------------------------
 
     def create(
-        self, project_ref: str, name: str, thresholds: Mapping[str, Threshold]
+        self,
+        project_ref: str,
+        name: str,
+        thresholds: Mapping[str, Threshold],
+        *,
+        kind: ModelKind = ModelKind.CLASSIC,
+        serving: LlmServing | None = None,
     ) -> tuple[ModelView, bool]:
         """Identical repeat -> existing, `created=False`. Same name with different
         thresholds -> Conflict: change thresholds explicitly with `set_thresholds`."""
         try:
-            return self._create(project_ref, name, thresholds)
+            return self._create(project_ref, name, thresholds, kind, serving)
         except AlreadyExists:  # lost a race with an identical request
-            return self._create(project_ref, name, thresholds)
+            return self._create(project_ref, name, thresholds, kind, serving)
 
     def _create(
-        self, project_ref: str, name: str, thresholds: Mapping[str, Threshold]
+        self,
+        project_ref: str,
+        name: str,
+        thresholds: Mapping[str, Threshold],
+        kind: ModelKind,
+        serving: LlmServing | None,
     ) -> tuple[ModelView, bool]:
         with self._uow_factory() as uow:
             project = resolve_project(uow, project_ref)
             candidate = Model.create(
-                project_id=project.id, name=name, thresholds=thresholds, now=self._clock()
+                project_id=project.id,
+                name=name,
+                thresholds=thresholds,
+                now=self._clock(),
+                kind=kind,
+                serving=serving,
             )
             existing = uow.models.get_by_name(project.id, candidate.name)
             if existing is not None:
@@ -117,6 +135,8 @@ class ModelService:
                         f"model {name!r} already exists with different thresholds; "
                         "use PUT .../thresholds to change them"
                     )
+                if (existing.kind, existing.serving) != (candidate.kind, candidate.serving):
+                    raise Conflict(f"model {name!r} already exists as a different kind of model")
                 return self._view(uow, project, existing), False
             uow.models.add(candidate)
             uow.audit.record(
@@ -127,6 +147,7 @@ class ModelService:
                     candidate.id,
                     project.id,
                     name=candidate.name,
+                    kind=candidate.kind.value,
                 )
             )
             uow.commit()
@@ -194,6 +215,31 @@ class ModelService:
                 existing += 1
         return DiscoveryResult(created, existing)
 
+    def register_from_hub(
+        self, project_ref: str, name: str, source: str, metrics: Mapping[str, float]
+    ) -> tuple[ModelVersion, bool]:
+        """Register an LLM version straight from a model hub, with the offline evaluation
+        results it will be judged on. Idempotent per source: the same source is the same
+        version. Pin a revision (`@<commit>`) so it always means the same weights."""
+        validate_hub_source(source)
+        clean = {str(k).strip(): float(v) for k, v in metrics.items()}
+        if any(not k for k in clean) or any(v != v for v in clean.values()):
+            raise InvalidArgument("metrics are named numbers")
+        with self._uow_factory() as uow:
+            project, model = self._load(uow, project_ref, name)
+            if model.kind is not ModelKind.LLM:
+                raise Conflict(
+                    f"model {name!r} is {model.kind.value}: its versions come from the registry"
+                )
+        for _ in range(3):  # a concurrent registration can take our version number
+            try:
+                return self._register(
+                    model, project, source, None, source_uri=source, metrics=clean
+                )
+            except AlreadyExists:
+                continue
+        raise AlreadyExists("model version", source)
+
     def _lineage(self, run_ref: str | None) -> UUID | None:
         """The pipeline run that produced a registry version, from the tracking run's tags."""
         if run_ref is None or self._experiments is None:
@@ -205,7 +251,14 @@ class ModelService:
             return None
 
     def _register(
-        self, model: Model, project: Project, ref: str, lineage: UUID | None
+        self,
+        model: Model,
+        project: Project,
+        ref: str,
+        lineage: UUID | None,
+        *,
+        source_uri: str | None = None,
+        metrics: Mapping[str, float] | None = None,
     ) -> tuple[ModelVersion, bool]:
         with self._uow_factory() as uow:
             known = uow.model_versions.get_by_ref(model.id, ref)
@@ -217,6 +270,8 @@ class ModelService:
                 version=uow.model_versions.next_version(model.id),
                 external_ref=ref,
                 source_pipeline_run_id=lineage,
+                source_uri=source_uri,
+                metrics=dict(metrics or {}),
                 created_at=now,
                 updated_at=now,
             )
@@ -230,6 +285,7 @@ class ModelService:
                     project.id,
                     model=model.name,
                     version=version.version,
+                    source=source_uri or "registry",
                 )
             )
             uow.commit()
@@ -279,7 +335,7 @@ class EvaluationService:
     def __init__(
         self,
         uow_factory: UnitOfWorkFactory,
-        experiments: ExperimentProvider,
+        experiments: ExperimentProvider | None,
         clock: Clock = utc_now,
     ) -> None:
         self._uow_factory = uow_factory
@@ -287,6 +343,10 @@ class EvaluationService:
         self._clock = clock
 
     def evaluate(self, version_id: UUID) -> VersionView:
+        with self._uow_factory() as uow:
+            found = uow.model_versions.get(version_id)
+        if found is not None and found.source_uri is None and self._experiments is None:
+            raise Conflict("no model registry is configured; nothing to read metrics from")
         model, project, version, evaluation = self._start(version_id)
         metrics = self._read_metrics(model.registry_name(project.name), version)
         return self._finish(model, project, version, evaluation, metrics)
@@ -346,6 +406,9 @@ class EvaluationService:
             return model, project, version, running
 
     def _read_metrics(self, registry: str, version: ModelVersion) -> Mapping[str, float]:
+        if version.source_uri is not None:
+            return version.metrics  # a hub version is judged on the results it came with
+        assert self._experiments is not None
         run_ref = next(
             (
                 v.run_ref

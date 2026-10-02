@@ -8,7 +8,7 @@ DeploymentReconciler makes the intent real and reports readiness back.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from typing import Any
 from uuid import UUID
@@ -26,20 +26,77 @@ from controlplane.domain.entities import (
     Deployment,
     DeploymentRevision,
     Endpoint,
+    EndpointLimits,
+    Model,
+    ModelVersion,
     Project,
 )
 from controlplane.domain.errors import AlreadyExists, Conflict, NotFound
 from controlplane.domain.states import (
     DeploymentStatus,
+    EndpointKind,
+    EndpointProtocol,
     EndpointStatus,
+    ModelKind,
     ModelStatus,
     ProjectStatus,
+    ServingRuntime,
 )
 
 
 def serving_ref(project: Project, deployment: Deployment) -> str:
     """Deterministic reference of the serving resource behind a deployment."""
     return f"{project.namespace}/{deployment.name}"
+
+
+# The endpoint an LLM starts with: tokens per minute instead of requests, a longer timeout.
+LLM_LIMITS = EndpointLimits(units_per_minute=20_000, max_body_kb=512, timeout_seconds=120)
+
+
+def serving_of(model: Model) -> tuple[ServingRuntime, int, int | None]:
+    """(runtime, GPUs, context length) a new revision of this model is served with."""
+    if model.kind is ModelKind.LLM:
+        assert model.serving is not None
+        return ServingRuntime.HUGGINGFACE, model.serving.gpus, model.serving.context_length
+    return ServingRuntime.MLFLOW, 0, None
+
+
+def gpus_in_use(uow: UnitOfWork, project_id: UUID, *, besides: UUID | None = None) -> int:
+    """GPUs the project's deployments hold now: each serving revision, and a canary's too."""
+    total = 0
+    for deployment in uow.deployments.list(project_id):
+        if deployment.id == besides:
+            continue
+        held = {deployment.active_revision, deployment.desired_revision}
+        rollout = uow.rollouts.get_active(deployment.id)
+        if rollout is not None:
+            held |= {rollout.from_revision, rollout.to_revision}
+        for number in held - {None}:
+            assert number is not None
+            revision = uow.revisions.get(deployment.id, number)
+            total += revision.gpus if revision else 0
+    return total
+
+
+def check_gpus(uow: UnitOfWork, project: Project, deployment: Deployment, need: int) -> None:
+    """Refuse, with the numbers, a deploy that the project's GPU quota cannot hold."""
+    if need == 0:
+        return
+    others = gpus_in_use(uow, project.id, besides=deployment.id)
+    if others + need > project.gpu_quota:
+        raise Conflict(
+            f"this needs {need} GPU{'s' if need != 1 else ''} and the project's quota is "
+            f"{project.gpu_quota} with {others} in use elsewhere; a platform admin sets "
+            "the quota (PUT /projects/{project}/gpu-quota)"
+        )
+
+
+def _same_kind(revisions: Sequence[DeploymentRevision], runtime: ServingRuntime, name: str) -> None:
+    if revisions and revisions[-1].runtime is not runtime:
+        raise Conflict(
+            f"deployment {name!r} serves {revisions[-1].runtime.value} models; "
+            f"deploy this {runtime.value} model to a deployment of its own"
+        )
 
 
 def _audit(
@@ -186,12 +243,10 @@ class DeploymentService:
             revisions = uow.revisions.list(deployment.id)
             if revisions and revisions[-1].model_version_id == mv.id:
                 return self._view(uow, deployment), False  # already the latest revision
-            registry, ref = model.registry_name(project.name), mv.external_ref
-        if self._experiments is None or ref is None:
-            raise Conflict("no model registry is configured; cannot locate the model artifact")
-        model_uri = self._experiments.model_artifact_uri(registry, ref)
-        if model_uri is None:
-            raise Conflict(f"the registry has no artifact for {model_name!r} version {version}")
+            runtime, gpus, context = serving_of(model)
+            _same_kind(revisions, runtime, name)
+            check_gpus(uow, project, deployment, gpus)
+        model_uri = self._artifact(project, model, mv)
 
         with self._uow_factory() as uow:
             project = resolve_project(uow, project_ref)
@@ -203,9 +258,13 @@ class DeploymentService:
                 revision=uow.revisions.next_revision(deployment.id),
                 model_version_id=mv.id,
                 model_uri=model_uri,
+                runtime=runtime,
+                gpus=gpus,
+                context_length=context,
                 created_at=now,
             )
             uow.revisions.add(revision)
+            self._serve_kind(uow, deployment, model, now)
             updated = deployment.with_desired(revision.revision, now, current_traceparent())
             if updated.status is not DeploymentStatus.DEPLOYING:
                 updated = updated.transition_to(DeploymentStatus.DEPLOYING, now)
@@ -258,15 +317,16 @@ class DeploymentService:
                     f"version {version} of {model_name!r} is {mv.status.value}; "
                     f"only {allowed} versions can be deployed"
                 )
-            for existing in uow.revisions.list(deployment.id):
+            revisions = uow.revisions.list(deployment.id)
+            for existing in revisions:
                 if existing.model_version_id == mv.id:
                     return existing
-            registry, ref = model.registry_name(project.name), mv.external_ref
-        if self._experiments is None or ref is None:
-            raise Conflict("no model registry is configured; cannot locate the model artifact")
-        model_uri = self._experiments.model_artifact_uri(registry, ref)
-        if model_uri is None:
-            raise Conflict(f"the registry has no artifact for {model_name!r} version {version}")
+            runtime, gpus, context = serving_of(model)
+            _same_kind(revisions, runtime, name)
+            # A canary runs next to the stable revision: both hold GPUs until it ends.
+            stable = uow.revisions.get(deployment.id, deployment.active_revision or 0)
+            check_gpus(uow, project, deployment, gpus + (stable.gpus if stable else 0))
+        model_uri = self._artifact(project, model, mv)
         with self._uow_factory() as uow:
             now = self._clock()
             revision = DeploymentRevision(
@@ -274,6 +334,9 @@ class DeploymentService:
                 revision=uow.revisions.next_revision(deployment.id),
                 model_version_id=mv.id,
                 model_uri=model_uri,
+                runtime=runtime,
+                gpus=gpus,
+                context_length=context,
                 created_at=now,
             )
             uow.revisions.add(revision)
@@ -292,6 +355,57 @@ class DeploymentService:
             )
             uow.commit()
             return revision
+
+    def _artifact(self, project: Project, model: Model, mv: ModelVersion) -> str:
+        """Where the weights are: the hub source of a hub version, else the registry's."""
+        if mv.source_uri is not None:
+            return mv.source_uri
+        if self._experiments is None or mv.external_ref is None:
+            raise Conflict("no model registry is configured; cannot locate the model artifact")
+        uri = self._experiments.model_artifact_uri(
+            model.registry_name(project.name), mv.external_ref
+        )
+        if uri is None:
+            raise Conflict(f"the registry has no artifact for {model.name!r} version {mv.version}")
+        return uri
+
+    @staticmethod
+    def _serve_kind(uow: UnitOfWork, deployment: Deployment, model: Model, now: datetime) -> None:
+        """The first revision decides what the endpoint speaks; an LLM endpoint starts with
+        token limits."""
+        endpoint = uow.endpoints.get_by_deployment(deployment.id)
+        assert endpoint is not None
+        kind = EndpointKind.LLM if model.kind is ModelKind.LLM else EndpointKind.MODEL
+        if endpoint.kind is kind:
+            return
+        llm = kind is EndpointKind.LLM
+        updated = replace(
+            endpoint,
+            kind=kind,
+            protocol=EndpointProtocol.OPENAI if llm else EndpointProtocol.V2_INFER,
+            limits=LLM_LIMITS if llm else EndpointLimits(),
+            updated_at=now,
+        )
+        uow.endpoints.update(updated, expected_status=endpoint.status)
+
+    def chat(self, project_ref: str, name: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        """One chat completion through the platform (the playground). Outside callers use the
+        gateway, which also streams."""
+        if self._serving is None:
+            raise Conflict("no serving provider is configured")
+        with self._uow_factory() as uow:
+            project = resolve_project(uow, project_ref)
+            endpoint = uow.endpoints.get_by_name(project.id, name)
+            if endpoint is None:
+                raise NotFound("endpoint", name)
+            if endpoint.kind is not EndpointKind.LLM:
+                raise Conflict(f"endpoint {name!r} serves a {endpoint.kind.value}, not an LLM")
+            if endpoint.status is not EndpointStatus.READY:
+                raise Conflict(f"endpoint {name!r} is {endpoint.status.value}, not READY")
+            deployment = uow.deployments.get(endpoint.deployment_id)
+            assert deployment is not None
+            ref = serving_ref(project, deployment)
+        return self._serving.chat(ref, {**payload, "stream": False})
 
     def rollback(
         self, project_ref: str, name: str, to_revision: int | None = None
@@ -365,6 +479,8 @@ class DeploymentService:
                 raise NotFound("endpoint", name)
             if endpoint.status is not EndpointStatus.READY:
                 raise Conflict(f"endpoint {name!r} is {endpoint.status.value}, not READY")
+            if endpoint.kind is EndpointKind.LLM:
+                raise Conflict(f"endpoint {name!r} is an LLM: use .../chat")
             deployment = uow.deployments.get(endpoint.deployment_id)
             assert deployment is not None
             ref = serving_ref(project, deployment)

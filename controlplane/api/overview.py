@@ -27,6 +27,8 @@ class SummaryOut(BaseModel):
     deployments_ready: int
     endpoints: int
     active_rollouts: int
+    gpu_quota: int = Field(description="GPUs the project may hold (set by platform admins)")
+    gpus_in_use: int = Field(description="held by serving revisions, canaries included")
 
 
 class EndpointItemOut(BaseModel):
@@ -132,6 +134,8 @@ def overview_router() -> APIRouter:
             deployments_ready=s.deployments_ready,
             endpoints=s.endpoints,
             active_rollouts=s.active_rollouts,
+            gpu_quota=s.gpu_quota,
+            gpus_in_use=s.gpus_in_use,
         )
 
     @router.get(

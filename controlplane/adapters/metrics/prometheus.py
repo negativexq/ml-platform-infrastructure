@@ -196,6 +196,10 @@ def platform_queries(window: str) -> dict[PlatformSignal, tuple[str, str]]:
             ),
             "",
         ),
+        PlatformSignal.GATEWAY_TOKENS: (
+            f"60 * sum by (direction) (rate(mlp_gateway_tokens_total[{w}]))",
+            "direction",
+        ),
         PlatformSignal.GATEWAY_LATENCY: (
             "1000 * histogram_quantile(0.95, sum by (le) "
             f"(rate(mlp_gateway_duration_seconds_bucket[{w}])))",
@@ -293,12 +297,32 @@ class PrometheusUsage:
             ]
         buckets = f"sum by (le) (rate(mlp_gateway_duration_seconds_bucket{{{sel}}}[{w}]))"
         p95 = self._by_caller(f"1000 * histogram_quantile(0.95, {buckets})", window).get("", {})
+        tokens: dict[str, list[float]] = {}
+        span = f"{max(1, int((end - start).total_seconds()))}s"
+        for direction, index in (("prompt", 0), ("completion", 1)):
+            query = (
+                "sum by (caller) (increase(mlp_gateway_tokens_total"
+                f'{{{sel},direction="{direction}"}}[{span}]))'
+            )
+            for who, count in self._instant(query, end).items():
+                tokens.setdefault(who, [0.0, 0.0])[index] = count
         return EndpointUsageSeries(
             callers=callers,
+            tokens={c: (t[0], t[1]) for c, t in tokens.items() if c != "(anonymous)"},
             p95_latency_ms=[
                 Sample(datetime.fromtimestamp(t, UTC), v) for t, v in sorted(p95.items())
             ],
         )
+
+    def _instant(self, query: str, at: datetime) -> dict[str, float]:
+        params = urllib.parse.urlencode({"query": query, "time": at.timestamp()})
+        body = _get(f"{self._base}/api/v1/query?{params}")
+        out: dict[str, float] = {}
+        for result in body.get("data", {}).get("result", []):
+            value = float(result["value"][1])
+            if value == value:
+                out[result.get("metric", {}).get("caller", "")] = value
+        return out
 
     def _by_caller(self, query: str, window: dict[str, Any]) -> dict[str, dict[float, float]]:
         params = urllib.parse.urlencode({"query": query, **window})

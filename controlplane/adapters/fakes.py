@@ -214,6 +214,37 @@ class FakeServingProvider:
         self.requests.append((ref, payload))
         return {"predictions": [0.0 for _ in payload.get("instances", [])]}
 
+    def chat(self, ref: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        """A canned but well-formed chat completion, with token counts (words, roughly)."""
+        if ref not in self._ready:
+            raise ConnectionError(f"{ref} is not serving")
+        self.requests.append((ref, payload))
+        messages = payload.get("messages") or []
+        asked = str(messages[-1].get("content", "")) if messages else ""
+        answer = (
+            f"(demo model) You asked: {asked[:120]!r}. A real deployment answers with the "
+            "served LLM; this fake answers the same way every time."
+        )
+        prompt = sum(len(str(m.get("content", "")).split()) + 4 for m in messages)
+        completion = len(answer.split())
+        return {
+            "id": f"chatcmpl-{len(self.requests)}",
+            "object": "chat.completion",
+            "model": ref.partition("/")[2],
+            "choices": [
+                {
+                    "index": 0,
+                    "message": {"role": "assistant", "content": answer},
+                    "finish_reason": "stop",
+                }
+            ],
+            "usage": {
+                "prompt_tokens": prompt,
+                "completion_tokens": completion,
+                "total_tokens": prompt + completion,
+            },
+        }
+
     def delete(self, ref: str) -> None:
         self.specs.pop(ref, None)
         self.previous.pop(ref, None)
@@ -315,6 +346,8 @@ class FakeUsage:
             tuple[str, str, str], Callable[[datetime], tuple[float, float, float] | None]
         ] = {}  # (project, endpoint, caller) -> (units, rejected, errors) per minute
         self.p95: dict[tuple[str, str], Callable[[datetime], float | None]] = {}
+        # LLM callers seeded above: the share of their units that were prompt tokens
+        self.token_split: dict[tuple[str, str, str], float] = {}
         self.calls: list[tuple[datetime, Any]] = []
         self._clock = clock
 
@@ -349,11 +382,21 @@ class FakeUsage:
             caller: [UsagePoint(at, *by_at[at]) for at in sorted(by_at)]
             for caller, by_at in sorted(rates.items())
         }
+        tokens: dict[str, tuple[float, float]] = {}
+        for (p_, e_, who), ratio in self.token_split.items():
+            if (p_, e_) == (project, endpoint) and who in callers:
+                used = sum(pt.units for pt in callers[who]) * step_seconds / 60
+                tokens[who] = (used * ratio, used * (1 - ratio))
+        for at, call in self.calls:
+            here = (call.project, call.endpoint) == (project, endpoint) and start < at <= end
+            if here and (call.prompt_tokens or call.completion_tokens):
+                sent, made = tokens.get(call.caller, (0.0, 0.0))
+                tokens[call.caller] = (sent + call.prompt_tokens, made + call.completion_tokens)
         latency_at = self.p95.get((project, endpoint))
         p95 = [
             Sample(at, ms) for at in moments if latency_at and (ms := latency_at(at)) is not None
         ]
-        return EndpointUsageSeries(callers=callers, p95_latency_ms=p95)
+        return EndpointUsageSeries(callers=callers, p95_latency_ms=p95, tokens=tokens)
 
 
 class FakeArtifactProvider:

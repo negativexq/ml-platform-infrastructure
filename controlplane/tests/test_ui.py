@@ -302,7 +302,7 @@ def test_projects_page(page: Page, server: Server) -> None:
     page.goto(f"{server.url}/")  # redirects to /ui/
     expect(page.locator("h1")).to_have_text("Projects")
     cards = page.locator("[data-testid^=project-]")
-    expect(cards).to_have_count(3)
+    expect(cards).to_have_count(4)
     credit = page.locator("[data-testid=project-credit-risk]")
     expect(credit).to_contain_text("Credit Risk")
     expect(credit.locator("[data-status=READY]")).to_be_visible()
@@ -1030,7 +1030,7 @@ def test_monitor_judges_each_check_against_its_threshold(page: Page, server: Ser
     expect(row).to_contain_text("Healthy")
     expect(row.locator("svg.spark")).to_be_visible()
     expect(page.locator("[data-check='api_requests:']")).to_contain_text("not judged")
-    expect(page.get_by_test_id("inventory").locator("[data-tile=projects] .n")).to_have_text("3")
+    expect(page.get_by_test_id("inventory").locator("[data-tile=projects] .n")).to_have_text("4")
     for key in ("api_requests", "api_errors", "api_latency"):
         expect(page.get_by_test_id(f"trend-{key}").locator("path").first).to_be_visible()
     page.locator("[data-range='6h']").click()
@@ -1054,7 +1054,7 @@ def test_the_sidebar_is_a_drawer_on_a_phone(page: Page, server: Server) -> None:
 def test_platform_health_api(client: TestClient) -> None:
     body = client.get("/platform/health").json()
     assert body["available"] is True and body["status"] == "warning"
-    assert body["inventory"]["projects"] == 3
+    assert body["inventory"]["projects"] == 4
     assert {s["key"] for s in body["signals"]} >= {"reconcile_passes", "api_errors"}
 
 

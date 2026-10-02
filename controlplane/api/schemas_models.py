@@ -6,8 +6,15 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from controlplane.application.models import DiscoveryResult, ModelView, VersionView
-from controlplane.domain.entities import Check, Evaluation, ModelVersion, Promotion, Threshold
-from controlplane.domain.states import EvaluationStatus, ModelStatus, PromotionStatus
+from controlplane.domain.entities import (
+    Check,
+    Evaluation,
+    LlmServing,
+    ModelVersion,
+    Promotion,
+    Threshold,
+)
+from controlplane.domain.states import EvaluationStatus, ModelKind, ModelStatus, PromotionStatus
 
 
 class ThresholdIn(BaseModel):
@@ -20,12 +27,44 @@ class ThresholdIn(BaseModel):
         return Threshold(min=self.min, max=self.max)
 
 
+class LlmServingIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    gpus: int = Field(1, ge=1, le=8, description="GPUs per replica (tensor parallel above 1)")
+    context_length: int | None = Field(
+        None, ge=256, le=1_048_576, description="max tokens in a request; null: the model's"
+    )
+
+
 class ModelCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str
+    kind: ModelKind = Field(ModelKind.CLASSIC, description="classic, or llm")
+    llm: LlmServingIn | None = Field(None, description="how an LLM is served (kind llm only)")
     thresholds: dict[str, ThresholdIn] = Field(
         default_factory=dict, examples=[{"auc": {"min": 0.9}, "f1": {"min": 0.85}}]
+    )
+
+    def serving(self) -> LlmServing | None:
+        if self.kind is not ModelKind.LLM:
+            return None
+        given = self.llm or LlmServingIn()
+        return LlmServing(gpus=given.gpus, context_length=given.context_length)
+
+
+class HubVersionCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    source: str = Field(
+        description="hf://<org>/<model>[@<revision>]; pin a revision so the version always "
+        "means the same weights",
+        examples=["hf://Qwen/Qwen2.5-7B-Instruct@a09a354"],
+    )
+    metrics: dict[str, float] = Field(
+        default_factory=dict,
+        description="offline evaluation results the version is judged on",
+        examples=[{"helpfulness": 0.82, "toxicity": 0.002}],
     )
 
 
@@ -43,6 +82,8 @@ class ModelVersionSummary(BaseModel):
     version: int
     status: ModelStatus
     source_pipeline_run_id: UUID | None
+    source_uri: str | None = Field(None, description="hub source, for versions not in the registry")
+    metrics: dict[str, float] = Field(default_factory=dict, description="results it came with")
     created_at: datetime
     updated_at: datetime
 
@@ -54,6 +95,8 @@ class ModelVersionSummary(BaseModel):
             version=v.version,
             status=v.status,
             source_pipeline_run_id=v.source_pipeline_run_id,
+            source_uri=v.source_uri,
+            metrics=dict(v.metrics),
             created_at=v.created_at,
             updated_at=v.updated_at,
         )
@@ -66,6 +109,8 @@ class ModelOut(BaseModel):
     registry_name: str = Field(description="Name to register versions under in the model registry")
     thresholds: dict[str, ThresholdIn]
     alias_drift: str | None
+    kind: ModelKind
+    llm: LlmServingIn | None
     champion: ModelVersionSummary | None
     versions: int
     created_at: datetime
@@ -82,6 +127,15 @@ class ModelOut(BaseModel):
                 k: ThresholdIn(min=t.min, max=t.max) for k, t in view.model.thresholds.items()
             },
             alias_drift=view.model.alias_drift,
+            kind=view.model.kind,
+            llm=(
+                LlmServingIn(
+                    gpus=view.model.serving.gpus,
+                    context_length=view.model.serving.context_length,
+                )
+                if view.model.serving
+                else None
+            ),
             champion=ModelVersionSummary.from_domain(champion) if champion else None,
             versions=len(view.versions),
             created_at=view.model.created_at,

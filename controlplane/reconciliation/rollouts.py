@@ -244,6 +244,9 @@ class RolloutReconciler:
             namespace=ctx.project.namespace,
             model_uri=revision.model_uri,
             revision=revision.revision,
+            runtime=revision.runtime.value,
+            gpus=revision.gpus,
+            context_length=revision.context_length,
             labels={
                 "mlp.io/project-id": str(ctx.project.id),
                 "mlp.io/deployment": ctx.deployment.name,

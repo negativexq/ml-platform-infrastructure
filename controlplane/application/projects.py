@@ -112,6 +112,40 @@ class ProjectService:
             visible = [p for p in uow.projects.list(limit=10_000, offset=0) if p.id in wanted]
             return visible[offset : offset + limit]
 
+    def set_gpu_quota(self, project_ref: str, gpus: int) -> tuple[Project, bool]:
+        """How many GPUs the project's workloads may hold together (platform admins only).
+        The reconciler applies it to the namespace's ResourceQuota. Lowering it below what
+        is in use is refused: it would leave running LLMs over quota."""
+        from controlplane.application.deployments import gpus_in_use
+        from controlplane.application.jobs import resolve_project
+
+        with self._uow_factory() as uow:
+            project = resolve_project(uow, project_ref)
+            if project.gpu_quota == gpus:
+                return project, False
+            used = gpus_in_use(uow, project.id)
+            if gpus < used:
+                raise Conflict(
+                    f"{used} GPUs are in use in {project.name!r}; stop or scale down LLM "
+                    f"deployments before lowering the quota to {gpus}"
+                )
+            now = self._clock()
+            updated = project.with_gpu_quota(gpus, now)
+            uow.projects.update(updated, expected_status=project.status)
+            uow.audit.record(
+                AuditEvent(
+                    occurred_at=now,
+                    actor=current_actor(),
+                    action="project.gpu_quota_changed",
+                    entity_type="project",
+                    entity_id=project.id,
+                    project_id=project.id,
+                    payload={"gpus": gpus, "from": project.gpu_quota},
+                )
+            )
+            uow.commit()
+            return updated, True
+
     def request_delete(self, project_id: UUID) -> Project:
         """Record the intent to delete. The reconciler performs the cleanup and
         moves the project to DELETED once the namespace is really gone."""

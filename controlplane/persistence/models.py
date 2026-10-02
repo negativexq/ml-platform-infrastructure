@@ -50,6 +50,7 @@ class ProjectRow(Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     status_reason: Mapped[str | None] = mapped_column(Text)
     traceparent: Mapped[str | None] = mapped_column(String(128))
+    gpu_quota: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     created_at: Mapped[datetime] = _ts()
     updated_at: Mapped[datetime] = _ts()
 
@@ -156,6 +157,9 @@ class ModelRow(Base):
     name: Mapped[str] = mapped_column(String(40), nullable=False)
     thresholds: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     alias_drift: Mapped[str | None] = mapped_column(Text)
+    kind: Mapped[str] = mapped_column(String(16), nullable=False, server_default="classic")
+    llm_gpus: Mapped[int | None] = mapped_column(Integer)
+    llm_context_length: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = _ts()
 
 
@@ -179,6 +183,8 @@ class ModelVersionRow(Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False)
     external_ref: Mapped[str | None] = mapped_column(String(200))
     source_pipeline_run_id: Mapped[UUID | None] = mapped_column(Uuid)
+    source_uri: Mapped[str | None] = mapped_column(Text)
+    metrics: Mapped[dict[str, float]] = mapped_column(JSONB, nullable=False, server_default="{}")
     created_at: Mapped[datetime] = _ts()
     updated_at: Mapped[datetime] = _ts()
 
@@ -238,6 +244,9 @@ class DeploymentRevisionRow(Base):
     revision: Mapped[int] = mapped_column(Integer, nullable=False)
     model_version_id: Mapped[UUID] = _fk("model_versions.id")
     model_uri: Mapped[str] = mapped_column(Text, nullable=False)
+    runtime: Mapped[str] = mapped_column(String(16), nullable=False, server_default="mlflow")
+    gpus: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
+    context_length: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = _ts()
 
 

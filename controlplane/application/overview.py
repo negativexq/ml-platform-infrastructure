@@ -12,7 +12,7 @@ from dataclasses import dataclass, replace
 from datetime import datetime, timedelta
 from uuid import UUID
 
-from controlplane.application.deployments import serving_ref
+from controlplane.application.deployments import gpus_in_use, serving_ref
 from controlplane.application.jobs import resolve_project
 from controlplane.application.projects import Clock, UnitOfWorkFactory, utc_now
 from controlplane.application.providers import MetricsPoint, MetricsProvider, ServingProvider
@@ -37,6 +37,8 @@ class ProjectSummary:
     deployments_ready: int
     endpoints: int
     active_rollouts: int
+    gpu_quota: int
+    gpus_in_use: int
 
 
 @dataclass(frozen=True, slots=True)
@@ -139,6 +141,8 @@ class OverviewService:
                 active_rollouts=sum(
                     1 for d in deployments if uow.rollouts.get_active(d.id) is not None
                 ),
+                gpu_quota=project.gpu_quota,
+                gpus_in_use=gpus_in_use(uow, project.id),
             )
 
     def endpoints(self, project_ref: str) -> Sequence[EndpointListItem]:

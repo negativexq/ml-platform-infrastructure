@@ -21,6 +21,7 @@ from controlplane.domain.entities import (
     EndpointLimits,
     Evaluation,
     JobDefinition,
+    LlmServing,
     Model,
     ModelVersion,
     PipelineDefinition,
@@ -42,11 +43,13 @@ from controlplane.domain.states import (
     EndpointStatus,
     EvaluationStatus,
     Exposure,
+    ModelKind,
     ModelStatus,
     ProjectStatus,
     PromotionStatus,
     RolloutStatus,
     RunStatus,
+    ServingRuntime,
     StepStatus,
 )
 from controlplane.persistence.models import (
@@ -85,6 +88,7 @@ def _project(row: ProjectRow) -> Project:
         status=ProjectStatus(row.status),
         status_reason=row.status_reason,
         traceparent=row.traceparent,
+        gpu_quota=row.gpu_quota,
         created_at=row.created_at,
         updated_at=row.updated_at,
     )
@@ -118,6 +122,7 @@ class SqlProjects:
                 status=project.status.value,
                 status_reason=project.status_reason,
                 traceparent=project.traceparent,
+                gpu_quota=project.gpu_quota,
                 created_at=project.created_at,
                 updated_at=project.updated_at,
             )
@@ -158,6 +163,7 @@ class SqlProjects:
             .values(
                 status=project.status.value,
                 status_reason=project.status_reason,
+                gpu_quota=project.gpu_quota,
                 updated_at=project.updated_at,
             )
         )
@@ -592,6 +598,12 @@ def _model(row: ModelRow) -> Model:
         name=row.name,
         thresholds={k: Threshold(min=v["min"], max=v["max"]) for k, v in row.thresholds.items()},
         alias_drift=row.alias_drift,
+        kind=ModelKind(row.kind),
+        serving=(
+            LlmServing(gpus=row.llm_gpus, context_length=row.llm_context_length)
+            if row.llm_gpus is not None
+            else None
+        ),
         created_at=row.created_at,
     )
 
@@ -604,6 +616,8 @@ def _version(row: ModelVersionRow) -> ModelVersion:
         status=ModelStatus(row.status),
         external_ref=row.external_ref,
         source_pipeline_run_id=row.source_pipeline_run_id,
+        source_uri=row.source_uri,
+        metrics=dict(row.metrics or {}),
         created_at=row.created_at,
         updated_at=row.updated_at,
     )
@@ -655,6 +669,9 @@ class SqlModels:
                 name=model.name,
                 thresholds={k: _threshold_json(v) for k, v in model.thresholds.items()},
                 alias_drift=model.alias_drift,
+                kind=model.kind.value,
+                llm_gpus=model.serving.gpus if model.serving else None,
+                llm_context_length=model.serving.context_length if model.serving else None,
                 created_at=model.created_at,
             )
         )
@@ -710,6 +727,8 @@ class SqlModelVersions:
                 status=version.status.value,
                 external_ref=version.external_ref,
                 source_pipeline_run_id=version.source_pipeline_run_id,
+                source_uri=version.source_uri,
+                metrics=dict(version.metrics),
                 created_at=version.created_at,
                 updated_at=version.updated_at,
             )
@@ -879,6 +898,9 @@ def _revision(row: DeploymentRevisionRow) -> DeploymentRevision:
         revision=row.revision,
         model_version_id=row.model_version_id,
         model_uri=row.model_uri,
+        runtime=ServingRuntime(row.runtime),
+        gpus=row.gpus,
+        context_length=row.context_length,
         created_at=row.created_at,
     )
 
@@ -999,6 +1021,9 @@ class SqlRevisions:
                 revision=revision.revision,
                 model_version_id=revision.model_version_id,
                 model_uri=revision.model_uri,
+                runtime=revision.runtime.value,
+                gpus=revision.gpus,
+                context_length=revision.context_length,
                 created_at=revision.created_at,
             )
         )

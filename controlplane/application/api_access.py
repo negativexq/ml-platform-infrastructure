@@ -40,6 +40,8 @@ class CallerUsage:
     rejected: float
     errors: float
     points: Sequence[UsagePoint]
+    prompt_tokens: float | None = None  # LLMs only
+    completion_tokens: float | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -97,6 +99,8 @@ class ApiAccessService:
                 rejected=sum(p.rejected for p in points) * step / 60,
                 errors=sum(p.errors for p in points) * step / 60,
                 points=points,
+                prompt_tokens=series.tokens[caller][0] if caller in series.tokens else None,
+                completion_tokens=series.tokens[caller][1] if caller in series.tokens else None,
             )
             for caller, points in series.callers.items()
         ]

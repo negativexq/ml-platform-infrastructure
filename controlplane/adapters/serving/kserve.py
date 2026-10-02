@@ -27,10 +27,62 @@ ANNOTATION_REVISION = "mlp.io/revision"
 ANNOTATION_PREVIOUS = "mlp.io/previous-revision"
 SERVICE_ACCOUNT = "mlp-workload"
 PREDICT_TIMEOUT_SECONDS = 10
+CHAT_TIMEOUT_SECONDS = 120
+
+
+# Per GPU an LLM replica gets this much CPU and memory (weights load through host memory).
+LLM_CPU_PER_GPU = ("4", "8")  # request, limit
+LLM_MEMORY_PER_GPU_GI = (16, 24)
+HF_TOKEN_SECRET = "mlp-hf-token"  # optional, per project namespace: gated hub models
+
+
+def _predictor_model(spec: ServingSpec) -> dict[str, Any]:
+    if spec.runtime != "huggingface":
+        return {
+            "modelFormat": {"name": "mlflow"},
+            "protocolVersion": "v2",
+            "storageUri": spec.model_uri,
+        }
+    # KServe's Hugging Face server on its vLLM backend: OpenAI-compatible chat completions
+    # at /openai/v1/chat/completions, the served model named after the deployment.
+    args = [f"--model_name={spec.name}"]
+    if spec.context_length:
+        args.append(f"--max_model_len={spec.context_length}")
+    if spec.gpus > 1:
+        args.append(f"--tensor_parallel_size={spec.gpus}")
+    gpus = str(spec.gpus)
+    cpu_request, cpu_limit = LLM_CPU_PER_GPU
+    mem_request, mem_limit = LLM_MEMORY_PER_GPU_GI
+    return {
+        "modelFormat": {"name": "huggingface"},
+        "storageUri": spec.model_uri,
+        "args": args,
+        "env": [
+            {
+                "name": "HF_TOKEN",
+                "valueFrom": {
+                    "secretKeyRef": {"name": HF_TOKEN_SECRET, "key": "token", "optional": True}
+                },
+            }
+        ],
+        "resources": {
+            "requests": {
+                "cpu": str(int(cpu_request) * spec.gpus),
+                "memory": f"{mem_request * spec.gpus}Gi",
+                "nvidia.com/gpu": gpus,
+            },
+            "limits": {
+                "cpu": str(int(cpu_limit) * spec.gpus),
+                "memory": f"{mem_limit * spec.gpus}Gi",
+                "nvidia.com/gpu": gpus,
+            },
+        },
+    }
 
 
 def build_inference_service(spec: ServingSpec) -> dict[str, Any]:
-    """The MLflow model server (v2 protocol) loading the revision's artifact.
+    """The revision's model server: the MLflow server (v2 protocol) for classic models, an
+    LLM runtime for language models.
 
     `canaryTrafficPercent` is always present: in a merge patch `null` removes the
     field, which is how "this revision takes all traffic" is expressed.
@@ -47,11 +99,7 @@ def build_inference_service(spec: ServingSpec) -> dict[str, Any]:
         "spec": {
             "predictor": {
                 "serviceAccountName": SERVICE_ACCOUNT,
-                "model": {
-                    "modelFormat": {"name": "mlflow"},
-                    "protocolVersion": "v2",
-                    "storageUri": spec.model_uri,
-                },
+                "model": _predictor_model(spec),
                 "canaryTrafficPercent": spec.canary_percent,
             }
         },
@@ -210,6 +258,24 @@ class KServeServingProvider:
                 body: Mapping[str, Any] = json.load(response)
         except urllib.error.URLError as exc:
             raise ConnectionError(f"inference request to {ref} failed: {exc}") from exc
+        return body
+
+    def chat(self, ref: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        status = self.get_status(ref)
+        if status.state is not ServingState.READY or not status.url:
+            raise ConnectionError(f"{ref} is not serving")
+        _, name = _split(ref)
+        request = urllib.request.Request(
+            f"{status.url.rstrip('/')}/openai/v1/chat/completions",
+            data=json.dumps({**payload, "model": name, "stream": False}).encode(),
+            headers=_headers(),
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=CHAT_TIMEOUT_SECONDS) as response:  # noqa: S310
+                body: Mapping[str, Any] = json.load(response)
+        except urllib.error.URLError as exc:
+            raise ConnectionError(f"chat request to {ref} failed: {exc}") from exc
         return body
 
     def delete(self, ref: str) -> None:

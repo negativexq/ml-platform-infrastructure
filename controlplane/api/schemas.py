@@ -25,6 +25,7 @@ class ProjectOut(BaseModel):
     description: str
     status: ProjectStatus
     status_reason: str | None
+    gpu_quota: int = 0
     created_at: datetime
     updated_at: datetime
 
@@ -37,6 +38,7 @@ class ProjectOut(BaseModel):
             description=project.description,
             status=project.status,
             status_reason=project.status_reason,
+            gpu_quota=project.gpu_quota,
             created_at=project.created_at,
             updated_at=project.updated_at,
         )
@@ -55,3 +57,9 @@ class ErrorBody(BaseModel):
 
 class ErrorOut(BaseModel):
     error: ErrorBody
+
+
+class GpuQuotaIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    gpus: int = Field(ge=0, le=64, description="GPUs the project's workloads may hold together")

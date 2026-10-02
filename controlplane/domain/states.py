@@ -212,6 +212,20 @@ DEPLOYMENT = StateMachine(
 )
 
 
+class ModelKind(StrEnum):
+    """CLASSIC: a predictive model served by the MLflow model server (v2 protocol).
+    LLM: a language model served by an LLM runtime (vLLM through KServe's Hugging Face
+    server), answering OpenAI-compatible chat completions."""
+
+    CLASSIC = "classic"
+    LLM = "llm"
+
+
+class ServingRuntime(StrEnum):
+    MLFLOW = "mlflow"
+    HUGGINGFACE = "huggingface"
+
+
 class EndpointKind(StrEnum):
     """What answers behind an endpoint. Only models are served today; the others are reserved
     so the public contract (URL, keys, limits) does not change when they arrive."""

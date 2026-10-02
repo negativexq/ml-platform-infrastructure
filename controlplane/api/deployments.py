@@ -7,6 +7,7 @@ from fastapi import APIRouter, HTTPException, Request, Response, status
 from controlplane.api.errors import PlatformRoute
 from controlplane.api.schemas import ErrorOut
 from controlplane.api.schemas_deployments import (
+    ChatRequest,
     DeploymentCreate,
     DeploymentList,
     DeploymentOut,
@@ -103,5 +104,17 @@ def deployments_router() -> APIRouter:
             return dict(svc(request).predict(project, name, body.model_dump()))
         except ConnectionError as exc:
             raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
+
+    @router.post(
+        "/endpoints/{name}/chat",
+        responses={502: {"model": ErrorOut}, **_ERRORS},
+        summary="One chat completion from an LLM endpoint through the platform (the playground)",
+    )
+    def chat(project: str, name: str, body: ChatRequest, request: Request) -> dict[str, Any]:
+        try:
+            answer = svc(request).chat(project, name, body.model_dump(exclude_none=True))
+        except ConnectionError as exc:
+            raise HTTPException(status.HTTP_502_BAD_GATEWAY, str(exc)) from exc
+        return dict(answer)
 
     return router

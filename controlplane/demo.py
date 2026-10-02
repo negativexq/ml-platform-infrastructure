@@ -12,6 +12,10 @@ The seeded story (project `credit-risk`):
   * model `scorer`: v1 REJECTED by evaluation, v2 CHAMPION, v3 CANDIDATE
   * deployment `credit-risk-prod` serving v2 with a canary of v3 at 25%
   * model `ranker` / deployment `ranker-staging` after a finished rollout, so Rollback works
+
+And project `customer-support`: an LLM `assistant` with three versions from the Hugging Face
+Hub (v1 champion and serving on 1 of 2 GPUs, v2 candidate, v3 rejected), public through the
+gateway with a `helpdesk-app` key.
 """
 
 from __future__ import annotations
@@ -65,8 +69,8 @@ from controlplane.application.workflow_compiler import (
     TAG_STEP,
     tracking_experiment_name,
 )
-from controlplane.domain.entities import EndpointLimits, RolloutGate, Threshold
-from controlplane.domain.states import Exposure
+from controlplane.domain.entities import EndpointLimits, LlmServing, RolloutGate, Threshold
+from controlplane.domain.states import Exposure, ModelKind
 from controlplane.gateway import create_gateway
 from controlplane.persistence.memory import MemoryStore, MemoryUnitOfWork
 from controlplane.reconciliation.deployments import DeploymentReconciler
@@ -218,6 +222,15 @@ def _open_to_partners(factory: Callable[..., Any], clock: DemoClock) -> dict[str
         keys[name] = token
         if name == "old-partner":
             access.revoke_key("credit-risk", key.key_id)
+    access.expose(
+        "customer-support",
+        "assistant-prod",
+        Exposure.PUBLIC,
+        EndpointLimits(units_per_minute=30_000, max_body_kb=512, timeout_seconds=120),
+    )
+    _, keys["helpdesk-app"] = access.create_key(
+        "customer-support", name="helpdesk-app", endpoints=["assistant-prod"]
+    )
     return keys
 
 
@@ -238,6 +251,15 @@ def _usage_history(clock: DemoClock) -> FakeUsage:
         failing(t) or 0.0,
     )
     usage.p95[("credit-risk", "credit-risk-prod")] = _wave(96, seed=65, swing=0.12)
+    # the help-desk assistant: tokens, about two thirds of them prompt (context, history)
+    helpdesk = _wave(9_200, seed=66, swing=0.35)
+    usage.series[("customer-support", "assistant-prod", "helpdesk-app")] = lambda t: (
+        helpdesk(t) or 0.0,
+        0.0,
+        0.0,
+    )
+    usage.token_split[("customer-support", "assistant-prod", "helpdesk-app")] = 0.68
+    usage.p95[("customer-support", "assistant-prod")] = _wave(2_400, seed=67, swing=0.2)
     return usage
 
 
@@ -343,6 +365,8 @@ def _platform_telemetry() -> FakePlatformTelemetry:
     fake.series[(sig.GATEWAY_REQUESTS, "")] = _wave(0.95, seed=70, swing=0.3)
     fake.series[(sig.GATEWAY_ERRORS, "")] = _wave(0.0018, seed=71, swing=0.6, noise=0.2)
     fake.series[(sig.GATEWAY_LATENCY, "")] = _wave(118, seed=72, swing=0.12)
+    fake.series[(sig.GATEWAY_TOKENS, "prompt")] = _wave(6_250, seed=73, swing=0.35)
+    fake.series[(sig.GATEWAY_TOKENS, "completion")] = _wave(2_950, seed=74, swing=0.35)
     for i, (name, rate) in enumerate(
         {"run": 1.4, "pipeline_run": 0.8, "deployment": 0.3, "rollout": 0.2}.items()
     ):
@@ -679,6 +703,41 @@ def _seed(
     rec.deployments.reconcile_all()
     rec.aliases.reconcile_all()
     clock.advance(5)
+
+    # project `customer-support`: an LLM assistant ----------------------------------------
+    support, _ = projects.create(
+        CreateProject(
+            name="customer-support",
+            display_name="Customer Support",
+            description="The help-desk assistant: an LLM answering customers' questions.",
+        )
+    )
+    rec.projects.reconcile(support.id)
+    projects.set_gpu_quota("customer-support", 2)
+    rec.projects.reconcile(support.id)
+    models.create(
+        "customer-support",
+        "assistant",
+        {"helpfulness": Threshold(min=0.75), "toxicity": Threshold(max=0.01)},
+        kind=ModelKind.LLM,
+        serving=LlmServing(gpus=1, context_length=8192),
+    )
+    hub = (  # (source, helpfulness, toxicity) from an offline evaluation
+        ("hf://Qwen/Qwen2.5-7B-Instruct@a09a354", 0.81, 0.004),
+        ("hf://meta-llama/Llama-3.1-8B-Instruct@0e9e39f", 0.86, 0.003),
+        ("hf://mistralai/Mistral-7B-Instruct-v0.3@e0bc86c", 0.71, 0.006),
+    )
+    llm_versions = []
+    for source, helpful, toxic in hub:
+        scores = {"helpfulness": helpful, "toxicity": toxic}
+        version, _ = models.register_from_hub("customer-support", "assistant", source, scores)
+        llm_versions.append(evals.evaluate(version.id).version)
+        clock.advance(600)
+    promotions.promote(llm_versions[0].id)
+    deployments.create("customer-support", "assistant-prod")
+    deployments.deploy("customer-support", "assistant-prod", "assistant", 1)
+    settle()
+    settle()
 
     # Created last and never reconciled, so the project list shows a PENDING project.
     projects.create(CreateProject(name="churn-prediction", display_name="Churn Prediction"))

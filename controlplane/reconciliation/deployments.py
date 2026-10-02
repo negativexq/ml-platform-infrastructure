@@ -110,6 +110,9 @@ class DeploymentReconciler:
                     namespace=project.namespace,
                     model_uri=revision.model_uri,
                     revision=desired,
+                    runtime=revision.runtime.value,
+                    gpus=revision.gpus,
+                    context_length=revision.context_length,
                     labels={
                         "mlp.io/project-id": str(project.id),
                         "mlp.io/deployment": deployment.name,

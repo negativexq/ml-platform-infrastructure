@@ -158,6 +158,7 @@ def request_principal(request: Request) -> Principal:
 
 PUBLIC = "public"  # anyone, signed in or not
 SIGNED_IN = "signed-in"  # any authenticated caller; no project involved
+PLATFORM_ADMIN = "platform-admin"  # platform-wide decisions, e.g. how many GPUs a project gets
 
 # (method, route) -> who may call it. Routes not listed: GET needs viewer, anything else
 # operator, in the project the route is about.
@@ -181,6 +182,9 @@ POLICY: dict[tuple[str, str], str | ProjectRole] = {
     ("DELETE", "/projects/{project}/api-keys/{key_id}"): ProjectRole.ADMIN,
     # Calling a model changes nothing: the lowest role that may call one is enough.
     ("POST", "/projects/{project}/endpoints/{name}/predict"): ProjectRole.INVOKER,
+    ("POST", "/projects/{project}/endpoints/{name}/chat"): ProjectRole.INVOKER,
+    # GPUs are shared by the whole platform: a project's own admins do not grant themselves more.
+    ("PUT", "/projects/{project}/gpu-quota"): PLATFORM_ADMIN,
 }
 
 
@@ -247,6 +251,8 @@ def authorize(request: Request) -> None:
     principal = request_principal(request)
     if rule == SIGNED_IN or principal.platform_admin:
         return
+    if rule == PLATFORM_ADMIN:
+        raise DomainHttpError(PermissionDenied("only platform admins may do this"))
     uow_factory: UnitOfWorkFactory = request.app.state.uow_factory
     try:
         with uow_factory() as uow:

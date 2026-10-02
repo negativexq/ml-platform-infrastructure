@@ -20,7 +20,13 @@ from controlplane.api.overview import overview_router
 from controlplane.api.pipelines import pipeline_runs_router, pipelines_router
 from controlplane.api.platform import platform_router
 from controlplane.api.rollouts import rollouts_router
-from controlplane.api.schemas import ErrorOut, ProjectCreate, ProjectList, ProjectOut
+from controlplane.api.schemas import (
+    ErrorOut,
+    GpuQuotaIn,
+    ProjectCreate,
+    ProjectList,
+    ProjectOut,
+)
 from controlplane.application.api_access import ApiAccessService
 from controlplane.application.deployments import DeploymentService
 from controlplane.application.identity import visible_project_ids
@@ -121,6 +127,16 @@ def _projects_router() -> APIRouter:
     def delete_project(project_id: UUID, request: Request) -> ProjectOut:
         return ProjectOut.from_domain(service(request).request_delete(project_id))
 
+    @router.put(
+        "/{project}/gpu-quota",
+        response_model=ProjectOut,
+        responses=errors,
+        summary="Set how many GPUs a project may hold (platform admins only)",
+    )
+    def set_gpu_quota(project: str, body: GpuQuotaIn, request: Request) -> ProjectOut:
+        updated, _ = service(request).set_gpu_quota(project, body.gpus)
+        return ProjectOut.from_domain(updated)
+
     return router
 
 
@@ -172,9 +188,7 @@ def create_app(
     app.state.pipelines = PipelineService(uow_factory, clock)
     app.state.pipeline_runs = PipelineRunService(uow_factory, clock, experiments)
     app.state.models = ModelService(uow_factory, clock, experiments)
-    app.state.evaluations = (
-        EvaluationService(uow_factory, experiments, clock) if experiments is not None else None
-    )
+    app.state.evaluations = EvaluationService(uow_factory, experiments, clock)
     app.state.promotions = PromotionService(uow_factory, clock)
     app.state.deployments = DeploymentService(uow_factory, clock, experiments, serving)
     app.state.rollouts = RolloutService(uow_factory, app.state.deployments, clock)

@@ -24,13 +24,18 @@ from controlplane.domain.states import (
     EndpointStatus,
     EvaluationStatus,
     Exposure,
+    ModelKind,
     ModelStatus,
     ProjectStatus,
     PromotionStatus,
     RolloutStatus,
     RunStatus,
+    ServingRuntime,
     StepStatus,
 )
+
+MAX_GPUS_PER_PROJECT = 64
+MAX_GPUS_PER_MODEL = 8
 
 # A DNS-1123 label. Project names become namespace names (`mlp-<name>`, M14),
 # so the 63-character limit leaves room for the prefix.
@@ -58,6 +63,7 @@ class Project:
     traceparent: str | None = (
         None  # the request that created it; lets reconcilers continue its trace
     )
+    gpu_quota: int = 0  # GPUs its workloads may request together; set by platform admins
     created_at: datetime
     updated_at: datetime
 
@@ -90,6 +96,11 @@ class Project:
             created_at=now,
             updated_at=now,
         )
+
+    def with_gpu_quota(self, gpus: int, now: datetime) -> Self:
+        if not 0 <= gpus <= MAX_GPUS_PER_PROJECT:
+            raise InvalidArgument(f"a GPU quota is between 0 and {MAX_GPUS_PER_PROJECT}")
+        return replace(self, gpu_quota=gpus, updated_at=now)
 
     def transition_to(
         self, status: ProjectStatus, now: datetime, reason: str | None = None
@@ -425,6 +436,34 @@ def run_checks(
     )
 
 
+@dataclass(frozen=True, slots=True)
+class LlmServing:
+    """How every version of an LLM is served: GPUs per replica and the context window."""
+
+    gpus: int = 1
+    context_length: int | None = None  # None: the model's own maximum
+
+    def __post_init__(self) -> None:
+        if not 1 <= self.gpus <= MAX_GPUS_PER_MODEL:
+            raise InvalidArgument(f"an LLM needs 1 to {MAX_GPUS_PER_MODEL} GPUs")
+        if self.context_length is not None and not 256 <= self.context_length <= 1_048_576:
+            raise InvalidArgument("context_length must be between 256 and 1048576 tokens")
+
+
+_HUB_SOURCE = re.compile(r"^hf://[A-Za-z0-9][\w.-]{0,95}/[\w.-]{1,96}(@[\w.-]{1,64})?$")
+
+
+def validate_hub_source(source: str) -> str:
+    """`hf://<org>/<model>[@<revision>]`: a model on the Hugging Face Hub, ideally pinned to
+    a commit so the same version always means the same weights."""
+    if not _HUB_SOURCE.match(source):
+        raise InvalidArgument(
+            f"a hub source is hf://<org>/<model>[@<revision>], e.g. "
+            f"hf://Qwen/Qwen2.5-7B-Instruct@a09a354: got {source!r}"
+        )
+    return source
+
+
 @dataclass(frozen=True, slots=True, kw_only=True)
 class Model:
     """A logical model of a project. Its versions live in the platform; the
@@ -436,6 +475,8 @@ class Model:
     thresholds: Mapping[str, Threshold] = field(default_factory=dict)
     # Set while the registry's aliases disagree with platform state; None when in sync.
     alias_drift: str | None = None
+    kind: ModelKind = ModelKind.CLASSIC
+    serving: LlmServing | None = None  # how an LLM is served; None for classic models
     created_at: datetime
 
     @classmethod
@@ -446,12 +487,26 @@ class Model:
         name: str,
         thresholds: Mapping[str, Threshold],
         now: datetime,
+        kind: ModelKind = ModelKind.CLASSIC,
+        serving: LlmServing | None = None,
     ) -> Self:
         validate_slug(name, "model name")
         for metric in thresholds:
             if not metric.strip():
                 raise InvalidArgument("metric names must not be empty")
-        return cls(project_id=project_id, name=name, thresholds=dict(thresholds), created_at=now)
+        kind = ModelKind(kind)
+        if kind is ModelKind.LLM:
+            serving = serving or LlmServing()
+        elif serving is not None:
+            raise InvalidArgument("serving settings are for LLMs only")
+        return cls(
+            project_id=project_id,
+            name=name,
+            thresholds=dict(thresholds),
+            kind=kind,
+            serving=serving,
+            created_at=now,
+        )
 
     def with_thresholds(self, thresholds: Mapping[str, Threshold]) -> Self:
         for metric in thresholds:
@@ -475,6 +530,10 @@ class ModelVersion:
     status: ModelStatus = ModelStatus.REGISTERED
     external_ref: str | None = None  # the registry's version number; unique per model
     source_pipeline_run_id: UUID | None = None  # lineage: which pipeline run produced it
+    # A version registered straight from a model hub (LLMs): where the weights are, and the
+    # offline evaluation results it is judged on (there is no tracking run behind it).
+    source_uri: str | None = None
+    metrics: Mapping[str, float] = field(default_factory=dict)
     created_at: datetime
     updated_at: datetime
 
@@ -581,6 +640,11 @@ class DeploymentRevision:
     revision: int
     model_version_id: UUID
     model_uri: str
+    # How it is served, fixed with the revision: an LLM revision keeps its GPUs and context
+    # even if the model's settings change later.
+    runtime: ServingRuntime = ServingRuntime.MLFLOW
+    gpus: int = 0
+    context_length: int | None = None
     created_at: datetime
 
 

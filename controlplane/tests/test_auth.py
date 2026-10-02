@@ -374,3 +374,17 @@ def test_invokers_call_models_and_only_admins_open_them(env: Env) -> None:
     )
     assert env.client.post(f"{base}/api-keys", json=keys, headers=alice).status_code == 422
     assert env.client.get(f"{base}/api-keys", headers=olga).status_code == 200
+
+
+def test_only_platform_admins_grant_gpus(env: Env) -> None:
+    project = env.project()
+    own_admin = env.client.put(
+        f"/projects/{project}/gpu-quota", json={"gpus": 4}, headers=env.as_("alice")
+    )
+    assert own_admin.status_code == 403  # alice created the project and is its admin
+    root = env.client.put(
+        f"/projects/{project}/gpu-quota",
+        json={"gpus": 4},
+        headers=env.as_("root", ["platform-admins"]),
+    )
+    assert root.status_code == 200 and root.json()["gpu_quota"] == 4

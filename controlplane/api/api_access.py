@@ -104,6 +104,8 @@ class CallerUsageOut(BaseModel):
     units: float = Field(description="in the window")
     rejected: float
     errors: float
+    prompt_tokens: float | None = Field(None, description="LLMs: tokens sent, in the window")
+    completion_tokens: float | None = Field(None, description="LLMs: tokens generated")
     points: list[UsagePointOut]
 
 
@@ -137,6 +139,8 @@ class EndpointUsageOut(BaseModel):
                     units=c.units,
                     rejected=c.rejected,
                     errors=c.errors,
+                    prompt_tokens=c.prompt_tokens,
+                    completion_tokens=c.completion_tokens,
                     points=[
                         UsagePointOut(at=p.at, units=p.units, rejected=p.rejected, errors=p.errors)
                         for p in c.points

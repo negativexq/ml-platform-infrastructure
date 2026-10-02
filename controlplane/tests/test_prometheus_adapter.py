@@ -140,6 +140,13 @@ def _gateway_lines(start: int, end: int) -> list[str]:
             )
         out.append(f"mlp_gateway_duration_seconds_count{{{where}}} {n:.2f} {t}")
         out.append(f"mlp_gateway_duration_seconds_sum{{{where}}} {n * 0.2:.2f} {t}")
+    # an LLM endpoint: helpdesk sends 600 prompt and gets 300 completion tokens a minute
+    llm = 'project="support",endpoint="assistant-prod",caller="helpdesk"'
+    out.append("# TYPE mlp_gateway_tokens counter")
+    for direction, per_min in (("prompt", 600), ("completion", 300)):
+        for t in range(start, end + 1, STEP):
+            n = (t - start) * per_min / 60
+            out.append(f'mlp_gateway_tokens_total{{{llm},direction="{direction}"}} {n:.1f} {t}')
     return out
 
 
@@ -291,3 +298,18 @@ def test_gateway_usage_by_caller_from_real_prometheus(prometheus: tuple[str, int
     assert rate[""][-1].value == pytest.approx(150 / 60, rel=0.05)
     errors = telemetry.platform_series(PlatformSignal.GATEWAY_ERRORS, **window)  # type: ignore[arg-type]
     assert errors[""][-1].value == pytest.approx(1 / 150, rel=0.1)
+
+
+def test_llm_tokens_by_caller_and_direction(prometheus: tuple[str, int]) -> None:
+    url, end = prometheus
+    at = datetime.fromtimestamp(end, UTC)
+    usage = PrometheusUsage(url).endpoint_usage(
+        "support", "assistant-prod", start=at - timedelta(minutes=30), end=at, step_seconds=60
+    )
+    prompt, completion = usage.tokens["helpdesk"]
+    assert prompt == pytest.approx(600 * 30, rel=0.05)
+    assert completion == pytest.approx(300 * 30, rel=0.05)
+    rate = PrometheusPlatformTelemetry(url).platform_series(
+        PlatformSignal.GATEWAY_TOKENS, start=at - timedelta(minutes=10), end=at, step_seconds=60
+    )
+    assert rate["prompt"][-1].value == pytest.approx(600, rel=0.05)

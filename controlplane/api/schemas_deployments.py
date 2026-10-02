@@ -14,6 +14,7 @@ from controlplane.domain.states import (
     EndpointProtocol,
     EndpointStatus,
     Exposure,
+    ServingRuntime,
 )
 
 
@@ -75,6 +76,8 @@ class RevisionOut(BaseModel):
     model: str
     model_version: int
     model_version_id: UUID
+    runtime: ServingRuntime
+    gpus: int
     created_at: datetime
 
     @classmethod
@@ -84,6 +87,8 @@ class RevisionOut(BaseModel):
             model=v.model_name,
             model_version=v.model_version,
             model_version_id=v.revision.model_version_id,
+            runtime=v.revision.runtime,
+            gpus=v.revision.gpus,
             created_at=v.revision.created_at,
         )
 
@@ -130,3 +135,18 @@ class PredictRequest(BaseModel):
 
 
 PredictResponse = dict[str, Any]
+
+
+class ChatMessage(BaseModel):
+    role: str = Field(pattern="^(system|user|assistant)$")
+    content: str = Field(max_length=100_000)
+
+
+class ChatRequest(BaseModel):
+    """The playground's request: an OpenAI-style chat, answered in one piece (not streamed)."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    messages: list[ChatMessage] = Field(min_length=1, max_length=200)
+    max_tokens: int | None = Field(None, ge=1, le=32_768)
+    temperature: float | None = Field(None, ge=0, le=2)
