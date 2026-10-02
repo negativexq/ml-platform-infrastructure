@@ -427,7 +427,7 @@ def test_deployment_canary_metrics_and_abort(page: Page, server: Server) -> None
     expect(canary).to_contain_text("118 ms")
     expect(page.locator("[data-testid=rollback]")).to_be_disabled()  # a rollout is live
     # The bar must actually be drawn in proportion (inline styles are blocked by the CSP).
-    bar = page.locator(".bar").bounding_box()
+    bar = page.locator("[data-testid=traffic-split] svg").bounding_box()
     share = page.locator("[data-testid=canary-share]").bounding_box()
     assert bar and share and 0.20 <= share["width"] / bar["width"] <= 0.30
     shot(page, "07-deployment-canary")
@@ -884,3 +884,86 @@ def test_delete_a_project_needs_its_name(page: Page, server: Server) -> None:
     expect(page.locator("main h1")).to_have_text("Projects")
     status = page.request.get(f"{server.url}/projects").json()["items"]
     assert {p["name"]: p["status"] for p in status}["fraud-detection"] == "DELETING"
+
+
+# -- charts and explanations (dataviz + control-plane UX) -----------------------------
+
+
+def test_run_history_reads_without_hover_and_explains_on_hover_and_focus(
+    page: Page, server: Server
+) -> None:
+    page.goto(f"{server.url}/ui/#/projects/credit-risk/pipelines/training")
+    chart = page.get_by_test_id("run-history")
+    marks = chart.locator(".mark")
+    expect(marks).to_have_count(3)
+    expect(chart.locator(".legend")).to_contain_text("✓ succeeded")  # state is never colour alone
+    expect(chart.locator(".legend")).to_contain_text("✕ failed")
+    expect(chart).to_contain_text("typical 3m 57s")  # the median, as a reference line
+    marks.nth(1).hover()
+    expect(chart.locator(".tooltip")).to_contain_text("failed")
+    page.mouse.move(0, 0)
+    marks.first.focus()  # the keyboard gets the same tooltip
+    expect(chart.locator(".tooltip")).to_contain_text("3m 57s")
+    page.keyboard.press("Enter")
+    expect(page).to_have_url(re.compile(r"/pipeline-runs/[0-9a-f-]{36}$"))
+
+
+def test_canary_gates_are_meters_against_their_limits(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects/credit-risk/deployments/credit-risk-prod")
+    canary = page.locator("[data-testid=revision-metrics][data-revision='2']")
+    errors = canary.get_by_test_id("meter-errors")
+    expect(errors).to_contain_text("0.40%")
+    expect(errors).to_contain_text("gate ≤ 1.00%")
+    expect(errors).to_have_attribute("data-verdict", "within gate")
+    expect(canary.get_by_test_id("meter-latency")).to_contain_text("gate ≤ 500 ms")
+    split = page.get_by_test_id("traffic-split")
+    expect(split.locator(".legend")).to_contain_text("r2 canary 25%, scorer v3")
+
+
+def test_versions_are_plotted_against_the_threshold(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects/credit-risk/models/scorer")
+    strip = page.get_by_test_id("metric-strip-auc")
+    expect(strip.locator(".mark")).to_have_count(3)
+    expect(strip).to_contain_text("≥ 0.9")
+    expect(strip).to_contain_text("v2 ★")  # the champion is labelled
+    strip.locator(".mark[data-version='1']").click()  # selecting from the chart
+    expect(page.get_by_test_id("version-detail")).to_contain_text("v1 evaluations")
+
+
+def test_editing_thresholds_previews_which_versions_would_pass(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects/credit-risk/models/scorer")
+    page.get_by_test_id("edit-thresholds").click()
+    preview = page.get_by_test_id("form-preview")
+    page.locator("#f-thresholds").fill("auc >= 0.945")
+    expect(page.get_by_test_id("threshold-preview")).to_contain_text("v3 (candidate): would pass")
+    expect(page.get_by_test_id("threshold-preview")).to_contain_text(
+        "v2 (champion): would fail, auc 0.939 < 0.945"
+    )
+    page.locator("#f-thresholds").fill("auc > 1")
+    expect(preview).to_contain_text("metric >= number")
+
+
+def test_deploying_previews_the_canary_plan(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects/credit-risk/deployments/ranker-staging")
+    page.get_by_test_id("deploy").click()
+    page.locator("#f-version").select_option("scorer@3")
+    preview = page.get_by_test_id("form-preview")
+    expect(preview).to_contain_text("gets 10%, then 25%, then 50%, then 100%")
+    expect(preview).to_contain_text("returns to ranker v")
+    page.locator("#f-steps").fill("20, 60")
+    expect(preview).to_contain_text("must be percentages that end at 100")
+    page.locator("#f-mode").select_option("replace")
+    expect(preview).to_contain_text("All traffic on ranker-staging moves")
+    page.locator("#f-deployment").select_option("__new__")
+    expect(preview).to_contain_text("serves nothing yet")
+
+
+def test_lineage_from_version_to_run_and_back(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects/credit-risk/models/scorer")
+    lineage = page.get_by_test_id("lineage")  # v2, the champion, is selected
+    expect(lineage).to_contain_text("Trained by training v1")
+    expect(lineage).to_contain_text("a83d2c1")
+    lineage.locator("a").click()
+    produced = page.get_by_test_id("produced")
+    expect(produced).to_contain_text("scorer v2")
+    expect(produced.locator("[data-status=CHAMPION]")).to_be_visible()

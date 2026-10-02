@@ -127,7 +127,39 @@ function Members({ project }: { project: string }) {
               </tr>))}
           </Table>)}
       </QueryView>
-      <p className="muted small">{`Your role here: ${access.role ?? 'none'}. Changes apply at the next request; group membership comes from the identity provider and applies at the next sign-in.`}</p>
+      <YourAccess members={query.data?.items ?? []} />
+      <details className="snippet" data-testid="role-guide">
+        <summary>What each role can do</summary>
+        <table className="t role-guide">
+          <thead><tr><th>Role</th><th>Can</th></tr></thead>
+          <tbody>
+            <tr><td>viewer</td><td>See everything in the project: runs, logs, models, deployments, activity.</td></tr>
+            <tr><td>operator</td><td>Also start, cancel and retry runs; evaluate and promote models; deploy, run canaries, roll back, send test requests.</td></tr>
+            <tr><td>admin</td><td>Also change acceptance thresholds, manage members, delete the project.</td></tr>
+          </tbody>
+        </table>
+      </details>
+      <p className="muted small">Changes apply at the next request. Group membership comes from your identity provider and applies at the next sign-in.</p>
     </div>
+  );
+}
+
+const RANK: Record<string, number> = { viewer: 1, operator: 2, admin: 3 };
+
+/** The signed-in person's effective role here and where it comes from: their own grant, a
+ * group's, or platform admin. "Why can I (not) do this?" answered on the page. */
+function YourAccess({ members }: { members: S['MemberOut'][] }) {
+  const me = useMe().data;
+  if (!me || me.auth === 'none') return null;
+  if (me.platform_admin) return <p className="your-access" data-testid="your-access">You can do everything here as a <b>platform admin</b>.</p>;
+  const mine = members.filter((m) => (m.kind === 'user' && m.name === me.username) || (m.kind === 'group' && me.groups.includes(m.name)));
+  if (!mine.length) return <p className="your-access" data-testid="your-access">You are not a member of this project.</p>;
+  const best = [...mine].sort((a, b) => RANK[b.role]! - RANK[a.role]!)[0]!;
+  const source = best.kind === 'user' ? 'granted to you directly' : `through the group ${best.name}`;
+  const others = mine.filter((m) => m !== best).map((m) => `${m.role} ${m.kind === 'user' ? 'directly' : `via ${m.name}`}`);
+  return (
+    <p className="your-access" data-testid="your-access">
+      Your role here is <b>{best.role}</b>, {source}.{others.length > 0 && ` You also have ${others.join(' and ')}; the higher role applies.`}
+    </p>
   );
 }

@@ -35,6 +35,9 @@ export type Field = {
 export type FormOptions<T> = {
   title: string; intro?: string; fields: Field[]; submitLabel?: string;
   submit: (values: Record<string, string>) => Promise<T>;
+  /** What will happen if this is submitted, recomputed as the form changes: for anything that
+   * changes traffic or policy, the operator sees the consequence before committing to it. */
+  preview?: (values: Record<string, string>) => ReactNode;
 };
 
 type Toast = { id: number; message: string; kind: 'ok' | 'bad' };
@@ -122,6 +125,8 @@ function FormBody({ request }: { request: { options: FormOptions<unknown>; resol
   const [busy, setBusy] = useState(false);
   const refs = useRef(new Map<string, HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>());
   const done = useRef(false);
+  const read = () => Object.fromEntries(options.fields.map((f) => [f.name, (refs.current.get(f.name)?.value ?? '').trim()]));
+  const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(options.fields.map((f) => [f.name, f.value ?? f.options?.[0]?.value ?? ''])));
 
   useEffect(() => {
     const first = options.fields[0];
@@ -144,10 +149,10 @@ function FormBody({ request }: { request: { options: FormOptions<unknown>; resol
       }
       el.removeAttribute('aria-invalid');
     }
-    const values = Object.fromEntries(options.fields.map((f) => [f.name, (refs.current.get(f.name)?.value ?? '').trim()]));
+    const submitted = read();
     setBusy(true);
     try {
-      const result = await options.submit(values);
+      const result = await options.submit(submitted);
       done.current = true;
       resolve(result);
       closeDialog(formEl, 'ok');
@@ -162,7 +167,7 @@ function FormBody({ request }: { request: { options: FormOptions<unknown>; resol
   };
 
   return (
-    <form className="form" noValidate onSubmit={onSubmit}>
+    <form className="form" noValidate onSubmit={onSubmit} onInput={() => setValues(read())} onChange={() => setValues(read())}>
       <h2>{options.title}</h2>
       {options.intro && <p className="muted">{options.intro}</p>}
       {options.fields.map((f) => {
@@ -185,6 +190,11 @@ function FormBody({ request }: { request: { options: FormOptions<unknown>; resol
           </div>
         );
       })}
+      {options.preview && (
+        <div className="form-preview" data-testid="form-preview" aria-live="polite">
+          <h3>What will happen</h3>
+          {options.preview(values)}
+        </div>)}
       {error && <div className="alert bad form-error" role="alert">{error}</div>}
       <div className="dlg-actions">
         <button className="btn" type="button" onClick={(e) => closeDialog(e.currentTarget, 'cancel')}>Cancel</button>

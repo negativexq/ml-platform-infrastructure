@@ -3,10 +3,11 @@ import { Badge, Empty, Kv, Section, Snippet, Table, Time } from '../components/b
 import { useOverlays } from '../components/overlays';
 import { useAccess } from '../lib/me';
 import { useCrumbs } from '../lib/chrome';
-import { fmtDuration, go, parsePairs, pct, routes, shellQuote, splitCommand } from '../lib/format';
+import { fmtDuration, go, parsePairs, pct, routes, shellQuote, shortId, splitCommand } from '../lib/format';
 import { QueryView, useLiveQuery } from '../lib/query';
 import { runStats } from '../lib/stats';
 import { JobRunTable } from './Runs';
+import { RunHistory } from '../components/charts/RunHistory';
 
 const ACTIVE = new Set(['PENDING', 'SUBMITTED', 'RUNNING']);
 const HISTORY = 20;
@@ -78,7 +79,7 @@ export function JobsPage({ project }: { project: string }) {
                   <tr key={job.id} className="click" data-testid="job-row" onClick={() => go(href)}>
                     <td><a href={href}>{job.name}</a></td>
                     <td className="mono small clip" title={job.image}>{job.image}</td>
-                    <td className="mono small">{Object.entries(job.resources).map(([k, v]) => `${k} ${v}`).join(' · ') || '—'}</td>
+                    <td className="mono small">{Object.entries(job.resources).map(([k, v]) => `${k} ${v}`).join(', ') || '—'}</td>
                     <td>{st.last ? <><Badge status={st.last.status} /> <Time iso={st.last.created_at} /></> : <span className="muted">never run</span>}</td>
                     <td className="num">{st.successRate == null ? '—' : pct(st.successRate, 0)}</td>
                     <td className="num">{fmtDuration(st.medianSeconds)}</td>
@@ -120,7 +121,7 @@ export function JobPage({ project, name }: { project: string; name: string }) {
               <div className="actions"><button className="btn primary" type="button" data-testid="start-this-job" disabled={!access.may('operator')} title={access.why('operator')} onClick={() => start(job.name)}>Start job</button></div>
             </div>
             <p className="sub">{'Defined '}<Time iso={job.created_at} />
-              {st.successRate != null && ` · ${pct(st.successRate, 0)} of the last ${st.finished} finished runs succeeded · typically ${fmtDuration(st.medianSeconds)}`}</p>
+              {st.successRate != null && `. ${pct(st.successRate, 0)} of the last ${st.finished} finished runs succeeded, typically in ${fmtDuration(st.medianSeconds)}.`}</p>
             <div className="card">
               <h2>Definition</h2>
               <Kv entries={[
@@ -131,9 +132,15 @@ export function JobPage({ project, name }: { project: string; name: string }) {
               ]} />
               <Snippet label="Start this job from a script" code={`curl -X POST ${location.origin}/projects/${project}/jobs/${job.name}/runs \\\n  -H 'Idempotency-Key: <unique-per-attempt>'`} />
             </div>
+            {runs.length >= 2 && (
+              <div className="section card">
+                <h2>{`Last ${runs.length} runs`}</h2>
+                <RunHistory runs={runs.map((r) => ({ id: r.id, status: r.status, created_at: r.created_at, duration_seconds: r.duration_seconds,
+                  href: routes.jobRun(project, r.id), label: `${name} ${shortId(r.id)}` }))} />
+              </div>)}
             <Section title="Recent runs" testid="job-runs">
               {runs.length ? <JobRunTable project={project} rows={runs} /> : <Empty>Never run.</Empty>}
-              {runs.length >= HISTORY && <p className="more"><a href={`${routes.project(project)}/runs?kind=job&name=${enc(name)}`}>All runs of {name} →</a></p>}
+              {runs.length >= HISTORY && <p className="more"><a href={`${routes.project(project)}/runs?kind=job&name=${enc(name)}`}>All runs of {name}</a></p>}
             </Section>
           </>
         );

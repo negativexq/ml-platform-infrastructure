@@ -3,6 +3,8 @@ import { Alert, Badge, CopyButton, Section, Table, Time } from '../components/bi
 import { useOverlays } from '../components/overlays';
 import { useDeploy } from '../components/Deploy';
 import { TryIt } from '../components/TryIt';
+import { GateMeters } from '../components/charts/Meters';
+import { TrafficSplit } from '../components/charts/TrafficSplit';
 import { useAccess } from '../lib/me';
 import { useCrumbs } from '../lib/chrome';
 import { fmtDuration, num, pct, routes } from '../lib/format';
@@ -63,7 +65,7 @@ export function DeploymentPage({ project, name }: { project: string; name: strin
               {d.desired_revision !== d.active_revision && <>{' · desired '}<b>{`r${d.desired_revision}`}</b></>}
             </p>
             {d.status_reason && <Alert bad={d.status === 'FAILED'}>{d.status_reason}</Alert>}
-            {live && <RolloutCard r={live} allowed={access.may('operator')} onAbort={async () => {
+            {live && <RolloutCard r={live} revisions={d.revisions} allowed={access.may('operator')} onAbort={async () => {
               if (await confirm({ title: 'Abort this rollout?', body: `All traffic returns to r${live.from_revision}. The canary is not promoted.`, confirmLabel: 'Abort rollout', danger: true }))
                 await act(() => api.post(`/rollouts/${live.id}/abort`), 'Abort requested');
             }} />}
@@ -84,19 +86,22 @@ export function DeploymentPage({ project, name }: { project: string; name: strin
   );
 }
 
-function RolloutCard({ r, onAbort, allowed }: { r: Rollout; onAbort: () => void; allowed: boolean }) {
+function RolloutCard({ r, onAbort, allowed, revisions }: { r: Rollout; onAbort: () => void; allowed: boolean; revisions: S['RevisionOut'][] }) {
+  const stable = revisions.find((x) => x.revision === r.from_revision);
   return (
     <div className="card section" data-testid="rollout">
       <h2>{`Canary rollout: r${r.from_revision} → r${r.to_revision}`}<Badge status={r.status} /><span className="muted small">{` ${r.model} v${r.model_version}`}</span></h2>
-      <div className="bar" role="img" aria-label={`Traffic: stable ${100 - r.canary_percent}%, canary ${r.canary_percent}%`}>
-        <div className="stable" style={{ width: `${100 - r.canary_percent}%` }} data-testid="stable-share">{`r${r.from_revision} stable ${100 - r.canary_percent}%`}</div>
-        {r.canary_percent > 0 && <div className="canary" style={{ width: `${r.canary_percent}%` }} data-testid="canary-share">{`r${r.to_revision} ${r.canary_percent}%`}</div>}
-      </div>
+      <TrafficSplit shares={[
+        { key: 'stable', label: `r${r.from_revision} stable`, detail: stable ? `${stable.model} v${stable.model_version}` : 'previous revision',
+          percent: 100 - r.canary_percent, color: 'var(--series-1)', ink: '#ffffff' },
+        { key: 'canary', label: `r${r.to_revision} canary`, detail: `${r.model} v${r.model_version}`,
+          percent: r.canary_percent, color: 'var(--series-2)', ink: '#0b0b0b' },
+      ]} />
       <div className="steps" aria-label="Rollout steps">
         {r.steps.map((s, i) => <span key={i} className={i < r.current_step ? 'done' : i === r.current_step ? 'cur' : ''}>{`${s}%`}</span>)}
       </div>
       <p className="muted small">{`Gate: error rate ≤ ${pct(r.gate.max_error_rate)}, p95 ≤ ${r.gate.max_p95_latency_ms} ms, ≥ ${r.gate.min_requests} requests, ${fmtDuration(r.gate.step_seconds)} per step`}</p>
-      {r.abort_requested && <Alert>Abort requested — returning traffic to the stable revision.</Alert>}
+      {r.abort_requested && <Alert>Abort requested. Traffic is returning to the stable revision.</Alert>}
       <button className="btn danger" data-testid="abort" disabled={r.abort_requested || !allowed} title={allowed ? undefined : 'Needs the operator role in this project'} onClick={onAbort}>Abort rollout</button>
     </div>
   );
@@ -114,12 +119,18 @@ function EndpointCard({ endpoint, metrics, live }: { endpoint: S['EndpointOut'];
       {metrics && !metrics.available && <Alert>{`Metrics unavailable: ${metrics.error}`}</Alert>}
       {rows.length ? rows.map((m) => (
         <div className="rev" key={m.revision} data-testid="revision-metrics" data-revision={m.revision}>
-          <h3>{`r${m.revision}`}{live ? (m.revision === live.to_revision ? ' · canary' : ' · stable') : ''}{` · ${m.model} v${m.model_version} · ${m.traffic_percent}% of traffic`}</h3>
-          <div className="metric">
-            <div><b>{m.p95_latency_ms == null ? '—' : `${num(m.p95_latency_ms, 0)} ms`}</b><span>p95 latency</span></div>
-            <div><b>{pct(m.error_rate)}</b><span>5xx rate</span></div>
-            <div><b>{num(m.requests_per_second, 1)}</b><span>requests / s</span></div>
-          </div>
+          <h3>{`r${m.revision}`}{live ? (m.revision === live.to_revision ? ' canary' : ' stable') : ''}{`: ${m.model} v${m.model_version}, ${m.traffic_percent}% of traffic`}</h3>
+          {live ? (
+            <>
+              <GateMeters m={m} gate={live.gate} />
+              <p className="small muted">{`${num(m.requests_per_second, 1)} requests / s`}</p>
+            </>
+          ) : (
+            <div className="metric">
+              <div><b>{m.p95_latency_ms == null ? '—' : `${num(m.p95_latency_ms, 0)} ms`}</b><span>p95 latency</span></div>
+              <div><b>{pct(m.error_rate)}</b><span>5xx rate</span></div>
+              <div><b>{num(m.requests_per_second, 1)}</b><span>requests / s</span></div>
+            </div>)}
         </div>)) : metrics?.available ? <p className="muted">No traffic data yet.</p> : null}
     </div>
   );

@@ -73,7 +73,7 @@ export function ActivityPage({ project }: { project: string }) {
                     })}
                   </ul>
                 </div>)))}
-            <p className="muted small">{`Showing ${shown.length} of ${events.length} events · `}<Time iso={events[0]?.occurred_at} />{' most recent'}</p>
+            <p className="muted small">{`Showing ${shown.length} of ${events.length} events. Most recent `}<Time iso={events[0]?.occurred_at} />.</p>
           </>
         );
       }}

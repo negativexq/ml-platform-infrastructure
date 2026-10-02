@@ -47,10 +47,10 @@ export function JobRunPage({ project, id }: { project: string; id: string }) {
                   }}>{r.status === 'FAILED' ? 'Retry' : 'Run again'}</button>)}
             </div>
           </div>
-          <p className="sub">
+          <p className="sub meta">
             <span className="mono" title={r.id}>{shortId(r.id)}</span><CopyButton text={r.id} what="run id" />
-            {' · started '}<Time iso={r.started_at || r.created_at} />{' · '}{fmtDuration(r.duration_seconds)}
-            {' · exit code '}<span className="mono">{r.exit_code ?? '—'}</span>
+            <span>{'Started '}<Time iso={r.started_at || r.created_at} /></span><span>{`Took ${fmtDuration(r.duration_seconds)}`}</span>
+            <span>{'Exit code '}<span className="mono">{r.exit_code ?? '—'}</span></span>
           </p>
           {r.status_reason && <Alert bad={r.status === 'FAILED'}>{r.status_reason}</Alert>}
           {r.retry_of && <p className="small muted">{'Retry of '}<a href={routes.jobRun(project, r.retry_of)}>{shortId(r.retry_of)}</a></p>}

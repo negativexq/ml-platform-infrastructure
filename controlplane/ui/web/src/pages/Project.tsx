@@ -1,7 +1,7 @@
 import { api, ApiError, enc, type S } from '../api/client';
 import { Badge, CopyButton, Empty, Section, Table, Time } from '../components/bits';
 import { useOverlays } from '../components/overlays';
-import { describeAction } from '../lib/audit';
+import { describeAction, isRoutine } from '../lib/audit';
 import { useAccess } from '../lib/me';
 import { useCrumbs } from '../lib/chrome';
 import { go, routes } from '../lib/format';
@@ -29,7 +29,7 @@ export function ProjectPage({ name }: { name: string }) {
       api.get<S['RunList']>(`/projects/${p}/runs?limit=${RECENT}`),
       api.get<S['ModelList']>(`/projects/${p}/models`),
       api.get<S['DeploymentList']>(`/projects/${p}/deployments`),
-      api.get<S['AuditOut']>(`/projects/${p}/audit?limit=8`).catch(() => ({ items: [] as S['AuditEventOut'][] })),
+      api.get<S['AuditOut']>(`/projects/${p}/audit?limit=60`).catch(() => ({ items: [] as S['AuditEventOut'][] })),
       // Failures of the last day, so a problem is visible before anyone goes looking for it.
       api.get<S['PipelineRunList']>(`/projects/${p}/pipeline-runs?status=FAILED&limit=10`),
       api.get<S['RunList']>(`/projects/${p}/runs?status=FAILED&limit=10`),
@@ -38,7 +38,8 @@ export function ProjectPage({ name }: { name: string }) {
     if (!project) throw new ApiError(404, 'not_found', `project ${name}`);
     const recent = (r: { created_at: string }) => Date.now() - Date.parse(r.created_at) < DAY;
     return {
-      project, summary, pruns: pruns.items, runs: runs.items, models: models.items, deployments: deployments.items, audit: audit.items,
+      project, summary, pruns: pruns.items, runs: runs.items, models: models.items, deployments: deployments.items,
+      audit: audit.items.filter((e) => !isRoutine(e)).slice(0, 8), // key events, as on the Activity page
       failed: { pipelines: failedPipelines.items.filter(recent), jobs: failedJobs.items.filter(recent) },
     };
   }, (d) => d.pruns.some((r) => ACTIVE.has(r.status)) || d.runs.some((r) => ACTIVE.has(r.status))

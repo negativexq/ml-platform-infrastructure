@@ -41,12 +41,12 @@ export function QueryView<T>({ query, children }: { query: UseQueryResult<T>; ch
         </div>);
     }
     if (error instanceof ApiError && error.status === 401) return <Skeleton />; // the sign-in screen takes over
-    if (error) return <div className="alert bad net" role="alert">{error.message || 'Something went wrong'} — retrying…</div>;
+    if (error) return <div className="alert bad net" role="alert">{error.message || 'Something went wrong'}. Retrying.</div>;
     return <Skeleton />;
   }
   return (
     <>
-      {error && <div className="alert bad net" role="alert">{error.message || 'Something went wrong'} — retrying…</div>}
+      {error && <div className="alert bad net" role="alert">{error.message || 'Something went wrong'}. Retrying.</div>}
       {children(query.data)}
     </>
   );

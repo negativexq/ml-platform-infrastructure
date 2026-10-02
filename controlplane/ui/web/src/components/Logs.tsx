@@ -45,7 +45,7 @@ export function Logs({ title, text, live, filename }: { title: string; text: str
         <input type="search" className="log-search" placeholder="Find in logs" aria-label="Find in logs" data-testid="log-search"
           value={needle} onChange={(e) => setNeedle(e.target.value)} />
         <span className="muted small" data-testid="log-count">
-          {filtered ? `${shown.length} of ${lines.length} lines` : lines.length ? `${lines.length} lines` : ''}
+          {filtered ? `${shown.length} of ${lines.length} lines` : lines.length ? `${lines.length} line${lines.length === 1 ? '' : 's'}` : ''}
         </span>
         {errors > 0 && (
           <label title="Lines mentioning error, exception, traceback, fatal, failed or killed">

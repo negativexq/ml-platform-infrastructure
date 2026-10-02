@@ -167,3 +167,19 @@ def test_sign_out(page: Page, server: Server, idp: FakeIdP) -> None:
     page.wait_for_url(re.compile(r"/logout"))  # the identity provider's end-session endpoint
     page.goto(f"{server.url}/ui/#/projects")
     expect(page.get_by_test_id("sign-in")).to_be_visible()
+
+
+def test_settings_say_where_your_role_comes_from(page: Page, server: Server, idp: FakeIdP) -> None:
+    token = bind_principal(Principal(username="setup", platform_admin=True))
+    try:
+        MembershipService(server.demo.uow_factory).set_role(
+            "credit-risk", "group:ml-team", ProjectRole.OPERATOR
+        )
+    finally:
+        reset_principal(token)
+    sign_in(page, server, idp, "bob", route="/projects/credit-risk/settings", groups=["ml-team"])
+    access = page.get_by_test_id("your-access")
+    expect(access).to_contain_text("Your role here is operator, through the group ml-team")
+    expect(access).to_contain_text("You also have viewer directly")
+    page.get_by_test_id("role-guide").locator("summary").click()
+    expect(page.get_by_test_id("role-guide")).to_contain_text("manage members")

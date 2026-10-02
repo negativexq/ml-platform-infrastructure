@@ -1,6 +1,6 @@
 import { api, ApiError, enc, type S } from '../api/client';
 import { useOverlays } from './overlays';
-import { go, routes } from '../lib/format';
+import { fmtDuration, go, routes } from '../lib/format';
 
 const DEPLOYABLE = new Set(['CANDIDATE', 'CHAMPION']);
 const NEW = '__new__';
@@ -44,6 +44,7 @@ export function useDeploy(project: string) {
         { name: 'max_error_rate', label: 'Gate: max 5xx rate (%)', placeholder: '1' },
         { name: 'max_p95_latency_ms', label: 'Gate: max p95 latency (ms)', placeholder: '500' },
       ],
+      preview: (v) => <DeployPreview values={v} deployments={deployments.items} project={project} />,
       submit: async (v) => {
         const [model, versionText] = (v.version ?? '').split('@') as [string, string];
         const version = Number(versionText);
@@ -72,4 +73,38 @@ export function useDeploy(project: string) {
     });
     if (result) go(routes.deployment(project, result));
   };
+}
+
+// The defaults the API applies when a field is left empty (GateIn, DEFAULT_STEPS).
+const DEFAULT_GATE = { max_error_rate: 0.01, max_p95_latency_ms: 500, min_requests: 20, step_seconds: 60 };
+const DEFAULT_STEPS = [10, 25, 50, 100];
+
+/** The consequence of the deploy dialog, in words, before anything is sent. */
+function DeployPreview({ values: v, deployments, project }: { values: Record<string, string>; deployments: S['DeploymentOut'][]; project: string }) {
+  const [model, versionText] = (v.version ?? '').split('@');
+  const version = `${model} v${versionText}`;
+  const name = v.deployment === NEW ? v.new_name || `a new deployment in ${project}` : v.deployment ?? '';
+  const target = deployments.find((d) => d.name === v.deployment);
+  const serving = target?.revisions.find((r) => r.revision === target.active_revision);
+  if (v.deployment === NEW || !serving) {
+    return <p data-testid="preview-direct">{`${name} serves nothing yet, so ${version} is deployed directly: it takes all traffic once its revision is ready. No canary, no gates.`}</p>;
+  }
+  if (v.mode === 'replace') {
+    return (
+      <p data-testid="preview-replace">
+        {`All traffic on ${name} moves from ${serving.model} v${serving.model_version} to ${version} as soon as the new revision is ready. No gates check it; Roll back on the deployment page undoes it.`}
+      </p>);
+  }
+  const steps = v.steps ? v.steps.split(/[\s,]+/).filter(Boolean).map(Number) : DEFAULT_STEPS;
+  const bad = steps.some((x) => !Number.isFinite(x) || x <= 0 || x > 100) || steps[steps.length - 1] !== 100;
+  const err = v.max_error_rate ? Number(v.max_error_rate) : DEFAULT_GATE.max_error_rate * 100;
+  const p95 = v.max_p95_latency_ms ? Number(v.max_p95_latency_ms) : DEFAULT_GATE.max_p95_latency_ms;
+  return (
+    <div data-testid="preview-canary">
+      <p>{`${version} gets ${steps.map((x) => `${x}%`).join(', then ')} of ${name}'s traffic, ${fmtDuration(DEFAULT_GATE.step_seconds)} per step at least.`}</p>
+      <p>{`Each step moves on only while its 5xx rate stays at or under ${err}% and p95 latency at or under ${p95} ms, after at least ${DEFAULT_GATE.min_requests} requests.`}</p>
+      <p>{`If a gate fails, traffic returns to ${serving.model} v${serving.model_version} by itself. ${version} becomes the champion only when it reaches 100%.`}</p>
+      {bad && <p className="fail">The steps must be percentages that end at 100.</p>}
+    </div>
+  );
 }

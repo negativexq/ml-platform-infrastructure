@@ -59,7 +59,7 @@ export const Empty = ({ children }: { children: ReactNode }) => <div className="
 export function Section({ title, testid, children, more }: { title: string; testid?: string; children: ReactNode; more?: [string, string] }) {
   return (
     <div className="section" data-testid={testid}>
-      <div className="section-head"><h2>{title}</h2>{more && <a className="small" href={more[0]}>{more[1]} →</a>}</div>
+      <div className="section-head"><h2>{title}</h2>{more && <a className="small" href={more[0]}>{more[1]}</a>}</div>
       {children}
     </div>
   );

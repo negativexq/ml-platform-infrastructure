@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { api, enc, type S } from '../api/client';
 import { Alert, Badge, CopyButton, Table, Time } from '../components/bits';
 import { Dag } from '../components/Dag';
+import { niceTicks, statusOf, Tooltip, useTip, useWidth } from '../components/charts/base';
 import { Logs } from '../components/Logs';
 import { useOverlays } from '../components/overlays';
 import { useAccess } from '../lib/me';
@@ -71,10 +72,10 @@ export function PipelineRunPage({ project, id }: { project: string; id: string }
                     title={access.why('operator') ?? 'Start a new run of the same pipeline version'} onClick={() => rerun(r)}>Run again</button>)}
               </div>
             </div>
-            <p className="sub">
+            <p className="sub meta">
               <span className="mono" title={r.id}>{shortId(r.id)}</span><CopyButton text={r.id} what="run id" />
-              {' · started '}<Time iso={r.started_at || r.created_at} />{' · '}{fmtDuration(r.duration_seconds)}
-              {r.commit_sha && <>{' · commit '}<span className="mono">{r.commit_sha}</span></>}
+              <span>{'Started '}<Time iso={r.started_at || r.created_at} /></span><span>{`Took ${fmtDuration(r.duration_seconds)}`}</span>
+              {r.commit_sha && <span>{'Commit '}<span className="mono">{r.commit_sha}</span></span>}
             </p>
             {r.status_reason && <Alert bad={r.status === 'FAILED'}>{r.status_reason}</Alert>}
             <div className="card" data-testid="dag"><h2>Steps</h2><Dag steps={r.steps.map((s) => ({ ...s, reason: explain(s, r.steps) }))} selected={selected} onSelect={setPicked} /></div>
@@ -93,6 +94,7 @@ export function PipelineRunPage({ project, id }: { project: string; id: string }
               <div className="section card" data-testid="timeline"><h2>Timeline</h2><Timeline steps={r.steps} onSelect={setPicked} /></div>)}
             <Logs title={selected ? `Logs: ${selected}` : 'Logs'} text={logs.data ?? ''} live={ACTIVE.has(r.status)}
               filename={`${r.pipeline}-${shortId(r.id)}-${selected ?? 'run'}.log`} />
+            <Produced project={project} runId={r.id} />
             <div className="section card" data-testid="tracking"><h2>Experiment tracking</h2>
               <Tracking unavailable={tracking.isError} runs={tracking.data?.runs ?? []} />
             </div>
@@ -103,28 +105,51 @@ export function PipelineRunPage({ project, id }: { project: string; id: string }
   );
 }
 
-/** Steps on a shared time axis: what ran in parallel, where the time went, what was waiting. */
+/** Steps on a shared time axis: what ran in parallel, where the time went, what was waiting.
+ * Bars are the status palette with symbol and word in the tooltip; the steps table is its twin. */
 function Timeline({ steps, onSelect }: { steps: Step[]; onSelect: (step: string) => void }) {
+  const [ref, width] = useWidth<HTMLDivElement>();
+  const { tip, bind } = useTip();
   const stamped = steps.filter((s) => s.started_at);
   const start = Math.min(...stamped.map((s) => Date.parse(s.started_at as string)));
   const now = Date.now();
   const end = Math.max(...stamped.map((s) => (s.finished_at ? Date.parse(s.finished_at) : now)), start + 1000);
-  const span = end - start;
+  const ticks = niceTicks((end - start) / 1000, 5, 'seconds');
+  const span = ticks[ticks.length - 1]! * 1000;
+  const LABEL = 110, ROW = 26, BAR = 12, AXIS = 18;
+  const x = (ms: number) => LABEL + ((ms - start) / span) * (width - LABEL - 8);
+  const height = steps.length * ROW + AXIS;
   return (
-    <div className="timeline-chart" role="list">
-      {steps.map((s) => {
-        const from = s.started_at ? Date.parse(s.started_at) : null;
-        const to = s.finished_at ? Date.parse(s.finished_at) : from != null ? now : null;
-        return (
-          <span key={s.step} style={{ display: 'contents' }}>
-            <button className="tl-label linklike" type="button" role="listitem" onClick={() => onSelect(s.step)}>{s.step}</button>
-            <div className="tl-track" aria-label={`${s.step} ${s.status.toLowerCase()}`}>
+    <div className="chart" ref={ref}>
+      <svg width={width} height={height} role="img" aria-label="Steps over time. The steps table lists the same steps.">
+        <g className="grid">{ticks.map((t) => <line key={t} x1={x(start + t * 1000)} x2={x(start + t * 1000)} y1={0} y2={steps.length * ROW} />)}</g>
+        {ticks.map((t, i) => (
+          <text key={t} className="tick" x={x(start + t * 1000)} y={height - 4} textAnchor={i === 0 ? 'start' : i === ticks.length - 1 ? 'end' : 'middle'}>
+            {t === 0 ? 'start' : `+${fmtDuration(t)}`}
+          </text>))}
+        {steps.map((s, i) => {
+          const st = statusOf(s.status);
+          const cy = i * ROW + ROW / 2;
+          const from = s.started_at ? Date.parse(s.started_at) : null;
+          const to = s.finished_at ? Date.parse(s.finished_at) : from != null ? now : null;
+          const took = s.duration_seconds ?? (from != null && to != null ? (to - from) / 1000 : null);
+          return (
+            <g key={s.step}>
+              <text className="tl-label tick" x={0} y={cy + 4} style={{ fill: 'var(--text)', cursor: 'pointer' }} onClick={() => onSelect(s.step)}>
+                {`${st.symbol} ${s.step}`}
+              </text>
               {from != null && to != null && (
-                <div className={`tl-bar st-${s.status}`} title={`${s.step}: ${fmtDuration(s.duration_seconds ?? (to - from) / 1000)}`}
-                  style={{ left: `${((from - start) / span) * 100}%`, width: `${Math.max(0.8, ((to - from) / span) * 100)}%` }} />)}
-            </div>
-          </span>);
-      })}
+                <g className="mark" tabIndex={0} role="button" aria-label={`${s.step} ${st.word}, ${fmtDuration(took)}`}
+                  onClick={() => onSelect(s.step)} onKeyDown={(e) => { if (e.key === 'Enter') onSelect(s.step); }}
+                  {...bind({ head: `${s.step} · started +${fmtDuration((from - start) / 1000)}`, rows: [{ value: fmtDuration(took), label: `${st.symbol} ${st.word}`, color: st.color }] },
+                    { x: x(from), y: cy - 10 })}>
+                  <rect className="hit" x={x(from) - 4} y={i * ROW} width={Math.max(24, x(to) - x(from) + 8)} height={ROW} />
+                  <rect className={`tl-bar st-${s.status}`} x={x(from)} y={cy - BAR / 2} width={Math.max(3, x(to) - x(from))} height={BAR} rx={4} fill={st.color} />
+                </g>)}
+            </g>);
+        })}
+      </svg>
+      <Tooltip tip={tip} width={width} />
     </div>
   );
 }
@@ -174,4 +199,28 @@ export function explain(step: Step, steps: Step[]): string | null {
     return 'not run';
   }
   return null;
+}
+
+/** The model versions this run registered, so a result can be followed into the registry. */
+function Produced({ project, runId }: { project: string; runId: string }) {
+  const p = enc(project);
+  const produced = useQuery({
+    queryKey: ['produced', runId],
+    queryFn: async () => {
+      const { items } = await api.get<S['ModelList']>(`/projects/${p}/models`);
+      const lists = await Promise.all(items.map((m) => api.get<{ items: { id: string; version: number; status: string; source_pipeline_run_id: string | null }[] }>(`/projects/${p}/models/${enc(m.name)}/versions`)
+        .then((l) => l.items.filter((v) => v.source_pipeline_run_id === runId).map((v) => ({ model: m.name, ...v })))));
+      return lists.flat();
+    },
+  });
+  if (!produced.data?.length) return null;
+  return (
+    <div className="section card" data-testid="produced">
+      <h2>Models from this run</h2>
+      <ul className="timeline">
+        {produced.data.map((v) => (
+          <li key={v.id}><a href={routes.model(project, v.model)}>{`${v.model} v${v.version}`}</a><Badge status={v.status} /></li>))}
+      </ul>
+    </div>
+  );
 }

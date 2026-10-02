@@ -5,11 +5,12 @@ import { Dag } from '../components/Dag';
 import { useOverlays } from '../components/overlays';
 import { useAccess } from '../lib/me';
 import { useCrumbs } from '../lib/chrome';
-import { fmtDuration, go, pct, routes } from '../lib/format';
+import { fmtDuration, go, pct, routes, shortId } from '../lib/format';
 import { QueryView, useLiveQuery } from '../lib/query';
 import { useSearchState } from '../lib/search';
 import { runStats } from '../lib/stats';
 import { PipelineRunTable } from './Runs';
+import { RunHistory } from '../components/charts/RunHistory';
 
 const ACTIVE = new Set(['PENDING', 'SUBMITTED', 'RUNNING']);
 const HISTORY = 20;
@@ -146,9 +147,15 @@ export function PipelinePage({ project, name }: { project: string; name: string 
               </Table>
               <Snippet label="This definition as an API call (for CI)" code={pipelineCurl(project, name, def.steps)} />
             </div>
+            {runs.length >= 2 && (
+              <div className="section card">
+                <h2>{`Last ${runs.length} runs`}</h2>
+                <RunHistory runs={runs.map((r) => ({ id: r.id, status: r.status, created_at: r.created_at, duration_seconds: r.duration_seconds,
+                  href: routes.pipelineRun(project, r.id), label: `${name} ${shortId(r.id)}` }))} />
+              </div>)}
             <Section title="Recent runs" testid="pipeline-runs">
               {runs.length ? <PipelineRunTable project={project} rows={runs} /> : <Empty>Never run.</Empty>}
-              {runs.length >= HISTORY && <p className="more"><a href={`${routes.project(project)}/runs?name=${enc(name)}`}>All runs of {name} →</a></p>}
+              {runs.length >= HISTORY && <p className="more"><a href={`${routes.project(project)}/runs?name=${enc(name)}`}>All runs of {name}</a></p>}
             </Section>
           </>
         );
