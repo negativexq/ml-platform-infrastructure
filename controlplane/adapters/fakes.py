@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import hashlib
 from collections.abc import Mapping, Sequence
+from typing import Any
 from uuid import UUID
 
 from controlplane.application.providers import (
@@ -51,6 +52,10 @@ class FakeExperimentProvider:
 
     def list_model_versions(self, model: str) -> Sequence[RegisteredVersion]:
         return list(self.registered.get(model, []))
+
+    def model_artifact_uri(self, model: str, version_ref: str) -> str | None:
+        known = any(v.ref == version_ref for v in self.registered.get(model, []))
+        return f"s3://models/{model}/{version_ref}" if known else None
 
     def set_model_alias(self, model: str, alias: str, version_ref: str) -> None:
         self._aliases[(model, alias)] = version_ref
@@ -124,31 +129,65 @@ class FakeWorkflowProvider:
 
 
 class FakeServingProvider:
+    """Serving resources as a dict. `auto_ready=False` holds them PENDING until a test
+    calls `mark_ready`, so rollouts can be observed half-way."""
+
     def __init__(self) -> None:
         self.specs: dict[str, ServingSpec] = {}
         self.traffic: dict[str, Mapping[int, int]] = {}
+        self.auto_ready = True
+        self.deploy_calls = 0
+        self.failed: dict[str, str] = {}
+        self._ready: set[str] = set()
+        self.requests: list[tuple[str, Mapping[str, Any]]] = []
 
     def deploy(self, spec: ServingSpec) -> str:
+        self.deploy_calls += 1
         ref = f"{spec.namespace}/{spec.name}"
         self.specs[ref] = spec
+        self.failed.pop(ref, None)
+        self._ready.discard(ref)
+        if self.auto_ready:
+            self._ready.add(ref)
         return ref
 
     def get_status(self, ref: str) -> ServingStatus:
         spec = self.specs.get(ref)
         if spec is None:
             return ServingStatus(ServingState.ABSENT)
-        return ServingStatus(
-            ServingState.READY, ready_revisions=(spec.revision,), url=f"http://{spec.name}.local"
-        )
+        if ref in self.failed:
+            return ServingStatus(ServingState.FAILED, spec.revision, reason=self.failed[ref])
+        if ref in self._ready:
+            return ServingStatus(
+                ServingState.READY,
+                spec.revision,
+                ready_revisions=(spec.revision,),
+                url=f"http://{spec.name}.{spec.namespace}.svc",
+            )
+        return ServingStatus(ServingState.PENDING, spec.revision)
 
     def set_traffic(self, ref: str, split: Mapping[int, int]) -> None:
         if sum(split.values()) != 100:
             raise ValueError("traffic weights must sum to 100")
         self.traffic[ref] = dict(split)
 
+    def predict(self, ref: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        if ref not in self._ready:
+            raise ConnectionError(f"{ref} is not serving")
+        self.requests.append((ref, payload))
+        return {"predictions": [0.0 for _ in payload.get("instances", [])]}
+
     def delete(self, ref: str) -> None:
         self.specs.pop(ref, None)
         self.traffic.pop(ref, None)
+        self._ready.discard(ref)
+
+    # test controls
+    def mark_ready(self, ref: str) -> None:
+        self._ready.add(ref)
+
+    def mark_failed(self, ref: str, reason: str) -> None:
+        self.failed[ref] = reason
 
 
 class FakeMetricsProvider:

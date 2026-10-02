@@ -6,10 +6,12 @@ from uuid import UUID
 from fastapi import APIRouter, FastAPI, Query, Request, Response, status
 from fastapi.responses import JSONResponse
 
+from controlplane.api.deployments import deployments_router
 from controlplane.api.jobs_runs import jobs_router, runs_router
 from controlplane.api.models import model_versions_router, models_router
 from controlplane.api.pipelines import pipeline_runs_router, pipelines_router
 from controlplane.api.schemas import ErrorOut, ProjectCreate, ProjectList, ProjectOut
+from controlplane.application.deployments import DeploymentService
 from controlplane.application.jobs import JobService
 from controlplane.application.models import EvaluationService, ModelService, PromotionService
 from controlplane.application.pipeline_runs import PipelineRunService
@@ -21,7 +23,11 @@ from controlplane.application.projects import (
     UnitOfWorkFactory,
     utc_now,
 )
-from controlplane.application.providers import ExperimentProvider, WorkflowProvider
+from controlplane.application.providers import (
+    ExperimentProvider,
+    ServingProvider,
+    WorkflowProvider,
+)
 from controlplane.application.runs import RunService
 from controlplane.domain.errors import (
     AlreadyExists,
@@ -116,6 +122,7 @@ def create_app(
     clock: Clock = utc_now,
     workflow: WorkflowProvider | None = None,
     experiments: ExperimentProvider | None = None,
+    serving: ServingProvider | None = None,
 ) -> FastAPI:
     app = FastAPI(
         title="ML Platform Control Plane",
@@ -133,6 +140,7 @@ def create_app(
         EvaluationService(uow_factory, experiments, clock) if experiments is not None else None
     )
     app.state.promotions = PromotionService(uow_factory, clock)
+    app.state.deployments = DeploymentService(uow_factory, clock, experiments, serving)
     app.state.workflow = workflow
     app.state.experiments = experiments
     app.add_exception_handler(DomainError, _domain_error_handler)
@@ -143,6 +151,7 @@ def create_app(
     app.include_router(pipeline_runs_router())
     app.include_router(models_router())
     app.include_router(model_versions_router())
+    app.include_router(deployments_router())
 
     @app.get("/healthz", tags=["ops"], summary="Liveness")
     def healthz() -> dict[str, str]:

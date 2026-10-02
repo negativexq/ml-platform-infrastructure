@@ -5,6 +5,7 @@ from __future__ import annotations
 from fastapi import FastAPI
 
 from controlplane.adapters.mlflow import MlflowExperimentProvider
+from controlplane.adapters.serving import KServeServingProvider
 from controlplane.adapters.workflow import ArgoWorkflowProvider
 from controlplane.api.app import create_app
 from controlplane.persistence.sql import SqlUnitOfWork, make_engine, sql_uow_factory
@@ -20,4 +21,10 @@ def app_factory() -> FastAPI:
         if settings.mlflow_tracking_uri
         else None
     )
-    return create_app(lambda: SqlUnitOfWork(sessions), workflow=workflow, experiments=experiments)
+    serving = KServeServingProvider.from_kubeconfig(settings.kubeconfig or None)
+    return create_app(
+        lambda: SqlUnitOfWork(sessions),
+        workflow=workflow,
+        experiments=experiments,
+        serving=serving,
+    )

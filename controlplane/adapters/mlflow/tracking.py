@@ -80,6 +80,21 @@ class MlflowExperimentProvider:
         )
         return [_run(r) for r in runs]
 
+    def model_artifact_uri(self, model: str, version_ref: str) -> str | None:
+        try:
+            version = self._client.get_model_version(model, version_ref)
+        except MlflowException as exc:
+            if _is(exc, RESOURCE_DOES_NOT_EXIST):
+                return None
+            raise
+        # In MLflow 3 a version created from a logged model has a `models:/m-...` source
+        # that a serving runtime cannot read; the logged model knows the real location.
+        if version.model_id:
+            location = self._client.get_logged_model(version.model_id).artifact_location
+            if location:
+                return str(location)
+        return version.source or None
+
     def list_model_versions(self, model: str) -> Sequence[RegisteredVersion]:
         versions = self._client.search_model_versions(f"name = {_quote(model)}")
         return sorted(

@@ -191,9 +191,36 @@ DEPLOYMENT = StateMachine(
     {
         DeploymentStatus.PENDING: {DeploymentStatus.DEPLOYING},
         DeploymentStatus.DEPLOYING: {DeploymentStatus.READY, DeploymentStatus.FAILED},
-        DeploymentStatus.READY: {DeploymentStatus.DEGRADED, DeploymentStatus.FAILED},
-        DeploymentStatus.DEGRADED: {DeploymentStatus.READY, DeploymentStatus.FAILED},
+        # READY/DEGRADED -> DEPLOYING: a new revision rolls out, or a lost serving
+        # resource is being recreated.
+        DeploymentStatus.READY: {
+            DeploymentStatus.DEGRADED,
+            DeploymentStatus.FAILED,
+            DeploymentStatus.DEPLOYING,
+        },
+        DeploymentStatus.DEGRADED: {
+            DeploymentStatus.READY,
+            DeploymentStatus.FAILED,
+            DeploymentStatus.DEPLOYING,
+        },
         # A failed deployment is retried by re-deploying, not by resurrecting READY.
         DeploymentStatus.FAILED: {DeploymentStatus.DEPLOYING},
+    },
+)
+
+
+class EndpointStatus(StrEnum):
+    PENDING = "PENDING"
+    READY = "READY"
+    UNAVAILABLE = "UNAVAILABLE"
+
+
+ENDPOINT = StateMachine(
+    "Endpoint",
+    EndpointStatus,
+    {
+        EndpointStatus.PENDING: {EndpointStatus.READY, EndpointStatus.UNAVAILABLE},
+        EndpointStatus.READY: {EndpointStatus.UNAVAILABLE},
+        EndpointStatus.UNAVAILABLE: {EndpointStatus.READY},
     },
 )

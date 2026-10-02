@@ -14,6 +14,9 @@ from uuid import UUID
 
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import (
+    Deployment,
+    DeploymentRevision,
+    Endpoint,
     Evaluation,
     JobDefinition,
     Model,
@@ -27,6 +30,8 @@ from controlplane.domain.entities import (
 )
 from controlplane.domain.errors import AlreadyExists, Conflict, NotFound
 from controlplane.domain.states import (
+    DeploymentStatus,
+    EndpointStatus,
     EvaluationStatus,
     ModelStatus,
     ProjectStatus,
@@ -47,6 +52,9 @@ class MemoryStore:
     model_versions: dict[UUID, ModelVersion] = field(default_factory=dict)
     evaluations: dict[UUID, Evaluation] = field(default_factory=dict)
     promotions: dict[UUID, Promotion] = field(default_factory=dict)
+    deployments: dict[UUID, Deployment] = field(default_factory=dict)
+    revisions: dict[UUID, DeploymentRevision] = field(default_factory=dict)
+    endpoints: dict[UUID, Endpoint] = field(default_factory=dict)
     audit: list[AuditEvent] = field(default_factory=list)
 
 
@@ -406,6 +414,109 @@ class _Promotions:
         )
 
 
+class _Deployments:
+    def __init__(self, data: dict[UUID, Deployment]) -> None:
+        self._data = data
+
+    def add(self, deployment: Deployment) -> None:
+        if self.get_by_name(deployment.project_id, deployment.name) is not None:
+            raise AlreadyExists("deployment", deployment.name)
+        self._data[deployment.id] = deployment
+
+    def get(self, deployment_id: UUID) -> Deployment | None:
+        return self._data.get(deployment_id)
+
+    def get_by_name(self, project_id: UUID, name: str) -> Deployment | None:
+        return next(
+            (d for d in self._data.values() if d.project_id == project_id and d.name == name), None
+        )
+
+    def list(self, project_id: UUID) -> Sequence[Deployment]:
+        return sorted(
+            (d for d in self._data.values() if d.project_id == project_id),
+            key=lambda d: (d.created_at, d.id),
+        )
+
+    def list_reconcilable(self) -> Sequence[Deployment]:
+        return sorted(
+            (d for d in self._data.values() if d.desired_revision is not None),
+            key=lambda d: (d.created_at, d.id),
+        )
+
+    def update(self, deployment: Deployment, *, expected_status: DeploymentStatus) -> None:
+        current = self._data.get(deployment.id)
+        if current is None:
+            raise NotFound("deployment", deployment.id)
+        if current.status is not expected_status:
+            raise Conflict(
+                f"deployment {deployment.id} is {current.status.value}, not {expected_status.value}"
+            )
+        self._data[deployment.id] = deployment
+
+
+class _Revisions:
+    def __init__(self, data: dict[UUID, DeploymentRevision]) -> None:
+        self._data = data
+
+    def add(self, revision: DeploymentRevision) -> None:
+        if self.get(revision.deployment_id, revision.revision) is not None:
+            raise AlreadyExists("revision", revision.revision)
+        self._data[revision.id] = revision
+
+    def get(self, deployment_id: UUID, revision: int) -> DeploymentRevision | None:
+        return next(
+            (
+                r
+                for r in self._data.values()
+                if r.deployment_id == deployment_id and r.revision == revision
+            ),
+            None,
+        )
+
+    def list(self, deployment_id: UUID) -> Sequence[DeploymentRevision]:
+        return sorted(
+            (r for r in self._data.values() if r.deployment_id == deployment_id),
+            key=lambda r: r.revision,
+        )
+
+    def next_revision(self, deployment_id: UUID) -> int:
+        return (
+            max(
+                (r.revision for r in self._data.values() if r.deployment_id == deployment_id),
+                default=0,
+            )
+            + 1
+        )
+
+
+class _Endpoints:
+    def __init__(self, data: dict[UUID, Endpoint]) -> None:
+        self._data = data
+
+    def add(self, endpoint: Endpoint) -> None:
+        if self.get_by_name(endpoint.project_id, endpoint.name) is not None:
+            raise AlreadyExists("endpoint", endpoint.name)
+        self._data[endpoint.id] = endpoint
+
+    def get_by_deployment(self, deployment_id: UUID) -> Endpoint | None:
+        return next((e for e in self._data.values() if e.deployment_id == deployment_id), None)
+
+    def get_by_name(self, project_id: UUID, name: str) -> Endpoint | None:
+        return next(
+            (e for e in self._data.values() if e.project_id == project_id and e.name == name), None
+        )
+
+    def update(self, endpoint: Endpoint, *, expected_status: EndpointStatus) -> None:
+        current = self._data.get(endpoint.id)
+        if current is None:
+            raise NotFound("endpoint", endpoint.id)
+        if current.status is not expected_status:
+            raise Conflict(
+                f"endpoint {endpoint.id} is {current.status.value}, not {expected_status.value}"
+            )
+        self._data[endpoint.id] = endpoint
+
+
 class _Audit:
     def __init__(self, data: list[AuditEvent]) -> None:
         self._data = data
@@ -439,6 +550,9 @@ class MemoryUnitOfWork:
         self._model_versions = dict(self._store.model_versions)
         self._evaluations = dict(self._store.evaluations)
         self._promotions = dict(self._store.promotions)
+        self._deployments = dict(self._store.deployments)
+        self._revisions = dict(self._store.revisions)
+        self._endpoints = dict(self._store.endpoints)
         self._audit = list(self._store.audit)
         self.projects = _Projects(self._projects)
         self.jobs = _Jobs(self._jobs)
@@ -450,6 +564,9 @@ class MemoryUnitOfWork:
         self.model_versions = _ModelVersions(self._model_versions)
         self.evaluations = _Evaluations(self._evaluations)
         self.promotions = _Promotions(self._promotions)
+        self.deployments = _Deployments(self._deployments)
+        self.revisions = _Revisions(self._revisions)
+        self.endpoints = _Endpoints(self._endpoints)
         self.audit = _Audit(self._audit)
         return self
 
@@ -472,4 +589,7 @@ class MemoryUnitOfWork:
         self._store.model_versions = self._model_versions
         self._store.evaluations = self._evaluations
         self._store.promotions = self._promotions
+        self._store.deployments = self._deployments
+        self._store.revisions = self._revisions
+        self._store.endpoints = self._endpoints
         self._store.audit = self._audit

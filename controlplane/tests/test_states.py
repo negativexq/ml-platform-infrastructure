@@ -23,6 +23,7 @@ MACHINES = [
     states.EVALUATION,
     states.PROMOTION,
     states.DEPLOYMENT,
+    states.ENDPOINT,
 ]
 
 

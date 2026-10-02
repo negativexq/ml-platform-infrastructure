@@ -9,7 +9,7 @@ from __future__ import annotations
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from enum import StrEnum
-from typing import Protocol, runtime_checkable
+from typing import Any, Protocol, runtime_checkable
 from uuid import UUID
 
 
@@ -52,6 +52,9 @@ class ExperimentProvider(Protocol):
     def find_runs(self, experiment_ref: str, tags: Mapping[str, str]) -> Sequence[ExperimentRun]:
         """Runs in the experiment carrying every one of `tags`. This is how a
         platform run is joined to its tracked runs without storing tracker ids."""
+
+    def model_artifact_uri(self, model: str, version_ref: str) -> str | None:
+        """Where a serving runtime can load this registry version from."""
 
     def list_model_versions(self, model: str) -> Sequence[RegisteredVersion]:
         """Versions registered under this name; empty if the name is unknown."""
@@ -129,7 +132,8 @@ class ServingSpec:
 @dataclass(frozen=True, slots=True)
 class ServingStatus:
     state: ServingState
-    ready_revisions: tuple[int, ...] = ()
+    deployed_revision: int | None = None  # the revision the resource is configured with
+    ready_revisions: tuple[int, ...] = ()  # revisions whose model has loaded and is serving
     url: str | None = None
     reason: str | None = None
 
@@ -143,6 +147,9 @@ class ServingProvider(Protocol):
 
     def set_traffic(self, ref: str, split: Mapping[int, int]) -> None:
         """Weights by revision, summing to 100."""
+
+    def predict(self, ref: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        """Send an inference request to the live endpoint and return its response."""
 
     def delete(self, ref: str) -> None: ...
 

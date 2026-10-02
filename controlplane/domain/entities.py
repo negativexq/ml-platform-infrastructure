@@ -18,6 +18,7 @@ from controlplane.domain.errors import InvalidArgument
 from controlplane.domain.ids import new_id
 from controlplane.domain.states import (
     DeploymentStatus,
+    EndpointStatus,
     EvaluationStatus,
     ModelStatus,
     ProjectStatus,
@@ -496,28 +497,54 @@ class Promotion:
         return replace(self, status=status, updated_at=now)
 
 
+#: Model version states a deployment may serve: evaluation has passed.
+DEPLOYABLE = frozenset({ModelStatus.CANDIDATE, ModelStatus.CHAMPION})
+
+
 @dataclass(frozen=True, slots=True, kw_only=True)
 class Deployment:
+    """What should be serving. `desired_revision` is the platform's intent; the
+    reconciler makes it real and records the revision it observed as live."""
+
     id: UUID = field(default_factory=new_id)
     project_id: UUID
     name: str
     status: DeploymentStatus = DeploymentStatus.PENDING
+    status_reason: str | None = None
+    desired_revision: int | None = None
+    active_revision: int | None = None
     created_at: datetime
     updated_at: datetime
 
-    def transition_to(self, status: DeploymentStatus, now: datetime) -> Self:
+    @classmethod
+    def create(cls, *, project_id: UUID, name: str, now: datetime) -> Self:
+        validate_slug(name, "deployment name")
+        return cls(project_id=project_id, name=name, created_at=now, updated_at=now)
+
+    def transition_to(
+        self, status: DeploymentStatus, now: datetime, reason: str | None = None
+    ) -> Self:
         states.DEPLOYMENT.ensure(self.status, status)
-        return replace(self, status=status, updated_at=now)
+        return replace(self, status=status, status_reason=reason, updated_at=now)
+
+    def with_desired(self, revision: int, now: datetime) -> Self:
+        return replace(self, desired_revision=revision, updated_at=now)
+
+    def with_active(self, revision: int | None, now: datetime) -> Self:
+        return replace(self, active_revision=revision, updated_at=now)
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
 class DeploymentRevision:
-    """Immutable: a new model version is a new revision, never an edit."""
+    """Immutable: a new model version is a new revision, never an edit. The model
+    artifact location is resolved once, at creation, so the revision keeps meaning
+    the same thing even if the registry changes later."""
 
     id: UUID = field(default_factory=new_id)
     deployment_id: UUID
     revision: int
     model_version_id: UUID
+    model_uri: str
     created_at: datetime
 
 
@@ -527,4 +554,13 @@ class Endpoint:
     project_id: UUID
     deployment_id: UUID
     name: str
+    status: EndpointStatus = EndpointStatus.PENDING
+    url: str | None = None
     created_at: datetime
+    updated_at: datetime
+
+    def transition_to(self, status: EndpointStatus, now: datetime, url: str | None = None) -> Self:
+        states.ENDPOINT.ensure(self.status, status)
+        return replace(
+            self, status=status, url=url if url is not None else self.url, updated_at=now
+        )

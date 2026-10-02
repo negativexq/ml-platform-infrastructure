@@ -18,7 +18,7 @@ namespace deleted by the real namespace controller.
 ---
 
 > Sections: 0 setup · 1 M14 gate · 2 M15 gate · 3 M16 gate · 4 M17 gate ·
-> 5 untested code · 6 missing pieces.
+> 5 M18 gate · 6 untested code · 7 missing pieces.
 
 ## 0. Setup on your machine
 
@@ -33,7 +33,7 @@ kubectl apply -n argo -f https://github.com/argoproj/argo-workflows/releases/dow
 # PostgreSQL for the control plane: reuse the platform one or any local instance
 export CP_DATABASE_URL=postgresql+psycopg://USER:PASS@localhost:5432/controlplane
 export CP_KUBECONFIG=$HOME/.kube/config      # context must be the kind cluster
-make cp-migrate                    # alembic upgrade head  (0001 → 0005)
+make cp-migrate                    # alembic upgrade head  (0001 → 0006)
 
 make cp-run                        # API on :8080      (terminal 1)
 make cp-reconcile                  # reconcilers       (terminal 2)
@@ -215,11 +215,87 @@ Judgement calls to confirm you agree with:
 
 ---
 
-## 5. Code that has never run against the real thing
+## 5. M18 gate — Deployment & endpoint
+
+Extra setup: KServe must be installed, with the MLflow runtime available (the
+`InferenceService` uses `modelFormat: mlflow`, protocol v2), and the serving pods
+need credentials for the artifact store.
+
+```bash
+# KServe (raw deployment mode avoids needing Knative/Istio locally)
+kubectl apply -f https://github.com/kserve/kserve/releases/download/v0.14.1/kserve.yaml
+kubectl apply -f https://github.com/kserve/kserve/releases/download/v0.14.1/kserve-cluster-resources.yaml
+kubectl patch cm -n kserve inferenceservice-config --type merge \
+  -p '{"data":{"deploy":"{\"defaultDeploymentMode\":\"RawDeployment\"}"}}'
+
+# MinIO credentials for the storage initializer, attached to the SA the project namespace
+# already has (mlp-workload). Adjust endpoint/keys to your platform-local values.
+kubectl -n mlp-credit-risk create secret generic mlp-s3 \
+  --from-literal=AWS_ACCESS_KEY_ID=... --from-literal=AWS_SECRET_ACCESS_KEY=...
+kubectl -n mlp-credit-risk annotate secret mlp-s3 \
+  serving.kserve.io/s3-endpoint=platform-minio.ml-platform.svc:9000 \
+  serving.kserve.io/s3-usehttps=0
+kubectl -n mlp-credit-risk patch sa mlp-workload -p '{"secrets":[{"name":"mlp-s3"}]}'
+```
+
+```bash
+curl -XPOST localhost:8080/projects/credit-risk/deployments -H 'content-type: application/json' \
+  -d '{"name":"credit-risk-prod"}'
+curl -XPOST localhost:8080/projects/credit-risk/deployments/credit-risk-prod/revisions \
+  -H 'content-type: application/json' -d '{"model":"scorer","version":1}'
+curl localhost:8080/projects/credit-risk/deployments/credit-risk-prod   # poll until READY
+curl -XPOST localhost:8080/projects/credit-risk/endpoints/credit-risk-prod/predict \
+  -H 'content-type: application/json' \
+  -d '{"inputs":[{"name":"x","shape":[1,3],"datatype":"FP64","data":[1,2,3]}]}'
+```
+
+| # | Gate | How to check |
+| --- | --- | --- |
+| 1 | CANDIDATE model deploys | `POST …/revisions` with a CANDIDATE version → 202, `desired_revision: 1` |
+| 2 | Non-approved model refused | REGISTERED / EVALUATING / REJECTED / ARCHIVED version → 409 |
+| 3 | DB object first | `select * from deployments, deployment_revisions` shows the rows **before** `kubectl get inferenceservice` does (stop the reconciler to see the gap) |
+| 4 | Reconciler creates the KServe resource | `kubectl -n mlp-credit-risk get inferenceservice credit-risk-prod -o yaml` (annotation `mlp.io/revision`, `storageUri`) |
+| 5 | Model really loads | `kubectl -n mlp-credit-risk logs <predictor pod> -c kserve-container` shows the model loaded; no `CrashLoopBackOff` |
+| 6 | Readiness reaches platform state | `GET …/deployments/credit-risk-prod` → `READY`, `active_revision: 1` |
+| 7 | Endpoint READY before deployment READY | never `READY` deployment with `PENDING` endpoint; check `audit_events` order `endpoint.ready` then `deployment.ready` |
+| 8 | Real prediction succeeds | `POST …/endpoints/credit-risk-prod/predict` returns a prediction; before READY it returns 409 |
+| 9 | Revision immutable | `GET` shows revision 1 unchanged after deploying version 2 |
+| 10 | New model = new revision | deploy version 2 → `revisions: [1, 2]`, `desired_revision: 2`, then `active_revision: 2`; the endpoint stays READY throughout (old revision serving) — confirm no downtime with a loop of predictions |
+| 11 | Old revision history kept | `revisions` still lists 1 with its model version |
+| 12 | Delete → recreate | `kubectl -n mlp-credit-risk delete inferenceservice credit-risk-prod`; within a pass: `READY → DEGRADED → DEPLOYING → READY`, endpoint `UNAVAILABLE → READY`, resource back with revision annotation (`select action from audit_events` shows `deployment.drift_detected`, `deployment.redeploying`, `deployment.ready`) |
+
+**The fault drill:** delete the InferenceService (gate 12) while a prediction loop is
+running and record how long predictions fail; that is the real recovery time.
+
+Judgement calls to confirm:
+
+- "Approved" = CANDIDATE or CHAMPION. There is no staging/production split yet; the
+  deployment *name* is the only environment.
+- A FAILED deployment is **not** retried automatically; a new revision (or the same
+  version after a fix, via a new revision) retries it. Say if you want auto-retry
+  with backoff instead.
+- A rollout of revision N+1 keeps the endpoint READY while N serves; if N+1 fails the
+  deployment is FAILED and the endpoint UNAVAILABLE even though N might still be up,
+  because the platform does not yet track per-revision serving (M19).
+
+---
+
+## 6. Code that has never run against the real thing
 
 Written to the Argo API from knowledge of its schema; unit-tested only as
 manifests/dicts. Check each against a real Argo:
 
+00. **KServe adapter (M18), all of it** — `adapters/serving/kserve.py` has only been
+    unit-tested as a manifest. Specifically check: (a) the status fields it reads —
+    condition `Ready`, `status.modelStatus.transitionStatus == "UpToDate"`,
+    `status.modelStatus.lastFailureInfo`, `status.address.url`; if a healthy service
+    never turns READY in the platform, print `kubectl get isvc -o yaml` and compare;
+    (b) the v2 predict path `/v2/models/<name>/infer` and that the control plane can
+    reach `status.address.url` (it is a cluster-internal URL: from your laptop use
+    `kubectl port-forward` or run the API in-cluster); (c) `storageUri` for MLflow 3:
+    `model_artifact_uri` returns the logged model's `artifact_location`; the model
+    server needs the directory that contains `MLmodel`, which may be one level deeper;
+    (d) the merge-patch used when the InferenceService already exists.
 0. **Omitted DAG tasks (M16)** — `_step_key`/`_NODE_PHASES` assume a task whose
    dependency failed shows up as a node with `type: Skipped`, `phase: Omitted`
    and `displayName` = task name. If steps stay `PENDING` after a failed
@@ -247,7 +323,7 @@ manifests/dicts. Check each against a real Argo:
 
 ---
 
-## 6. Missing pieces (not written yet)
+## 7. Missing pieces (not written yet)
 
 - Argo Workflows install in `make local-up` / Helm / GitOps; the Argo
   controller's `workflowNamespaces`/RBAC must cover `mlp-*` namespaces.
@@ -263,6 +339,12 @@ manifests/dicts. Check each against a real Argo:
   no per-project secret/config mechanism yet (the M7 Secret lives in `ml-platform`).
 - No retry for pipeline runs, no pipeline-run history cleanup, no per-step
   resource defaults.
+- No `DELETE` for deployments, no per-revision serving state, no traffic split
+  (`KServeServingProvider.set_traffic` raises `NotImplementedError` until M19).
+- Predict is a thin pass-through with a 10 s timeout; no auth, rate limiting or
+  request logging, and no stable external URL (a gateway).
+- Per-project serving credentials are manual (see section 5); the control plane
+  does not create them.
 - No automatic discovery after a pipeline run succeeds (discovery is an explicit
   call); no comparison against the champion beyond recording its id as `baseline`;
   no rollback-to-previous-champion endpoint.

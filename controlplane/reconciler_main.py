@@ -12,8 +12,10 @@ from collections.abc import Callable
 
 from controlplane.adapters.kubernetes import KubernetesClusterProvider, load_api_client
 from controlplane.adapters.mlflow import MlflowExperimentProvider
+from controlplane.adapters.serving import KServeServingProvider
 from controlplane.adapters.workflow import ArgoWorkflowProvider
 from controlplane.persistence.sql import SqlUnitOfWork, make_engine, sql_uow_factory
+from controlplane.reconciliation.deployments import DeploymentReconciler
 from controlplane.reconciliation.model_aliases import ModelAliasReconciler
 from controlplane.reconciliation.pipeline_runs import PipelineRunReconciler
 from controlplane.reconciliation.projects import ProjectReconciler
@@ -54,6 +56,7 @@ def main() -> None:
         if experiments is not None
         else None
     )
+    deployments = DeploymentReconciler(lambda: SqlUnitOfWork(sessions), KServeServingProvider(api))
     while True:
         # Only report passes that did something; converged projects are silent.
         _pass(
@@ -64,6 +67,10 @@ def main() -> None:
         _pass(
             "pipeline_runs",
             lambda: [r for r in pipeline_runs.reconcile_all() if r.before != r.after],
+        )
+        _pass(
+            "deployments",
+            lambda: [r for r in deployments.reconcile_all() if r.before != r.after or r.applied],
         )
         if aliases is not None:
             _pass(

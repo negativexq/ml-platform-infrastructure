@@ -86,6 +86,8 @@ def test_registry_versions_and_aliases(uri: str, tmp_path: Path) -> None:
     versions = provider.list_model_versions("credit-risk-scorer")
     assert [(v.ref, v.run_ref) for v in versions] == [("1", run_ids[0]), ("2", run_ids[1])]
 
+    assert provider.model_artifact_uri("credit-risk-scorer", "1") == str(tmp_path)
+    assert provider.model_artifact_uri("credit-risk-scorer", "99") is None
     assert provider.get_model_alias("credit-risk-scorer", "champion") is None
     provider.set_model_alias("credit-risk-scorer", "champion", "1")
     assert provider.get_model_alias("credit-risk-scorer", "champion") == "1"

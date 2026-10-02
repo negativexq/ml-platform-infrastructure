@@ -13,6 +13,9 @@ from sqlalchemy.sql import Select
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import (
     Check,
+    Deployment,
+    DeploymentRevision,
+    Endpoint,
     Evaluation,
     JobDefinition,
     Model,
@@ -28,6 +31,8 @@ from controlplane.domain.entities import (
 )
 from controlplane.domain.errors import AlreadyExists, Conflict, NotFound
 from controlplane.domain.states import (
+    DeploymentStatus,
+    EndpointStatus,
     EvaluationStatus,
     ModelStatus,
     ProjectStatus,
@@ -37,6 +42,9 @@ from controlplane.domain.states import (
 )
 from controlplane.persistence.models import (
     AuditEventRow,
+    DeploymentRevisionRow,
+    DeploymentRow,
+    EndpointRow,
     EvaluationRow,
     JobDefinitionRow,
     ModelRow,
@@ -796,6 +804,200 @@ class SqlPromotions:
         ]
 
 
+def _deployment(row: DeploymentRow) -> Deployment:
+    return Deployment(
+        id=row.id,
+        project_id=row.project_id,
+        name=row.name,
+        status=DeploymentStatus(row.status),
+        status_reason=row.status_reason,
+        desired_revision=row.desired_revision,
+        active_revision=row.active_revision,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
+def _revision(row: DeploymentRevisionRow) -> DeploymentRevision:
+    return DeploymentRevision(
+        id=row.id,
+        deployment_id=row.deployment_id,
+        revision=row.revision,
+        model_version_id=row.model_version_id,
+        model_uri=row.model_uri,
+        created_at=row.created_at,
+    )
+
+
+def _endpoint(row: EndpointRow) -> Endpoint:
+    return Endpoint(
+        id=row.id,
+        project_id=row.project_id,
+        deployment_id=row.deployment_id,
+        name=row.name,
+        status=EndpointStatus(row.status),
+        url=row.url,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+    )
+
+
+class SqlDeployments:
+    def __init__(self, session: Session) -> None:
+        self._s = session
+
+    def add(self, deployment: Deployment) -> None:
+        self._s.add(
+            DeploymentRow(
+                id=deployment.id,
+                project_id=deployment.project_id,
+                name=deployment.name,
+                status=deployment.status.value,
+                status_reason=deployment.status_reason,
+                desired_revision=deployment.desired_revision,
+                active_revision=deployment.active_revision,
+                created_at=deployment.created_at,
+                updated_at=deployment.updated_at,
+            )
+        )
+        _flush_unique(self._s, "deployment", deployment.name)
+
+    def get(self, deployment_id: UUID) -> Deployment | None:
+        row = self._s.get(DeploymentRow, deployment_id)
+        return _deployment(row) if row else None
+
+    def get_by_name(self, project_id: UUID, name: str) -> Deployment | None:
+        row = self._s.scalars(
+            select(DeploymentRow).where(
+                DeploymentRow.project_id == project_id, DeploymentRow.name == name
+            )
+        ).first()
+        return _deployment(row) if row else None
+
+    def list(self, project_id: UUID) -> Sequence[Deployment]:
+        rows = self._s.scalars(
+            select(DeploymentRow)
+            .where(DeploymentRow.project_id == project_id)
+            .order_by(DeploymentRow.created_at, DeploymentRow.id)
+        )
+        return [_deployment(r) for r in rows]
+
+    def list_reconcilable(self) -> Sequence[Deployment]:
+        rows = self._s.scalars(
+            select(DeploymentRow)
+            .where(DeploymentRow.desired_revision.is_not(None))
+            .order_by(DeploymentRow.created_at, DeploymentRow.id)
+        )
+        return [_deployment(r) for r in rows]
+
+    def update(self, deployment: Deployment, *, expected_status: DeploymentStatus) -> None:
+        result = self._s.execute(
+            update(DeploymentRow)
+            .where(DeploymentRow.id == deployment.id, DeploymentRow.status == expected_status.value)
+            .values(
+                status=deployment.status.value,
+                status_reason=deployment.status_reason,
+                desired_revision=deployment.desired_revision,
+                active_revision=deployment.active_revision,
+                updated_at=deployment.updated_at,
+            )
+        )
+        if getattr(result, "rowcount", 0) == 1:
+            return
+        if self._s.get(DeploymentRow, deployment.id) is None:
+            raise NotFound("deployment", deployment.id)
+        raise Conflict(f"deployment {deployment.id} is no longer {expected_status.value}")
+
+
+class SqlRevisions:
+    def __init__(self, session: Session) -> None:
+        self._s = session
+
+    def add(self, revision: DeploymentRevision) -> None:
+        self._s.add(
+            DeploymentRevisionRow(
+                id=revision.id,
+                deployment_id=revision.deployment_id,
+                revision=revision.revision,
+                model_version_id=revision.model_version_id,
+                model_uri=revision.model_uri,
+                created_at=revision.created_at,
+            )
+        )
+        _flush_unique(self._s, "revision", revision.revision)
+
+    def get(self, deployment_id: UUID, revision: int) -> DeploymentRevision | None:
+        row = self._s.scalars(
+            select(DeploymentRevisionRow).where(
+                DeploymentRevisionRow.deployment_id == deployment_id,
+                DeploymentRevisionRow.revision == revision,
+            )
+        ).first()
+        return _revision(row) if row else None
+
+    def list(self, deployment_id: UUID) -> Sequence[DeploymentRevision]:
+        rows = self._s.scalars(
+            select(DeploymentRevisionRow)
+            .where(DeploymentRevisionRow.deployment_id == deployment_id)
+            .order_by(DeploymentRevisionRow.revision)
+        )
+        return [_revision(r) for r in rows]
+
+    def next_revision(self, deployment_id: UUID) -> int:
+        current = self._s.scalar(
+            select(func.max(DeploymentRevisionRow.revision)).where(
+                DeploymentRevisionRow.deployment_id == deployment_id
+            )
+        )
+        return (current or 0) + 1
+
+
+class SqlEndpoints:
+    def __init__(self, session: Session) -> None:
+        self._s = session
+
+    def add(self, endpoint: Endpoint) -> None:
+        self._s.add(
+            EndpointRow(
+                id=endpoint.id,
+                project_id=endpoint.project_id,
+                deployment_id=endpoint.deployment_id,
+                name=endpoint.name,
+                status=endpoint.status.value,
+                url=endpoint.url,
+                created_at=endpoint.created_at,
+                updated_at=endpoint.updated_at,
+            )
+        )
+        _flush_unique(self._s, "endpoint", endpoint.name)
+
+    def get_by_deployment(self, deployment_id: UUID) -> Endpoint | None:
+        row = self._s.scalars(
+            select(EndpointRow).where(EndpointRow.deployment_id == deployment_id)
+        ).first()
+        return _endpoint(row) if row else None
+
+    def get_by_name(self, project_id: UUID, name: str) -> Endpoint | None:
+        row = self._s.scalars(
+            select(EndpointRow).where(
+                EndpointRow.project_id == project_id, EndpointRow.name == name
+            )
+        ).first()
+        return _endpoint(row) if row else None
+
+    def update(self, endpoint: Endpoint, *, expected_status: EndpointStatus) -> None:
+        result = self._s.execute(
+            update(EndpointRow)
+            .where(EndpointRow.id == endpoint.id, EndpointRow.status == expected_status.value)
+            .values(status=endpoint.status.value, url=endpoint.url, updated_at=endpoint.updated_at)
+        )
+        if getattr(result, "rowcount", 0) == 1:
+            return
+        if self._s.get(EndpointRow, endpoint.id) is None:
+            raise NotFound("endpoint", endpoint.id)
+        raise Conflict(f"endpoint {endpoint.id} is no longer {expected_status.value}")
+
+
 class SqlAudit:
     def __init__(self, session: Session) -> None:
         self._s = session
@@ -841,6 +1043,9 @@ class SqlUnitOfWork:
         self.model_versions = SqlModelVersions(self._session)
         self.evaluations = SqlEvaluations(self._session)
         self.promotions = SqlPromotions(self._session)
+        self.deployments = SqlDeployments(self._session)
+        self.revisions = SqlRevisions(self._session)
+        self.endpoints = SqlEndpoints(self._session)
         self.audit = SqlAudit(self._session)
         return self
 

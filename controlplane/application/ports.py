@@ -9,6 +9,9 @@ from uuid import UUID
 
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import (
+    Deployment,
+    DeploymentRevision,
+    Endpoint,
     Evaluation,
     JobDefinition,
     Model,
@@ -21,6 +24,8 @@ from controlplane.domain.entities import (
     StepRun,
 )
 from controlplane.domain.states import (
+    DeploymentStatus,
+    EndpointStatus,
     EvaluationStatus,
     ModelStatus,
     ProjectStatus,
@@ -175,6 +180,48 @@ class PromotionRepository(Protocol):
         """Oldest first."""
 
 
+class DeploymentRepository(Protocol):
+    def add(self, deployment: Deployment) -> None:
+        """Raises AlreadyExists if the project already has a deployment with this name."""
+
+    def get(self, deployment_id: UUID) -> Deployment | None: ...
+
+    def get_by_name(self, project_id: UUID, name: str) -> Deployment | None: ...
+
+    def list(self, project_id: UUID) -> Sequence[Deployment]: ...
+
+    def list_reconcilable(self) -> Sequence[Deployment]:
+        """Deployments that have a desired revision to make real."""
+
+    def update(self, deployment: Deployment, *, expected_status: DeploymentStatus) -> None:
+        """Compare-and-swap on status."""
+
+
+class RevisionRepository(Protocol):
+    """Append-only: there is deliberately no update."""
+
+    def add(self, revision: DeploymentRevision) -> None:
+        """Raises AlreadyExists if (deployment, revision) exists."""
+
+    def get(self, deployment_id: UUID, revision: int) -> DeploymentRevision | None: ...
+
+    def list(self, deployment_id: UUID) -> Sequence[DeploymentRevision]:
+        """Oldest first."""
+
+    def next_revision(self, deployment_id: UUID) -> int: ...
+
+
+class EndpointRepository(Protocol):
+    def add(self, endpoint: Endpoint) -> None: ...
+
+    def get_by_deployment(self, deployment_id: UUID) -> Endpoint | None: ...
+
+    def get_by_name(self, project_id: UUID, name: str) -> Endpoint | None: ...
+
+    def update(self, endpoint: Endpoint, *, expected_status: EndpointStatus) -> None:
+        """Compare-and-swap on status."""
+
+
 class AuditLog(Protocol):
     def record(self, event: AuditEvent) -> None: ...
 
@@ -215,6 +262,15 @@ class UnitOfWork(Protocol):
 
     @property
     def promotions(self) -> PromotionRepository: ...
+
+    @property
+    def deployments(self) -> DeploymentRepository: ...
+
+    @property
+    def revisions(self) -> RevisionRepository: ...
+
+    @property
+    def endpoints(self) -> EndpointRepository: ...
 
     @property
     def audit(self) -> AuditLog: ...

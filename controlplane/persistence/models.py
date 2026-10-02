@@ -216,6 +216,9 @@ class DeploymentRow(Base):
     project_id: Mapped[UUID] = _fk("projects.id")
     name: Mapped[str] = mapped_column(String(40), nullable=False)
     status: Mapped[str] = mapped_column(String(32), nullable=False)
+    status_reason: Mapped[str | None] = mapped_column(Text)
+    desired_revision: Mapped[int | None] = mapped_column(Integer)
+    active_revision: Mapped[int | None] = mapped_column(Integer)
     created_at: Mapped[datetime] = _ts()
     updated_at: Mapped[datetime] = _ts()
 
@@ -230,6 +233,7 @@ class DeploymentRevisionRow(Base):
     deployment_id: Mapped[UUID] = _fk("deployments.id")
     revision: Mapped[int] = mapped_column(Integer, nullable=False)
     model_version_id: Mapped[UUID] = _fk("model_versions.id")
+    model_uri: Mapped[str] = mapped_column(Text, nullable=False)
     created_at: Mapped[datetime] = _ts()
 
 
@@ -241,7 +245,10 @@ class EndpointRow(Base):
     project_id: Mapped[UUID] = _fk("projects.id")
     deployment_id: Mapped[UUID] = _fk("deployments.id")
     name: Mapped[str] = mapped_column(String(40), nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    url: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = _ts()
+    updated_at: Mapped[datetime] = _ts()
 
 
 class AuditEventRow(Base):
