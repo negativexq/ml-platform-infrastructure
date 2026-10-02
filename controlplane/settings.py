@@ -14,3 +14,5 @@ class Settings(BaseSettings):
     mlflow_tracking_uri: str = ""
     # URI injected into pipeline steps (in-cluster address). Defaults to the one above.
     step_mlflow_tracking_uri: str = ""
+    # Prometheus the rollout gates read per-revision metrics from. Empty: rollouts are not driven.
+    prometheus_url: str = ""

@@ -25,6 +25,7 @@ from controlplane.domain.entities import (
     PipelineRun,
     Project,
     Promotion,
+    Rollout,
     Run,
     StepRun,
 )
@@ -35,6 +36,7 @@ from controlplane.domain.states import (
     EvaluationStatus,
     ModelStatus,
     ProjectStatus,
+    RolloutStatus,
     RunStatus,
     StepStatus,
 )
@@ -55,6 +57,7 @@ class MemoryStore:
     deployments: dict[UUID, Deployment] = field(default_factory=dict)
     revisions: dict[UUID, DeploymentRevision] = field(default_factory=dict)
     endpoints: dict[UUID, Endpoint] = field(default_factory=dict)
+    rollouts: dict[UUID, Rollout] = field(default_factory=dict)
     audit: list[AuditEvent] = field(default_factory=list)
 
 
@@ -517,6 +520,52 @@ class _Endpoints:
         self._data[endpoint.id] = endpoint
 
 
+class _Rollouts:
+    def __init__(self, data: dict[UUID, Rollout]) -> None:
+        self._data = data
+
+    def add(self, rollout: Rollout) -> None:
+        if self.get_active(rollout.deployment_id) is not None:
+            raise AlreadyExists("rollout", rollout.deployment_id)
+        self._data[rollout.id] = rollout
+
+    def get(self, rollout_id: UUID) -> Rollout | None:
+        return self._data.get(rollout_id)
+
+    def get_active(self, deployment_id: UUID) -> Rollout | None:
+        return next(
+            (
+                r
+                for r in self._data.values()
+                if r.deployment_id == deployment_id and not r.is_terminal
+            ),
+            None,
+        )
+
+    def list(self, deployment_id: UUID) -> Sequence[Rollout]:
+        return sorted(
+            (r for r in self._data.values() if r.deployment_id == deployment_id),
+            key=lambda r: (r.created_at, r.id),
+            reverse=True,
+        )
+
+    def list_active(self) -> Sequence[Rollout]:
+        return sorted(
+            (r for r in self._data.values() if not r.is_terminal),
+            key=lambda r: (r.created_at, r.id),
+        )
+
+    def update(self, rollout: Rollout, *, expected_status: RolloutStatus) -> None:
+        current = self._data.get(rollout.id)
+        if current is None:
+            raise NotFound("rollout", rollout.id)
+        if current.status is not expected_status:
+            raise Conflict(
+                f"rollout {rollout.id} is {current.status.value}, not {expected_status.value}"
+            )
+        self._data[rollout.id] = rollout
+
+
 class _Audit:
     def __init__(self, data: list[AuditEvent]) -> None:
         self._data = data
@@ -553,6 +602,7 @@ class MemoryUnitOfWork:
         self._deployments = dict(self._store.deployments)
         self._revisions = dict(self._store.revisions)
         self._endpoints = dict(self._store.endpoints)
+        self._rollouts = dict(self._store.rollouts)
         self._audit = list(self._store.audit)
         self.projects = _Projects(self._projects)
         self.jobs = _Jobs(self._jobs)
@@ -567,6 +617,7 @@ class MemoryUnitOfWork:
         self.deployments = _Deployments(self._deployments)
         self.revisions = _Revisions(self._revisions)
         self.endpoints = _Endpoints(self._endpoints)
+        self.rollouts = _Rollouts(self._rollouts)
         self.audit = _Audit(self._audit)
         return self
 
@@ -592,4 +643,5 @@ class MemoryUnitOfWork:
         self._store.deployments = self._deployments
         self._store.revisions = self._revisions
         self._store.endpoints = self._endpoints
+        self._store.rollouts = self._rollouts
         self._store.audit = self._audit

@@ -24,6 +24,8 @@ from controlplane.domain.entities import (
     PipelineRun,
     Project,
     Promotion,
+    Rollout,
+    RolloutGate,
     Run,
     StepRun,
     StepSpec,
@@ -37,6 +39,7 @@ from controlplane.domain.states import (
     ModelStatus,
     ProjectStatus,
     PromotionStatus,
+    RolloutStatus,
     RunStatus,
     StepStatus,
 )
@@ -53,6 +56,7 @@ from controlplane.persistence.models import (
     PipelineRunRow,
     ProjectRow,
     PromotionRow,
+    RolloutRow,
     RunRow,
     StepRunRow,
 )
@@ -998,6 +1002,117 @@ class SqlEndpoints:
         raise Conflict(f"endpoint {endpoint.id} is no longer {expected_status.value}")
 
 
+def _rollout(row: RolloutRow) -> Rollout:
+    return Rollout(
+        id=row.id,
+        deployment_id=row.deployment_id,
+        from_revision=row.from_revision,
+        to_revision=row.to_revision,
+        model_version_id=row.model_version_id,
+        status=RolloutStatus(row.status),
+        status_reason=row.status_reason,
+        steps=tuple(row.steps),
+        current_step=row.current_step,
+        gate=RolloutGate(**row.gate),
+        step_started_at=row.step_started_at,
+        abort_requested=row.abort_requested,
+        created_at=row.created_at,
+        updated_at=row.updated_at,
+        finished_at=row.finished_at,
+    )
+
+
+_GATE_FIELDS = (
+    "max_error_rate",
+    "max_p95_latency_ms",
+    "min_requests",
+    "step_seconds",
+    "ready_timeout_seconds",
+)
+
+
+class SqlRollouts:
+    def __init__(self, session: Session) -> None:
+        self._s = session
+
+    def add(self, rollout: Rollout) -> None:
+        self._s.add(
+            RolloutRow(
+                id=rollout.id,
+                deployment_id=rollout.deployment_id,
+                from_revision=rollout.from_revision,
+                to_revision=rollout.to_revision,
+                model_version_id=rollout.model_version_id,
+                status=rollout.status.value,
+                status_reason=rollout.status_reason,
+                steps=list(rollout.steps),
+                current_step=rollout.current_step,
+                gate={f: getattr(rollout.gate, f) for f in _GATE_FIELDS},
+                step_started_at=rollout.step_started_at,
+                abort_requested=rollout.abort_requested,
+                created_at=rollout.created_at,
+                updated_at=rollout.updated_at,
+                finished_at=rollout.finished_at,
+            )
+        )
+        _flush_unique(self._s, "rollout", rollout.deployment_id)
+
+    def get(self, rollout_id: UUID) -> Rollout | None:
+        row = self._s.get(RolloutRow, rollout_id)
+        return _rollout(row) if row else None
+
+    def get_active(self, deployment_id: UUID) -> Rollout | None:
+        row = self._s.scalars(
+            select(RolloutRow).where(
+                RolloutRow.deployment_id == deployment_id,
+                RolloutRow.status.in_(
+                    [RolloutStatus.PENDING.value, RolloutStatus.PROGRESSING.value]
+                ),
+            )
+        ).first()
+        return _rollout(row) if row else None
+
+    def list(self, deployment_id: UUID) -> Sequence[Rollout]:
+        rows = self._s.scalars(
+            select(RolloutRow)
+            .where(RolloutRow.deployment_id == deployment_id)
+            .order_by(RolloutRow.created_at.desc(), RolloutRow.id.desc())
+        )
+        return [_rollout(r) for r in rows]
+
+    def list_active(self) -> Sequence[Rollout]:
+        rows = self._s.scalars(
+            select(RolloutRow)
+            .where(
+                RolloutRow.status.in_(
+                    [RolloutStatus.PENDING.value, RolloutStatus.PROGRESSING.value]
+                )
+            )
+            .order_by(RolloutRow.created_at, RolloutRow.id)
+        )
+        return [_rollout(r) for r in rows]
+
+    def update(self, rollout: Rollout, *, expected_status: RolloutStatus) -> None:
+        result = self._s.execute(
+            update(RolloutRow)
+            .where(RolloutRow.id == rollout.id, RolloutRow.status == expected_status.value)
+            .values(
+                status=rollout.status.value,
+                status_reason=rollout.status_reason,
+                current_step=rollout.current_step,
+                step_started_at=rollout.step_started_at,
+                abort_requested=rollout.abort_requested,
+                updated_at=rollout.updated_at,
+                finished_at=rollout.finished_at,
+            )
+        )
+        if getattr(result, "rowcount", 0) == 1:
+            return
+        if self._s.get(RolloutRow, rollout.id) is None:
+            raise NotFound("rollout", rollout.id)
+        raise Conflict(f"rollout {rollout.id} is no longer {expected_status.value}")
+
+
 class SqlAudit:
     def __init__(self, session: Session) -> None:
         self._s = session
@@ -1046,6 +1161,7 @@ class SqlUnitOfWork:
         self.deployments = SqlDeployments(self._session)
         self.revisions = SqlRevisions(self._session)
         self.endpoints = SqlEndpoints(self._session)
+        self.rollouts = SqlRollouts(self._session)
         self.audit = SqlAudit(self._session)
         return self
 

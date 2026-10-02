@@ -403,6 +403,84 @@ class EvaluationService:
             return ModelService._version_view(uow, version.id)
 
 
+def promote_version(
+    uow: UnitOfWork, version_id: UUID, now: datetime, **audit_extra: object
+) -> None:
+    """CANDIDATE -> CHAMPION inside the caller's transaction: archives the previous
+    champion, records the Promotion and the audit event. Idempotent for a version that
+    is already CHAMPION. Used by PromotionService and by a successful rollout, so the
+    champion changes in exactly the transaction that proves it deserved to."""
+    version = uow.model_versions.get(version_id)
+    if version is None:
+        raise NotFound("model version", version_id)
+    model = uow.models.get(version.model_id)
+    assert model is not None
+    if version.status is ModelStatus.CHAMPION:
+        return
+    if version.status is ModelStatus.REJECTED:
+        raise Conflict(f"version {version.version} was rejected and cannot be promoted")
+    if version.status is not ModelStatus.CANDIDATE:
+        raise Conflict(
+            f"version {version.version} is {version.status.value}; only a CANDIDATE can be promoted"
+        )
+    _make_champion(uow, version, ModelStatus.CANDIDATE, now, **audit_extra)
+
+
+def _make_champion(
+    uow: UnitOfWork,
+    version: ModelVersion,
+    expected: ModelStatus,
+    now: datetime,
+    **audit_extra: object,
+) -> None:
+    model = uow.models.get(version.model_id)
+    assert model is not None
+    previous = uow.model_versions.get_champion(model.id)
+    if previous is not None:
+        uow.model_versions.update(
+            previous.transition_to(ModelStatus.ARCHIVED, now), expected_status=ModelStatus.CHAMPION
+        )
+    uow.model_versions.update(
+        version.transition_to(ModelStatus.CHAMPION, now), expected_status=expected
+    )
+    uow.promotions.add(
+        Promotion(
+            model_version_id=version.id,
+            previous_champion_id=previous.id if previous else None,
+            created_at=now,
+            updated_at=now,
+        ).transition_to(PromotionStatus.APPLIED, now)
+    )
+    uow.audit.record(
+        _audit(
+            now,
+            "model_version.promoted",
+            "model_version",
+            version.id,
+            model.project_id,
+            model=model.name,
+            version=version.version,
+            previous_champion=str(previous.id) if previous else None,
+            status=PromotionStatus.APPLIED.value,
+            **audit_extra,
+        )
+    )
+
+
+def restore_champion(
+    uow: UnitOfWork, version_id: UUID, now: datetime, **audit_extra: object
+) -> None:
+    """ARCHIVED -> CHAMPION: put a former champion back (deployment rollback)."""
+    version = uow.model_versions.get(version_id)
+    if version is None:
+        raise NotFound("model version", version_id)
+    if version.status is ModelStatus.CHAMPION:
+        return
+    if version.status is not ModelStatus.ARCHIVED:
+        raise Conflict(f"version {version.version} is {version.status.value}, not ARCHIVED")
+    _make_champion(uow, version, ModelStatus.ARCHIVED, now, **audit_extra)
+
+
 class PromotionService:
     """CANDIDATE -> CHAMPION, atomically with archiving the previous champion and the
     audit record. The registry alias is brought in line afterwards by the
@@ -414,52 +492,6 @@ class PromotionService:
 
     def promote(self, version_id: UUID) -> VersionView:
         with self._uow_factory() as uow:
-            version = uow.model_versions.get(version_id)
-            if version is None:
-                raise NotFound("model version", version_id)
-            model = uow.models.get(version.model_id)
-            assert model is not None
-            if version.status is ModelStatus.CHAMPION:
-                return ModelService._version_view(uow, version.id)  # idempotent
-            if version.status is ModelStatus.REJECTED:
-                raise Conflict(
-                    f"version {version.version} was rejected by evaluation and cannot be promoted"
-                )
-            if version.status is not ModelStatus.CANDIDATE:
-                raise Conflict(
-                    f"version {version.version} is {version.status.value}; "
-                    "only a CANDIDATE can be promoted"
-                )
-            now = self._clock()
-            previous = uow.model_versions.get_champion(model.id)
-            if previous is not None:
-                uow.model_versions.update(
-                    previous.transition_to(ModelStatus.ARCHIVED, now),
-                    expected_status=ModelStatus.CHAMPION,
-                )
-            uow.model_versions.update(
-                version.transition_to(ModelStatus.CHAMPION, now),
-                expected_status=ModelStatus.CANDIDATE,
-            )
-            promotion = Promotion(
-                model_version_id=version.id,
-                previous_champion_id=previous.id if previous else None,
-                created_at=now,
-                updated_at=now,
-            ).transition_to(PromotionStatus.APPLIED, now)
-            uow.promotions.add(promotion)
-            uow.audit.record(
-                _audit(
-                    now,
-                    "model_version.promoted",
-                    "model_version",
-                    version.id,
-                    model.project_id,
-                    model=model.name,
-                    version=version.version,
-                    previous_champion=str(previous.id) if previous else None,
-                    status=PromotionStatus.APPLIED.value,
-                )
-            )
+            promote_version(uow, version_id, self._clock())
             uow.commit()
-            return ModelService._version_view(uow, version.id)
+            return ModelService._version_view(uow, version_id)

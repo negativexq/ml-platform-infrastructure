@@ -10,6 +10,7 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from datetime import datetime
+from enum import StrEnum
 from typing import Self
 from uuid import UUID
 
@@ -23,6 +24,7 @@ from controlplane.domain.states import (
     ModelStatus,
     ProjectStatus,
     PromotionStatus,
+    RolloutStatus,
     RunStatus,
     StepStatus,
 )
@@ -564,3 +566,141 @@ class Endpoint:
         return replace(
             self, status=status, url=url if url is not None else self.url, updated_at=now
         )
+
+
+@dataclass(frozen=True, slots=True)
+class RolloutGate:
+    """What a canary must satisfy at every step before it gets more traffic."""
+
+    max_error_rate: float = 0.01  # 0..1
+    max_p95_latency_ms: float = 500.0
+    min_requests: int = 20  # below this there is too little evidence to judge
+    step_seconds: int = 60  # how long each step observes before it may advance
+    ready_timeout_seconds: int = 600  # how long the canary may take to load
+
+    def __post_init__(self) -> None:
+        if not 0.0 <= self.max_error_rate <= 1.0:
+            raise InvalidArgument("max_error_rate must be between 0 and 1")
+        if self.max_p95_latency_ms <= 0:
+            raise InvalidArgument("max_p95_latency_ms must be positive")
+        if self.min_requests < 1 or self.step_seconds < 0 or self.ready_timeout_seconds < 1:
+            raise InvalidArgument(
+                "min_requests >= 1, step_seconds >= 0, ready_timeout_seconds >= 1"
+            )
+
+
+class Verdict(StrEnum):
+    PASS = "PASS"
+    WAIT = "WAIT"
+    FAIL = "FAIL"
+
+
+@dataclass(frozen=True, slots=True)
+class GateResult:
+    verdict: Verdict
+    reason: str
+
+
+def evaluate_gate(
+    gate: RolloutGate,
+    *,
+    requests: float | None,
+    error_rate: float | None,
+    p95_latency_ms: float | None,
+    elapsed_seconds: float,
+) -> GateResult:
+    """Pure decision for one canary step.
+
+    A *breach* fails immediately once there is enough traffic to be sure. A *clean*
+    step passes only after it has observed for `step_seconds`. If that time passes
+    without enough traffic to judge, the gate fails closed: a canary nobody exercised
+    has proven nothing.
+    """
+    enough = requests is not None and requests >= gate.min_requests
+    if enough and error_rate is not None and error_rate > gate.max_error_rate:
+        return GateResult(
+            Verdict.FAIL, f"error rate {error_rate:.2%} exceeds {gate.max_error_rate:.2%}"
+        )
+    if enough and p95_latency_ms is not None and p95_latency_ms > gate.max_p95_latency_ms:
+        return GateResult(
+            Verdict.FAIL,
+            f"p95 latency {p95_latency_ms:.0f} ms exceeds {gate.max_p95_latency_ms:.0f} ms",
+        )
+    if elapsed_seconds < gate.step_seconds:
+        return GateResult(Verdict.WAIT, f"observing ({elapsed_seconds:.0f}/{gate.step_seconds}s)")
+    if not enough:
+        seen = 0 if requests is None else int(requests)
+        return GateResult(
+            Verdict.FAIL,
+            f"only {seen} requests after {gate.step_seconds}s; need {gate.min_requests} to judge",
+        )
+    if error_rate is None or p95_latency_ms is None:
+        return GateResult(Verdict.FAIL, "traffic was seen but error rate / latency are unavailable")
+    return GateResult(Verdict.PASS, "within error-rate and latency limits")
+
+
+DEFAULT_STEPS = (10, 25, 50, 100)
+
+
+def validate_steps(steps: tuple[int, ...]) -> tuple[int, ...]:
+    if not steps:
+        raise InvalidArgument("a rollout needs at least one step")
+    if steps[-1] != 100:
+        raise InvalidArgument("the last rollout step must be 100")
+    if any(not 1 <= p <= 100 for p in steps) or any(
+        a >= b for a, b in zip(steps, steps[1:], strict=False)
+    ):
+        raise InvalidArgument("steps must be strictly increasing percentages between 1 and 100")
+    return steps
+
+
+@dataclass(frozen=True, slots=True, kw_only=True)
+class Rollout:
+    """Shifting a deployment from its stable revision to a canary revision, step by
+    step. The stable revision keeps serving the rest of the traffic throughout."""
+
+    id: UUID = field(default_factory=new_id)
+    deployment_id: UUID
+    from_revision: int  # stable
+    to_revision: int  # canary
+    model_version_id: UUID
+    status: RolloutStatus = RolloutStatus.PENDING
+    status_reason: str | None = None
+    steps: tuple[int, ...] = DEFAULT_STEPS
+    current_step: int = -1  # index into `steps`; -1 until the first step is applied
+    gate: RolloutGate = field(default_factory=RolloutGate)
+    step_started_at: datetime | None = None  # when the canary became ready at this step
+    abort_requested: bool = False
+    created_at: datetime
+    updated_at: datetime
+    finished_at: datetime | None = None
+
+    @property
+    def percent(self) -> int:
+        """Traffic share of the canary right now."""
+        return 0 if self.current_step < 0 else self.steps[self.current_step]
+
+    @property
+    def is_terminal(self) -> bool:
+        return states.ROLLOUT.is_terminal(self.status)
+
+    def transition_to(
+        self, status: RolloutStatus, now: datetime, reason: str | None = None
+    ) -> Self:
+        states.ROLLOUT.ensure(self.status, status)
+        return replace(
+            self,
+            status=status,
+            status_reason=reason if reason is not None else self.status_reason,
+            finished_at=now if states.ROLLOUT.is_terminal(status) else self.finished_at,
+            updated_at=now,
+        )
+
+    def at_step(self, index: int, now: datetime) -> Self:
+        return replace(self, current_step=index, step_started_at=None, updated_at=now)
+
+    def observing_since(self, now: datetime) -> Self:
+        return replace(self, step_started_at=now, updated_at=now)
+
+    def with_abort_requested(self, now: datetime) -> Self:
+        return replace(self, abort_requested=True, updated_at=now)

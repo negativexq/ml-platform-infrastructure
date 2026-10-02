@@ -67,12 +67,17 @@ class DeploymentReconciler:
                 raise NotFound("deployment", deployment_id)
             project = uow.projects.get(deployment.project_id)
             endpoint = uow.endpoints.get_by_deployment(deployment_id)
+            rolling_out = uow.rollouts.get_active(deployment_id) is not None
             revision = (
                 uow.revisions.get(deployment_id, deployment.desired_revision)
                 if deployment.desired_revision is not None
                 else None
             )
         before = deployment.status
+        if rolling_out:
+            # The rollout reconciler owns the serving resource (a canary split looks like
+            # drift to this one). It resumes the moment the rollout ends.
+            return DeploymentResult(deployment_id, before, before)
         if project is None or endpoint is None or revision is None:
             return DeploymentResult(deployment_id, before, before)
         if deployment.status is DeploymentStatus.FAILED:

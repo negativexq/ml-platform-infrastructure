@@ -129,27 +129,51 @@ class FakeWorkflowProvider:
 
 
 class FakeServingProvider:
-    """Serving resources as a dict. `auto_ready=False` holds them PENDING until a test
-    calls `mark_ready`, so rollouts can be observed half-way."""
+    """Serving resources as a dict. `auto_ready=False` holds a new revision PENDING
+    until a test calls `mark_ready`. Canary semantics follow KServe: a spec with
+    `canary_percent` makes the new revision take that share and the previously
+    serving revision keep the rest."""
 
     def __init__(self) -> None:
         self.specs: dict[str, ServingSpec] = {}
+        self.previous: dict[str, int] = {}
         self.traffic: dict[str, Mapping[int, int]] = {}
         self.auto_ready = True
         self.deploy_calls = 0
         self.failed: dict[str, str] = {}
         self._ready: set[str] = set()
         self.requests: list[tuple[str, Mapping[str, Any]]] = []
+        self.history: list[tuple[int, int | None]] = []  # (revision, canary_percent) per deploy
 
     def deploy(self, spec: ServingSpec) -> str:
         self.deploy_calls += 1
         ref = f"{spec.namespace}/{spec.name}"
+        old = self.specs.get(ref)
+        if old is not None and old.revision != spec.revision:
+            self.previous[ref] = old.revision
+        revision_changed = old is None or old.revision != spec.revision
         self.specs[ref] = spec
+        self.history.append((spec.revision, spec.canary_percent))
         self.failed.pop(ref, None)
-        self._ready.discard(ref)
-        if self.auto_ready:
-            self._ready.add(ref)
+        if revision_changed:
+            self._ready.discard(ref)
+            if self.auto_ready:
+                self._ready.add(ref)
         return ref
+
+    def split(self, ref: str) -> dict[int, int]:
+        """Who gets what share of traffic right now."""
+        spec = self.specs.get(ref)
+        if spec is None:
+            return {}
+        percent = spec.canary_percent
+        previous = self.previous.get(ref)
+        if percent is None or percent >= 100 or previous is None:
+            return {spec.revision: 100}
+        shares = {spec.revision: percent}
+        if percent < 100:
+            shares[previous] = 100 - percent
+        return {rev: pct for rev, pct in shares.items() if pct > 0}
 
     def get_status(self, ref: str) -> ServingStatus:
         spec = self.specs.get(ref)
@@ -158,11 +182,18 @@ class FakeServingProvider:
         if ref in self.failed:
             return ServingStatus(ServingState.FAILED, spec.revision, reason=self.failed[ref])
         if ref in self._ready:
+            ready = {spec.revision}
+            previous = self.previous.get(ref)
+            names = {spec.revision: f"{spec.name}-r{spec.revision}"}
+            if previous is not None:
+                ready.add(previous)
+                names[previous] = f"{spec.name}-r{previous}"
             return ServingStatus(
                 ServingState.READY,
                 spec.revision,
-                ready_revisions=(spec.revision,),
+                ready_revisions=tuple(sorted(ready)),
                 url=f"http://{spec.name}.{spec.namespace}.svc",
+                backend_revisions=names,
             )
         return ServingStatus(ServingState.PENDING, spec.revision)
 
@@ -179,6 +210,7 @@ class FakeServingProvider:
 
     def delete(self, ref: str) -> None:
         self.specs.pop(ref, None)
+        self.previous.pop(ref, None)
         self.traffic.pop(ref, None)
         self._ready.discard(ref)
 
@@ -194,7 +226,9 @@ class FakeMetricsProvider:
     def __init__(self) -> None:
         self.by_revision: dict[tuple[str, int], RevisionMetrics] = {}
 
-    def revision_metrics(self, endpoint_ref: str, revision: int) -> RevisionMetrics:
+    def revision_metrics(
+        self, endpoint_ref: str, revision: int, backend_revision: str | None = None
+    ) -> RevisionMetrics:
         return self.by_revision.get((endpoint_ref, revision), RevisionMetrics(None, None, None))
 
 

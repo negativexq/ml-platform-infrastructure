@@ -24,6 +24,7 @@ MACHINES = [
     states.PROMOTION,
     states.DEPLOYMENT,
     states.ENDPOINT,
+    states.ROLLOUT,
 ]
 
 
@@ -78,6 +79,11 @@ def test_pipeline_run_happy_path_and_terminals() -> None:
 def test_pipeline_run_cannot_skip_submission() -> None:
     with pytest.raises(IllegalTransition):
         states.PIPELINE_RUN.ensure(RunStatus.PENDING, RunStatus.RUNNING)
+
+
+def test_only_archived_to_champion_can_resurrect_an_archived_version() -> None:
+    allowed = states.MODEL_VERSION.allowed_from(ModelStatus.ARCHIVED)
+    assert allowed == {ModelStatus.CHAMPION}
 
 
 def test_rejected_model_can_never_be_promoted() -> None:

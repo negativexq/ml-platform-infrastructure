@@ -18,7 +18,7 @@ namespace deleted by the real namespace controller.
 ---
 
 > Sections: 0 setup · 1 M14 gate · 2 M15 gate · 3 M16 gate · 4 M17 gate ·
-> 5 M18 gate · 6 untested code · 7 missing pieces.
+> 5 M18 gate · 6 M19 gate · 7 untested code · 8 missing pieces.
 
 ## 0. Setup on your machine
 
@@ -33,7 +33,7 @@ kubectl apply -n argo -f https://github.com/argoproj/argo-workflows/releases/dow
 # PostgreSQL for the control plane: reuse the platform one or any local instance
 export CP_DATABASE_URL=postgresql+psycopg://USER:PASS@localhost:5432/controlplane
 export CP_KUBECONFIG=$HOME/.kube/config      # context must be the kind cluster
-make cp-migrate                    # alembic upgrade head  (0001 → 0006)
+make cp-migrate                    # alembic upgrade head  (0001 → 0007)
 
 make cp-run                        # API on :8080      (terminal 1)
 make cp-reconcile                  # reconcilers       (terminal 2)
@@ -222,7 +222,8 @@ Extra setup: KServe must be installed, with the MLflow runtime available (the
 need credentials for the artifact store.
 
 ```bash
-# KServe (raw deployment mode avoids needing Knative/Istio locally)
+# KServe. NOTE: M18 alone works in RawDeployment mode (shown below), but M19 canary
+# splitting needs KServe *Serverless* mode (Knative Serving + a gateway); see section 6.
 kubectl apply -f https://github.com/kserve/kserve/releases/download/v0.14.1/kserve.yaml
 kubectl apply -f https://github.com/kserve/kserve/releases/download/v0.14.1/kserve-cluster-resources.yaml
 kubectl patch cm -n kserve inferenceservice-config --type merge \
@@ -280,11 +281,88 @@ Judgement calls to confirm:
 
 ---
 
-## 6. Code that has never run against the real thing
+## 6. M19 gate — Canary, promotion safety & rollback
+
+**Setup is heavier than M18.** KServe's native canary split only exists in Serverless
+mode (Knative Serving + Kourier/Istio), and the gates read per-revision Knative
+metrics from Prometheus:
+
+```bash
+# Knative Serving + Kourier, then KServe in Serverless mode (default), instead of RawDeployment
+# (follow the Knative and KServe install docs for the versions you pin)
+export CP_PROMETHEUS_URL=http://localhost:9090     # your kube-prometheus-stack (M5); port-forward it
+make cp-migrate                                    # 0007
+make cp-reconcile                                  # now also drives rollouts
+```
+
+Check Prometheus actually has the series the gate queries, for a served revision:
+`revision_request_count{namespace_name="mlp-credit-risk",revision_name="<rev>"}` and
+`revision_request_latencies_bucket{...}` (queue-proxy metrics; names differ between
+Knative versions — adjust `adapters/metrics/prometheus.py` if not).
+
+```bash
+D=localhost:8080/projects/credit-risk/deployments/credit-risk-prod
+# stable revision 1 (champion) is READY and serving (M18). Candidate = version 2:
+curl -XPOST $D/rollouts -H 'content-type: application/json' -d '{
+  "model":"scorer","version":2,"steps":[10,25,50,100],
+  "gate":{"max_error_rate":0.01,"max_p95_latency_ms":300,"min_requests":50,"step_seconds":60}}'
+curl localhost:8080/rollouts/<id>            # watch status, canary_percent, traffic
+# drive load through the endpoint the whole time (otherwise the gate fails closed):
+k6 run scripts/loadtest/predict.js           # point it at the endpoint / platform predict URL
+```
+
+| # | Gate | How to check |
+| --- | --- | --- |
+| 1 | Traffic split applied | `kubectl -n mlp-credit-risk get isvc credit-risk-prod -o yaml` → `canaryTrafficPercent` follows 10→25→50; `status.components.predictor.traffic` shows two revisions with matching percents |
+| 2 | Per-revision metrics separate | in Prometheus, `revision_request_count` for the canary revision and the stable one differ and match the split |
+| 3 | Canary health gate exists | `GET /rollouts/{id}` shows `gate`; `audit_events` has `rollout.observing` / `rollout.step_applied` with the `gate` reason |
+| 4 | Latency breach stops the rollout | candidate that sleeps (e.g. 2 s per predict) → `ROLLED_BACK`, reason `p95 latency … exceeds …` |
+| 5 | Error-rate breach rolls back | **the drill below** |
+| 6 | Successful canary → 100% | healthy candidate under load → `SUCCEEDED`, `traffic: {"2":100,"1":0}`, ISVC has no `canaryTrafficPercent` |
+| 7 | Champion changes only after success | `GET /projects/credit-risk/models/scorer` → champion still v1 at every step until `SUCCEEDED`, then v2; `model_versions` shows v1 `ARCHIVED` |
+| 8 | Rollback returns to previous revision | `POST $D/rollback` → `desired_revision` back to 1, ISVC annotation `mlp.io/revision: 1`, v1 `CHAMPION` again, v2 `ARCHIVED`; revisions 1 and 2 both still listed |
+| 9 | Rollback is in the immutable audit trail | `select action,payload from audit_events where action in ('rollout.rolled_back','deployment.rolled_back')`; there is no UPDATE/DELETE path for `audit_events` |
+| 10 | Failed model ends at 0% | after the drill: `traffic: {"1":100,"2":0}` and the canary revision receives no requests (Prometheus rate → 0) |
+
+**The failure drill (the one that matters):** make a candidate that errors on
+requests — e.g. train/register a model whose `predict` raises for most inputs (a tiny
+sklearn `Pipeline` with a custom transformer that raises on a flag feature), evaluate it
+to CANDIDATE, then run the rollout with load that exercises it. Expected: `10%` →
+(gate observes) → `ROLLED_BACK` with `error rate … exceeds 1.00%`, ISVC back to revision
+1 at 100%, v2 `REJECTED`, v1 still `CHAMPION`, `deployment` back to `READY`. Record how
+long the canary served errors (it is bounded by `min_requests` + the reconcile interval).
+
+Judgement calls to confirm:
+
+- **A latency breach rolls back**, like an error-rate breach, instead of merely pausing:
+  a paused canary would keep taking its share of traffic at bad latency.
+- **The gate fails closed**: if a step finishes observing without `min_requests`
+  requests, the rollout rolls back ("only N requests after 60s"). A canary nobody
+  exercised has proven nothing, but this means **a rollout needs traffic**.
+- **A canary that fails in production becomes `REJECTED`** (new `CANDIDATE → REJECTED`
+  edge) so it cannot be promoted by accident; abort-before-traffic leaves it `CANDIDATE`.
+- **Losing the serving resource mid-rollout rolls back** to stable rather than re-creating
+  the canary, because a re-created canary alone would receive 100% of the traffic.
+- **Deployment rollback also restores champion state** (new `ARCHIVED → CHAMPION` edge,
+  used only here): the platform never calls a model champion that is no longer serving.
+  It is refused unless the target revision's model is a former/current champion.
+- The final step is `100`: the canary takes all traffic and must still pass the gate
+  before the model is promoted, so a rollback after that point means re-deploying stable.
+
+---
+
+## 7. Code that has never run against the real thing
 
 Written to the Argo API from knowledge of its schema; unit-tested only as
 manifests/dicts. Check each against a real Argo:
 
+000. **Canary adapter and metrics (M19)** — `KServeServingProvider` canary support
+     (`canaryTrafficPercent` set via merge patch, `null` to remove; the
+     `mlp.io/previous-revision` annotation; `components.predictor.latestCreatedRevision` /
+     `previousRolledoutRevision` used to label metrics) and all of
+     `adapters/metrics/prometheus.py` (metric names, label names `namespace_name` /
+     `revision_name`, window `2m`, NaN handling). If gates never pass although traffic
+     flows, run the four queries by hand in Prometheus first.
 00. **KServe adapter (M18), all of it** — `adapters/serving/kserve.py` has only been
     unit-tested as a manifest. Specifically check: (a) the status fields it reads —
     condition `Ready`, `status.modelStatus.transitionStatus == "UpToDate"`,
@@ -323,7 +401,7 @@ manifests/dicts. Check each against a real Argo:
 
 ---
 
-## 7. Missing pieces (not written yet)
+## 8. Missing pieces (not written yet)
 
 - Argo Workflows install in `make local-up` / Helm / GitOps; the Argo
   controller's `workflowNamespaces`/RBAC must cover `mlp-*` namespaces.
@@ -339,8 +417,12 @@ manifests/dicts. Check each against a real Argo:
   no per-project secret/config mechanism yet (the M7 Secret lives in `ml-platform`).
 - No retry for pipeline runs, no pipeline-run history cleanup, no per-step
   resource defaults.
-- No `DELETE` for deployments, no per-revision serving state, no traffic split
-  (`KServeServingProvider.set_traffic` raises `NotImplementedError` until M19).
+- No `DELETE` for deployments, no per-revision serving state in the database (the
+  rollout row is the only record of the split).
+- Rollouts need Serverless KServe + Prometheus; there is no RawDeployment/own-gateway
+  fallback, no pause/resume, no manual "promote now" or step skip, and no automatic
+  retry of a rollout.
+- The Prometheus window is fixed (`2m`) and independent of `step_seconds`.
 - Predict is a thin pass-through with a 10 s timeout; no auth, rate limiting or
   request logging, and no stable external URL (a gateway).
 - Per-project serving credentials are manual (see section 5); the control plane

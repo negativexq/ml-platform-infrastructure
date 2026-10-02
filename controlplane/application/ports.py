@@ -20,6 +20,7 @@ from controlplane.domain.entities import (
     PipelineRun,
     Project,
     Promotion,
+    Rollout,
     Run,
     StepRun,
 )
@@ -29,6 +30,7 @@ from controlplane.domain.states import (
     EvaluationStatus,
     ModelStatus,
     ProjectStatus,
+    RolloutStatus,
     RunStatus,
     StepStatus,
 )
@@ -222,6 +224,24 @@ class EndpointRepository(Protocol):
         """Compare-and-swap on status."""
 
 
+class RolloutRepository(Protocol):
+    def add(self, rollout: Rollout) -> None:
+        """Raises AlreadyExists if the deployment already has a rollout in flight."""
+
+    def get(self, rollout_id: UUID) -> Rollout | None: ...
+
+    def get_active(self, deployment_id: UUID) -> Rollout | None:
+        """The PENDING or PROGRESSING rollout of a deployment, if any."""
+
+    def list(self, deployment_id: UUID) -> Sequence[Rollout]:
+        """Newest first."""
+
+    def list_active(self) -> Sequence[Rollout]: ...
+
+    def update(self, rollout: Rollout, *, expected_status: RolloutStatus) -> None:
+        """Compare-and-swap on status."""
+
+
 class AuditLog(Protocol):
     def record(self, event: AuditEvent) -> None: ...
 
@@ -271,6 +291,9 @@ class UnitOfWork(Protocol):
 
     @property
     def endpoints(self) -> EndpointRepository: ...
+
+    @property
+    def rollouts(self) -> RolloutRepository: ...
 
     @property
     def audit(self) -> AuditLog: ...

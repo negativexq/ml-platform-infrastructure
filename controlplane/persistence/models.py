@@ -237,6 +237,35 @@ class DeploymentRevisionRow(Base):
     created_at: Mapped[datetime] = _ts()
 
 
+class RolloutRow(Base):
+    __tablename__ = "rollouts"
+    __table_args__ = (
+        # One rollout in flight per deployment, enforced by the database.
+        Index(
+            "uq_rollouts_one_active",
+            "deployment_id",
+            unique=True,
+            postgresql_where=text("status IN ('PENDING', 'PROGRESSING')"),
+        ),
+    )
+
+    id: Mapped[UUID] = _pk()
+    deployment_id: Mapped[UUID] = _fk("deployments.id")
+    from_revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    to_revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    model_version_id: Mapped[UUID] = _fk("model_versions.id")
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    status_reason: Mapped[str | None] = mapped_column(Text)
+    steps: Mapped[list[int]] = mapped_column(JSONB, nullable=False)
+    current_step: Mapped[int] = mapped_column(Integer, nullable=False)
+    gate: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    step_started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    abort_requested: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    created_at: Mapped[datetime] = _ts()
+    updated_at: Mapped[datetime] = _ts()
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
 class EndpointRow(Base):
     __tablename__ = "endpoints"
     __table_args__ = (UniqueConstraint("project_id", "name", name="uq_endpoints_name"),)

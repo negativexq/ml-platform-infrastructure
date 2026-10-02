@@ -127,6 +127,9 @@ class ServingSpec:
     model_uri: str
     revision: int
     labels: Mapping[str, str] = field(default_factory=dict)
+    # None: this revision takes all traffic. Otherwise it takes this share and the
+    # previously serving revision keeps the rest (a canary).
+    canary_percent: int | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -134,6 +137,8 @@ class ServingStatus:
     state: ServingState
     deployed_revision: int | None = None  # the revision the resource is configured with
     ready_revisions: tuple[int, ...] = ()  # revisions whose model has loaded and is serving
+    # platform revision -> the serving system's own identifier for it (used to label metrics)
+    backend_revisions: Mapping[int, str] = field(default_factory=dict)
     url: str | None = None
     reason: str | None = None
 
@@ -203,11 +208,15 @@ class RevisionMetrics:
     p95_latency_ms: float | None
     error_rate: float | None  # 0..1
     requests_per_second: float | None
+    requests: float | None = None  # requests observed in the window
 
 
 @runtime_checkable
 class MetricsProvider(Protocol):
-    def revision_metrics(self, endpoint_ref: str, revision: int) -> RevisionMetrics: ...
+    def revision_metrics(
+        self, endpoint_ref: str, revision: int, backend_revision: str | None = None
+    ) -> RevisionMetrics:
+        """Metrics of one revision only, so a canary can be judged apart from stable."""
 
 
 @runtime_checkable

@@ -10,6 +10,7 @@ from controlplane.api.deployments import deployments_router
 from controlplane.api.jobs_runs import jobs_router, runs_router
 from controlplane.api.models import model_versions_router, models_router
 from controlplane.api.pipelines import pipeline_runs_router, pipelines_router
+from controlplane.api.rollouts import rollouts_router
 from controlplane.api.schemas import ErrorOut, ProjectCreate, ProjectList, ProjectOut
 from controlplane.application.deployments import DeploymentService
 from controlplane.application.jobs import JobService
@@ -28,6 +29,7 @@ from controlplane.application.providers import (
     ServingProvider,
     WorkflowProvider,
 )
+from controlplane.application.rollouts import RolloutService
 from controlplane.application.runs import RunService
 from controlplane.domain.errors import (
     AlreadyExists,
@@ -141,6 +143,7 @@ def create_app(
     )
     app.state.promotions = PromotionService(uow_factory, clock)
     app.state.deployments = DeploymentService(uow_factory, clock, experiments, serving)
+    app.state.rollouts = RolloutService(uow_factory, app.state.deployments, clock)
     app.state.workflow = workflow
     app.state.experiments = experiments
     app.add_exception_handler(DomainError, _domain_error_handler)
@@ -152,6 +155,7 @@ def create_app(
     app.include_router(models_router())
     app.include_router(model_versions_router())
     app.include_router(deployments_router())
+    app.include_router(rollouts_router())
 
     @app.get("/healthz", tags=["ops"], summary="Liveness")
     def healthz() -> dict[str, str]:

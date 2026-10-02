@@ -1,5 +1,9 @@
 """ServingProvider backed by KServe `InferenceService`s.
 
+Canary traffic uses KServe's native split: the newest revision takes
+`canaryTrafficPercent` and the revision before it keeps the rest. That needs
+KServe's Serverless (Knative) mode; RawDeployment cannot split.
+
 Not exercised against a real KServe yet: see docs/local-verification.md.
 """
 
@@ -19,12 +23,17 @@ from controlplane.application.providers import ServingSpec, ServingState, Servin
 
 GROUP, VERSION, PLURAL = "serving.kserve.io", "v1beta1", "inferenceservices"
 ANNOTATION_REVISION = "mlp.io/revision"
+ANNOTATION_PREVIOUS = "mlp.io/previous-revision"
 SERVICE_ACCOUNT = "mlp-workload"
 PREDICT_TIMEOUT_SECONDS = 10
 
 
 def build_inference_service(spec: ServingSpec) -> dict[str, Any]:
-    """The MLflow model server (v2 protocol) loading the revision's artifact."""
+    """The MLflow model server (v2 protocol) loading the revision's artifact.
+
+    `canaryTrafficPercent` is always present: in a merge patch `null` removes the
+    field, which is how "this revision takes all traffic" is expressed.
+    """
     return {
         "apiVersion": f"{GROUP}/{VERSION}",
         "kind": "InferenceService",
@@ -42,9 +51,14 @@ def build_inference_service(spec: ServingSpec) -> dict[str, Any]:
                     "protocolVersion": "v2",
                     "storageUri": spec.model_uri,
                 },
+                "canaryTrafficPercent": spec.canary_percent,
             }
         },
     }
+
+
+def _int(raw: str | None) -> int | None:
+    return int(raw) if raw and raw.isdigit() else None
 
 
 def _split(ref: str) -> tuple[str, str]:
@@ -60,21 +74,6 @@ class KServeServingProvider:
     def from_kubeconfig(cls, path: str | None = None) -> KServeServingProvider:
         return cls(load_api_client(path))
 
-    def deploy(self, spec: ServingSpec) -> str:
-        """Create-or-update. Idempotent: applying the same spec twice changes nothing."""
-        body = build_inference_service(spec)
-        try:
-            self._custom.create_namespaced_custom_object(
-                GROUP, VERSION, spec.namespace, PLURAL, body
-            )
-        except ApiException as exc:
-            if exc.status != 409:
-                raise
-            self._custom.patch_namespaced_custom_object(
-                GROUP, VERSION, spec.namespace, PLURAL, spec.name, body
-            )
-        return f"{spec.namespace}/{spec.name}"
-
     def _read(self, ref: str) -> dict[str, Any] | None:
         namespace, name = _split(ref)
         try:
@@ -87,13 +86,46 @@ class KServeServingProvider:
             raise
         return service
 
+    def deploy(self, spec: ServingSpec) -> str:
+        """Create-or-update. Idempotent: applying the same spec twice changes nothing."""
+        ref = f"{spec.namespace}/{spec.name}"
+        body = build_inference_service(spec)
+        existing = self._read(ref)
+        if existing is None:
+            if spec.canary_percent is None:
+                del body["spec"]["predictor"]["canaryTrafficPercent"]
+            try:
+                self._custom.create_namespaced_custom_object(
+                    GROUP, VERSION, spec.namespace, PLURAL, body
+                )
+                return ref
+            except ApiException as exc:
+                if exc.status != 409:  # 409: created concurrently, fall through to patch
+                    raise
+        else:
+            # Remember what was serving before, so a canary knows what receives the rest
+            # of the traffic and which backend revision to label its metrics with.
+            annotations = existing.get("metadata", {}).get("annotations") or {}
+            current = annotations.get(ANNOTATION_REVISION)
+            previous = (
+                current
+                if current and current != str(spec.revision)
+                else annotations.get(ANNOTATION_PREVIOUS)
+            )
+            if previous:
+                body["metadata"]["annotations"][ANNOTATION_PREVIOUS] = previous
+        self._custom.patch_namespaced_custom_object(
+            GROUP, VERSION, spec.namespace, PLURAL, spec.name, body
+        )
+        return ref
+
     def get_status(self, ref: str) -> ServingStatus:
         service = self._read(ref)
         if service is None:
             return ServingStatus(ServingState.ABSENT)
         annotations = service.get("metadata", {}).get("annotations") or {}
-        raw = annotations.get(ANNOTATION_REVISION)
-        deployed = int(raw) if raw and raw.isdigit() else None
+        deployed = _int(annotations.get(ANNOTATION_REVISION))
+        previous = _int(annotations.get(ANNOTATION_PREVIOUS))
         status = service.get("status") or {}
         model_status = status.get("modelStatus") or {}
 
@@ -110,13 +142,47 @@ class KServeServingProvider:
         )
         # `UpToDate` means the model the spec asks for is the one that loaded.
         loaded = model_status.get("transitionStatus") == "UpToDate"
-        if ready and loaded and deployed is not None:
-            url = (status.get("address") or {}).get("url") or status.get("url")
-            return ServingStatus(ServingState.READY, deployed, (deployed,), url)
-        return ServingStatus(ServingState.PENDING, deployed)
+        if not (ready and loaded and deployed is not None):
+            return ServingStatus(ServingState.PENDING, deployed)
+
+        predictor = (status.get("components") or {}).get("predictor") or {}
+        backend: dict[int, str] = {}
+        if predictor.get("latestCreatedRevision"):
+            backend[deployed] = predictor["latestCreatedRevision"]
+        ready_revisions = [deployed]
+        if previous is not None and predictor.get("previousRolledoutRevision"):
+            backend[previous] = predictor["previousRolledoutRevision"]
+            ready_revisions.append(previous)  # still serving the rest of the traffic
+        url = (status.get("address") or {}).get("url") or status.get("url")
+        return ServingStatus(
+            ServingState.READY,
+            deployed,
+            ready_revisions=tuple(sorted(ready_revisions)),
+            backend_revisions=backend,
+            url=url,
+        )
 
     def set_traffic(self, ref: str, split: Mapping[int, int]) -> None:
-        raise NotImplementedError("traffic splitting between revisions arrives with M19")
+        """KServe splits between the newest revision and the one before it, so a split
+        is expressed as the newest revision's share."""
+        namespace, name = _split(ref)
+        service = self._read(ref)
+        if service is None:
+            raise ConnectionError(f"{ref} does not exist")
+        annotations = service.get("metadata", {}).get("annotations") or {}
+        deployed = _int(annotations.get(ANNOTATION_REVISION))
+        allowed = {deployed, _int(annotations.get(ANNOTATION_PREVIOUS))}
+        if sum(split.values()) != 100 or set(split) - allowed:
+            raise ValueError(f"cannot express split {dict(split)} on {ref}")
+        share = split.get(deployed, 0) if deployed is not None else 0
+        self._custom.patch_namespaced_custom_object(
+            GROUP,
+            VERSION,
+            namespace,
+            PLURAL,
+            name,
+            {"spec": {"predictor": {"canaryTrafficPercent": None if share >= 100 else share}}},
+        )
 
     def predict(self, ref: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         status = self.get_status(ref)

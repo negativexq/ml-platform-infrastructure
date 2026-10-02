@@ -134,9 +134,12 @@ MODEL_VERSION = StateMachine(
         ModelStatus.REGISTERED: {ModelStatus.EVALUATING},
         ModelStatus.EVALUATING: {ModelStatus.REJECTED, ModelStatus.CANDIDATE},
         ModelStatus.REJECTED: set(),
-        ModelStatus.CANDIDATE: {ModelStatus.CHAMPION, ModelStatus.ARCHIVED},
+        # CANDIDATE -> REJECTED: the version passed evaluation but failed its canary.
+        ModelStatus.CANDIDATE: {ModelStatus.CHAMPION, ModelStatus.ARCHIVED, ModelStatus.REJECTED},
         ModelStatus.CHAMPION: {ModelStatus.ARCHIVED},
-        ModelStatus.ARCHIVED: set(),
+        # ARCHIVED -> CHAMPION exists only for rolling a deployment back to the
+        # previous champion; nothing else may resurrect an archived version.
+        ModelStatus.ARCHIVED: {ModelStatus.CHAMPION},
     },
 )
 
@@ -222,5 +225,24 @@ ENDPOINT = StateMachine(
         EndpointStatus.PENDING: {EndpointStatus.READY, EndpointStatus.UNAVAILABLE},
         EndpointStatus.READY: {EndpointStatus.UNAVAILABLE},
         EndpointStatus.UNAVAILABLE: {EndpointStatus.READY},
+    },
+)
+
+
+class RolloutStatus(StrEnum):
+    PENDING = "PENDING"  # recorded, no traffic shifted yet
+    PROGRESSING = "PROGRESSING"  # canary receiving traffic, step by step
+    SUCCEEDED = "SUCCEEDED"  # canary took 100% and the model was promoted
+    ROLLED_BACK = "ROLLED_BACK"  # traffic returned to the stable revision
+
+
+ROLLOUT = StateMachine(
+    "Rollout",
+    RolloutStatus,
+    {
+        RolloutStatus.PENDING: {RolloutStatus.PROGRESSING, RolloutStatus.ROLLED_BACK},
+        RolloutStatus.PROGRESSING: {RolloutStatus.SUCCEEDED, RolloutStatus.ROLLED_BACK},
+        RolloutStatus.SUCCEEDED: set(),
+        RolloutStatus.ROLLED_BACK: set(),
     },
 )

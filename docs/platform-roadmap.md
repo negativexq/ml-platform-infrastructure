@@ -76,7 +76,7 @@ controlplane/
 | **M16** 🚧 | Pipeline DAG + MLflow tracking | versioned `PipelineDefinition`; cycle detection; compile to Argo DAG; parallel branches; failed upstream skips downstream; every `StepRun` in the DB; deterministic platform run ↔ MLflow run mapping; Run → MLflow run → artifact in one platform query |
 | **M17** 🚧 | Model, evaluation & promotion | `ModelVersion` from training output; threshold-driven evaluation; REJECTED can't be promoted; atomic audited promotion; champion history kept; MLflow alias synced with platform state; manual alias move detected as `DRIFT` |
 | **M18** 🚧 | Deployment & endpoint abstraction | `ServingProvider` (KServe first); non-approved model can't go to production; DB object first, reconciler creates the resource; READY only after the model really loads and a prediction succeeds; immutable revisions; deleted KServe resource is recreated |
-| **M19** | Canary, safety & rollback | traffic split with per-revision metrics; latency/error-rate gates; injected 500s → traffic back to 100% old champion, candidate FAILED, champion unchanged; rollback audited |
+| **M19** 🚧 | Canary, safety & rollback | traffic split with per-revision metrics; latency/error-rate gates; injected 500s → traffic back to 100% old champion, candidate FAILED, champion unchanged; rollback audited |
 | **M20** | Minimal UI | talks only to the Platform API (never MLflow/Argo/Kubernetes); projects, runs/DAG/logs, models/evaluations/promote, deployments/metrics/rollback |
 | **M21** | Platform MVP freeze (`v0.1.0`) | `make platform-e2e` on a fresh kind cluster: project → pipeline → run → track → register → evaluate → candidate → deploy → predict → second model → canary → promote → rollback; audit trail reconstructs the whole lifecycle; destroy/recreate works |
 
@@ -119,6 +119,14 @@ immutable revisions, `DeploymentReconciler` with observed readiness and drift
 recovery, KServe adapter, predict pass-through, migration 0006). The reconciler is
 tested against a fake serving system; the KServe adapter has not run against a real
 KServe. See [local-verification.md](local-verification.md).
+
+### M19 status
+
+Code is in place (`Rollout` with a pure `evaluate_gate`, `RolloutReconciler`,
+deployment rollback, Prometheus metrics adapter, KServe canary support, migration
+0007). Gates, the failure drill and the champion-after-evidence rule are tested
+against fakes; the KServe canary and Prometheus adapters have not run for real.
+See [local-verification.md](local-verification.md).
 
 ### Not before M21
 

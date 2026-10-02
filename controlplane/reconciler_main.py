@@ -11,6 +11,7 @@ import time
 from collections.abc import Callable
 
 from controlplane.adapters.kubernetes import KubernetesClusterProvider, load_api_client
+from controlplane.adapters.metrics import PrometheusMetricsProvider
 from controlplane.adapters.mlflow import MlflowExperimentProvider
 from controlplane.adapters.serving import KServeServingProvider
 from controlplane.adapters.workflow import ArgoWorkflowProvider
@@ -19,6 +20,7 @@ from controlplane.reconciliation.deployments import DeploymentReconciler
 from controlplane.reconciliation.model_aliases import ModelAliasReconciler
 from controlplane.reconciliation.pipeline_runs import PipelineRunReconciler
 from controlplane.reconciliation.projects import ProjectReconciler
+from controlplane.reconciliation.rollouts import RolloutReconciler
 from controlplane.reconciliation.runs import RunReconciler
 from controlplane.settings import Settings
 
@@ -57,6 +59,17 @@ def main() -> None:
         else None
     )
     deployments = DeploymentReconciler(lambda: SqlUnitOfWork(sessions), KServeServingProvider(api))
+    rollouts = (
+        RolloutReconciler(
+            lambda: SqlUnitOfWork(sessions),
+            KServeServingProvider(api),
+            PrometheusMetricsProvider(settings.prometheus_url),
+        )
+        if settings.prometheus_url
+        else None
+    )
+    if rollouts is None:
+        log.warning("CP_PROMETHEUS_URL is not set: canary rollouts will not be driven")
     while True:
         # Only report passes that did something; converged projects are silent.
         _pass(
@@ -72,6 +85,11 @@ def main() -> None:
             "deployments",
             lambda: [r for r in deployments.reconcile_all() if r.before != r.after or r.applied],
         )
+        if rollouts is not None:
+            _pass(
+                "rollouts",
+                lambda: [r for r in rollouts.reconcile_all() if r.before != r.after or r.percent],
+            )
         if aliases is not None:
             _pass(
                 "model_aliases",
