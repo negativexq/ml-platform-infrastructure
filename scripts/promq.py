@@ -1,8 +1,8 @@
 #!/usr/bin/env python3
 """Run a Prometheus instant query and print the result compactly.
 
-    kubectl -n observability port-forward svc/monitoring-prometheus 9090:9090 &
-    ./scripts/promq.py 'model_ready{job="ml-platform-inference"}'
+kubectl -n observability port-forward svc/monitoring-prometheus 9090:9090 &
+./scripts/promq.py 'model_ready{job="ml-platform-inference"}'
 """
 
 from __future__ import annotations

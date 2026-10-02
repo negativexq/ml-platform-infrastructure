@@ -55,3 +55,70 @@ export const routes = {
 export const go = (hash: string) => {
   location.hash = hash;
 };
+
+/** Split a command line the way a shell would for simple cases: spaces separate, quotes group. */
+export function splitCommand(line: string): string[] {
+  const out: string[] = [];
+  let current = '';
+  let quote: string | null = null;
+  let started = false;
+  for (const ch of line) {
+    if (quote) {
+      if (ch === quote) quote = null;
+      else current += ch;
+    } else if (ch === '"' || ch === "'") {
+      quote = ch;
+      started = true;
+    } else if (/\s/.test(ch)) {
+      if (started || current) out.push(current);
+      current = '';
+      started = false;
+    } else {
+      current += ch;
+      started = true;
+    }
+  }
+  if (quote) throw new Error('unclosed quote');
+  if (started || current) out.push(current);
+  return out;
+}
+
+/** `KEY=value` lines to an object; blank lines and `#` comments are ignored. */
+export function parsePairs(text: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const raw of text.split('\n')) {
+    const line = raw.trim();
+    if (!line || line.startsWith('#')) continue;
+    const at = line.indexOf('=');
+    if (at <= 0) throw new Error(`expected KEY=value, got "${line}"`);
+    out[line.slice(0, at).trim()] = line.slice(at + 1).trim();
+  }
+  return out;
+}
+
+export const shellQuote = (arg: string) => (/^[\w@%+=:,./-]+$/.test(arg) ? arg : `'${arg.replace(/'/g, `'\\''`)}'`);
+
+export type Thresholds = Record<string, { min?: number | null; max?: number | null }>;
+
+/** `auc >= 0.9` / `rmse <= 0.3` lines to thresholds; a metric may have both bounds. */
+export function parseThresholds(text: string): Thresholds {
+  const out: Thresholds = {};
+  for (const raw of text.split('\n')) {
+    const line = raw.trim();
+    if (!line || line.startsWith('#')) continue;
+    const m = line.match(/^([A-Za-z_][\w.-]*)\s*(>=|<=)\s*(-?\d+(?:\.\d+)?(?:e-?\d+)?)$/i);
+    if (!m) throw new Error(`expected "metric >= number" or "metric <= number", got "${line}"`);
+    const [, metric, op, value] = m as unknown as [string, string, string, string];
+    const entry = (out[metric] ??= {});
+    if (op === '>=') entry.min = Number(value); else entry.max = Number(value);
+  }
+  return out;
+}
+
+export const formatThresholds = (t: Thresholds) => Object.entries(t).flatMap(([m, b]) => [
+  ...(b.min != null ? [`${m} >= ${b.min}`] : []), ...(b.max != null ? [`${m} <= ${b.max}`] : []),
+]).join('\n');
+
+/** A metric with only an upper bound (latency, error, loss) is better when lower. */
+export const lowerIsBetter = (metric: string, t: Thresholds) =>
+  (t[metric]?.max != null && t[metric]?.min == null) || /(loss|error|rmse|mae|mse|latency)/i.test(metric);

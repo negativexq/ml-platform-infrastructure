@@ -116,6 +116,23 @@ def test_failed_workload_keeps_reason_and_exit_code(env: Env) -> None:
     assert env.runs.get(run.id).status_reason == "ImagePullBackOff"
 
 
+def test_runs_can_be_listed_by_status(env: Env) -> None:
+    """Server-side, so "show me every failed run" is not limited to the page in view."""
+    failed, _ = env.runs.create("credit-risk", JOB.name, idempotency_key="a")
+    pending, _ = env.runs.create("credit-risk", JOB.name, idempotency_key="b")
+    env.reconciler.reconcile(failed.id)
+    ref = env.runs.get(failed.id).external_ref
+    assert ref
+    env.workflow.set_state(ref, ExternalState.FAILED, reason="boom", exit_code=1)
+    env.reconciler.reconcile(failed.id)
+
+    only_failed = env.runs.list("credit-risk", statuses={RunStatus.FAILED})
+    assert [r.id for r in only_failed] == [failed.id]
+    both = env.runs.list("credit-risk", statuses={RunStatus.FAILED, RunStatus.PENDING})
+    assert {r.id for r in both} == {failed.id, pending.id}
+    assert len(env.runs.list("credit-risk", statuses=None)) == 2
+
+
 def test_cancel_before_and_after_submission(env: Env) -> None:
     early, _ = env.runs.create("credit-risk", JOB.name)
     assert env.runs.request_cancel(early.id).status is RunStatus.CANCELLED

@@ -66,9 +66,7 @@ def main() -> None:
     mlflow.set_experiment(args.experiment)
 
     x, y = make_dataset(args.samples)
-    x_train, x_test, y_train, y_test = train_test_split(
-        x, y, test_size=0.2, random_state=SEED
-    )
+    x_train, x_test, y_train, y_test = train_test_split(x, y, test_size=0.2, random_state=SEED)
 
     with mlflow.start_run() as run:
         mlflow.log_params(

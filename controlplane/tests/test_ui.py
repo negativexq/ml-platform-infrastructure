@@ -129,7 +129,8 @@ def test_no_inline_style_strings() -> None:
 def test_only_the_api_client_uses_the_network() -> None:
     for path in SOURCES:
         if path.suffix in {".ts", ".tsx"} and path.name != "client.ts":
-            assert "fetch(" not in code_only(path.read_text()), f"{path.name} calls fetch directly"
+            code = code_only(path.read_text())
+            assert not re.search(r"(?<![\w.])fetch\(", code), f"{path.name} calls fetch directly"
 
 
 def test_api_paths_in_the_ui_exist_in_the_platform_api(demo: Demo) -> None:
@@ -602,16 +603,21 @@ def test_pending_project_cannot_start_work(page: Page, server: Server) -> None:
     expect(page.get_by_test_id("run-pipeline")).to_be_disabled()
 
 
-def test_run_filters_and_show_more(page: Page, server: Server) -> None:
-    page.goto(f"{server.url}/ui/#/projects/credit-risk")
+def test_runs_page_filters_are_in_the_url_and_survive_a_reload(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects/credit-risk/runs")
     rows = page.locator("[data-testid=pipeline-run-row]")
     expect(rows).to_have_count(3)
-    page.locator("[data-testid=pipeline-runs] [data-run-filter=failed]").click()
+    page.get_by_test_id("run-status-filter").select_option("failed")
     expect(rows).to_have_count(1)
     expect(rows.first.locator("[data-status=FAILED]")).to_be_visible()
-    page.locator("[data-testid=pipeline-runs] [data-run-filter=all]").click()
-    expect(rows).to_have_count(3)
-    expect(page.get_by_test_id("show-more")).to_have_count(0)
+    assert "status=failed" in page.url
+    page.reload()
+    expect(page.get_by_test_id("run-status-filter")).to_have_value("failed")
+    expect(rows).to_have_count(1)
+    page.locator("[data-kind=job]").click()
+    expect(page.locator("[data-testid=job-run-row]").first).to_be_visible()
+    assert "kind=job" in page.url
+    expect(page.get_by_test_id("older")).to_have_count(0)  # one page only: no pager
 
 
 def test_project_activity_feed(page: Page, server: Server) -> None:
@@ -657,3 +663,224 @@ def test_an_unknown_route_goes_to_the_project_list(page: Page, server: Server) -
     page.goto(f"{server.url}/ui/#/nonsense")
     expect(page.locator("main h1")).to_have_text("Projects")
     assert page.url.endswith("#/projects")
+
+
+def test_run_lists_filter_by_status(client: TestClient) -> None:
+    failed = client.get("/projects/credit-risk/pipeline-runs?status=FAILED").json()["items"]
+    assert failed and {r["status"] for r in failed} == {"FAILED"}
+    either = client.get("/projects/credit-risk/pipeline-runs?status=FAILED&status=SUCCEEDED")
+    assert {r["status"] for r in either.json()["items"]} == {"FAILED", "SUCCEEDED"}
+    assert client.get("/projects/credit-risk/runs?status=BOGUS").status_code == 422
+
+
+# -- what a team needs day to day ---------------------------------------------------------
+
+
+def test_project_sections_are_one_click_away(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects/credit-risk")
+    tabs = page.get_by_test_id("project-tabs")
+    expect(tabs.locator("[aria-current=page]")).to_have_text("Overview")
+    for tab, heading in (
+        ("pipelines", "Pipelines"),
+        ("jobs", "Jobs"),
+        ("models", "Models"),
+        ("deployments", "Deployments"),
+        ("activity", "Activity"),
+        ("settings", "Settings"),
+    ):
+        tabs.locator(f"[data-tab={tab}]").click()
+        expect(page.locator("main h1")).to_have_text(heading)
+        expect(tabs.locator("[aria-current=page]")).to_have_text(heading)
+    page.goto(f"{server.url}/ui/#/projects/credit-risk/pipeline-runs/{server.demo.ids['run_ok']}")
+    expect(tabs.locator("[aria-current=page]")).to_have_text("Runs")  # a run belongs under Runs
+
+
+def test_overview_and_home_show_what_needs_attention(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects")
+    home = page.get_by_test_id("attention")
+    expect(home).to_contain_text("training run failed")
+    expect(home).to_contain_text("evaluate-model run failed")
+    expect(home).to_contain_text("canary rollout")
+    page.goto(f"{server.url}/ui/#/projects/credit-risk")
+    overview = page.get_by_test_id("attention")
+    expect(overview.locator("a", has_text="training run failed")).to_be_visible()
+    overview.locator("a", has_text="evaluate-model run failed").click()
+    expect(page.locator("main .alert.bad")).to_contain_text("ImagePullBackOff")
+
+
+def test_pipelines_health_definition_and_run(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects/credit-risk/pipelines")
+    row = page.get_by_test_id("pipeline-row").first
+    expect(row.get_by_test_id("success-rate")).to_have_text("50%")  # 1 of 2 finished runs
+    row.locator("a", has_text="training").click()
+    expect(page.locator("main h1")).to_have_text("training")
+    expect(page.locator("[data-testid=definition] svg.dag g.node")).to_have_count(5)
+    expect(page.locator("[data-testid=definition] g.node[data-step=train]")).to_contain_text(
+        "job: train-model"
+    )
+    expect(
+        page.locator("[data-testid=pipeline-runs] [data-testid=pipeline-run-row]")
+    ).to_have_count(3)
+    page.locator("details.snippet summary").first.click()
+    expect(page.locator("details.snippet pre").first).to_contain_text('"job": "train-model"')
+    page.get_by_test_id("run-this-pipeline").click()
+    page.get_by_test_id("form-submit").click()
+    expect(page).to_have_url(re.compile(r"/pipeline-runs/[0-9a-f-]{36}$"))
+    shot(page, "12-pipeline")
+
+
+def test_create_a_job_then_run_it(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects/credit-risk/jobs")
+    page.get_by_test_id("new-job").click()
+    page.locator("#f-name").fill("backfill")
+    page.locator("#f-image").fill("credit-risk/backfill:sha-1")
+    page.locator("#f-command").fill('python -m backfill --since "2026-01-01 00:00"')
+    page.locator("#f-memory").fill("2Gi")
+    page.locator("#f-env").fill("BAD LINE")
+    page.get_by_test_id("form-submit").click()
+    expect(page.locator(".form-error")).to_contain_text("KEY=value")
+    page.locator("#f-env").fill("SOURCE=warehouse\n# comment\n")
+    page.get_by_test_id("form-submit").click()
+    expect(page.locator("main h1")).to_have_text("backfill")
+    expect(page.locator("main")).to_contain_text("python -m backfill --since '2026-01-01 00:00'")
+    expect(page.locator("main")).to_contain_text("SOURCE=warehouse")
+    page.get_by_test_id("start-this-job").click()
+    expect(page).to_have_url(re.compile(r"/runs/[0-9a-f-]{36}$"))
+    expect(page.locator("main h1")).to_have_text("backfill")
+
+
+def test_a_failed_job_run_can_be_retried(page: Page, server: Server) -> None:
+    failed = server.demo.ids["job_run_failed"]
+    page.goto(f"{server.url}/ui/#/projects/credit-risk/runs/{failed}")
+    expect(page.get_by_test_id("retry")).to_have_text("Retry")
+    page.get_by_test_id("retry").click()
+    expect(page).to_have_url(re.compile(r"/runs/(?!" + str(failed) + r")[0-9a-f-]{36}$"))
+    expect(page.locator("main")).to_contain_text("Retry of")
+
+
+def test_failed_step_explains_itself_and_logs_can_be_searched(page: Page, server: Server) -> None:
+    page.goto(
+        f"{server.url}/ui/#/projects/credit-risk/pipeline-runs/{server.demo.ids['run_failed']}"
+    )
+    expect(page.get_by_test_id("step-reason").first).to_have_text("exited with code 3")
+    expect(page.locator("[data-testid=step-row]", has_text="evaluate")).to_contain_text(
+        "not run: prepare failed"
+    )
+    logs = page.get_by_test_id("logs")
+    expect(logs.locator(".ln.err")).not_to_have_count(0)  # the KeyError line stands out
+    page.get_by_test_id("log-search").fill("income_band")
+    expect(logs.locator(".ln")).to_have_count(1)
+    expect(page.get_by_test_id("log-count")).to_contain_text("1 of")
+    page.get_by_test_id("log-search").fill("zzz")
+    expect(logs).to_have_text("(no line matches)")
+
+
+def test_register_a_model_and_edit_its_thresholds(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects/credit-risk/models")
+    expect(page.get_by_test_id("model-row")).to_have_count(2)
+    page.get_by_test_id("register-model").click()
+    page.locator("#f-name").fill("churn")
+    page.locator("#f-thresholds").fill("auc > 0.9")
+    page.get_by_test_id("form-submit").click()
+    expect(page.locator(".form-error")).to_contain_text("metric >= number")
+    page.locator("#f-thresholds").fill("auc >= 0.9\nrmse <= 0.3")
+    page.get_by_test_id("form-submit").click()
+    expect(page.locator("main h1")).to_have_text("churn")
+    expect(page.locator(".sub")).to_contain_text("auc ≥ 0.9")
+    page.get_by_test_id("edit-thresholds").click()
+    expect(page.locator("#f-thresholds")).to_have_value("auc >= 0.9\nrmse <= 0.3")
+    page.locator("#f-thresholds").fill("auc >= 0.95")
+    page.get_by_test_id("form-submit").click()
+    expect(page.locator(".sub")).to_contain_text("auc ≥ 0.95")
+    expect(page.locator(".sub")).not_to_contain_text("rmse")
+
+
+def test_versions_are_compared_with_the_champion(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects/credit-risk/models/scorer")
+    candidate = page.locator("[data-testid=version-row][data-version='3']")
+    expect(candidate.locator(".delta").first).to_be_visible()
+    rejected = page.locator("[data-testid=version-row][data-version='1']")
+    expect(rejected.locator(".delta.down").first).to_be_visible()
+
+
+def test_deploy_a_version_to_a_new_deployment(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects/credit-risk/models/scorer")
+    page.locator("[data-testid=version-row][data-version='3'] [data-testid=deploy-version]").click()
+    expect(page.locator("#f-version")).to_have_value("scorer@3")
+    page.locator("#f-deployment").select_option("__new__")
+    page.locator("#f-new_name").fill("scorer-shadow")
+    page.get_by_test_id("form-submit").click()
+    expect(page.locator("main h1")).to_have_text("scorer-shadow")
+    expect(page.get_by_test_id("revisions")).to_contain_text("scorer v3")
+
+
+def test_canary_on_a_busy_deployment_is_refused_inside_the_dialog(
+    page: Page, server: Server
+) -> None:
+    page.goto(f"{server.url}/ui/#/projects/credit-risk/deployments/ranker-staging")
+    page.get_by_test_id("deploy").click()
+    page.locator("#f-version").select_option("scorer@3")
+    page.locator("#f-steps").fill("10, 200")
+    page.get_by_test_id("form-submit").click()
+    expect(page.locator(".form-error")).to_be_visible()  # the API's own message, not a toast
+
+
+def test_deployments_list_shows_traffic_and_health(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects/credit-risk/deployments")
+    prod = page.locator("[data-testid=deployment-row]", has_text="credit-risk-prod")
+    expect(prod).to_contain_text("canary 25%")
+    expect(prod).to_contain_text("ms")
+    shot(page, "13-deployments")
+
+
+def test_try_an_endpoint(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects/credit-risk/deployments/credit-risk-prod")
+    page.get_by_test_id("try-body").fill('{"instances": [[1, 2, 3], [4, 5, 6]]}')
+    page.get_by_test_id("try-send").click()
+    expect(page.get_by_test_id("try-result")).to_contain_text("predictions")
+    page.get_by_test_id("try-body").fill("{oops")
+    page.get_by_test_id("try-send").click()
+    expect(page.get_by_test_id("try-result")).to_contain_text("Not valid JSON")
+
+
+def test_activity_can_be_searched_and_filtered(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects/credit-risk/activity")
+    items = page.locator("[data-testid=activity-list] li")
+    expect(items.first).to_be_visible()
+    key_events = items.count()
+    assert not page.locator("[data-action^='step_run.']").count()  # routine noise hidden by default
+    page.get_by_test_id("activity-all").check()
+    expect(page.locator("[data-action^='step_run.']").first).to_be_visible()
+    total = items.count()
+    assert total > key_events
+    page.get_by_test_id("activity-all").uncheck()
+    page.get_by_test_id("activity-problems").check()
+    expect(items.first).to_be_visible()
+    assert items.count() < total
+    for action in items.evaluate_all("els => els.map(e => e.dataset.action)"):
+        assert re.search(r"(failed|rolled_back|rejected|drift_detected)$", action), action
+    assert "problems=1" in page.url
+    page.get_by_test_id("activity-problems").uncheck()
+    page.get_by_test_id("activity-type").select_option("rollout")
+    for action in items.evaluate_all("els => els.map(e => e.dataset.action)"):
+        assert action.startswith("rollout."), action
+    page.get_by_test_id("activity-type").select_option("")
+    page.get_by_test_id("activity-search").fill("ImagePullBackOff")
+    expect(items).to_have_count(1)
+    expect(items.first).to_contain_text("Job run failed")
+    items.first.locator("a").click()  # the event links to what it is about
+    expect(page.locator("main .alert.bad")).to_contain_text("ImagePullBackOff")
+    shot(page, "14-activity")
+
+
+def test_delete_a_project_needs_its_name(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects/fraud-detection/settings")
+    page.get_by_test_id("delete-project").click()
+    page.locator("#f-confirm").fill("fraud")
+    page.get_by_test_id("form-submit").click()
+    expect(page.locator(".form-error")).to_contain_text("exactly")
+    page.locator("#f-confirm").fill("fraud-detection")
+    page.get_by_test_id("form-submit").click()
+    expect(page.locator("main h1")).to_have_text("Projects")
+    status = page.request.get(f"{server.url}/projects").json()["items"]
+    assert {p["name"]: p["status"] for p in status}["fraud-detection"] == "DELETING"

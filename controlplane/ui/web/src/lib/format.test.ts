@@ -22,3 +22,27 @@ describe('format', () => {
     expect(fmtAgo(null, now)).toBe('—');
   });
 });
+
+import { parsePairs, splitCommand } from './format';
+
+describe('command and env parsing', () => {
+  it('splits like a shell for simple cases', () => {
+    expect(splitCommand('python -m train --name "credit risk" --x \'\'')).toEqual(['python', '-m', 'train', '--name', 'credit risk', '--x', '']);
+    expect(() => splitCommand('echo "oops')).toThrow();
+  });
+  it('reads KEY=value lines', () => {
+    expect(parsePairs('# c\nA=1\n\nB = two=2\n')).toEqual({ A: '1', B: 'two=2' });
+    expect(() => parsePairs('nope')).toThrow();
+  });
+});
+
+import { formatThresholds, parseThresholds } from './format';
+
+describe('thresholds', () => {
+  it('round-trips', () => {
+    const t = parseThresholds('auc >= 0.9\nrmse <= 0.3\nauc <= 0.999\n');
+    expect(t).toEqual({ auc: { min: 0.9, max: 0.999 }, rmse: { max: 0.3 } });
+    expect(parseThresholds(formatThresholds(t))).toEqual(t);
+    expect(() => parseThresholds('auc > 0.9')).toThrow();
+  });
+});

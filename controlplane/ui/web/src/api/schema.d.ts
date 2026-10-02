@@ -3432,6 +3432,8 @@ export interface operations {
                 pipeline?: string | null;
                 limit?: number;
                 offset?: number;
+                /** @description Repeat to match any */
+                status?: components["schemas"]["RunStatus"][] | null;
             };
             header?: never;
             path: {
@@ -3716,6 +3718,8 @@ export interface operations {
                 job?: string | null;
                 limit?: number;
                 offset?: number;
+                /** @description Repeat to match any */
+                status?: components["schemas"]["RunStatus"][] | null;
             };
             header?: never;
             path: {

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from uuid import UUID
@@ -169,6 +169,7 @@ class PipelineRunService:
         pipeline_name: str | None = None,
         limit: int = 50,
         offset: int = 0,
+        statuses: Collection[RunStatus] | None = None,
     ) -> Sequence[PipelineRun]:
         with self._uow_factory() as uow:
             project = resolve_project(uow, project_ref)
@@ -183,7 +184,7 @@ class PipelineRunService:
                     if (d := uow.pipelines.get_version(project.id, pipeline_name, v)) is not None
                 ]
             return uow.pipeline_runs.list(
-                project.id, definition_ids=ids, limit=limit, offset=offset
+                project.id, definition_ids=ids, limit=limit, offset=offset, statuses=statuses
             )
 
     def definition_labels(self, runs: Sequence[PipelineRun]) -> dict[UUID, tuple[str, int]]:

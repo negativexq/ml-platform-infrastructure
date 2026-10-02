@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from uuid import UUID
 
 from controlplane.application.context import current_traceparent
@@ -105,7 +105,13 @@ class RunService:
         return run
 
     def list(
-        self, project_ref: str, *, job_name: str | None = None, limit: int = 50, offset: int = 0
+        self,
+        project_ref: str,
+        *,
+        job_name: str | None = None,
+        limit: int = 50,
+        offset: int = 0,
+        statuses: Collection[RunStatus] | None = None,
     ) -> Sequence[Run]:
         with self._uow_factory() as uow:
             project = resolve_project(uow, project_ref)
@@ -115,7 +121,9 @@ class RunService:
                 if job is None:
                     raise NotFound("job", job_name)
                 job_id = job.id
-            return uow.runs.list(project.id, job_id=job_id, limit=limit, offset=offset)
+            return uow.runs.list(
+                project.id, job_id=job_id, limit=limit, offset=offset, statuses=statuses
+            )
 
     def retry(self, run_id: UUID, *, idempotency_key: str | None = None) -> tuple[Run, bool]:
         """A retry is a brand-new Run. The original is never touched."""

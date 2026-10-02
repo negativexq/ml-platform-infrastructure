@@ -435,8 +435,25 @@ Verified in a real browser against the demo, like the rest of M20 (`make cp-test
 - Run pages: step timeline on a shared time axis, log tools (wrap, follow while live, copy,
   download), **Run again**, copyable ids.
 
+Day-to-day workflows (each covered by a real-browser test):
+
+| Need | Where |
+| --- | --- |
+| What is broken right now? | **Needs attention** on the home page and each project overview: failures of the last 24 h, unhealthy deployments, canaries in progress |
+| Find a run | **Runs** tab: pipeline or job runs, filter by pipeline/job and status (server-side, `?status=` on the API), paging; filters live in the URL |
+| Is this pipeline healthy? | **Pipelines**: success rate and typical duration over the last 20 runs, definition DAG per version, *Run* / *Run vN*, the definition as a `curl` for CI |
+| Define and run containers | **Jobs**: *New job* (image, command, resources, env), per-job history and health, *Start*; failed job runs have **Retry** |
+| Why did it fail? | Step reasons (exit code, or which upstream step stopped it), log search, error-line highlighting and an *Errors only* filter |
+| Models | **Register model** with thresholds (`auc >= 0.9`), *Edit thresholds*, metric deltas against the champion, *Promote*, *Deploy* |
+| Ship it | **Deploy a version**: to an existing or new deployment, as a gated canary (steps, error-rate and p95 gates) or a direct replace; API errors show inside the dialog |
+| Is it serving? | **Deployments**: serving version, traffic split, live p95 / 5xx; **Try it** sends one request through the platform (with the `curl` equivalent) |
+| Who changed what? | **Activity**: key events by default (routine step/canary ticks on request), search, kind filter, problems only, links to the thing changed, trace ids |
+| Remove a project | **Settings** → *Delete project*, confirmed by typing its name |
+
 What is left for you: try it against real data and real browsers other than Chromium; the trace
-ids in *Recent activity* only appear when the control plane runs with OTEL export on.
+ids in *Activity* only appear when the control plane runs with OTEL export on. There is no
+authentication yet, so every action is recorded as `anonymous`; who-did-what needs the
+identity work planned for later.
 
 ## 8. Code that has never run against the real thing
 

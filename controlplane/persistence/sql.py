@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from types import TracebackType
 from typing import Any, Self
 from uuid import UUID
@@ -279,9 +279,17 @@ class SqlRuns:
         return _run(row) if row else None
 
     def list(
-        self, project_id: UUID, *, job_id: UUID | None, limit: int, offset: int
+        self,
+        project_id: UUID,
+        *,
+        job_id: UUID | None,
+        limit: int,
+        offset: int,
+        statuses: Collection[RunStatus] | None = None,
     ) -> Sequence[Run]:
         stmt = select(RunRow).where(RunRow.project_id == project_id)
+        if statuses:
+            stmt = stmt.where(RunRow.status.in_([s.value for s in statuses]))
         if job_id is not None:
             stmt = stmt.where(RunRow.job_definition_id == job_id)
         stmt = stmt.order_by(RunRow.created_at.desc(), RunRow.id.desc()).limit(limit).offset(offset)
@@ -459,9 +467,17 @@ class SqlPipelineRuns:
         return _pipeline_run(row) if row else None
 
     def list(
-        self, project_id: UUID, *, definition_ids: Sequence[UUID] | None, limit: int, offset: int
+        self,
+        project_id: UUID,
+        *,
+        definition_ids: Sequence[UUID] | None,
+        limit: int,
+        offset: int,
+        statuses: Collection[RunStatus] | None = None,
     ) -> Sequence[PipelineRun]:
         stmt = select(PipelineRunRow).where(PipelineRunRow.project_id == project_id)
+        if statuses:
+            stmt = stmt.where(PipelineRunRow.status.in_([s.value for s in statuses]))
         if definition_ids is not None:
             stmt = stmt.where(PipelineRunRow.pipeline_definition_id.in_(list(definition_ids)))
         stmt = stmt.order_by(PipelineRunRow.created_at.desc(), PipelineRunRow.id.desc())

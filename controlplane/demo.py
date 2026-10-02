@@ -519,6 +519,7 @@ def _seed(
         "run_live": c,
         "rollout": rid,
         "job_run_ok": ok.id,
+        "job_run_failed": bad.id,
         "job_run_live": live.id,
     }
 

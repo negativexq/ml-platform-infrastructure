@@ -6,7 +6,7 @@ commit, so rollback semantics match the SQL implementation.
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass, field
 from types import TracebackType
 from typing import Self
@@ -143,12 +143,20 @@ class _Runs:
         )
 
     def list(
-        self, project_id: UUID, *, job_id: UUID | None, limit: int, offset: int
+        self,
+        project_id: UUID,
+        *,
+        job_id: UUID | None,
+        limit: int,
+        offset: int,
+        statuses: Collection[RunStatus] | None = None,
     ) -> Sequence[Run]:
         rows = [
             r
             for r in self._data.values()
-            if r.project_id == project_id and (job_id is None or r.job_definition_id == job_id)
+            if r.project_id == project_id
+            and (job_id is None or r.job_definition_id == job_id)
+            and (not statuses or r.status in statuses)
         ]
         rows.sort(key=lambda r: (r.created_at, r.id), reverse=True)
         return rows[offset : offset + limit]
@@ -228,13 +236,20 @@ class _PipelineRuns:
         )
 
     def list(
-        self, project_id: UUID, *, definition_ids: Sequence[UUID] | None, limit: int, offset: int
+        self,
+        project_id: UUID,
+        *,
+        definition_ids: Sequence[UUID] | None,
+        limit: int,
+        offset: int,
+        statuses: Collection[RunStatus] | None = None,
     ) -> Sequence[PipelineRun]:
         rows = [
             r
             for r in self._data.values()
             if r.project_id == project_id
             and (definition_ids is None or r.pipeline_definition_id in definition_ids)
+            and (not statuses or r.status in statuses)
         ]
         rows.sort(key=lambda r: (r.created_at, r.id), reverse=True)
         return rows[offset : offset + limit]

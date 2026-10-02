@@ -1,9 +1,10 @@
 import { useState } from 'react';
-import { api, enc, type S } from '../api/client';
+import { api, ApiError, enc, type S } from '../api/client';
 import { Alert, Badge, Empty, Table, Time } from '../components/bits';
+import { useDeploy } from '../components/Deploy';
 import { useOverlays } from '../components/overlays';
 import { useCrumbs } from '../lib/chrome';
-import { num, routes, shortId } from '../lib/format';
+import { formatThresholds, lowerIsBetter, num, parseThresholds, routes, shortId, type Thresholds } from '../lib/format';
 import { QueryView, useAct, useLiveQuery } from '../lib/query';
 
 const EVALUATABLE = new Set(['REGISTERED', 'EVALUATING']);
@@ -14,9 +15,11 @@ const metricNames = (versions: Version[]) =>
 const latest = (v: Version) => v.evaluations[v.evaluations.length - 1];
 
 export function ModelPage({ project, name }: { project: string; name: string }) {
-  useCrumbs([{ label: 'Projects', href: routes.projects() }, { label: project, href: routes.project(project) }, { label: name }]);
+  useCrumbs([{ label: 'Projects', href: routes.projects() }, { label: project, href: routes.project(project) },
+    { label: 'Models', href: `${routes.project(project)}/models` }, { label: name }]);
   const base = `/projects/${enc(project)}/models/${enc(name)}`;
-  const { confirm, toast } = useOverlays();
+  const { confirm, toast, form } = useOverlays();
+  const deploy = useDeploy(project);
   const act = useAct();
   const [picked, setPicked] = useState<string | null>(null);
 
@@ -26,6 +29,21 @@ export function ModelPage({ project, name }: { project: string; name: string }) 
     return { model, versions: versions.sort((a, b) => b.version - a.version) };
   }, (d) => d.versions.some((v) => v.status === 'EVALUATING'));
 
+  async function editThresholds(current: Thresholds) {
+    const done = await form<S['ModelOut']>({
+      title: 'Acceptance thresholds', submitLabel: 'Save',
+      intro: 'Applies to versions evaluated from now on. Versions already accepted or rejected keep their result.',
+      fields: [{ name: 'thresholds', label: 'Thresholds', type: 'textarea', value: formatThresholds(current), placeholder: 'auc >= 0.9\nrmse <= 0.3',
+        hint: 'One per line: metric >= number or metric <= number.' }],
+      submit: (v) => {
+        let thresholds;
+        try { thresholds = parseThresholds(v.thresholds ?? ''); } catch (e) { throw new ApiError(422, 'invalid_argument', e instanceof Error ? e.message : 'invalid'); }
+        return api.put<S['ModelOut']>(`${base}/thresholds`, { thresholds });
+      },
+    });
+    if (done) { toast('Thresholds saved'); await query.refetch(); }
+  }
+
   return (
     <QueryView query={query}>
       {({ model, versions }) => {
@@ -33,6 +51,7 @@ export function ModelPage({ project, name }: { project: string; name: string }) 
         const champion = versions.find((v) => v.status === 'CHAMPION');
         const detail = versions.find((v) => v.id === selected);
         const metrics = metricNames(versions);
+        const championEval = champion ? latest(champion) : undefined;
         return (
           <>
             <div className="page-head">
@@ -42,6 +61,7 @@ export function ModelPage({ project, name }: { project: string; name: string }) 
                   const r = await api.post<{ created: unknown[] }>(`${base}/discover`);
                   toast(r.created.length ? `Registered ${r.created.length} new version(s)` : 'No new versions found');
                 }, 'Checked the registry')}>Discover versions</button>
+                <button className="btn" data-testid="edit-thresholds" onClick={() => editThresholds(model.thresholds as Thresholds)}>Edit thresholds</button>
               </div>
             </div>
             <p className="sub">
@@ -59,7 +79,8 @@ export function ModelPage({ project, name }: { project: string; name: string }) 
                   return (
                     <tr key={v.id} className={`click${v.id === selected ? ' sel' : ''}`} data-testid="version-row" data-version={v.version} onClick={() => setPicked(v.id)}>
                       <td className="mono">{`v${v.version}`}</td><td><Badge status={v.status} /></td>
-                      {metrics.map((m) => <td key={m} className="num mono">{ev && ev.metrics[m] != null ? num(ev.metrics[m], 3) : '—'}</td>)}
+                      {metrics.map((m) => <td key={m} className="num mono"><Metric value={ev?.metrics[m]} base={v.id === champion?.id ? undefined : championEval?.metrics[m]}
+                        lower={lowerIsBetter(m, model.thresholds as Thresholds)} /></td>)}
                       <td>{v.source_pipeline_run_id
                         ? <a href={routes.pipelineRun(project, v.source_pipeline_run_id)} onClick={(e) => e.stopPropagation()}>{shortId(v.source_pipeline_run_id)}</a> : '—'}</td>
                       <td className="num">
@@ -72,6 +93,9 @@ export function ModelPage({ project, name }: { project: string; name: string }) 
                             if (await confirm({ title: `Promote v${v.version}?`, body: `${body} The registry alias follows shortly.`, confirmLabel: 'Promote' }))
                               await act(() => api.post(`/model-versions/${v.id}/promote`), `v${v.version} is now the champion`);
                           }}>Promote</button>)}
+                        {(v.status === 'CANDIDATE' || v.status === 'CHAMPION') && (
+                          <button className="btn small" data-testid="deploy-version" title="Deploy this version, as a canary or directly"
+                            onClick={(e) => { e.stopPropagation(); deploy({ model: name, version: v.version }); }}>Deploy</button>)}
                       </td>
                     </tr>);
                 })}
@@ -116,5 +140,16 @@ function Detail({ v }: { v: Version }) {
           </ul>) : <p className="muted">Never promoted.</p>}
       </div>
     </div>
+  );
+}
+
+/** A metric value, with how it compares to the champion's (green when better). */
+function Metric({ value, base, lower }: { value: number | undefined; base: number | undefined; lower: boolean }) {
+  if (value == null) return <>—</>;
+  if (base == null || value === base) return <>{num(value, 3)}</>;
+  const diff = value - base;
+  const better = lower ? diff < 0 : diff > 0;
+  return (
+    <>{num(value, 3)} <span className={`delta ${better ? 'up' : 'down'}`} title="Compared with the champion">{`${diff > 0 ? '+' : ''}${num(diff, 3)}`}</span></>
   );
 }

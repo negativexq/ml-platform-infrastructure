@@ -13,7 +13,8 @@ const ACTIVE = new Set(['PENDING', 'SUBMITTED', 'RUNNING']);
 type Step = S['StepRunOut'];
 
 export function PipelineRunPage({ project, id }: { project: string; id: string }) {
-  useCrumbs([{ label: 'Projects', href: routes.projects() }, { label: project, href: routes.project(project) }, { label: `run ${shortId(id)}` }]);
+  useCrumbs([{ label: 'Projects', href: routes.projects() }, { label: project, href: routes.project(project) },
+    { label: 'Runs', href: `${routes.project(project)}/runs` }, { label: `run ${shortId(id)}` }]);
   const { confirm, toast } = useOverlays();
   const act = useAct();
   const [picked, setPicked] = useState<string | null>(null);
@@ -73,12 +74,14 @@ export function PipelineRunPage({ project, id }: { project: string; id: string }
               {r.commit_sha && <>{' · commit '}<span className="mono">{r.commit_sha}</span></>}
             </p>
             {r.status_reason && <Alert bad={r.status === 'FAILED'}>{r.status_reason}</Alert>}
-            <div className="card" data-testid="dag"><h2>Steps</h2><Dag steps={r.steps} selected={selected} onSelect={setPicked} /></div>
+            <div className="card" data-testid="dag"><h2>Steps</h2><Dag steps={r.steps.map((s) => ({ ...s, reason: explain(s, r.steps) }))} selected={selected} onSelect={setPicked} /></div>
             <div className="section">
               <Table head={['Step', 'Status', 'Exit', 'Duration', 'Depends on']}>
                 {r.steps.map((s) => (
                   <tr key={s.step} className={`click${s.step === selected ? ' sel' : ''}`} data-testid="step-row" onClick={() => setPicked(s.step)}>
-                    <td>{s.step}</td><td><Badge status={s.status} /></td><td className="mono">{s.exit_code ?? '—'}</td>
+                    <td>{s.step}</td>
+                    <td><Badge status={s.status} />{explain(s, r.steps) && <div className="muted small" data-testid="step-reason">{explain(s, r.steps)}</div>}</td>
+                    <td className="mono">{s.exit_code ?? '—'}</td>
                     <td>{fmtDuration(s.duration_seconds)}</td><td className="muted">{s.depends_on.join(', ') || '—'}</td>
                   </tr>))}
               </Table>
@@ -145,4 +148,27 @@ function Kv({ obj }: { obj: Record<string, string> }) {
   const entries = Object.entries(obj);
   if (!entries.length) return <p className="muted">—</p>;
   return <dl className="kv">{entries.map(([k, v]) => <span key={k} style={{ display: 'contents' }}><dt>{k}</dt><dd className="mono">{v}</dd></span>)}</dl>;
+}
+
+/** Why a step ended up the way it did, in one line: the platform's reason, an exit code, or the
+ * upstream failure that meant it never ran. */
+export function explain(step: Step, steps: Step[]): string | null {
+  if (step.status === 'SUCCEEDED' || step.status === 'RUNNING' || step.status === 'PENDING') return step.status_reason ?? null;
+  if (step.status_reason) return step.status_reason;
+  if (step.status === 'FAILED') return step.exit_code != null ? `exited with code ${step.exit_code}` : null;
+  if (step.status === 'SKIPPED') {
+    const byName = new Map(steps.map((s) => [s.step, s]));
+    const seen = new Set<string>();
+    const queue = [...step.depends_on];
+    while (queue.length) {
+      const name = queue.shift() as string;
+      if (seen.has(name)) continue;
+      seen.add(name);
+      const dep = byName.get(name);
+      if (dep?.status === 'FAILED' || dep?.status === 'CANCELLED') return `not run: ${dep.step} ${dep.status.toLowerCase()}`;
+      if (dep) queue.push(...dep.depends_on);
+    }
+    return 'not run';
+  }
+  return null;
 }

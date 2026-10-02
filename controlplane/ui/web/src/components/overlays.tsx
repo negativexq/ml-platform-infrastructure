@@ -131,6 +131,7 @@ function FormBody({ request }: { request: { options: FormOptions<unknown>; resol
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
+    const formEl = event.currentTarget; // React clears currentTarget once the handler yields
     setError(null);
     for (const field of options.fields) {
       const el = refs.current.get(field.name);
@@ -149,7 +150,7 @@ function FormBody({ request }: { request: { options: FormOptions<unknown>; resol
       const result = await options.submit(values);
       done.current = true;
       resolve(result);
-      closeDialog(event.currentTarget, 'ok');
+      closeDialog(formEl, 'ok');
     } catch (e) {
       setError(e instanceof ApiError ? e.message : 'Something went wrong');
       setBusy(false);

@@ -22,6 +22,7 @@ from controlplane.api.schemas_pipelines import (
 from controlplane.application.pipeline_runs import PipelineRunService
 from controlplane.application.pipelines import CreatePipeline, PipelineService, StepInput
 from controlplane.application.providers import WorkflowProvider
+from controlplane.domain.states import RunStatus
 
 _ERRORS: dict[int | str, dict[str, Any]] = {
     404: {"model": ErrorOut},
@@ -140,9 +141,12 @@ def pipelines_router() -> APIRouter:
         pipeline: str | None = None,
         limit: Annotated[int, Query(ge=1, le=200)] = 50,
         offset: Annotated[int, Query(ge=0)] = 0,
+        status: Annotated[list[RunStatus] | None, Query(description="Repeat to match any")] = None,
     ) -> PipelineRunList:
         service = runs(request)
-        items = service.list(project, pipeline_name=pipeline, limit=limit, offset=offset)
+        items = service.list(
+            project, pipeline_name=pipeline, limit=limit, offset=offset, statuses=status
+        )
         labels = service.definition_labels(items)
         return PipelineRunList(
             items=[

@@ -1,5 +1,6 @@
 import { useState, type ReactNode } from 'react';
 import { fmtAgo } from '../lib/format';
+import { useNow } from '../lib/now';
 
 const SYMBOLS: Record<string, string> = {
   READY: '✓', SUCCEEDED: '✓', CHAMPION: '★', PASSED: '✓', APPLIED: '✓',
@@ -20,9 +21,10 @@ export function Badge({ status }: { status: string }) {
 }
 
 export function Time({ iso }: { iso: string | null | undefined }) {
+  const now = useNow();
   return (
     <time dateTime={iso ?? ''} title={iso ? new Date(iso).toLocaleString() : ''}>
-      {fmtAgo(iso)}
+      {fmtAgo(iso, Math.max(now, Date.now()))}
     </time>
   );
 }
@@ -54,10 +56,10 @@ export function CopyButton({ text, what = 'value' }: { text: string; what?: stri
 
 export const Empty = ({ children }: { children: ReactNode }) => <div className="empty">{children}</div>;
 
-export function Section({ title, testid, children }: { title: string; testid?: string; children: ReactNode }) {
+export function Section({ title, testid, children, more }: { title: string; testid?: string; children: ReactNode; more?: [string, string] }) {
   return (
     <div className="section" data-testid={testid}>
-      <h2>{title}</h2>
+      <div className="section-head"><h2>{title}</h2>{more && <a className="small" href={more[0]}>{more[1]} →</a>}</div>
       {children}
     </div>
   );
@@ -89,5 +91,37 @@ export function Table({ head, children, testid }: { head: string[]; children: Re
       </thead>
       <tbody>{children}</tbody>
     </table>
+  );
+}
+
+/** Previous / next page controls for offset-paginated lists. */
+export function Pager({ offset, limit, count, onChange }: { offset: number; limit: number; count: number; onChange: (offset: number) => void }) {
+  if (offset === 0 && count < limit) return null;
+  return (
+    <div className="pager" role="navigation" aria-label="Pages">
+      <button className="btn small" type="button" disabled={offset === 0} onClick={() => onChange(Math.max(0, offset - limit))}>← Newer</button>
+      <span className="muted small">{count ? `${offset + 1}–${offset + count}` : 'nothing here'}</span>
+      <button className="btn small" type="button" data-testid="older" disabled={count < limit} onClick={() => onChange(offset + limit)}>Older →</button>
+    </div>
+  );
+}
+
+/** A labelled value in a definition grid. */
+export function Kv({ entries }: { entries: [string, ReactNode][] }) {
+  if (!entries.length) return <p className="muted">—</p>;
+  return (
+    <dl className="kv">
+      {entries.map(([k, v]) => <span key={k} style={{ display: 'contents' }}><dt>{k}</dt><dd>{v}</dd></span>)}
+    </dl>
+  );
+}
+
+/** A copyable command, e.g. the API call behind a button, so teams can script what they click. */
+export function Snippet({ label, code }: { label: string; code: string }) {
+  return (
+    <details className="snippet">
+      <summary>{label}</summary>
+      <div className="snippet-body"><pre className="mono">{code}</pre><CopyButton text={code} what="command" /></div>
+    </details>
   );
 }

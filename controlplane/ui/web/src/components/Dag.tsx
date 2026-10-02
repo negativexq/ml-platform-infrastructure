@@ -1,6 +1,10 @@
 import { fmtDuration } from '../lib/format';
 
-export type DagStep = { step: string; status: string; depends_on: string[]; duration_seconds?: number | null };
+export type DagStep = {
+  step: string; status: string; depends_on: string[]; duration_seconds?: number | null;
+  /** Second line of the node; defaults to the status and duration. */
+  detail?: string; reason?: string | null;
+};
 
 const NODE_W = 172, NODE_H = 56, GAP_X = 60, GAP_Y = 20, PAD = 10;
 
@@ -30,12 +34,14 @@ export function layout(steps: DagStep[]) {
   return { pos, width, height };
 }
 
-export function Dag({ steps, selected, onSelect }: { steps: DagStep[]; selected: string | null; onSelect: (step: string) => void }) {
+export function Dag({ steps, selected, onSelect, label = 'Pipeline steps and their dependencies' }: {
+  steps: DagStep[]; selected: string | null; onSelect: (step: string) => void; label?: string;
+}) {
   const { pos, width, height } = layout(steps);
   return (
     <div className="dag-wrap">
       <svg className="dag" width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img"
-        aria-label="Pipeline steps and their dependencies">
+        aria-label={label}>
         <defs>
           <marker id="arrow" viewBox="0 0 10 10" refX={9} refY={5} markerWidth={7} markerHeight={7} orient="auto-start-reverse">
             <path d="M0 0 L10 5 L0 10 z" />
@@ -58,9 +64,10 @@ export function Dag({ steps, selected, onSelect }: { steps: DagStep[]; selected:
               tabIndex={0} role="button" aria-label={`${s.step}: ${status}`} data-step={s.step}
               onClick={() => onSelect(s.step)}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(s.step); } }}>
+              <title>{s.reason ? `${s.step}: ${s.reason}` : s.step}</title>
               <rect width={NODE_W} height={NODE_H} />
               <text x={12} y={23}>{s.step}</text>
-              <text className="st" x={12} y={42}>{status}{s.duration_seconds != null ? ` · ${fmtDuration(s.duration_seconds)}` : ''}</text>
+              <text className="st" x={12} y={42}>{s.detail ?? `${status}${s.duration_seconds != null ? ` · ${fmtDuration(s.duration_seconds)}` : ''}`}</text>
             </g>
           );
         })}

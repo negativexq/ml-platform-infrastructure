@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Collection, Sequence
 from types import TracebackType
 from typing import Protocol, Self
 from uuid import UUID
@@ -74,7 +74,13 @@ class RunRepository(Protocol):
     def get_by_idempotency_key(self, project_id: UUID, key: str) -> Run | None: ...
 
     def list(
-        self, project_id: UUID, *, job_id: UUID | None, limit: int, offset: int
+        self,
+        project_id: UUID,
+        *,
+        job_id: UUID | None,
+        limit: int,
+        offset: int,
+        statuses: Collection[RunStatus] | None = None,
     ) -> Sequence[Run]:
         """Newest first."""
 
@@ -111,7 +117,13 @@ class PipelineRunRepository(Protocol):
     def get_by_idempotency_key(self, project_id: UUID, key: str) -> PipelineRun | None: ...
 
     def list(
-        self, project_id: UUID, *, definition_ids: Sequence[UUID] | None, limit: int, offset: int
+        self,
+        project_id: UUID,
+        *,
+        definition_ids: Sequence[UUID] | None,
+        limit: int,
+        offset: int,
+        statuses: Collection[RunStatus] | None = None,
     ) -> Sequence[PipelineRun]:
         """Newest first."""
 

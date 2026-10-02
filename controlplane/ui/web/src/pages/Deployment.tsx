@@ -1,6 +1,8 @@
 import { api, enc, type S } from '../api/client';
 import { Alert, Badge, CopyButton, Section, Table, Time } from '../components/bits';
 import { useOverlays } from '../components/overlays';
+import { useDeploy } from '../components/Deploy';
+import { TryIt } from '../components/TryIt';
 import { useCrumbs } from '../lib/chrome';
 import { fmtDuration, num, pct, routes } from '../lib/format';
 import { QueryView, useAct, useLiveQuery } from '../lib/query';
@@ -15,10 +17,12 @@ const LABELS: Record<string, string> = {
 };
 
 export function DeploymentPage({ project, name }: { project: string; name: string }) {
-  useCrumbs([{ label: 'Projects', href: routes.projects() }, { label: project, href: routes.project(project) }, { label: name }]);
+  useCrumbs([{ label: 'Projects', href: routes.projects() }, { label: project, href: routes.project(project) },
+    { label: 'Deployments', href: `${routes.project(project)}/deployments` }, { label: name }]);
   const base = `/projects/${enc(project)}`;
   const { confirm } = useOverlays();
   const act = useAct();
+  const deploy = useDeploy(project);
 
   const query = useLiveQuery(['deployment', project, name], async () => {
     const deployment = await api.get<S['DeploymentOut']>(`${base}/deployments/${enc(name)}`);
@@ -40,6 +44,8 @@ export function DeploymentPage({ project, name }: { project: string; name: strin
             <div className="page-head">
               <h1>{d.name}</h1><Badge status={d.status} />
               <div className="actions">
+                <button className="btn primary" type="button" data-testid="deploy" disabled={Boolean(live)}
+                  title={live ? 'A rollout is in progress' : 'Deploy a model version here'} onClick={() => deploy({ deployment: d.name })}>Deploy a version</button>
                 <button className="btn danger" data-testid="rollback" disabled={noRollback}
                   title={live ? 'A rollout is in progress; abort it instead' : d.revisions.length < 2 ? 'There is no earlier revision' : 'Serve the previous revision again'}
                   onClick={async () => {
@@ -60,6 +66,7 @@ export function DeploymentPage({ project, name }: { project: string; name: strin
                 await act(() => api.post(`/rollouts/${live.id}/abort`), 'Abort requested');
             }} />}
             <div className="cols"><EndpointCard endpoint={d.endpoint} metrics={metrics} live={live} /><Revisions d={d} /></div>
+            <TryIt project={project} endpoint={d.endpoint} />
             {rollouts.some((r) => r !== live) && (
               <Section title="Rollout history"><History rows={rollouts.filter((r) => r !== live)} /></Section>)}
             <div className="section card"><h2>Recent activity</h2>

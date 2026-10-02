@@ -13,6 +13,7 @@ from controlplane.application.jobs import CreateJob, JobService
 from controlplane.application.providers import WorkflowProvider
 from controlplane.application.runs import RunService
 from controlplane.application.workflow_compiler import MAIN_STEP
+from controlplane.domain.states import RunStatus
 
 _ERRORS: dict[int | str, dict[str, Any]] = {
     404: {"model": ErrorOut},
@@ -115,9 +116,10 @@ def runs_router() -> APIRouter:
         job: str | None = None,
         limit: Annotated[int, Query(ge=1, le=200)] = 50,
         offset: Annotated[int, Query(ge=0)] = 0,
+        status: Annotated[list[RunStatus] | None, Query(description="Repeat to match any")] = None,
     ) -> RunList:
         service = svc(request)
-        items = service.list(project, job_name=job, limit=limit, offset=offset)
+        items = service.list(project, job_name=job, limit=limit, offset=offset, statuses=status)
         names = service.job_names(items[0].project_id) if items else {}
         return RunList(
             items=[RunOut.from_domain(r, names.get(r.job_definition_id)) for r in items],

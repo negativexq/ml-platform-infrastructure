@@ -50,7 +50,7 @@ export function Layout({ children }: { children: ReactNode }) {
         <a className="brand" href={routes.projects()}>ML Platform</a>
         <nav id="crumbs" aria-label="Breadcrumb">
           {crumbs.map((c, i) => (
-            <span key={i} style={{ display: 'contents' }}>
+            <span key={i} className="crumb">
               <span className="sep" />
               {c.href ? <a href={c.href}>{c.label}</a> : <span aria-current="page">{c.label}</span>}
             </span>
