@@ -245,6 +245,13 @@ class FakeServingProvider:
             },
         }
 
+    def invoke(self, ref: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        """A function that echoes what it was sent, saying which function answered."""
+        if ref not in self._ready:
+            raise ConnectionError(f"{ref} is not serving")
+        self.requests.append((ref, payload))
+        return {"function": ref.partition("/")[2], "received": dict(payload), "ok": True}
+
     def delete(self, ref: str) -> None:
         self.specs.pop(ref, None)
         self.previous.pop(ref, None)

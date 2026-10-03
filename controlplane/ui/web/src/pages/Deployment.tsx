@@ -151,7 +151,8 @@ function Revisions({ d }: { d: S['DeploymentOut'] }) {
         {[...d.revisions].reverse().map((r) => (
           <tr key={r.revision} data-testid="revision-row">
             <td className="mono">{`r${r.revision}`}</td><td>{`${r.model} v${r.model_version}`}</td>
-            <td className="small">{r.runtime === 'huggingface' ? `LLM runtime, ${r.gpus} GPU${r.gpus === 1 ? '' : 's'}` : 'model server'}</td>
+            <td className="small">{r.runtime === 'huggingface' ? `LLM runtime, ${r.gpus} GPU${r.gpus === 1 ? '' : 's'}`
+              : r.runtime === 'container' ? `function, ${r.min_scale ?? 0}–${r.max_scale ?? 1} replicas` : 'model server'}</td>
             <td><Time iso={r.created_at} /></td>
             <td>{r.revision === d.active_revision ? <Badge status="READY" /> : r.revision === d.desired_revision ? <Badge status="DEPLOYING" /> : null}</td>
           </tr>))}

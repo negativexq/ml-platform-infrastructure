@@ -33,7 +33,7 @@ class HttpUpstream:
         elif call.protocol is EndpointProtocol.OPENAI:
             path = "/openai/v1/chat/completions"  # KServe's Hugging Face server (vLLM)
         else:
-            raise ConnectionError(f"{call.protocol.value} endpoints are not served yet")
+            path = "/"  # a function: its own container takes POST / with any JSON
         request = self._client.build_request(
             "POST",
             f"{call.url.rstrip('/')}{path}",
@@ -80,7 +80,11 @@ class ServingUpstream:
         except ValueError:
             return UpstreamReply(400, "application/json", _once(b'{"error": "body is not JSON"}'))
         llm = call.protocol is EndpointProtocol.OPENAI
-        answer_of = self._serving.chat if llm else self._serving.predict
+        answer_of = {
+            EndpointProtocol.V2_INFER: self._serving.predict,
+            EndpointProtocol.OPENAI: self._serving.chat,
+            EndpointProtocol.HTTP: self._serving.invoke,
+        }[call.protocol]
         with anyio.fail_after(call.timeout_seconds):
             answer = await anyio.to_thread.run_sync(answer_of, call.ref, payload)
         if llm and payload.get("stream"):

@@ -104,6 +104,30 @@ for chunk in client.chat.completions.create(model="assistant-prod", stream=True,
 * **Missing counts.** If the model server reports no `usage`, the call counts as 0 tokens.
   vLLM always reports it.
 
+## Function endpoints: invoke
+
+A function is the team's own container behind an endpoint. Callers send any JSON and get
+the function's JSON back:
+
+```http
+POST https://api.example.com/v1/{project}/{endpoint}/invoke
+Authorization: Bearer mlp_live_...
+
+{ "ticket": "My card was declined at checkout" }
+```
+
+* **The container.** It listens on its port (8080 by default) and answers `POST /`. The
+  gateway forwards the body unchanged and passes the reply through.
+* **Scaling.** It runs as a KServe custom predictor on Knative, with its own replica range
+  (`min_scale` to `max_scale`) and requests per replica. A minimum of 0 scales it to zero
+  when idle, so the first call after a quiet spell waits for a cold start. The default
+  60-second timeout leaves room for that.
+* **Limits and usage** count requests, like a model. A new function endpoint starts at 600
+  requests per minute, a 1 MB body and a 60-second timeout.
+* **Versions.** A version is a container image with a tag or digest (not `:latest`). There is
+  nothing to evaluate, so a version is deployable as soon as it is registered. A canary of it
+  is still judged on error rate and latency in real traffic.
+
 ## Who may call
 
 * **API keys** (`mlp_live_<id>_<secret>`) are issued per caller, for named endpoints, with an
@@ -145,6 +169,7 @@ URLs in the UI.
 | | API (admin unless noted) | UI |
 | --- | --- | --- |
 | Open or close, set limits | `PATCH /projects/{p}/endpoints/{name}` | Deployment page, **API access** |
+| Try a function (invoker) | `POST /projects/{p}/endpoints/{name}/predict` with any JSON, through the platform | Deployment page, **Try it** |
 | Try an LLM (invoker) | `POST /projects/{p}/endpoints/{name}/chat`, through the platform, not streamed | Deployment page, **Playground** |
 | Issue a key | `POST /projects/{p}/api-keys` | API access, or Settings, **API keys** |
 | Revoke a key | `DELETE /projects/{p}/api-keys/{key_id}` | the key's **Revoke** |

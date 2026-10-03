@@ -14,6 +14,7 @@ code; the original milestone plan is in [history/](history/).
 | **LLMs** | LLM models with GPU and context settings. Versions from the Hugging Face Hub, judged on offline results. KServe's Hugging Face runtime (vLLM) on GPUs. Per-project GPU quota, set by platform admins and checked on deploy and canary. In the UI: model and hub forms with verdict previews, a chat playground, OpenAI snippets, token usage per caller, and GPU quota and use |
 | **Gateway** | A separate service that makes endpoints public. Per-caller API keys, shown once and stored hashed. Limits per endpoint and per key: requests, or tokens for LLMs. Streaming, OpenAI-compatible chat completions, usage by caller. Ingress, TLS and NetworkPolicy manifests |
 | **Monitoring** | Monitor page (reconcilers, API, gateway, external systems). Grafana dashboard, 10 promtool-tested alerts, traces from request to reconciler |
+| **Functions** | The team's own container behind an endpoint. Versions are images, deployable at once, served by KServe on Knative with a replica range (scale to zero), concurrency and environment. Called at `POST …/invoke` with any JSON, through the gateway with keys and limits, with canaries and rollback like models |
 | **Web UI** | App shell with a sidebar and project switcher. Pages for runs, pipelines, models, deployments, activity, settings, members and API access. Charts built to a data-viz spec. Previews before risky changes. Light, dark and mobile |
 
 ## Missing in the code
@@ -22,10 +23,11 @@ code; the original milestone plan is in [history/](history/).
 - **`make gateway-e2e`:** add an LLM case (stream, token count, token limit) against a
   stand-in OpenAI-compatible server.
 
-### Functions (phase 3)
-- **Not started.** Endpoints of kind `function` (a container image, scaled to zero by
-  Knative, `POST …/invoke`) are reserved in the contract. The gateway, keys and limits
-  already allow for them.
+### Functions
+- **Image pull secrets.** Private registries need a pull secret in each project namespace.
+  There is no per-project mechanism yet, so it is created by hand.
+- **Cold starts are not shown.** Neither the gateway nor the Monitor reports how often calls
+  wait for a function to start.
 
 ## Missing to install it on a cluster
 
@@ -99,5 +101,4 @@ Already verified for real here:
    - per-project secrets;
    - deployment delete and run clean-up;
    - log streaming.
-5. **Functions (phase 3):** serverless endpoints of kind `function`.
-6. **AWS:** EKS, RDS and S3 from the existing Terraform.
+5. **AWS:** EKS, RDS and S3 from the existing Terraform.

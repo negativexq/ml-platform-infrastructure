@@ -27,7 +27,7 @@ layer (the first inference service, GitOps, drills) is described in
  │  Reconcilers                                      │
  └──────┬────────────────────────────────────────────┘
         ▼
- Kubernetes · Argo Workflows · MLflow · KServe (MLflow server or vLLM)
+ Kubernetes · Argo Workflows · MLflow · KServe (MLflow server, vLLM, or a function's container)
 ```
 
 | Part | Process | What it does |
@@ -96,6 +96,7 @@ caller ──HTTPS──▶ ingress ──▶ gateway ──▶ KServe (Knative 
    * A model gets KServe's v2 protocol: `/v2/models/<name>/infer`.
    * An LLM gets OpenAI-compatible chat: `/openai/v1/chat/completions`. A streamed request
      is asked to include usage, so tokens are counted while the events pass through.
+   * A function gets the body unchanged at its container's `/`.
 6. **Record:** `mlp_gateway_*` metrics by project, endpoint, caller and status. Label values
    are never strings an outsider chose.
 

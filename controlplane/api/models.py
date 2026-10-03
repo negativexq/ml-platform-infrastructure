@@ -9,7 +9,9 @@ from controlplane.api.errors import PlatformRoute
 from controlplane.api.schemas import ErrorOut
 from controlplane.api.schemas_models import (
     DiscoveryOut,
+    FunctionServingIn,
     HubVersionCreate,
+    ImageVersionCreate,
     ModelCreate,
     ModelList,
     ModelOut,
@@ -50,6 +52,10 @@ def models_router() -> APIRouter:
     def create_model(
         project: str, body: ModelCreate, request: Request, response: Response
     ) -> ModelOut:
+        if body.function is not None and body.kind is not ModelKind.FUNCTION:
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_CONTENT, "function settings need kind function"
+            )
         if body.llm is not None and body.kind is not ModelKind.LLM:
             raise HTTPException(status.HTTP_422_UNPROCESSABLE_CONTENT, "llm settings need kind llm")
         view, created = svc(request).create(
@@ -58,6 +64,11 @@ def models_router() -> APIRouter:
             {k: t.to_domain() for k, t in body.thresholds.items()},
             kind=body.kind,
             serving=body.serving(),
+            function=(
+                (body.function or FunctionServingIn()).to_domain()
+                if body.kind is ModelKind.FUNCTION
+                else None
+            ),
         )
         if not created:
             response.status_code = status.HTTP_200_OK
@@ -106,6 +117,24 @@ def models_router() -> APIRouter:
         project: str, name: str, body: HubVersionCreate, request: Request, response: Response
     ) -> ModelVersionSummary:
         version, created = svc(request).register_from_hub(project, name, body.source, body.metrics)
+        if not created:
+            response.status_code = status.HTTP_200_OK
+        return ModelVersionSummary.from_domain(version)
+
+    @router.post(
+        "/{name}/images",
+        response_model=ModelVersionSummary,
+        status_code=status.HTTP_201_CREATED,
+        responses={
+            200: {"model": ModelVersionSummary, "description": "Already registered"},
+            **_ERRORS,
+        },
+        summary="Register a function version: a container image (idempotent, a candidate at once)",
+    )
+    def register_image(
+        project: str, name: str, body: ImageVersionCreate, request: Request, response: Response
+    ) -> ModelVersionSummary:
+        version, created = svc(request).register_image(project, name, body.image)
         if not created:
             response.status_code = status.HTTP_200_OK
         return ModelVersionSummary.from_domain(version)

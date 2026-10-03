@@ -145,6 +145,7 @@ export function ApiAccessCard({ project, endpoint }: { project: string; endpoint
           const active = a.keys.filter((k) => k.state === 'active');
           const L = a.limits;
           const llm = a.protocol === 'openai';
+          const fn = a.protocol === 'http';
           const unit = llm ? 'tokens' : 'requests';
           async function toggle() {
             const opening = !isPublic;
@@ -196,7 +197,7 @@ export function ApiAccessCard({ project, endpoint }: { project: string; endpoint
             `curl ${shellQuote(a.public_url)} \\`,
             `  -H 'Authorization: Bearer $MLP_API_KEY' \\`,
             `  -H 'Content-Type: application/json' \\`,
-            `  -d '{"instances": [[1.0, 2.0, 3.0]]}'`,
+            fn ? `  -d '{"ticket": "My card was declined"}'` : `  -d '{"instances": [[1.0, 2.0, 3.0]]}'`,
           ]).join('\n');
           const python = a.public_url && (llm ? [
             'import os',
@@ -220,11 +221,11 @@ export function ApiAccessCard({ project, endpoint }: { project: string; endpoint
             'reply = requests.post(',
             `    "${a.public_url}",`,
             '    headers={"Authorization": f"Bearer {os.environ[\'MLP_API_KEY\']}"},',
-            '    json={"instances": [[1.0, 2.0, 3.0]]},',
+            fn ? '    json={"ticket": "My card was declined"},' : '    json={"instances": [[1.0, 2.0, 3.0]]},',
             `    timeout=${L.timeout_seconds},`,
             ')',
             'reply.raise_for_status()',
-            'print(reply.json()["predictions"])',
+            fn ? 'print(reply.json())' : 'print(reply.json()["predictions"])',
           ]).join('\n');
           return (
             <>
@@ -251,6 +252,7 @@ export function ApiAccessCard({ project, endpoint }: { project: string; endpoint
                 ['Timeout', `${L.timeout_seconds} s`],
                 ['Protocol', llm
                   ? `OpenAI-compatible chat: POST …/${a.operation} with {"messages": [...]}, streamed with "stream": true`
+                  : fn ? `Any JSON: POST …/${a.operation}; the function's own container answers`
                   : `${a.protocol}: POST …/${a.operation} with {"instances": [...]}`],
               ]} />
               {curl && <Snippet label={llm ? 'Call it with curl (streamed)' : 'Call it with curl'} code={curl} />}

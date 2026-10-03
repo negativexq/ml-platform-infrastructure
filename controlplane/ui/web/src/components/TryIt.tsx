@@ -3,10 +3,11 @@ import { api, enc, type S } from '../api/client';
 import { Snippet } from './bits';
 
 const EXAMPLE = '{\n  "instances": [[1.0, 2.0, 3.0]]\n}';
+const FUNCTION_EXAMPLE = '{\n  "ticket": "My card was declined at checkout"\n}';
 
 /** Send one request through the platform to the endpoint: the quickest "is it actually serving?". */
 export function TryIt({ project, endpoint, allowed = true }: { project: string; endpoint: S['EndpointOut']; allowed?: boolean }) {
-  const [body, setBody] = useState(EXAMPLE);
+  const [body, setBody] = useState(endpoint.kind === 'function' ? FUNCTION_EXAMPLE : EXAMPLE);
   const [result, setResult] = useState<{ ok: boolean; text: string; ms: number } | null>(null);
   const [busy, setBusy] = useState(false);
   const ready = endpoint.status === 'READY';

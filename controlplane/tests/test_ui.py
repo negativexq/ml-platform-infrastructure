@@ -1194,3 +1194,36 @@ def test_gpu_quota_shows_use_and_refuses_going_below_it(page: Page, server: Serv
     page.locator("#f-gpus").fill("4")
     page.locator("dialog[open] button[type=submit]").click()
     expect(card.get_by_test_id("gpu-use")).to_contain_text("1 of 4")
+
+
+# -- functions -------------------------------------------------------------------------------
+
+
+def test_a_function_is_created_registered_and_called(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects/customer-support/models")
+    expect(page.get_by_test_id("kind-function")).to_have_count(1)
+    page.get_by_test_id("register-model").click()
+    page.locator("#f-name").fill("enricher")
+    page.locator("#f-kind").select_option("function")
+    page.locator("#f-scale").fill("1-4")
+    page.locator("#f-env").fill("REGION=eu")
+    expect(page.get_by_test_id("form-preview")).to_contain_text("1-4 replicas")
+    page.locator("dialog[open] button[type=submit]").click()
+    expect(page.locator("main h1")).to_have_text("enricher")
+    expect(page.get_by_test_id("function-serving")).to_contain_text("1–4 replicas")
+    expect(page.get_by_test_id("discover")).to_have_count(0)
+    page.get_by_test_id("register-image").click()
+    page.locator("#f-image").fill("ghcr.io/acme/enricher:2.0.1")
+    page.locator("dialog[open] button[type=submit]").click()
+    row = page.locator("[data-testid=version-row][data-version='1']")
+    expect(row).to_contain_text("candidate")
+    expect(row.get_by_test_id("version-source")).to_contain_text("ghcr.io/acme/enricher:2.0.1")
+
+    page.goto(f"{server.url}/ui/#/projects/customer-support/deployments/ticket-router")
+    expect(page.get_by_test_id("revision-row").first).to_contain_text("function, 0–5 replicas")
+    expect(page.get_by_test_id("playground")).to_have_count(0)
+    page.get_by_test_id("try-send").click()
+    expect(page.get_by_test_id("try-result")).to_contain_text('"function": "ticket-router"')
+    access = page.get_by_test_id("api-access")
+    expect(access.get_by_test_id("public-url")).to_contain_text("/ticket-router/invoke")
+    expect(access).to_contain_text("Any JSON: POST")

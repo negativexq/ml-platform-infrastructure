@@ -247,6 +247,7 @@ class RolloutReconciler:
             runtime=revision.runtime.value,
             gpus=revision.gpus,
             context_length=revision.context_length,
+            function=revision.function.to_json() if revision.function else None,
             labels={
                 "mlp.io/project-id": str(ctx.project.id),
                 "mlp.io/deployment": ctx.deployment.name,

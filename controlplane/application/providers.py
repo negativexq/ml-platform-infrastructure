@@ -136,6 +136,8 @@ class ServingSpec:
     runtime: str = "mlflow"
     gpus: int = 0
     context_length: int | None = None
+    # A function ("container" runtime): replicas, concurrency, port and environment.
+    function: Mapping[str, Any] | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -164,6 +166,9 @@ class ServingProvider(Protocol):
 
     def chat(self, ref: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         """One OpenAI-style chat completion from a live LLM endpoint (not streamed)."""
+
+    def invoke(self, ref: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        """Call a live function with any JSON; it answers any JSON."""
 
     def delete(self, ref: str) -> None: ...
 

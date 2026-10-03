@@ -21,6 +21,7 @@ from controlplane.application.workflow_compiler import TAG_PIPELINE_RUN_ID
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import (
     Evaluation,
+    FunctionServing,
     LlmServing,
     Model,
     ModelVersion,
@@ -29,6 +30,7 @@ from controlplane.domain.entities import (
     Threshold,
     run_checks,
     validate_hub_source,
+    validate_image,
 )
 from controlplane.domain.errors import AlreadyExists, Conflict, InvalidArgument, NotFound
 from controlplane.domain.states import EvaluationStatus, ModelKind, ModelStatus, PromotionStatus
@@ -102,13 +104,14 @@ class ModelService:
         *,
         kind: ModelKind = ModelKind.CLASSIC,
         serving: LlmServing | None = None,
+        function: FunctionServing | None = None,
     ) -> tuple[ModelView, bool]:
         """Identical repeat -> existing, `created=False`. Same name with different
         thresholds -> Conflict: change thresholds explicitly with `set_thresholds`."""
         try:
-            return self._create(project_ref, name, thresholds, kind, serving)
+            return self._create(project_ref, name, thresholds, kind, serving, function)
         except AlreadyExists:  # lost a race with an identical request
-            return self._create(project_ref, name, thresholds, kind, serving)
+            return self._create(project_ref, name, thresholds, kind, serving, function)
 
     def _create(
         self,
@@ -117,6 +120,7 @@ class ModelService:
         thresholds: Mapping[str, Threshold],
         kind: ModelKind,
         serving: LlmServing | None,
+        function: FunctionServing | None,
     ) -> tuple[ModelView, bool]:
         with self._uow_factory() as uow:
             project = resolve_project(uow, project_ref)
@@ -127,6 +131,7 @@ class ModelService:
                 now=self._clock(),
                 kind=kind,
                 serving=serving,
+                function=function,
             )
             existing = uow.models.get_by_name(project.id, candidate.name)
             if existing is not None:
@@ -135,7 +140,8 @@ class ModelService:
                         f"model {name!r} already exists with different thresholds; "
                         "use PUT .../thresholds to change them"
                     )
-                if (existing.kind, existing.serving) != (candidate.kind, candidate.serving):
+                same = (existing.kind, existing.serving, existing.function)
+                if same != (candidate.kind, candidate.serving, candidate.function):
                     raise Conflict(f"model {name!r} already exists as a different kind of model")
                 return self._view(uow, project, existing), False
             uow.models.add(candidate)
@@ -240,6 +246,24 @@ class ModelService:
                 continue
         raise AlreadyExists("model version", source)
 
+    def register_image(self, project_ref: str, name: str, image: str) -> tuple[ModelVersion, bool]:
+        """A function version is a container image. There is nothing to evaluate it against,
+        so it is a candidate at once: deployable, and promoted when a canary of it succeeds.
+        Idempotent per image."""
+        validate_image(image)
+        with self._uow_factory() as uow:
+            project, model = self._load(uow, project_ref, name)
+            if model.kind is not ModelKind.FUNCTION:
+                raise Conflict(f"model {name!r} is {model.kind.value}, not a function")
+        for _ in range(3):
+            try:
+                return self._register(
+                    model, project, image, None, source_uri=image, status=ModelStatus.CANDIDATE
+                )
+            except AlreadyExists:
+                continue
+        raise AlreadyExists("model version", image)
+
     def _lineage(self, run_ref: str | None) -> UUID | None:
         """The pipeline run that produced a registry version, from the tracking run's tags."""
         if run_ref is None or self._experiments is None:
@@ -259,6 +283,7 @@ class ModelService:
         *,
         source_uri: str | None = None,
         metrics: Mapping[str, float] | None = None,
+        status: ModelStatus = ModelStatus.REGISTERED,
     ) -> tuple[ModelVersion, bool]:
         with self._uow_factory() as uow:
             known = uow.model_versions.get_by_ref(model.id, ref)
@@ -272,6 +297,7 @@ class ModelService:
                 source_pipeline_run_id=lineage,
                 source_uri=source_uri,
                 metrics=dict(metrics or {}),
+                status=status,
                 created_at=now,
                 updated_at=now,
             )

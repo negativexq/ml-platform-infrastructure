@@ -450,6 +450,76 @@ class LlmServing:
             raise InvalidArgument("context_length must be between 256 and 1048576 tokens")
 
 
+@dataclass(frozen=True, slots=True)
+class FunctionServing:
+    """How a function runs: replicas between `min_scale` (0: scale to zero when idle) and
+    `max_scale`, requests one replica takes at once, its environment and the port it
+    listens on."""
+
+    min_scale: int = 0
+    max_scale: int = 3
+    concurrency: int = 10
+    port: int = 8080
+    env: Mapping[str, str] = field(default_factory=dict)
+
+    def __post_init__(self) -> None:
+        if not 0 <= self.min_scale <= self.max_scale <= MAX_FUNCTION_REPLICAS:
+            raise InvalidArgument(
+                f"replicas: 0 <= min_scale <= max_scale <= {MAX_FUNCTION_REPLICAS}"
+            )
+        if self.max_scale < 1:
+            raise InvalidArgument("max_scale must be at least 1")
+        if not 1 <= self.concurrency <= 1000:
+            raise InvalidArgument("concurrency must be between 1 and 1000")
+        if not 1024 <= self.port <= 65535:
+            raise InvalidArgument("port must be between 1024 and 65535")
+        for key in self.env:
+            if not _ENV_NAME.match(key):
+                raise InvalidArgument(f"environment variable names are LIKE_THIS: got {key!r}")
+        object.__setattr__(self, "env", dict(self.env))
+
+    def to_json(self) -> dict[str, object]:
+        return {
+            "min_scale": self.min_scale,
+            "max_scale": self.max_scale,
+            "concurrency": self.concurrency,
+            "port": self.port,
+            "env": dict(self.env),
+        }
+
+    @classmethod
+    def from_json(cls, raw: Mapping[str, object]) -> FunctionServing:
+        env = raw.get("env") or {}
+        assert isinstance(env, dict)
+        return cls(
+            min_scale=int(str(raw.get("min_scale", 0))),
+            max_scale=int(str(raw.get("max_scale", 3))),
+            concurrency=int(str(raw.get("concurrency", 10))),
+            port=int(str(raw.get("port", 8080))),
+            env={str(k): str(v) for k, v in env.items()},
+        )
+
+
+MAX_FUNCTION_REPLICAS = 50
+_ENV_NAME = re.compile(r"^[A-Z_][A-Z0-9_]{0,63}$")
+# registry/path/name:tag or @sha256:digest; a tag or digest is required so a version is fixed
+_IMAGE = re.compile(
+    r"^[a-z0-9]([a-z0-9.-]*[a-z0-9])?(:[0-9]+)?(/[a-z0-9]([a-z0-9._-]*[a-z0-9])?)+"
+    r"(:[\w][\w.-]{0,127}|@sha256:[a-f0-9]{64})$"
+)
+
+
+def validate_image(image: str) -> str:
+    """A container image with its registry and a tag or digest, e.g.
+    ghcr.io/acme/enrich:1.4.2. Prefer a digest: a tag can be moved."""
+    if not _IMAGE.match(image) or image.endswith(":latest"):
+        raise InvalidArgument(
+            "an image is <registry>/<path>:<tag> or @sha256:<digest>, not :latest, "
+            f"e.g. ghcr.io/acme/enrich:1.4.2: got {image!r}"
+        )
+    return image
+
+
 _HUB_SOURCE = re.compile(r"^hf://[A-Za-z0-9][\w.-]{0,95}/[\w.-]{1,96}(@[\w.-]{1,64})?$")
 
 
@@ -477,6 +547,7 @@ class Model:
     alias_drift: str | None = None
     kind: ModelKind = ModelKind.CLASSIC
     serving: LlmServing | None = None  # how an LLM is served; None for classic models
+    function: FunctionServing | None = None  # how a function runs; None otherwise
     created_at: datetime
 
     @classmethod
@@ -489,6 +560,7 @@ class Model:
         now: datetime,
         kind: ModelKind = ModelKind.CLASSIC,
         serving: LlmServing | None = None,
+        function: FunctionServing | None = None,
     ) -> Self:
         validate_slug(name, "model name")
         for metric in thresholds:
@@ -499,12 +571,19 @@ class Model:
             serving = serving or LlmServing()
         elif serving is not None:
             raise InvalidArgument("serving settings are for LLMs only")
+        if kind is ModelKind.FUNCTION:
+            function = function or FunctionServing()
+            if thresholds:
+                raise InvalidArgument("a function has no evaluation thresholds")
+        elif function is not None:
+            raise InvalidArgument("function settings are for functions only")
         return cls(
             project_id=project_id,
             name=name,
             thresholds=dict(thresholds),
             kind=kind,
             serving=serving,
+            function=function,
             created_at=now,
         )
 
@@ -645,6 +724,7 @@ class DeploymentRevision:
     runtime: ServingRuntime = ServingRuntime.MLFLOW
     gpus: int = 0
     context_length: int | None = None
+    function: FunctionServing | None = None  # a function revision's scaling and environment
     created_at: datetime
 
 

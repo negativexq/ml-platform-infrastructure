@@ -50,6 +50,17 @@ export function ModelPage({ project, name }: { project: string; name: string }) 
     if (done) { toast('Thresholds saved'); await query.refetch(); }
   }
 
+  async function registerImage() {
+    const done = await form<S['ModelVersionSummary']>({
+      title: 'Register an image', submitLabel: 'Register',
+      intro: 'A function version is a container image. It listens on its port and answers POST / with JSON. There is nothing to evaluate, so it can be deployed at once; a canary of it still has to pass its gates.',
+      fields: [{ name: 'image', label: 'Image', required: true, placeholder: 'ghcr.io/acme/ticket-router:1.4.2',
+        hint: 'With its registry and a tag or @sha256 digest (not :latest), so the version always means the same code.' }],
+      submit: (v) => api.post<S['ModelVersionSummary']>(`${base}/images`, { image: v.image }),
+    });
+    if (done) { toast(`Registered v${done.version}; deploy it from its row`); await query.refetch(); }
+  }
+
   async function registerFromHub(model: S['ModelOut']) {
     const thresholds = model.thresholds as Thresholds;
     const done = await form<S['ModelVersionSummary']>({
@@ -91,24 +102,33 @@ export function ModelPage({ project, name }: { project: string; name: string }) 
             <div className="page-head">
               <h1>{model.name}</h1>{model.champion && <Badge status="CHAMPION" />}
               <div className="actions">
+                {model.kind === 'function' && (
+                  <button className="btn" data-testid="register-image" disabled={!access.may('operator')} title={access.why('operator') ?? 'Register a version: a container image'}
+                    onClick={() => registerImage()}>Register image</button>)}
                 {model.kind === 'llm' && (
                   <button className="btn" data-testid="register-hub" disabled={!access.may('operator')} title={access.why('operator') ?? 'Register a version from the Hugging Face Hub'}
                     onClick={() => registerFromHub(model)}>Register from hub</button>)}
+                {model.kind !== 'function' && (<>
                 <button className="btn" data-testid="discover" disabled={!access.may('operator')} title={access.why('operator')} onClick={() => act(async () => {
                   const r = await api.post<{ created: unknown[] }>(`${base}/discover`);
                   toast(r.created.length ? `Registered ${r.created.length} new version(s)` : 'No new versions found');
                 }, 'Checked the registry')}>Discover versions</button>
                 <button className="btn" data-testid="edit-thresholds" disabled={!access.may('admin')} title={access.why('admin')} onClick={() => editThresholds(model.thresholds as Thresholds)}>Edit thresholds</button>
+                </>)}
               </div>
             </div>
             <p className="sub">
+              {model.kind === 'function' && model.function && (
+                <span className="chip" data-testid="function-serving">{`Function · ${model.function.min_scale}–${model.function.max_scale} replicas · ${model.function.concurrency} at once · port ${model.function.port}`}</span>)}
               {model.kind === 'llm' && model.llm && (
                 <span className="chip" data-testid="llm-serving">{`LLM · ${model.llm.gpus} GPU${model.llm.gpus === 1 ? '' : 's'} per replica · context ${model.llm.context_length ?? 'model default'}`}</span>)}
+              {model.kind !== 'function' && <>
               Registry name <span className="mono">{model.registry_name}</span>{' · acceptance thresholds '}
               {Object.keys(model.thresholds).length
                 ? Object.entries(model.thresholds).map(([m, t]) => (
                   <span className="chip mono" key={m}>{`${m} ${t.min != null ? '≥ ' + t.min : ''}${t.min != null && t.max != null ? ', ' : ''}${t.max != null ? '≤ ' + t.max : ''}`}</span>))
                 : <span className="muted">none set</span>}
+              </>}
             </p>
             {model.alias_drift && <Alert>{`Registry alias drift: ${model.alias_drift}`}</Alert>}
             {versions.length ? (
@@ -165,6 +185,15 @@ export function ModelPage({ project, name }: { project: string; name: string }) 
 }
 
 function Detail({ v, project }: { v: Version; project: string }) {
+  if (v.source_uri && !v.source_uri.startsWith('hf://')) {
+    return (
+      <div className="section card" data-testid="version-detail">
+        <h2>{`v${v.version}`}</h2>
+        <p>Container image <span className="mono">{v.source_uri}</span>.</p>
+        <p className="muted small">A function is not evaluated against thresholds: it is a candidate as soon as it is registered. Deploy it as a canary to have its error rate and latency judged in real traffic before it takes over.</p>
+      </div>
+    );
+  }
   return (
     <div className="cols section" data-testid="version-detail">
       <div className="card">

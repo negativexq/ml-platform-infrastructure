@@ -219,11 +219,13 @@ class ModelKind(StrEnum):
 
     CLASSIC = "classic"
     LLM = "llm"
+    FUNCTION = "function"  # your own container: any JSON in, any JSON out, scales to zero
 
 
 class ServingRuntime(StrEnum):
     MLFLOW = "mlflow"
     HUGGINGFACE = "huggingface"
+    CONTAINER = "container"  # a function's own image
 
 
 class EndpointKind(StrEnum):

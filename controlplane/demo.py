@@ -15,7 +15,8 @@ The seeded story (project `credit-risk`):
 
 And project `customer-support`: an LLM `assistant` with three versions from the Hugging Face
 Hub (v1 champion and serving on 1 of 2 GPUs, v2 candidate, v3 rejected), public through the
-gateway with a `helpdesk-app` key.
+gateway with a `helpdesk-app` key, and a function `ticket-router` (the team's own container,
+scaling to zero) behind the same key.
 """
 
 from __future__ import annotations
@@ -46,7 +47,7 @@ from controlplane.adapters.gateway import ServingUpstream, TokenBucketLimiter
 from controlplane.api.app import create_app
 from controlplane.api.auth import AuthConfig
 from controlplane.application.api_access import ApiAccessService
-from controlplane.application.deployments import DeploymentService
+from controlplane.application.deployments import FUNCTION_LIMITS, DeploymentService
 from controlplane.application.gateway import GatewayService
 from controlplane.application.jobs import CreateJob, JobService
 from controlplane.application.models import EvaluationService, ModelService, PromotionService
@@ -69,7 +70,13 @@ from controlplane.application.workflow_compiler import (
     TAG_STEP,
     tracking_experiment_name,
 )
-from controlplane.domain.entities import EndpointLimits, LlmServing, RolloutGate, Threshold
+from controlplane.domain.entities import (
+    EndpointLimits,
+    FunctionServing,
+    LlmServing,
+    RolloutGate,
+    Threshold,
+)
 from controlplane.domain.states import Exposure, ModelKind
 from controlplane.gateway import create_gateway
 from controlplane.persistence.memory import MemoryStore, MemoryUnitOfWork
@@ -228,8 +235,9 @@ def _open_to_partners(factory: Callable[..., Any], clock: DemoClock) -> dict[str
         Exposure.PUBLIC,
         EndpointLimits(units_per_minute=30_000, max_body_kb=512, timeout_seconds=120),
     )
+    access.expose("customer-support", "ticket-router", Exposure.PUBLIC, FUNCTION_LIMITS)
     _, keys["helpdesk-app"] = access.create_key(
-        "customer-support", name="helpdesk-app", endpoints=["assistant-prod"]
+        "customer-support", name="helpdesk-app", endpoints=["assistant-prod", "ticket-router"]
     )
     return keys
 
@@ -260,6 +268,13 @@ def _usage_history(clock: DemoClock) -> FakeUsage:
     )
     usage.token_split[("customer-support", "assistant-prod", "helpdesk-app")] = 0.68
     usage.p95[("customer-support", "assistant-prod")] = _wave(2_400, seed=67, swing=0.2)
+    routed = _wave(18, seed=68, swing=0.5)
+    usage.series[("customer-support", "ticket-router", "helpdesk-app")] = lambda t: (
+        routed(t) or 0.0,
+        0.0,
+        0.0,
+    )
+    usage.p95[("customer-support", "ticket-router")] = _wave(45, seed=69, swing=0.3)
     return usage
 
 
@@ -736,6 +751,24 @@ def _seed(
     promotions.promote(llm_versions[0].id)
     deployments.create("customer-support", "assistant-prod")
     deployments.deploy("customer-support", "assistant-prod", "assistant", 1)
+    settle()
+    settle()
+
+    # a function: the team's own container that routes tickets, scaled to zero when idle
+    models.create(
+        "customer-support",
+        "ticket-router",
+        {},
+        kind=ModelKind.FUNCTION,
+        function=FunctionServing(min_scale=0, max_scale=5, concurrency=20, env={"QUEUE": "tier1"}),
+    )
+    for tag in ("1.3.0", "1.4.2"):
+        models.register_image(
+            "customer-support", "ticket-router", f"ghcr.io/acme/ticket-router:{tag}"
+        )
+        clock.advance(300)
+    deployments.create("customer-support", "ticket-router")
+    deployments.deploy("customer-support", "ticket-router", "ticket-router", 2)
     settle()
     settle()
 

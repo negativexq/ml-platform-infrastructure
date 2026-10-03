@@ -53,11 +53,17 @@ def serving_ref(project: Project, deployment: Deployment) -> str:
 LLM_LIMITS = EndpointLimits(units_per_minute=20_000, max_body_kb=512, timeout_seconds=120)
 
 
+# A function's endpoint: requests, a bigger body than a model, a minute for a cold start.
+FUNCTION_LIMITS = EndpointLimits(units_per_minute=600, max_body_kb=1024, timeout_seconds=60)
+
+
 def serving_of(model: Model) -> tuple[ServingRuntime, int, int | None]:
     """(runtime, GPUs, context length) a new revision of this model is served with."""
     if model.kind is ModelKind.LLM:
         assert model.serving is not None
         return ServingRuntime.HUGGINGFACE, model.serving.gpus, model.serving.context_length
+    if model.kind is ModelKind.FUNCTION:
+        return ServingRuntime.CONTAINER, 0, None
     return ServingRuntime.MLFLOW, 0, None
 
 
@@ -261,6 +267,7 @@ class DeploymentService:
                 runtime=runtime,
                 gpus=gpus,
                 context_length=context,
+                function=model.function,
                 created_at=now,
             )
             uow.revisions.add(revision)
@@ -337,6 +344,7 @@ class DeploymentService:
                 runtime=runtime,
                 gpus=gpus,
                 context_length=context,
+                function=model.function,
                 created_at=now,
             )
             uow.revisions.add(revision)
@@ -375,17 +383,14 @@ class DeploymentService:
         token limits."""
         endpoint = uow.endpoints.get_by_deployment(deployment.id)
         assert endpoint is not None
-        kind = EndpointKind.LLM if model.kind is ModelKind.LLM else EndpointKind.MODEL
+        kind, protocol, limits = {
+            ModelKind.CLASSIC: (EndpointKind.MODEL, EndpointProtocol.V2_INFER, EndpointLimits()),
+            ModelKind.LLM: (EndpointKind.LLM, EndpointProtocol.OPENAI, LLM_LIMITS),
+            ModelKind.FUNCTION: (EndpointKind.FUNCTION, EndpointProtocol.HTTP, FUNCTION_LIMITS),
+        }[model.kind]
         if endpoint.kind is kind:
             return
-        llm = kind is EndpointKind.LLM
-        updated = replace(
-            endpoint,
-            kind=kind,
-            protocol=EndpointProtocol.OPENAI if llm else EndpointProtocol.V2_INFER,
-            limits=LLM_LIMITS if llm else EndpointLimits(),
-            updated_at=now,
-        )
+        updated = replace(endpoint, kind=kind, protocol=protocol, limits=limits, updated_at=now)
         uow.endpoints.update(updated, expected_status=endpoint.status)
 
     def chat(self, project_ref: str, name: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
@@ -484,6 +489,10 @@ class DeploymentService:
             deployment = uow.deployments.get(endpoint.deployment_id)
             assert deployment is not None
             ref = serving_ref(project, deployment)
+            function = endpoint.kind is EndpointKind.FUNCTION
+        # A function takes any JSON and answers any JSON; a model takes {"instances": ...}.
+        if function:
+            return self._serving.invoke(ref, payload)
         return self._serving.predict(ref, payload)
 
     def get_endpoint(self, project_ref: str, name: str) -> Endpoint:

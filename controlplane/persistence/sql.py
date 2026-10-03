@@ -20,6 +20,7 @@ from controlplane.domain.entities import (
     Endpoint,
     EndpointLimits,
     Evaluation,
+    FunctionServing,
     JobDefinition,
     LlmServing,
     Model,
@@ -604,6 +605,9 @@ def _model(row: ModelRow) -> Model:
             if row.llm_gpus is not None
             else None
         ),
+        function=FunctionServing.from_json(row.function_settings)
+        if row.function_settings
+        else None,
         created_at=row.created_at,
     )
 
@@ -672,6 +676,7 @@ class SqlModels:
                 kind=model.kind.value,
                 llm_gpus=model.serving.gpus if model.serving else None,
                 llm_context_length=model.serving.context_length if model.serving else None,
+                function_settings=model.function.to_json() if model.function else None,
                 created_at=model.created_at,
             )
         )
@@ -901,6 +906,9 @@ def _revision(row: DeploymentRevisionRow) -> DeploymentRevision:
         runtime=ServingRuntime(row.runtime),
         gpus=row.gpus,
         context_length=row.context_length,
+        function=FunctionServing.from_json(row.function_settings)
+        if row.function_settings
+        else None,
         created_at=row.created_at,
     )
 
@@ -1024,6 +1032,7 @@ class SqlRevisions:
                 runtime=revision.runtime.value,
                 gpus=revision.gpus,
                 context_length=revision.context_length,
+                function_settings=revision.function.to_json() if revision.function else None,
                 created_at=revision.created_at,
             )
         )

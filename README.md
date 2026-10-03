@@ -1,7 +1,7 @@
 # ML Platform
 
 A self-hosted platform for teams to train, ship and run machine learning models on
-Kubernetes. Classic models and LLMs alike: from a training run to a model behind a public,
+Kubernetes. Classic models, LLMs and your own functions alike: from a training run to a model behind a public,
 rate-limited API, with a web UI, sign-in and project roles, canary releases and full
 observability.
 
@@ -14,6 +14,7 @@ observability.
 | **Models** | Versions come from the MLflow registry or, for LLMs, from the Hugging Face Hub. Acceptance thresholds decide each version: evaluation makes it a candidate or rejects it, and promotion makes it the champion. Registry aliases are kept in sync |
 | **Serving** | Immutable revisions. Canary rollouts shift traffic in steps and are gated on error rate, p95 latency and minimum traffic. A canary that fails its gates rolls back automatically, and any deployment can be rolled back by hand. Metrics and trends are kept per revision |
 | **LLMs** | Language models run on GPUs with KServe's Hugging Face runtime (vLLM). Platform admins set each project's GPU quota, and every deploy and canary is checked against it. The API is OpenAI-compatible chat completions, with streaming. The UI has a chat playground and shows token usage per caller |
+| **Functions** | The team's own container behind an endpoint: versions are images, scaled by Knative from zero to a maximum, called with any JSON at `POST …/invoke`. Same keys, limits, canaries and rollback as models |
 | **Public API** | A separate gateway service opens endpoints to callers outside the platform. Each caller gets its own API key, shown once and stored hashed. Limits apply per endpoint and per key, counted in requests or, for LLMs, in tokens. Usage is reported by caller. Every response has a request id and the same error shape |
 | **Monitoring** | A Monitor page shows the platform's own health: reconciler heartbeats, the API, the gateway and the external systems it calls. Its thresholds are the same as the alerts. There is a Grafana dashboard, promtool-tested alerts, and traces that run from an API request through the background reconcilers |
 | **Web UI** | Every area of the platform has a page, plus members and API access, in an app shell with a sidebar and project switcher. Charts follow a data-viz spec (validated colours, table twins, keyboard tooltips). Risky changes are previewed before they are made. Light, dark and mobile |
@@ -33,7 +34,7 @@ observability.
  ┌──────────────────────────────┐      ┌─────────────────────────────────────┐
  │  Control plane API           │      │  Inference gateway (own pods)       │
  │  projects · roles · jobs     │      │  POST /v1/{project}/{endpoint}/     │
- │  pipelines · models · evals  │      │       predict | chat/completions    │
+ │  pipelines · models · evals  │      │  predict | chat/completions | invoke│
  │  deployments · canaries      │      │  API keys · limits · streaming      │
  │  API keys · GPU quota · audit│      │  usage metering                     │
  └──────┬───────────────────────┘      └──────┬──────────────────────────────┘
@@ -46,9 +47,9 @@ observability.
         ▼
  ┌────────────────┬────────────────┬──────────────────┬────────────────────────┐
  │ Kubernetes     │ Argo Workflows │ MLflow           │ KServe (Knative)       │
- │ namespace per  │ jobs and       │ runs, metrics,   │ MLflow server (v2) or  │
- │ project,       │ pipeline DAGs  │ model registry   │ vLLM on GPUs,          │
- │ quotas, GPUs   │                │                  │ canary traffic split   │
+ │ namespace per  │ jobs and       │ runs, metrics,   │ MLflow server, vLLM on │
+ │ project,       │ pipeline DAGs  │ model registry   │ GPUs, or a function's  │
+ │ quotas, GPUs   │                │                  │ container; canaries    │
  └────────────────┴────────────────┴──────────────────┴────────────────────────┘
    everything → OpenTelemetry Collector → Prometheus · Tempo · Grafana · alerts
 ```

@@ -36,6 +36,30 @@ LLM_MEMORY_PER_GPU_GI = (16, 24)
 HF_TOKEN_SECRET = "mlp-hf-token"  # optional, per project namespace: gated hub models
 
 
+def _function_predictor(spec: ServingSpec) -> dict[str, Any]:
+    """A function: the project's own container as a KServe custom predictor. In Serverless
+    mode Knative scales it between min and max replicas, to zero when idle."""
+    f = dict(spec.function or {})
+    env = f.get("env") or {}
+    return {
+        "minReplicas": int(f.get("min_scale", 0)),
+        "maxReplicas": int(f.get("max_scale", 3)),
+        "containerConcurrency": int(f.get("concurrency", 10)),
+        "containers": [
+            {
+                "name": "kserve-container",
+                "image": spec.model_uri,
+                "ports": [{"containerPort": int(f.get("port", 8080)), "protocol": "TCP"}],
+                "env": [{"name": k, "value": str(v)} for k, v in sorted(env.items())],
+                "resources": {
+                    "requests": {"cpu": "100m", "memory": "128Mi"},
+                    "limits": {"cpu": "1", "memory": "512Mi"},
+                },
+            }
+        ],
+    }
+
+
 def _predictor_model(spec: ServingSpec) -> dict[str, Any]:
     if spec.runtime != "huggingface":
         return {
@@ -99,7 +123,11 @@ def build_inference_service(spec: ServingSpec) -> dict[str, Any]:
         "spec": {
             "predictor": {
                 "serviceAccountName": SERVICE_ACCOUNT,
-                "model": _predictor_model(spec),
+                **(
+                    _function_predictor(spec)
+                    if spec.runtime == "container"
+                    else {"model": _predictor_model(spec)}
+                ),
                 "canaryTrafficPercent": spec.canary_percent,
             }
         },
@@ -276,6 +304,23 @@ class KServeServingProvider:
                 body: Mapping[str, Any] = json.load(response)
         except urllib.error.URLError as exc:
             raise ConnectionError(f"chat request to {ref} failed: {exc}") from exc
+        return body
+
+    def invoke(self, ref: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
+        status = self.get_status(ref)
+        if status.state is not ServingState.READY or not status.url:
+            raise ConnectionError(f"{ref} is not serving")
+        request = urllib.request.Request(
+            f"{status.url.rstrip('/')}/",
+            data=json.dumps(dict(payload)).encode(),
+            headers=_headers(),
+            method="POST",
+        )
+        try:
+            with urllib.request.urlopen(request, timeout=CHAT_TIMEOUT_SECONDS) as response:  # noqa: S310
+                body: Mapping[str, Any] = json.load(response)
+        except urllib.error.URLError as exc:
+            raise ConnectionError(f"call to function {ref} failed: {exc}") from exc
         return body
 
     def delete(self, ref: str) -> None:

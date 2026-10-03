@@ -36,6 +36,7 @@ What is missing to install the platform at all (image, Helm chart, Argo in `loca
 > 11. Identity
 > 12. Gateway
 > 13. LLMs on GPUs
+> 14. Functions
 
 ## 0. Setup on your machine
 
@@ -655,3 +656,22 @@ kubectl get clusterservingruntimes | grep huggingface
 | 6 | A token limit of 500 per minute: a few calls pass, then `429` with `Retry-After`, then calls pass again after a minute | **you** |
 | 7 | Canary between two LLM versions needs twice the GPUs; with a quota of 1 it is refused with the numbers, with 2 it runs and the traffic split works | **you** |
 | 8 | Deploying a deployment with `--tensor_parallel_size=2` (a model with 2 GPUs) schedules on a node with 2 GPUs | **you**: optional |
+
+## 14. Functions
+
+Verified here:
+* The KServe manifest for a function: a custom container, replica range, concurrency, port
+  and environment.
+* Image versions as candidates, deploys and the `function` endpoint.
+* Calls through the platform and through the gateway (`/invoke`).
+* The UI in a real browser.
+
+All of it ran against fakes; no function container has run in a cluster yet. Left for you:
+
+| # | Gate | Status |
+| --- | --- | --- |
+| 1 | A function deploys from a real image: the InferenceService has `containers[0].image`, `minReplicas`, `maxReplicas`, `containerConcurrency`, and goes READY | **you** (KServe Serverless) |
+| 2 | With `min_scale: 0`: after a few idle minutes the pod is gone; the next call through the gateway succeeds within the 60 s timeout (cold start) | **you** |
+| 3 | Under load it scales up to `max_scale` and no further | **you** |
+| 4 | A canary between two images splits traffic and rolls back when the new image returns 5xx | **you** |
+| 5 | The image is pulled from a private registry with the project's pull secret | **you**: no per-project pull secret mechanism yet (`docs/roadmap.md`) |

@@ -78,6 +78,8 @@ class RevisionOut(BaseModel):
     model_version_id: UUID
     runtime: ServingRuntime
     gpus: int
+    min_scale: int | None = Field(None, description="functions: fewest replicas (0: to zero)")
+    max_scale: int | None = None
     created_at: datetime
 
     @classmethod
@@ -89,6 +91,8 @@ class RevisionOut(BaseModel):
             model_version_id=v.revision.model_version_id,
             runtime=v.revision.runtime,
             gpus=v.revision.gpus,
+            min_scale=v.revision.function.min_scale if v.revision.function else None,
+            max_scale=v.revision.function.max_scale if v.revision.function else None,
             created_at=v.revision.created_at,
         )
 

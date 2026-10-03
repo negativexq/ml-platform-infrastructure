@@ -160,6 +160,7 @@ class ModelRow(Base):
     kind: Mapped[str] = mapped_column(String(16), nullable=False, server_default="classic")
     llm_gpus: Mapped[int | None] = mapped_column(Integer)
     llm_context_length: Mapped[int | None] = mapped_column(Integer)
+    function_settings: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     created_at: Mapped[datetime] = _ts()
 
 
@@ -247,6 +248,7 @@ class DeploymentRevisionRow(Base):
     runtime: Mapped[str] = mapped_column(String(16), nullable=False, server_default="mlflow")
     gpus: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     context_length: Mapped[int | None] = mapped_column(Integer)
+    function_settings: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     created_at: Mapped[datetime] = _ts()
 
 

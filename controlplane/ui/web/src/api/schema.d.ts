@@ -642,6 +642,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{project}/models/{name}/images": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register a function version: a container image (idempotent, a candidate at once) */
+        post: operations["register_image_projects__project__models__name__images_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/projects/{project}/models/{name}/thresholds": {
         parameters: {
             query?: never;
@@ -1329,6 +1346,36 @@ export interface components {
          * @enum {string}
          */
         Exposure: "internal" | "public";
+        /** FunctionServingIn */
+        FunctionServingIn: {
+            /**
+             * Concurrency
+             * @description requests one replica takes at once
+             * @default 10
+             */
+            concurrency: number;
+            /** Env */
+            env?: {
+                [key: string]: string;
+            };
+            /**
+             * Max Scale
+             * @default 3
+             */
+            max_scale: number;
+            /**
+             * Min Scale
+             * @description 0: scale to zero when idle
+             * @default 0
+             */
+            min_scale: number;
+            /**
+             * Port
+             * @description where the container listens
+             * @default 8080
+             */
+            port: number;
+        };
         /** GateIn */
         GateIn: {
             /**
@@ -1408,6 +1455,15 @@ export interface components {
              * @example hf://Qwen/Qwen2.5-7B-Instruct@a09a354
              */
             source: string;
+        };
+        /** ImageVersionCreate */
+        ImageVersionCreate: {
+            /**
+             * Image
+             * @description <registry>/<path>:<tag> or @sha256:<digest>
+             * @example ghcr.io/acme/ticket-router:1.4.2
+             */
+            image: string;
         };
         /** InventoryOut */
         InventoryOut: {
@@ -1581,8 +1637,10 @@ export interface components {
         };
         /** ModelCreate */
         ModelCreate: {
+            /** @description how a function runs (kind function only) */
+            function?: components["schemas"]["FunctionServingIn"] | null;
             /**
-             * @description classic, or llm
+             * @description classic, llm or function
              * @default classic
              */
             kind: components["schemas"]["ModelKind"];
@@ -1612,7 +1670,7 @@ export interface components {
          *     server), answering OpenAI-compatible chat completions.
          * @enum {string}
          */
-        ModelKind: "classic" | "llm";
+        ModelKind: "classic" | "llm" | "function";
         /** ModelList */
         ModelList: {
             /** Items */
@@ -1628,6 +1686,7 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
+            function?: components["schemas"]["FunctionServingIn"] | null;
             /**
              * Id
              * Format: uuid
@@ -2075,6 +2134,13 @@ export interface components {
             created_at: string;
             /** Gpus */
             gpus: number;
+            /** Max Scale */
+            max_scale?: number | null;
+            /**
+             * Min Scale
+             * @description functions: fewest replicas (0: to zero)
+             */
+            min_scale?: number | null;
             /** Model */
             model: string;
             /** Model Version */
@@ -2279,7 +2345,7 @@ export interface components {
          * ServingRuntime
          * @enum {string}
          */
-        ServingRuntime: "mlflow" | "huggingface";
+        ServingRuntime: "mlflow" | "huggingface" | "container";
         /** SignalHealthOut */
         SignalHealthOut: {
             /** Critical */
@@ -4861,6 +4927,69 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DiscoveryOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    register_image_projects__project__models__name__images_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImageVersionCreate"];
+            };
+        };
+        responses: {
+            /** @description Already registered */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelVersionSummary"];
+                };
+            };
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelVersionSummary"];
                 };
             };
             /** @description Not Found */

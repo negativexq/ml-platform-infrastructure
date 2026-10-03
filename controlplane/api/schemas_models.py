@@ -9,6 +9,7 @@ from controlplane.application.models import DiscoveryResult, ModelView, VersionV
 from controlplane.domain.entities import (
     Check,
     Evaluation,
+    FunctionServing,
     LlmServing,
     ModelVersion,
     Promotion,
@@ -36,12 +37,53 @@ class LlmServingIn(BaseModel):
     )
 
 
+class FunctionServingIn(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    min_scale: int = Field(0, ge=0, le=50, description="0: scale to zero when idle")
+    max_scale: int = Field(3, ge=1, le=50)
+    concurrency: int = Field(10, ge=1, le=1000, description="requests one replica takes at once")
+    port: int = Field(8080, ge=1024, le=65535, description="where the container listens")
+    env: dict[str, str] = Field(default_factory=dict)
+
+    def to_domain(self) -> FunctionServing:
+        return FunctionServing(
+            min_scale=self.min_scale,
+            max_scale=self.max_scale,
+            concurrency=self.concurrency,
+            port=self.port,
+            env=self.env,
+        )
+
+    @classmethod
+    def from_domain(cls, f: FunctionServing) -> FunctionServingIn:
+        return cls(
+            min_scale=f.min_scale,
+            max_scale=f.max_scale,
+            concurrency=f.concurrency,
+            port=f.port,
+            env=dict(f.env),
+        )
+
+
+class ImageVersionCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+
+    image: str = Field(
+        description="<registry>/<path>:<tag> or @sha256:<digest>",
+        examples=["ghcr.io/acme/ticket-router:1.4.2"],
+    )
+
+
 class ModelCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     name: str
-    kind: ModelKind = Field(ModelKind.CLASSIC, description="classic, or llm")
+    kind: ModelKind = Field(ModelKind.CLASSIC, description="classic, llm or function")
     llm: LlmServingIn | None = Field(None, description="how an LLM is served (kind llm only)")
+    function: FunctionServingIn | None = Field(
+        None, description="how a function runs (kind function only)"
+    )
     thresholds: dict[str, ThresholdIn] = Field(
         default_factory=dict, examples=[{"auc": {"min": 0.9}, "f1": {"min": 0.85}}]
     )
@@ -111,6 +153,7 @@ class ModelOut(BaseModel):
     alias_drift: str | None
     kind: ModelKind
     llm: LlmServingIn | None
+    function: FunctionServingIn | None = None
     champion: ModelVersionSummary | None
     versions: int
     created_at: datetime
@@ -135,6 +178,9 @@ class ModelOut(BaseModel):
                 )
                 if view.model.serving
                 else None
+            ),
+            function=(
+                FunctionServingIn.from_domain(view.model.function) if view.model.function else None
             ),
             champion=ModelVersionSummary.from_domain(champion) if champion else None,
             versions=len(view.versions),
