@@ -1,56 +1,77 @@
+import { useEffect, useRef } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { useRouterState } from '@tanstack/react-router';
 import { api, type S } from '../api/client';
 import { go, routes } from '../lib/format';
 import { HEALTH, usePlatformHealth } from '../lib/health';
+import { GLOBAL_NAV, PROJECT_NAV, navigationContext } from '../lib/navigation';
 import { Icon } from './icons';
 
-const SECTIONS: [string, string][] = [
-  ['', 'Overview'], ['runs', 'Runs'], ['pipelines', 'Pipelines'], ['jobs', 'Jobs'], ['models', 'Models'],
-  ['deployments', 'Deployments'], ['activity', 'Activity'], ['settings', 'Settings'],
-];
-// Detail pages belong to a section: a pipeline run lives under Runs, a model under Models.
-const OWNER: Record<string, string> = { 'pipeline-runs': 'runs', runs: 'runs' };
-
-/** Where the location is: top-level page, project, and the project section that owns it. */
 export function useWhere() {
-  const path = useRouterState({ select: (s) => s.location.pathname });
-  const [, top = '', name, first] = path.split('/');
-  const project = top === 'projects' && name ? decodeURIComponent(name) : null;
-  const section = first ? OWNER[first] ?? first : '';
-  return { top, project, section };
+  return useRouterState({ select: (s) => navigationContext(s.location.pathname) });
 }
 
-/**
- * The app's navigation, always in the same place: platform pages first, then the current
- * project's sections under a project switcher. On a phone it is a drawer behind the menu button.
- */
 export function Sidebar({ open }: { open: boolean }) {
-  const { top, project, section } = useWhere();
+  const where = useWhere();
   return (
     <aside id="sidebar" className={`sidebar${open ? ' open' : ''}`} aria-label="Main navigation">
-      <div className="nav-label">Platform</div>
-      <nav className="nav" aria-label="Platform">
-        <a href={routes.projects()} data-nav="projects" aria-current={top === 'projects' && !project ? 'page' : undefined}>
-          <Icon name="projects" />Projects
-        </a>
-        <a href={routes.monitor()} data-nav="monitor" aria-current={top === 'monitor' ? 'page' : undefined}>
-          <Icon name="monitor" />Monitor<HealthMark />
-        </a>
-      </nav>
-      {project && (
-        <>
-          <ProjectSwitcher project={project} section={section} />
-          <nav className="nav" aria-label="Project sections" data-testid="project-tabs">
-            {SECTIONS.map(([key, label]) => (
-              <a key={key} href={`${routes.project(project)}${key ? `/${key}` : ''}`} aria-current={key === section ? 'page' : undefined}
-                data-tab={key || 'overview'}><Icon name={key || 'overview'} />{label}</a>
-            ))}
-          </nav>
-        </>
-      )}
+      {GLOBAL_NAV.map((group) => <div key={group.label}>
+        <div className="nav-label">{group.label}</div>
+        <nav className="nav" aria-label={group.label}>
+          {group.items.map(([key, label]) => <a key={key} href={`#/${key}`} data-nav={key}
+            onClick={(event) => {
+              if (key === 'projects' && where.project && where.section && event.button === 0 && !event.ctrlKey && !event.metaKey && !event.shiftKey && !event.altKey) {
+                event.preventDefault();
+                go(`#/projects?section=${encodeURIComponent(where.section)}`);
+              }
+            }}
+            aria-current={where.global === key ? 'page' : undefined}>
+            <Icon name={key} />{label}{key === 'monitor' && <HealthMark />}
+          </a>)}
+        </nav>
+      </div>)}
     </aside>
   );
+}
+
+/** The project context and lifecycle live in the main content, never in the sidebar. */
+export function ProjectNavigation() {
+  const { project, section } = useWhere();
+  const root = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    root.current?.querySelectorAll('details').forEach((el) => { el.open = false; });
+  }, [project, section]);
+  useEffect(() => {
+    const close = (event: MouseEvent | KeyboardEvent) => {
+      if (event instanceof KeyboardEvent && event.key !== 'Escape') return;
+      const target = event.target as Node;
+      root.current?.querySelectorAll<HTMLDetailsElement>('details[open]').forEach((el) => {
+        if (event instanceof KeyboardEvent || !el.contains(target)) {
+          el.open = false;
+          if (event instanceof KeyboardEvent) el.querySelector('summary')?.focus();
+        }
+      });
+    };
+    document.addEventListener('click', close);
+    document.addEventListener('keydown', close);
+    return () => { document.removeEventListener('click', close); document.removeEventListener('keydown', close); };
+  }, []);
+  if (!project) return null;
+  return <div ref={root} className="project-context" data-testid="project-context">
+    <ProjectLabel project={project} />
+    <nav className="project-nav" aria-label="Project sections" data-testid="project-tabs">
+      {PROJECT_NAV.map((group) => group.items ? <details key={group.key} data-project-group={group.key}>
+        <summary data-active={group.items.some(([key]) => key === section) || undefined}>
+          {group.label}<span aria-hidden="true"> ▾</span>
+        </summary>
+        <div className="project-subnav">
+          {group.items.map(([key, label]) => <a key={key} href={`${routes.project(project)}/${key}`}
+            aria-current={key === section ? 'page' : undefined} data-tab={key}>{label}</a>)}
+        </div>
+      </details> : <a key={group.key} href={`${routes.project(project)}${group.key ? `/${group.key}` : ''}`}
+        aria-current={group.key === section ? 'page' : undefined} data-tab={group.key || 'overview'}>{group.label}</a>)}
+    </nav>
+  </div>;
 }
 
 /** Only speaks up when something is wrong, so a quiet sidebar means a healthy platform. */
@@ -66,18 +87,8 @@ function HealthMark() {
   );
 }
 
-function ProjectSwitcher({ project, section }: { project: string; section: string }) {
-  const list = useQuery({ queryKey: ['projects', 'switcher'], queryFn: () => api.get<S['ProjectList']>('/projects?limit=200'), staleTime: 30_000 });
-  const items = list.data?.items ?? [];
-  const known = items.some((p) => p.name === project);
-  return (
-    <div className="switcher">
-      <label className="nav-label" htmlFor="project-switcher">Project</label>
-      <select id="project-switcher" data-testid="project-switcher" value={project}
-        onChange={(e) => go(`${routes.project(e.target.value)}${section ? `/${section}` : ''}`)}>
-        {!known && <option value={project}>{project}</option>}
-        {items.map((p) => <option key={p.name} value={p.name}>{p.display_name}</option>)}
-      </select>
-    </div>
-  );
+function ProjectLabel({ project }: { project: string }) {
+  const list = useQuery({ queryKey: ['projects', 'context'], queryFn: () => api.get<S['ProjectList']>('/projects?limit=200'), staleTime: 30_000 });
+  const current = list.data?.items.find((p) => p.name === project);
+  return <div className="project-label"><span className="muted">Project</span><strong>{current?.display_name ?? project}</strong></div>;
 }

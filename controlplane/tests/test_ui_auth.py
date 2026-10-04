@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import re
 from collections.abc import Iterator
+from dataclasses import replace
 from typing import Any
 
 import pytest
@@ -16,6 +17,7 @@ from controlplane.application.identity import bind_principal, reset_principal
 from controlplane.application.members import MembershipService
 from controlplane.demo import build_demo
 from controlplane.domain.access import Principal, ProjectRole
+from controlplane.domain.states import ProjectStatus
 from controlplane.tests.fake_idp import API_AUDIENCE, CLIENT_ID, CLIENT_SECRET, FakeIdP
 from controlplane.tests.test_ui import HAVE_PLAYWRIGHT, Server, _launch, shot
 
@@ -133,6 +135,11 @@ def test_a_viewer_sees_but_cannot_act(page: Page, server: Server, idp: FakeIdP) 
     expect(page.get_by_test_id("delete-project")).to_be_disabled()
     expect(page.get_by_test_id("change-gpu-quota")).to_be_disabled()  # platform admins only
     shot(page, "21-viewer-settings")
+    page.goto(f"{server.url}/ui/#/projects/credit-risk/functions")
+    expect(page.locator(".empty").get_by_role("button", name="Register function")).to_be_disabled()
+    expect(
+        page.locator(".empty").get_by_role("button", name="Register function")
+    ).to_have_attribute("title", re.compile("Needs the operator role"))
 
 
 def test_a_non_member_is_told_so(page: Page, server: Server, idp: FakeIdP) -> None:
@@ -140,6 +147,9 @@ def test_a_non_member_is_told_so(page: Page, server: Server, idp: FakeIdP) -> No
     expect(page.get_by_test_id("projects-list")).to_contain_text("No projects yet")
     page.goto(f"{server.url}/ui/#/projects/credit-risk")
     expect(page.locator("main")).to_contain_text("not a member of this project")
+    page.get_by_role("link", name="Access and permissions help", exact=True).click()
+    expect(page.locator("main h1")).to_have_text("Help & learning")
+    expect(page.locator("main")).to_contain_text("Ask the project admin")
 
 
 def test_an_admin_manages_members(page: Page, server: Server, idp: FakeIdP) -> None:
@@ -190,3 +200,47 @@ def test_settings_say_where_your_role_comes_from(page: Page, server: Server, idp
     expect(access).to_contain_text("You also have viewer directly")
     page.get_by_test_id("role-guide").locator("summary").click()
     expect(page.get_by_test_id("role-guide")).to_contain_text("manage members")
+
+
+def test_global_resources_respect_project_visibility(
+    page: Page, server: Server, idp: FakeIdP
+) -> None:
+    sign_in(page, server, idp, "bob", route="/models")
+    expect(page.locator("main h1")).to_have_text("Models")
+    expect(page.get_by_test_id("global-resources")).to_contain_text("scorer")
+    expect(page.get_by_test_id("global-resources")).not_to_contain_text("assistant")
+    expect(page.locator("[data-nav=infrastructure]")).to_have_count(0)
+    page.locator("[data-nav=home]").click()
+    expect(page.get_by_test_id("home-totals").locator("[data-count=projects] .n")).to_have_text("1")
+    expect(page.get_by_test_id("home-run-pipeline")).to_be_disabled()
+
+
+def test_notifications_are_personal_and_scoped_to_membership(
+    page: Page, server: Server, idp: FakeIdP
+) -> None:
+    with server.demo.uow_factory() as uow:
+        other = next(
+            p for p in uow.projects.list(limit=200, offset=0) if p.name == "customer-support"
+        )
+        uow.projects.update(
+            replace(other, status=ProjectStatus.FAILED, updated_at=server.demo.clock()),
+            expected_status=other.status,
+        )
+        uow.commit()
+    sign_in(page, server, idp, "alice")
+    page.get_by_test_id("notification-bell").click()
+    panel = page.locator("dialog[open]")
+    expect(panel.get_by_test_id("notification-item")).to_have_count(3)
+    expect(panel).not_to_contain_text("Customer Support needs attention")  # another project
+    panel.get_by_role("button", name="Mark all read", exact=True).click()
+    expect(page.get_by_test_id("notification-count")).to_have_count(0)
+    page.context.clear_cookies()
+    page.reload()
+    sign_in(page, server, idp, "bob")
+    expect(page.get_by_test_id("notification-count")).to_have_text("3")
+    page.context.clear_cookies()
+    page.reload()
+    sign_in(page, server, idp, "mallory")
+    page.get_by_test_id("notification-bell").click()
+    expect(page.locator("dialog[open]")).to_contain_text("No notifications to show")
+    expect(page.locator("dialog[open]")).not_to_contain_text("training failed")

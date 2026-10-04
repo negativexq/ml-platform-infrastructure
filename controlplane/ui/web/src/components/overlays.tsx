@@ -5,8 +5,8 @@ import { ApiError } from '../api/client';
 
 /** Native <dialog>, opened modally while `open`. Esc and backdrop handling come from the platform. */
 export function Modal({
-  open, className = '', onClose, children,
-}: { open: boolean; className?: string; onClose: (returnValue: string) => void; children: ReactNode }) {
+  open, className = '', label, onClose, children,
+}: { open: boolean; className?: string; label?: string; onClose: (returnValue: string) => void; children: ReactNode }) {
   const ref = useRef<HTMLDialogElement>(null);
   useEffect(() => {
     const el = ref.current;
@@ -21,7 +21,7 @@ export function Modal({
     el.addEventListener('close', handler);
     return () => el.removeEventListener('close', handler);
   }, [onClose]);
-  return <dialog ref={ref} className={className}>{open ? children : null}</dialog>;
+  return <dialog ref={ref} className={className} aria-label={label}>{open ? children : null}</dialog>;
 }
 
 // -- toasts, confirm, forms --------------------------------------------------------------
@@ -30,6 +30,7 @@ export type ConfirmOptions = { title: string; body: ReactNode; confirmLabel?: st
 
 export type Field = {
   name: string; label: string; type?: 'text' | 'textarea'; required?: boolean; pattern?: string;
+  visibleWhen?: (values: Record<string, string>) => boolean;
   hint?: string; placeholder?: string; value?: string; options?: { value: string; label: string }[];
 };
 export type FormOptions<T> = {
@@ -125,7 +126,7 @@ function FormBody({ request }: { request: { options: FormOptions<unknown>; resol
   const [busy, setBusy] = useState(false);
   const refs = useRef(new Map<string, HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>());
   const done = useRef(false);
-  const read = () => Object.fromEntries(options.fields.map((f) => [f.name, (refs.current.get(f.name)?.value ?? '').trim()]));
+  const read = () => Object.fromEntries(options.fields.filter((f) => refs.current.has(f.name)).map((f) => [f.name, (refs.current.get(f.name)?.value ?? '').trim()]));
   const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(options.fields.map((f) => [f.name, f.value ?? f.options?.[0]?.value ?? ''])));
 
   useEffect(() => {
@@ -167,24 +168,24 @@ function FormBody({ request }: { request: { options: FormOptions<unknown>; resol
   };
 
   return (
-    <form className="form" noValidate onSubmit={onSubmit} onInput={() => setValues(read())} onChange={() => setValues(read())}>
+    <form className="form" noValidate onSubmit={onSubmit} onInput={() => setValues((old) => ({ ...old, ...read() }))} onChange={() => setValues((old) => ({ ...old, ...read() }))}>
       <h2>{options.title}</h2>
       {options.intro && <p className="muted">{options.intro}</p>}
-      {options.fields.map((f) => {
+      {options.fields.filter((f) => !f.visibleWhen || f.visibleWhen(values)).map((f) => {
         const id = `f-${f.name}`;
         const hint = f.hint ? `${id}-hint` : undefined;
         return (
           <div className="field" key={f.name}>
             <label htmlFor={id}>{f.label}{f.required && <span className="req" aria-hidden="true"> *</span>}</label>
             {f.options ? (
-              <select id={id} name={f.name} required={f.required} defaultValue={f.value} ref={setRef(f.name)} aria-describedby={hint}>
+              <select id={id} name={f.name} required={f.required} defaultValue={values[f.name]} ref={setRef(f.name)} aria-describedby={hint}>
                 {f.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             ) : f.type === 'textarea' ? (
-              <textarea id={id} name={f.name} rows={3} placeholder={f.placeholder} defaultValue={f.value} ref={setRef(f.name)} aria-describedby={hint} />
+              <textarea id={id} name={f.name} rows={3} placeholder={f.placeholder} defaultValue={values[f.name]} ref={setRef(f.name)} aria-describedby={hint} />
             ) : (
               <input id={id} name={f.name} type="text" required={f.required} pattern={f.pattern} placeholder={f.placeholder}
-                defaultValue={f.value} autoComplete="off" spellCheck={false} ref={setRef(f.name)} aria-describedby={hint} />
+                defaultValue={values[f.name]} autoComplete="off" spellCheck={false} ref={setRef(f.name)} aria-describedby={hint} />
             )}
             {f.hint && <small className="hint" id={hint}>{f.hint}</small>}
           </div>

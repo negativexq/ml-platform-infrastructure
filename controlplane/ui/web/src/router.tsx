@@ -1,6 +1,11 @@
 import {
   createHashHistory, createRootRoute, createRoute, createRouter, Navigate, Outlet, redirect, useParams,
 } from '@tanstack/react-router';
+import { AdminPage, CapabilityPage, type Capability } from './pages/Capabilities';
+import { HelpPage } from './components/Help';
+import { HomePage } from './pages/Home';
+import { EndpointPage, EndpointsPage } from './pages/Endpoints';
+import { ServicesPage } from './pages/Services';
 import { Layout } from './components/Layout';
 import { ActivityPage } from './pages/Activity';
 import { DeploymentPage } from './pages/Deployment';
@@ -26,12 +31,23 @@ const root = createRootRoute({
   notFoundComponent: () => <Navigate to="/projects" replace />,
 });
 
-const index = createRoute({ getParentRoute: () => root, path: '/', beforeLoad: () => { throw redirect({ to: '/projects' }); } });
+const index = createRoute({ getParentRoute: () => root, path: '/', beforeLoad: () => { throw redirect({ to: '/home' }); } });
 const projects = createRoute({ getParentRoute: () => root, path: '/projects', component: ProjectsPage, validateSearch: anySearch });
+
+const help = createRoute({ getParentRoute: () => root, path: '/help', component: HelpPage, validateSearch: anySearch });
+const home = createRoute({ getParentRoute: () => root, path: '/home', component: HomePage });
+const capabilities = (['runs', 'pipelines', 'models', 'functions', 'deployments', 'endpoints', 'activity'] as Capability[]).map((capability) => createRoute({
+  getParentRoute: () => root, path: `/${capability}`, validateSearch: anySearch,
+  component: () => <CapabilityPage key={capability} capability={capability} />,
+}));
+const services = createRoute({ getParentRoute: () => root, path: '/services', component: ServicesPage });
+const admin = (['identity', 'settings'] as const).map((section) => createRoute({
+  getParentRoute: () => root, path: `/${section}`, component: () => <AdminPage key={section} section={section} />,
+}));
 
 const monitor = createRoute({ getParentRoute: () => root, path: '/monitor', component: MonitorPage, validateSearch: anySearch });
 
-/** Everything inside a project; its sections are in the sidebar. */
+/** Everything inside a project; its sections are in the content header. */
 const project = createRoute({ getParentRoute: () => root, path: '/projects/$project', component: Outlet });
 /** A page inside a project. It gets the route params (project, id, name, ...) as plain props. */
 const child = (path: string, render: (params: Record<string, string>) => React.ReactNode) => createRoute({
@@ -51,14 +67,18 @@ const jobs = child('jobs', (p) => <JobsPage key={p.project} project={p.project!}
 const job = child('jobs/$job', (p) => <JobPage key={`${p.project}/${p.job}`} project={p.project!} name={p.job!} />);
 const models = child('models', (p) => <ModelsPage key={p.project} project={p.project!} />);
 const model = child('models/$name', (p) => <ModelPage key={`${p.project}/${p.name}`} project={p.project!} name={p.name!} />);
+const functions = child('functions', (p) => <ModelsPage key={p.project} project={p.project!} functions />);
+const fn = child('functions/$name', (p) => <ModelPage key={`${p.project}/${p.name}`} project={p.project!} name={p.name!} functions />);
+const endpoints = child('endpoints', (p) => <EndpointsPage key={p.project} project={p.project!} />);
+const endpoint = child('endpoints/$name', (p) => <EndpointPage key={`${p.project}/${p.name}`} project={p.project!} name={p.name!} />);
 const deployments = child('deployments', (p) => <DeploymentsPage key={p.project} project={p.project!} />);
 const deployment = child('deployments/$name', (p) => <DeploymentPage key={`${p.project}/${p.name}`} project={p.project!} name={p.name!} />);
 const activity = child('activity', (p) => <ActivityPage key={p.project} project={p.project!} />);
 const settings = child('settings', (p) => <SettingsPage key={p.project} project={p.project!} />);
 
 const routeTree = root.addChildren([
-  index, projects, monitor,
-  project.addChildren([overview, runs, pipelineRun, jobRun, pipelines, pipeline, jobs, job, models, model, deployments, deployment, activity, settings]),
+  index, home, help, projects, monitor, services, ...capabilities, ...admin,
+  project.addChildren([overview, runs, pipelineRun, jobRun, pipelines, pipeline, jobs, job, models, model, functions, fn, endpoints, endpoint, deployments, deployment, activity, settings]),
 ]);
 // Plain `?key=value` query strings (every value is a string), rather than JSON-encoded ones, so
 // shared links stay readable: `#/projects/x/runs?status=failed&kind=job`.

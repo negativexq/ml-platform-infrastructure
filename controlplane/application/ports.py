@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Collection, Sequence
+from datetime import datetime
 from types import TracebackType
 from typing import Protocol, Self
 from uuid import UUID
@@ -83,6 +84,7 @@ class RunRepository(Protocol):
         limit: int,
         offset: int,
         statuses: Collection[RunStatus] | None = None,
+        finished_since: datetime | None = None,
     ) -> Sequence[Run]:
         """Newest first."""
 
@@ -126,6 +128,7 @@ class PipelineRunRepository(Protocol):
         limit: int,
         offset: int,
         statuses: Collection[RunStatus] | None = None,
+        finished_since: datetime | None = None,
     ) -> Sequence[PipelineRun]:
         """Newest first."""
 
@@ -261,6 +264,10 @@ class RolloutRepository(Protocol):
 
 
 class AuditLog(Protocol):
+    def latest(
+        self, *, project_id: UUID, entity_type: str, entity_id: UUID, actions: Sequence[str]
+    ) -> AuditEvent | None: ...
+
     def record(self, event: AuditEvent) -> None: ...
 
     def list(
@@ -297,11 +304,20 @@ class ApiKeyRepository(Protocol):
     def update(self, key: ApiKey) -> None: ...
 
 
+class NotificationReadRepository(Protocol):
+    def find(self, username: str, ids: Sequence[str]) -> set[str]: ...
+
+    def mark(self, username: str, ids: Sequence[str], at: datetime) -> None: ...
+
+
 class UnitOfWork(Protocol):
     """One transaction. Leaving the block without `commit()` rolls everything back."""
 
     @property
     def projects(self) -> ProjectRepository: ...
+
+    @property
+    def notification_reads(self) -> NotificationReadRepository: ...
 
     @property
     def memberships(self) -> MembershipRepository: ...

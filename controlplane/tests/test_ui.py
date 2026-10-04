@@ -103,8 +103,9 @@ def test_ui_never_talks_to_the_subsystems(path: Path) -> None:
     text = path.read_text()
     code = code_only(text)
     lowered = code.lower()
+    # Component names are legitimate Services labels; network access remains API-only.
     for word in SUBSYSTEMS:
-        assert word not in lowered, f"{path.name} mentions {word!r}"
+        assert not re.search(rf"https?://[^\s]*{word}", lowered), f"{path.name}: subsystem URL"
     for api in FORBIDDEN_APIS:
         if api == "localStorage" and path.name == "theme.ts":
             continue  # the one sanctioned use: the theme preference (guarded, optional)
@@ -298,8 +299,27 @@ def shot(page: Page, name: str) -> None:
         page.screenshot(path=str(Path(target) / f"{name}.png"), full_page=True)
 
 
+def project_section(page: Page, section: str) -> Any:
+    group = {
+        "runs": "build",
+        "pipelines": "build",
+        "jobs": "build",
+        "models": "assets",
+        "functions": "assets",
+        "deployments": "serve",
+        "endpoints": "serve",
+    }.get(section)
+    if group:
+        dropdown = page.locator(f"main [data-project-group={group}]")
+        if not dropdown.evaluate("el => el.open"):
+            dropdown.locator("summary").click()
+    return page.locator(f"main [data-tab={section}]")
+
+
 def test_projects_page(page: Page, server: Server) -> None:
     page.goto(f"{server.url}/")  # redirects to /ui/
+    expect(page.locator("h1")).to_have_text("Home")
+    page.locator("[data-nav=projects]").click()
     expect(page.locator("h1")).to_have_text("Projects")
     cards = page.locator("[data-testid^=project-]")
     expect(cards).to_have_count(4)
@@ -688,7 +708,7 @@ def test_project_sections_are_one_click_away(page: Page, server: Server) -> None
         ("activity", "Activity"),
         ("settings", "Settings"),
     ):
-        tabs.locator(f"[data-tab={tab}]").click()
+        project_section(page, tab).click()
         expect(page.locator("main h1")).to_have_text(heading)
         expect(tabs.locator("[aria-current=page]")).to_have_text(heading)
     page.goto(f"{server.url}/ui/#/projects/credit-risk/pipeline-runs/{server.demo.ids['run_ok']}")
@@ -1008,9 +1028,12 @@ def test_metric_history_api(client: TestClient) -> None:
 # -- app shell and platform monitor ------------------------------------------------------
 
 
-def test_the_project_switcher_keeps_the_section(page: Page, server: Server) -> None:
+def test_project_cards_keep_the_section(page: Page, server: Server) -> None:
     page.goto(f"{server.url}/ui/#/projects/credit-risk/models")
-    page.get_by_test_id("project-switcher").select_option("fraud-detection")
+    page.locator("#sidebar [data-nav=projects]").click()
+    expect(page.locator("main h1")).to_have_text("Projects")
+    expect(page.get_by_test_id("project-switcher")).to_have_count(0)
+    page.get_by_test_id("project-fraud-detection").click()
     expect(page).to_have_url(re.compile(r"#/projects/fraud-detection/models$"))
     expect(page.locator("main h1")).to_have_text("Models")
     page.locator("[data-nav=monitor]").click()
@@ -1046,7 +1069,7 @@ def test_the_sidebar_is_a_drawer_on_a_phone(page: Page, server: Server) -> None:
     expect(sidebar).not_to_be_in_viewport()
     page.get_by_test_id("menu-btn").click()
     expect(sidebar).to_be_in_viewport()
-    sidebar.locator("[data-tab=runs]").click()
+    sidebar.locator("[data-nav=runs]").click()
     expect(page.locator("main h1")).to_have_text("Runs")
     expect(sidebar).not_to_be_in_viewport()  # closes once you have gone somewhere
 
@@ -1200,7 +1223,7 @@ def test_gpu_quota_shows_use_and_refuses_going_below_it(page: Page, server: Serv
 
 
 def test_a_function_is_created_registered_and_called(page: Page, server: Server) -> None:
-    page.goto(f"{server.url}/ui/#/projects/customer-support/models")
+    page.goto(f"{server.url}/ui/#/projects/customer-support/functions")
     expect(page.get_by_test_id("kind-function")).to_have_count(1)
     page.get_by_test_id("register-model").click()
     page.locator("#f-name").fill("enricher")
@@ -1227,3 +1250,319 @@ def test_a_function_is_created_registered_and_called(page: Page, server: Server)
     access = page.get_by_test_id("api-access")
     expect(access.get_by_test_id("public-url")).to_contain_text("/ticket-router/invoke")
     expect(access).to_contain_text("Any JSON: POST")
+
+
+# -- global capability navigation -------------------------------------------------
+
+
+def test_global_sidebar_stays_fixed_and_project_tabs_live_in_content(
+    page: Page, server: Server
+) -> None:
+    page.goto(f"{server.url}/ui/#/home")
+    sidebar = page.locator("#sidebar")
+    before = sidebar.locator("a").evaluate_all("links => links.map(a => a.getAttribute('href'))")
+    page.goto(f"{server.url}/ui/#/projects/customer-support")
+    expect(page.locator("main [data-testid=project-tabs]")).to_be_visible()
+    expect(page.get_by_test_id("project-switcher")).to_have_count(0)
+    expect(sidebar.locator("[data-testid=project-tabs]")).to_have_count(0)
+    expect(sidebar.locator("[data-testid=project-switcher]")).to_have_count(0)
+    assert (
+        sidebar.locator("a").evaluate_all("links => links.map(a => a.getAttribute('href'))")
+        == before
+    )
+    expect(page.locator("main [data-testid=models]")).to_contain_text("Function")
+    project_section(page, "functions").click()
+    expect(page.locator("main h1")).to_have_text("Functions")
+    expect(page.get_by_test_id("kind-function")).to_have_count(1)
+    expect(page.get_by_test_id("models").locator("th")).to_have_text(
+        ["Name", "Version", "Deployment", "Status"]
+    )
+    expect(page.get_by_test_id("models")).to_contain_text("v2")
+    expect(page.get_by_test_id("models")).to_contain_text("ready")
+    project_section(page, "models").click()
+    expect(page.get_by_test_id("kind-function")).to_have_count(0)
+    expect(page.get_by_test_id("kind-llm")).to_have_count(1)
+    page.locator("[data-nav=functions]").click()
+    expect(page.get_by_test_id("project-tabs")).to_have_count(0)
+    page.get_by_test_id("global-resources").get_by_role(
+        "link", name="ticket-router", exact=True
+    ).first.click()
+    expect(page).to_have_url(re.compile(r"/functions/ticket-router$"))
+    expect(page.locator("main [data-tab=functions]")).to_have_attribute("aria-current", "page")
+
+
+def test_endpoints_are_first_class_and_services_show_measured_health(
+    page: Page, server: Server
+) -> None:
+    page.goto(f"{server.url}/ui/#/endpoints")
+    page.get_by_test_id("global-resources").get_by_role(
+        "link", name="assistant-prod", exact=True
+    ).click()
+    expect(page).to_have_url(re.compile(r"/endpoints/assistant-prod$"))
+    expect(page.locator("main [data-tab=endpoints]")).to_have_attribute("aria-current", "page")
+    expect(page.get_by_test_id("chat-send")).to_be_visible()
+    page.locator("[data-nav=services]").click()
+    services = page.get_by_test_id("services")
+    expect(services).to_contain_text("MLflow")
+    expect(services).not_to_contain_text("PostgreSQL")
+    expect(services).to_contain_text("Argo Workflows")
+    expect(services.get_by_role("row").filter(has_text="KServe")).to_contain_text("Warning")
+    expect(services).not_to_contain_text("Grafana")
+    expect(services.get_by_role("row").filter(has_text="Prometheus")).to_contain_text("Healthy")
+
+
+@pytest.mark.parametrize(
+    ("route", "heading"),
+    [
+        ("home", "Home"),
+        ("runs", "Runs"),
+        ("pipelines", "Pipelines"),
+        ("models", "Models"),
+        ("deployments", "Deployments"),
+        ("activity", "Activity"),
+        ("identity", "Identity"),
+        ("settings", "Settings"),
+    ],
+)
+def test_global_capability_routes(page: Page, server: Server, route: str, heading: str) -> None:
+    page.goto(f"{server.url}/ui/#/{route}")
+    expect(page.locator("main h1")).to_have_text(heading)
+    expect(page.locator(f"#sidebar [data-nav={route}]")).to_have_attribute("aria-current", "page")
+    expect(page.get_by_test_id("project-tabs")).to_have_count(0)
+    if route == "models":
+        table = page.get_by_test_id("global-resources")
+        expect(table).to_contain_text("LLM")
+        expect(table).not_to_contain_text("ticket-router")
+        page.get_by_label("Model type", exact=True).select_option("ML Model")
+        expect(table).not_to_contain_text("LLM")
+        page.get_by_label("Model type", exact=True).select_option("LLM")
+        expect(table).not_to_contain_text("ML Model")
+    shot(page, f"global-{route}")
+
+
+def test_home_is_live_operational_overview_and_can_start_a_pipeline(
+    page: Page, server: Server
+) -> None:
+    page.goto(f"{server.url}/ui/#/home")
+    totals = page.get_by_test_id("home-totals")
+    expect(totals.locator("[data-count=projects] .n")).to_have_text("4")
+    expect(totals.locator("[data-count=models] .n")).to_have_text("3")
+    expect(totals.locator("[data-count=deployments] .n")).to_have_text("4")
+    expect(totals.locator("[data-count=endpoints] .n")).to_have_text("4")
+    expect(page.get_by_test_id("home-attention")).to_contain_text("training")
+    expect(page.get_by_test_id("home-attention")).to_contain_text("evaluate-model")
+    expect(page.get_by_test_id("home-running")).to_contain_text("training")
+    expect(page.get_by_test_id("home-deployments")).to_contain_text("assistant-prod")
+    expect(page.get_by_test_id("home-activity")).to_contain_text("Customer Support")
+    expect(page.locator("main")).not_to_contain_text("Everything looks healthy")
+    shot(page, "home-overview")
+    page.get_by_test_id("home-run-pipeline").click()
+    expect(page.locator("#f-pipeline")).to_be_visible()
+    page.locator("#f-pipeline").select_option("credit-risk/training")
+    page.locator("#f-commit_sha").fill("123abcd")
+    page.locator("dialog[open] button[type=submit]").click()
+    expect(page.locator("main h1")).to_have_text("training v1")
+    expect(page.locator("main")).to_contain_text("123abcd")
+
+
+def test_home_can_create_a_project(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/home")
+    page.get_by_test_id("create-project").click()
+    page.locator("#f-name").fill("home-created")
+    page.locator("#f-display_name").fill("Home Created")
+    page.locator("dialog[open] button[type=submit]").click()
+    expect(page.locator("main h1")).to_have_text("Home Created")
+
+
+def test_project_groups_close_and_cards_preserve_serve_context(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects/credit-risk/deployments")
+    expect(page.locator("[data-project-group=serve] summary")).to_have_attribute(
+        "data-active", "true"
+    )
+    project_section(page, "endpoints").click()
+    expect(page.locator("main h1")).to_have_text("Endpoints")
+    expect(page.locator("[data-project-group=serve]")).not_to_have_attribute("open", "")
+    page.locator("#sidebar [data-nav=projects]").click()
+    expect(page.locator("main h1")).to_have_text("Projects")
+    expect(page.get_by_test_id("project-switcher")).to_have_count(0)
+    page.get_by_test_id("project-fraud-detection").click()
+    expect(page).to_have_url(re.compile(r"#/projects/fraud-detection/endpoints$"))
+    project_section(page, "deployments")
+    page.keyboard.press("Escape")
+    expect(page.locator("[data-project-group=serve]")).not_to_have_attribute("open", "")
+    expect(page.locator("[data-project-group=serve] summary")).to_be_focused()
+    expect(page.locator("#sidebar [data-nav=data]")).to_have_count(0)
+    expect(page.locator("#sidebar [data-nav=infrastructure]")).to_have_count(0)
+
+
+def test_global_models_and_functions_focus_on_resource_inventory(
+    page: Page, server: Server
+) -> None:
+    page.goto(f"{server.url}/ui/#/models")
+    table = page.get_by_test_id("global-resources")
+    scorer = table.get_by_role("row").filter(
+        has=page.get_by_role("link", name="scorer", exact=True)
+    )
+    expect(scorer).to_contain_text("v2")
+    expect(scorer).to_contain_text("credit-risk-prod")
+    expect(scorer).to_contain_text("3")
+    expect(table.locator("th")).to_have_text(
+        ["Name", "Type", "Project", "Champion", "Versions", "Serving", "Status"]
+    )
+    expect(page.locator("main")).not_to_contain_text("Project workspaces")
+    page.get_by_label("Project filter", exact=True).select_option("customer-support")
+    expect(table).not_to_contain_text("scorer")
+    page.get_by_label("Status filter", exact=True).select_option("CHAMPION")
+    expect(table).to_contain_text("assistant")
+    page.locator("[data-nav=functions]").click()
+    table = page.get_by_test_id("global-resources")
+    expect(table.locator("th")).to_have_text(["Name", "Project", "Version", "Deployment", "Status"])
+    expect(table).to_contain_text("v2")
+    expect(table).to_contain_text("ready")
+    expect(page.locator("main")).not_to_contain_text("Project workspaces")
+    shot(page, "global-functions-inventory")
+
+
+def test_home_does_not_report_missing_telemetry_as_zero_alerts(page: Page, server: Server) -> None:
+    server.demo.app.state.platform._telemetry = None
+    page.goto(f"{server.url}/ui/#/home")
+    expect(page.get_by_test_id("home-totals").locator("[data-count=alerts] .n")).to_have_text("—")
+    expect(page.locator("main")).not_to_contain_text("Everything looks healthy")
+
+
+def test_project_dropdowns_fit_on_a_phone(page: Page, server: Server) -> None:
+    page.set_viewport_size({"width": 390, "height": 844})
+    page.goto(f"{server.url}/ui/#/projects/credit-risk")
+    project_section(page, "endpoints")
+    panel = page.locator("[data-project-group=serve] .project-subnav")
+    expect(panel).to_be_in_viewport()
+    bounds = panel.bounding_box()
+    assert bounds is not None and bounds["x"] >= 0 and bounds["x"] + bounds["width"] <= 390
+    shot(page, "project-mobile-dropdown")
+    panel.locator("[data-tab=endpoints]").click()
+    expect(page.locator("main h1")).to_have_text("Endpoints")
+
+
+def test_help_map_and_context_keep_global_navigation(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects/credit-risk/models")
+    expect(page.locator("main h1")).to_have_text("Models")
+    page.get_by_role("button", name="Help & learning", exact=True).click()
+    help_dialog = page.locator("dialog[open]")
+    help_dialog.get_by_role("button", name="Help for this page", exact=True).click()
+    expect(help_dialog).to_contain_text("credit-risk / Models")
+    expect(help_dialog).to_contain_text("Register ML models or LLMs")
+    help_dialog.get_by_role("button", name="Platform map", exact=True).click()
+    expect(help_dialog.get_by_role("link", name="Endpoints", exact=True)).to_have_attribute(
+        "href", "#/endpoints"
+    )
+    shot(page, "help-platform-map")
+    help_dialog.get_by_role("link", name="Endpoints", exact=True).click()
+    expect(page.locator("dialog[open]")).to_have_count(0)
+    expect(page.locator("main h1")).to_have_text("Endpoints")
+    expect(page.locator('[data-nav="endpoints"]')).to_have_attribute("aria-current", "page")
+
+
+def test_empty_filters_offer_recovery(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/models")
+    expect(page.get_by_test_id("global-resources")).to_be_visible()
+    page.get_by_role("searchbox", name="Filter models").fill("no-such-resource")
+    expect(page.locator(".empty")).to_contain_text("No models match")
+    page.get_by_role("button", name="Clear filters", exact=True).click()
+    expect(page.get_by_test_id("global-resources")).to_be_visible()
+    page.goto(f"{server.url}/ui/#/projects")
+    page.get_by_test_id("projects-search").fill("no-such-project")
+    page.get_by_role("button", name="Clear filters", exact=True).click()
+    expect(page.get_by_test_id("project-credit-risk")).to_be_visible()
+    page.goto(f"{server.url}/ui/#/projects/churn-prediction/functions")
+    empty = page.locator(".empty")
+    expect(empty).to_contain_text("No functions yet")
+    empty.get_by_role("button", name="Register function", exact=True).click()
+    expect(page.locator("dialog[open] h2")).to_have_text("Register a function")
+    expect(page.locator("#f-gpus")).to_have_count(0)
+    expect(page.locator("#f-thresholds")).to_have_count(0)
+
+
+def test_classic_registration_ignores_hidden_llm_fields(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/projects/credit-risk/models")
+    page.get_by_test_id("register-model").click()
+    expect(page.locator("#f-gpus")).to_have_count(0)
+    expect(page.locator("#f-context")).to_have_count(0)
+    page.locator("#f-kind").select_option("llm")
+    expect(page.locator("#f-gpus")).to_have_value("1")
+    page.locator("#f-gpus").fill("invalid")
+    page.locator("#f-context").fill("invalid")
+    page.locator("#f-kind").select_option("classic")
+    expect(page.locator("#f-gpus")).to_have_count(0)
+    page.locator("#f-name").fill("help-package-classic")
+    page.get_by_test_id("form-submit").click()
+    expect(page.locator("main h1")).to_have_text("help-package-classic")
+    response = page.request.get(f"{server.url}/projects/credit-risk/models")
+    registered = next(m for m in response.json()["items"] if m["name"] == "help-package-classic")
+    assert registered["kind"] == "classic" and registered["llm"] is None
+
+
+def test_notifications_share_home_issues_and_persist_read_state(page: Page, server: Server) -> None:
+    page.goto(f"{server.url}/ui/#/home")
+    expect(page.get_by_test_id("home-attention")).to_contain_text("training failed")
+    expect(page.get_by_test_id("notification-count")).to_have_text("3")
+    page.get_by_test_id("notification-bell").click()
+    panel = page.locator("dialog[open]")
+    expect(panel.get_by_test_id("notification-item")).to_have_count(3)
+    expect(panel).to_contain_text("ranker-staging rollout completed")
+    shot(page, "notifications-desktop")
+    failed = panel.get_by_test_id("notification-item").filter(has_text="training failed")
+    failed.get_by_role("button", name="Mark read", exact=True).click()
+    expect(page.get_by_test_id("notification-count")).to_have_text("2")
+    panel.get_by_role("button", name="Close", exact=True).click()
+    expect(page.get_by_test_id("home-attention")).to_contain_text("training failed")
+    page.reload()
+    expect(page.get_by_test_id("notification-count")).to_have_text("2")
+    page.get_by_test_id("notification-bell").click()
+    panel.get_by_role("button", name="Unread", exact=True).click()
+    expect(panel.get_by_test_id("notification-item")).to_have_count(2)
+    panel.get_by_role("button", name="Mark all read", exact=True).click()
+    expect(panel).to_contain_text("No unread notifications")
+    expect(page.get_by_test_id("notification-count")).to_have_count(0)
+    panel.get_by_role("button", name="All", exact=True).click()
+    failed.get_by_role("link", name="training failed", exact=True).click()
+    expect(page.locator("dialog[open]")).to_have_count(0)
+    expect(page.locator("main h1")).to_contain_text("training")
+    expect(page).to_have_url(re.compile(r"/pipeline-runs/"))
+
+
+def test_notification_errors_do_not_claim_an_empty_inbox(page: Page, server: Server) -> None:
+    page.route(
+        "**/me/notifications",
+        lambda route: route.fulfill(
+            status=503,
+            content_type="application/json",
+            body='{"error":{"code":"unavailable","message":"Inbox temporarily unavailable"}}',
+        ),
+    )
+    page.goto(f"{server.url}/ui/#/home")
+    expect(page.get_by_test_id("notification-bell")).to_have_attribute(
+        "aria-label", "Notifications (status unavailable)"
+    )
+    page.get_by_test_id("notification-bell").click()
+    panel = page.locator("dialog[open]")
+    expect(panel).to_contain_text("Notifications could not be refreshed")
+    expect(panel).not_to_contain_text("No notifications to show")
+    expect(panel.get_by_role("button", name="Mark all read")).to_be_disabled()
+    page.unroute("**/me/notifications")
+    panel.get_by_role("button", name="Retry", exact=True).click()
+    expect(panel.get_by_test_id("notification-item")).to_have_count(3)
+    page.keyboard.press("Escape")
+    expect(page.locator("dialog[open]")).to_have_count(0)
+    expect(page.get_by_test_id("notification-bell")).to_be_focused()
+
+
+def test_notifications_fit_mobile(page: Page, server: Server) -> None:
+    page.set_viewport_size({"width": 390, "height": 844})
+    page.goto(f"{server.url}/ui/#/projects")
+    page.get_by_test_id("notification-bell").click()
+    panel = page.locator("dialog[open]")
+    expect(panel.get_by_test_id("notification-item")).to_have_count(3)
+    assert panel.evaluate("el => el.scrollWidth <= el.clientWidth")
+    shot(page, "notifications-mobile")
+    panel.get_by_role("button", name="Close", exact=True).click()
+    expect(page.locator("dialog[open]")).to_have_count(0)

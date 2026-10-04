@@ -1,5 +1,17 @@
 # ML Platform
 
+**Home — platform overview**
+
+![Home: platform health, active runs, deployments and recent activity](docs/images/ui/01-home.png)
+
+**Projects — choose a workspace**
+
+![Projects: project cards, resource counts and items needing attention](docs/images/ui/02-projects.png)
+
+**Project Overview — Credit Risk**
+
+![Credit Risk: project navigation, runs, resources and deployments](docs/images/ui/03-project-overview.png)
+
 A self-hosted platform for teams to train, ship and run machine learning models on
 Kubernetes. Classic models, LLMs and your own functions alike: from a training run to a model behind a public,
 rate-limited API, with a web UI, sign-in and project roles, canary releases and full

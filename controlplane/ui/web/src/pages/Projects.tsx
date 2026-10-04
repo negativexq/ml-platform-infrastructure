@@ -5,6 +5,8 @@ import { Badge, Empty, Time } from '../components/bits';
 import { useOverlays } from '../components/overlays';
 import { useCrumbs } from '../lib/chrome';
 import { go, routes } from '../lib/format';
+import { PROJECT_NAV } from '../lib/navigation';
+import { useSearchState } from '../lib/search';
 import { QueryView, useLiveQuery } from '../lib/query';
 
 type Problem = { key: string; project: string; href: string; what: string; why?: string | null; at: string };
@@ -34,7 +36,7 @@ function Attention({ rows }: { rows: Row[] }) {
   const rollouts = rows.filter((r) => (r.summary?.active_rollouts ?? 0) > 0);
   if (!items.length && !rollouts.length) return null;
   return (
-    <div className="card attention section-gap" data-testid="attention" role="region" aria-label="Needs attention">
+    <div className="card attention section-gap project-attention" data-testid="attention" role="region" aria-label="Needs attention">
       <h2>{items.length ? 'Needs attention' : 'In progress'} {items.length > 0 && <span className="count">{items.length}</span>}</h2>
       <ul className="timeline">
         {items.slice(0, 8).map((i) => (
@@ -57,8 +59,10 @@ const BUSY = ['PENDING', 'PROVISIONING', 'DRIFTED', 'DELETING'];
 
 export function ProjectsPage() {
   useCrumbs([{ label: 'Projects' }]);
-  const { form, toast } = useOverlays();
-  const client = useQueryClient();
+  const newProject = useNewProject();
+  const [{ section: requestedSection }] = useSearchState({ section: '' });
+  const validSections = PROJECT_NAV.flatMap((g) => g.items ? g.items.map(([key]) => key) : [g.key]);
+  const section = validSections.includes(requestedSection) ? requestedSection : '';
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
 
@@ -71,7 +75,46 @@ export function ProjectsPage() {
     return items.map((project, i) => ({ project, summary: summaries[i] ?? null, problems: problems[i] ?? [] }));
   }, (data) => data.some((r) => BUSY.includes(r.project.status)));
 
-  async function newProject() {
+  const test = FILTERS.find(([key]) => key === filter)?.[2] ?? (() => true);
+  const shown = useMemo(() => (rows.data ?? []).filter(({ project: p, problems }) => (test(p) || (filter === 'attention' && problems.length > 0))
+    && (!query || `${p.name} ${p.display_name} ${p.description ?? ''}`.toLowerCase().includes(query.toLowerCase()))),
+  [rows.data, query, filter]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  return (
+    <QueryView query={rows}>
+      {(all) => (
+        <>
+          <div className="page-head">
+            <h1>Projects</h1>
+            <div className="actions">
+              <button className="btn primary" type="button" data-testid="create-project" onClick={newProject}>New project</button>
+            </div>
+          </div>
+          <p className="sub">{section ? `Choose a project to continue in ${section}.` : 'Everything the platform runs, grouped by project.'}</p>
+          <Attention rows={all} />
+          <div className="toolbar">
+            <input type="search" className="grow" placeholder="Filter projects…  ( / )" aria-label="Filter projects" data-search
+              data-testid="projects-search" value={query} onChange={(e) => setQuery(e.target.value.trim())} />
+            <div className="seg" role="group" aria-label="Status filter">
+              {FILTERS.map(([key, label]) => (
+                <button key={key} type="button" aria-pressed={key === filter} data-filter={key} onClick={() => setFilter(key)}>{label}</button>))}
+            </div>
+          </div>
+          <div data-testid="projects-list">
+            {shown.length ? <div className="grid">{shown.map((r) => <Card key={r.project.id} row={r} section={section} />)}</div>
+              : <Empty actions={<>{all.length ? <button className="btn" type="button" onClick={() => { setQuery(''); setFilter('all'); }}>Clear filters</button> : <button className="btn primary" type="button" onClick={newProject}>New project</button>}<a href="#/help?topic=start">Getting started</a></>}>{all.length ? 'No project matches this filter.' : 'No projects yet. Create the first one with “New project”.'}</Empty>}
+          </div>
+        </>
+      )}
+    </QueryView>
+  );
+}
+
+/** Shared project creation action for the directory and Home. */
+export function useNewProject() {
+  const { form, toast } = useOverlays();
+  const client = useQueryClient();
+  return async function newProject() {
     const created = await form<S['ProjectOut']>({
       title: 'New project', intro: 'A project is a namespace on the cluster plus everything that runs in it.', submitLabel: 'Create project',
       fields: [
@@ -91,48 +134,15 @@ export function ProjectsPage() {
     }
   }
 
-  const test = FILTERS.find(([key]) => key === filter)?.[2] ?? (() => true);
-  const shown = useMemo(() => (rows.data ?? []).filter(({ project: p, problems }) => (test(p) || (filter === 'attention' && problems.length > 0))
-    && (!query || `${p.name} ${p.display_name} ${p.description ?? ''}`.toLowerCase().includes(query.toLowerCase()))),
-  [rows.data, query, filter]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  return (
-    <QueryView query={rows}>
-      {(all) => (
-        <>
-          <div className="page-head">
-            <h1>Projects</h1>
-            <div className="actions">
-              <button className="btn primary" type="button" data-testid="create-project" onClick={newProject}>New project</button>
-            </div>
-          </div>
-          <p className="sub">Everything the platform runs, grouped by project.</p>
-          <Attention rows={all} />
-          <div className="toolbar">
-            <input type="search" className="grow" placeholder="Filter projects…  ( / )" aria-label="Filter projects" data-search
-              data-testid="projects-search" value={query} onChange={(e) => setQuery(e.target.value.trim())} />
-            <div className="seg" role="group" aria-label="Status filter">
-              {FILTERS.map(([key, label]) => (
-                <button key={key} type="button" aria-pressed={key === filter} data-filter={key} onClick={() => setFilter(key)}>{label}</button>))}
-            </div>
-          </div>
-          <div data-testid="projects-list">
-            {shown.length ? <div className="grid">{shown.map((r) => <Card key={r.project.id} row={r} />)}</div>
-              : <Empty>{all.length ? 'No project matches this filter.' : 'No projects yet. Create the first one with “New project”.'}</Empty>}
-          </div>
-        </>
-      )}
-    </QueryView>
-  );
 }
 
 const Count = ({ label, n }: { label: string; n: number }) => (
   <div data-count={label.toLowerCase()}><b>{n}</b><span>{label}</span></div>
 );
 
-function Card({ row: { project, summary: s, problems } }: { row: Row }) {
+function Card({ row: { project, summary: s, problems }, section }: { row: Row; section: string }) {
   return (
-    <a className="card" href={routes.project(project.name)} data-testid={`project-${project.name}`}>
+    <a className="card" href={`${routes.project(project.name)}${section ? `/${section}` : ''}`} data-testid={`project-${project.name}`}>
       <h2>{project.display_name}<Badge status={project.status} />{problems.length > 0 && <span className="count bad" title="Needs attention">{problems.length}</span>}</h2>
       <div className="muted mono small">{project.name}</div>
       <p className="muted" style={{ minHeight: '2.6em' }}>{project.description || ''}</p>

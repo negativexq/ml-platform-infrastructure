@@ -66,7 +66,7 @@ export function RunsPage({ project }: { project: string }) {
       <QueryView query={query}>
         {(d) => (
           <>
-            {d.items.length === 0 ? <Empty>{name || status ? 'No run matches these filters.' : 'No runs yet.'}</Empty>
+            {d.items.length === 0 ? <Empty actions={<>{name || status || offset ? <button className="btn" type="button" onClick={() => update({ name: '', status: '', offset: '0' })}>Clear filters</button> : <a className="btn" href={`${routes.project(project)}/${kind === 'job' ? 'jobs' : 'pipelines'}`}>Open {kind === 'job' ? 'jobs' : 'pipelines'}</a>}<a href="#/help?topic=guides">Workflow guide</a></>}>{name || status ? 'No run matches these filters.' : 'No runs yet.'}</Empty>
               : d.kind === 'pipeline' ? <PipelineRunTable project={project} rows={d.items} />
               : <JobRunTable project={project} rows={d.items} />}
             <Pager offset={offset} limit={LIMIT} count={d.items.length} onChange={(o) => update({ offset: String(o) })} />

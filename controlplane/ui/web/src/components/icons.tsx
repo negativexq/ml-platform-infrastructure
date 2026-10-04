@@ -1,5 +1,12 @@
 /** Navigation icons: 16px, 1.5px strokes in the text colour, decorative (the label names the place). */
 const PATHS: Record<string, string> = {
+  home: 'M2.5 7.5l5.5-5 5.5 5M4 6.5v7h8v-7',
+  functions: 'M10 2H7L5 14M3 6h8',
+  endpoints: 'M6 5H3v6h3M10 5h3v6h-3M6 8h4',
+  services: 'M2 3h12v4H2zM2 9h12v4H2z',
+  data: 'M3 4c0-3 10-3 10 0v8c0 3-10 3-10 0zM3 4c0 3 10 3 10 0M3 8c0 3 10 3 10 0',
+  infrastructure: 'M2 3h12v4H2zM2 9h12v4H2zM5 5h.01M5 11h.01',
+  identity: 'M5 4a3 3 0 1 0 6 0a3 3 0 1 0-6 0M2 14c0-7 12-7 12 0',
   projects: 'M2.5 2.5h4.5v4.5h-4.5zM9 2.5h4.5v4.5h-4.5zM2.5 9h4.5v4.5h-4.5zM9 9h4.5v4.5h-4.5z',
   monitor: 'M1.5 8.5h3l2-5 3 9 2-4h3',
   overview: 'M2.5 7.5l5.5-5 5.5 5M4 6.5v7h8v-7',

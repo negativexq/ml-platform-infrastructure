@@ -1,15 +1,13 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { api, enc, type S } from '../api/client';
+import { GLOBAL_NAV, resourceType } from '../lib/navigation';
 import { go, routes, score } from '../lib/format';
 
 type Entry = { label: string; detail?: string; kind: string; href: string };
 
 async function loadIndex(): Promise<Entry[]> {
   const { items: projects } = await api.get<S['ProjectList']>('/projects?limit=200');
-  const entries: Entry[] = [
-    { label: 'All projects', kind: 'page', href: routes.projects() },
-    { label: 'Platform health', detail: 'monitor', kind: 'page', href: routes.monitor() },
-  ];
+  const entries: Entry[] = GLOBAL_NAV.flatMap((g) => g.items.map(([key, label]) => ({ label, detail: g.label, kind: 'page', href: `#/${key}` })));
   await Promise.all(projects.map(async (p) => {
     const base = `/projects/${enc(p.name)}`;
     entries.push({ label: p.display_name, detail: p.name, kind: 'project', href: routes.project(p.name) });
@@ -17,7 +15,8 @@ async function loadIndex(): Promise<Entry[]> {
       api.get<S['ModelList']>(`${base}/models`).catch(() => ({ items: [] as S['ModelOut'][] })),
       api.get<S['DeploymentList']>(`${base}/deployments`).catch(() => ({ items: [] as S['DeploymentOut'][] })),
     ]);
-    models.items.forEach((m) => entries.push({ label: m.name, detail: p.name, kind: 'model', href: routes.model(p.name, m.name) }));
+    models.items.forEach((m) => entries.push({ label: m.name, detail: p.name, kind: resourceType(m.kind), href: m.kind === 'function' ? routes.function(p.name, m.name) : routes.model(p.name, m.name) }));
+    deployments.items.forEach((d) => entries.push({ label: d.endpoint.name, detail: p.name, kind: 'endpoint', href: routes.endpoint(p.name, d.endpoint.name) }));
     deployments.items.forEach((d) => entries.push({ label: d.name, detail: p.name, kind: 'deployment', href: routes.deployment(p.name, d.name) }));
   }));
   return entries;
@@ -46,7 +45,7 @@ export function Palette({ onDone }: { onDone: (el: Element) => void }) {
 
   return (
     <div ref={root}>
-      <input type="search" placeholder="Jump to a project, model or deployment…" aria-label="Search" autoComplete="off" spellCheck={false}
+      <input type="search" placeholder="Jump to a capability or resource…" aria-label="Search" autoComplete="off" spellCheck={false}
         data-testid="palette-input" role="combobox" aria-expanded="true" aria-controls="palette-list" autoFocus value={query}
         onChange={(e) => { setQuery(e.target.value); setActive(0); }}
         onKeyDown={(e) => {

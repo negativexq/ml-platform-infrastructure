@@ -38,6 +38,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/me/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Current issues and recent rollout outcomes */
+        get: operations["list_notifications_me_notifications_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/notifications/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark your notifications read */
+        post: operations["mark_read_me_notifications_read_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/model-versions/{version_id}": {
         parameters: {
             query?: never;
@@ -1807,6 +1841,66 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** NotificationList */
+        NotificationList: {
+            /** Attention Count */
+            attention_count: number;
+            /** Items */
+            items: components["schemas"]["NotificationOut"][];
+            /** Truncated */
+            truncated: boolean;
+            /** Unread Count */
+            unread_count: number;
+        };
+        /** NotificationOut */
+        NotificationOut: {
+            /** Endpoint Name */
+            endpoint_name: string | null;
+            /** Id */
+            id: string;
+            /** Kind */
+            kind: string;
+            /** Needs Attention */
+            needs_attention: boolean;
+            /**
+             * Occurred At
+             * Format: date-time
+             */
+            occurred_at: string;
+            /** Project */
+            project: string;
+            /** Project Label */
+            project_label: string;
+            /** Read */
+            read: boolean;
+            /** Reason */
+            reason: string | null;
+            /** Resource Id */
+            resource_id: string;
+            /** Resource Name */
+            resource_name: string;
+            /** Resource Type */
+            resource_type: string;
+            /** Status */
+            status: string;
+            /** Title */
+            title: string;
+        };
+        /** NotificationReadIn */
+        NotificationReadIn: {
+            /**
+             * All
+             * @default false
+             */
+            all: boolean;
+            /** Ids */
+            ids?: string[];
+        };
+        /** NotificationReadOut */
+        NotificationReadOut: {
+            /** Marked */
+            marked: number;
+        };
         /** PipelineCreate */
         PipelineCreate: {
             /** Name */
@@ -2633,6 +2727,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    list_notifications_me_notifications_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationList"];
+                };
+            };
+        };
+    };
+    mark_read_me_notifications_read_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["NotificationReadIn"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["NotificationReadOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

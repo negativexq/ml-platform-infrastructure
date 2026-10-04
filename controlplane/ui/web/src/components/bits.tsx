@@ -54,7 +54,7 @@ export function CopyButton({ text, what = 'value' }: { text: string; what?: stri
   );
 }
 
-export const Empty = ({ children }: { children: ReactNode }) => <div className="empty">{children}</div>;
+export const Empty = ({ children, actions }: { children: ReactNode; actions?: ReactNode }) => <div className="empty"><div>{children}</div>{actions && <div className="empty-actions">{actions}</div>}</div>;
 
 export function Section({ title, testid, children, more }: { title: string; testid?: string; children: ReactNode; more?: [string, string] }) {
   return (

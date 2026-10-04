@@ -17,10 +17,10 @@ const metricNames = (versions: Version[]) =>
   [...new Set(versions.flatMap((v) => v.evaluations.flatMap((e) => Object.keys(e.metrics))))].sort();
 const latest = (v: Version) => v.evaluations[v.evaluations.length - 1];
 
-export function ModelPage({ project, name }: { project: string; name: string }) {
+export function ModelPage({ project, name, functions = false }: { project: string; name: string; functions?: boolean }) {
   const access = useAccess(project);
   useCrumbs([{ label: 'Projects', href: routes.projects() }, { label: project, href: routes.project(project) },
-    { label: 'Models', href: `${routes.project(project)}/models` }, { label: name }]);
+    { label: functions ? 'Functions' : 'Models', href: `${routes.project(project)}/${functions ? 'functions' : 'models'}` }, { label: name }]);
   const base = `/projects/${enc(project)}/models/${enc(name)}`;
   const { confirm, toast, form } = useOverlays();
   const deploy = useDeploy(project);

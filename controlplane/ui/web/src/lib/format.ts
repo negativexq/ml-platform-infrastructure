@@ -43,6 +43,8 @@ export function score(query: string, text: string): number | null {
 /** Routes, as the hash URLs the app lives under. */
 export const routes = {
   projects: () => '#/projects',
+  endpoint: (p: string, name: string) => `#/projects/${encodeURIComponent(p)}/endpoints/${encodeURIComponent(name)}`,
+  function: (p: string, name: string) => `#/projects/${encodeURIComponent(p)}/functions/${encodeURIComponent(name)}`,
   monitor: () => '#/monitor',
   project: (p: string) => `#/projects/${encodeURIComponent(p)}`,
   pipelineRun: (p: string, id: string) => `#/projects/${encodeURIComponent(p)}/pipeline-runs/${id}`,

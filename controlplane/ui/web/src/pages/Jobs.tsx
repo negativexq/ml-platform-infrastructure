@@ -70,7 +70,7 @@ export function JobsPage({ project }: { project: string }) {
             <div className="actions"><button className="btn primary" type="button" data-testid="new-job" disabled={!access.may('operator')} title={access.why('operator')} onClick={newJob}>New job</button></div>
           </div>
           <p className="sub">Containers the platform can run, alone or as pipeline steps.</p>
-          {rows.length === 0 ? <Empty>No jobs yet. Create one with “New job”.</Empty> : (
+          {rows.length === 0 ? <Empty actions={<><button className="btn primary" type="button" disabled={!access.may('operator')} title={access.why('operator')} onClick={newJob}>New job</button><a href="#/help?topic=guides">Workflow guide</a></>}>No jobs yet. Create one with “New job”.</Empty> : (
             <Table testid="jobs" head={['Job', 'Image', 'Resources', 'Last run', 'Success rate', 'Typical duration', '']}>
               {rows.map(({ job, runs }) => {
                 const st = runStats(runs);

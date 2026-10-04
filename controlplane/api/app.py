@@ -16,6 +16,7 @@ from controlplane.api.errors import DomainHttpError, PlatformRoute, handle_domai
 from controlplane.api.identity import identity_router, login_router
 from controlplane.api.jobs_runs import jobs_router, runs_router
 from controlplane.api.models import model_versions_router, models_router
+from controlplane.api.notifications import notifications_router
 from controlplane.api.overview import overview_router
 from controlplane.api.pipelines import pipeline_runs_router, pipelines_router
 from controlplane.api.platform import platform_router
@@ -33,6 +34,7 @@ from controlplane.application.identity import visible_project_ids
 from controlplane.application.jobs import JobService
 from controlplane.application.members import MembershipService
 from controlplane.application.models import EvaluationService, ModelService, PromotionService
+from controlplane.application.notifications import NotificationService
 from controlplane.application.overview import OverviewService
 from controlplane.application.pipeline_runs import PipelineRunService
 from controlplane.application.pipelines import PipelineService
@@ -181,6 +183,7 @@ def create_app(
     )
     app.state.uow_factory = uow_factory
     app.state.auth = auth
+    app.state.notifications = NotificationService(uow_factory, clock)
     app.state.members = MembershipService(uow_factory, clock)
     app.state.projects = ProjectService(uow_factory, clock)
     app.state.jobs = JobService(uow_factory, clock)
@@ -214,6 +217,7 @@ def create_app(
     app.include_router(platform_router())
     app.include_router(api_access_router())
     app.include_router(identity_router())
+    app.include_router(notifications_router())
     if auth is not None and auth.login is not None:
         app.include_router(login_router(auth))
 

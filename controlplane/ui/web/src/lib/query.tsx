@@ -37,7 +37,8 @@ export function QueryView<T>({ query, children }: { query: UseQueryResult<T>; ch
       return (
         <div className="empty no-access" data-testid="no-access">
           <b>You don't have access to this.</b>
-          <p className="muted">{error.message}. A project admin can add you under Settings → Members.</p>
+          <p className="muted">{error.message}. Ask the project admin to review Settings → Members, or the platform admin for platform access.</p>
+          <a href="#/help?topic=trouble">Access and permissions help</a>
         </div>);
     }
     if (error instanceof ApiError && error.status === 401) return <Skeleton />; // the sign-in screen takes over

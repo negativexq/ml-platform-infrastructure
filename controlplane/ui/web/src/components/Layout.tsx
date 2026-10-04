@@ -2,18 +2,12 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { applyTheme, cycleTheme, getTheme, THEME_ICON, THEME_LABEL } from '../lib/theme';
 import { useChrome } from '../lib/chrome';
 import { go, routes } from '../lib/format';
+import { Notifications } from './Notifications';
+import { HelpContent } from './Help';
 import { Palette } from './Palette';
 import { AccountMenu, SignIn, useSignedOut } from './Account';
 import { Modal } from './overlays';
-import { Sidebar, useWhere } from './Sidebar';
-
-const SHORTCUTS: [string, string][] = [
-  ['Ctrl/⌘ K  or  /', 'Search everything'],
-  ['g then p', 'Go to projects'],
-  ['g then m', 'Go to the platform monitor'],
-  ['?', 'Show this help'],
-  ['Esc', 'Close a dialog'],
-];
+import { ProjectNavigation, Sidebar, useWhere } from './Sidebar';
 
 export function Layout({ children }: { children: ReactNode }) {
   const { crumbs, live } = useChrome();
@@ -65,7 +59,7 @@ export function Layout({ children }: { children: ReactNode }) {
         {!signedOut && (
           <button className="btn small ghost menu-btn" type="button" aria-label="Menu" aria-controls="sidebar" aria-expanded={menu}
             data-testid="menu-btn" onClick={() => setMenu(!menu)}><span aria-hidden="true">☰</span></button>)}
-        <a className="brand" href={routes.projects()}>
+        <a className="brand" href="#/home">
           <svg className="logo" width="22" height="22" viewBox="0 0 22 22" aria-hidden="true" focusable="false">
             <rect width="22" height="22" rx="5" fill="var(--accent)" />
             <path d="M5.5 15.5v-9l5.5 6 5.5-6v9" fill="none" stroke="var(--accent-contrast)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
@@ -88,23 +82,19 @@ export function Layout({ children }: { children: ReactNode }) {
           title={`${THEME_LABEL[theme]} (click to change)`} aria-label={THEME_LABEL[theme]} onClick={() => setTheme(cycleTheme())}>
           <span aria-hidden="true">{THEME_ICON[theme]}</span>
         </button>
-        <button id="help-btn" className="btn small ghost" type="button" title="Keyboard shortcuts (?)" aria-label="Keyboard shortcuts"
+        <button id="help-btn" className="btn small ghost" type="button" title="Help & learning (?)" aria-label="Help & learning"
           onClick={() => { if (!anyDialogOpen()) setHelp(true); }}>?</button>
+        {!signedOut && <Notifications />}
         <AccountMenu />
       </header>
       <div className={`shell${signedOut ? ' bare' : ''}`}>
         {!signedOut && <Sidebar open={menu} />}
         {menu && <button className="scrim" type="button" aria-label="Close menu" tabIndex={-1} onClick={() => setMenu(false)} />}
-        <main id="view" ref={main} tabIndex={-1}>{signedOut ? <SignIn signInUrl={signedOut.signInUrl} /> : children}</main>
+        <main id="view" ref={main} tabIndex={-1}>{signedOut ? <SignIn signInUrl={signedOut.signInUrl} /> : <><ProjectNavigation />{children}</>}</main>
       </div>
-      <Modal open={help} onClose={() => setHelp(false)}>
-        <h2>Keyboard shortcuts</h2>
-        <dl className="kv">
-          {SHORTCUTS.map(([k, d]) => (<span key={k} style={{ display: 'contents' }}><dt><kbd>{k}</kbd></dt><dd>{d}</dd></span>))}
-        </dl>
-        <div className="dlg-actions">
-          <button className="btn primary" type="button" onClick={(e) => (e.currentTarget.closest('dialog') as HTMLDialogElement).close()}>Close</button>
-        </div>
+      <Modal open={help} className="wide help-dialog" onClose={() => setHelp(false)}>
+        <div className="page-head"><h1>Help &amp; learning</h1><button className="btn small" type="button" onClick={(e) => e.currentTarget.closest('dialog')?.close()}>Close</button></div>
+        <HelpContent onNavigate={() => setHelp(false)} />
       </Modal>
       <Modal open={palette} className="palette" onClose={() => setPalette(false)}>
         <Palette onDone={(e) => (e as HTMLElement).closest('dialog')?.close('ok')} />

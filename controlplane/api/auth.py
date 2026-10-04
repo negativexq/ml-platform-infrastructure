@@ -169,6 +169,8 @@ POLICY: dict[tuple[str, str], str | ProjectRole] = {
     ("GET", "/auth/callback"): PUBLIC,
     ("POST", "/auth/logout"): PUBLIC,  # checks its own CSRF header
     ("GET", "/me"): SIGNED_IN,
+    ("GET", "/me/notifications"): SIGNED_IN,
+    ("POST", "/me/notifications/read"): SIGNED_IN,
     ("GET", "/projects"): SIGNED_IN,  # lists only the caller's projects
     ("POST", "/projects"): SIGNED_IN,  # the creator becomes the project's admin
     ("GET", "/platform/health"): SIGNED_IN,  # inventory counts only the caller's projects

@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Collection, Sequence
 from dataclasses import dataclass, field
+from datetime import datetime
 from types import TracebackType
 from typing import Self
 from uuid import UUID
@@ -46,6 +47,7 @@ from controlplane.domain.states import (
 
 @dataclass
 class MemoryStore:
+    notification_reads: dict[tuple[str, str], datetime] = field(default_factory=dict)
     projects: dict[UUID, Project] = field(default_factory=dict)
     jobs: dict[UUID, JobDefinition] = field(default_factory=dict)
     runs: dict[UUID, Run] = field(default_factory=dict)
@@ -212,6 +214,7 @@ class _Runs:
         limit: int,
         offset: int,
         statuses: Collection[RunStatus] | None = None,
+        finished_since: datetime | None = None,
     ) -> Sequence[Run]:
         rows = [
             r
@@ -219,6 +222,7 @@ class _Runs:
             if r.project_id == project_id
             and (job_id is None or r.job_definition_id == job_id)
             and (not statuses or r.status in statuses)
+            and (finished_since is None or (r.finished_at or r.updated_at) >= finished_since)
         ]
         rows.sort(key=lambda r: (r.created_at, r.id), reverse=True)
         return rows[offset : offset + limit]
@@ -305,6 +309,7 @@ class _PipelineRuns:
         limit: int,
         offset: int,
         statuses: Collection[RunStatus] | None = None,
+        finished_since: datetime | None = None,
     ) -> Sequence[PipelineRun]:
         rows = [
             r
@@ -312,6 +317,7 @@ class _PipelineRuns:
             if r.project_id == project_id
             and (definition_ids is None or r.pipeline_definition_id in definition_ids)
             and (not statuses or r.status in statuses)
+            and (finished_since is None or (r.finished_at or r.updated_at) >= finished_since)
         ]
         rows.sort(key=lambda r: (r.created_at, r.id), reverse=True)
         return rows[offset : offset + limit]
@@ -653,6 +659,22 @@ class _Audit:
     def __init__(self, data: list[AuditEvent]) -> None:
         self._data = data
 
+    def latest(
+        self, *, project_id: UUID, entity_type: str, entity_id: UUID, actions: Sequence[str]
+    ) -> AuditEvent | None:
+        return max(
+            (
+                e
+                for e in self._data
+                if e.project_id == project_id
+                and e.entity_type == entity_type
+                and e.entity_id == entity_id
+                and e.action in actions
+            ),
+            key=lambda e: (e.occurred_at, e.id),
+            default=None,
+        )
+
     def record(self, event: AuditEvent) -> None:
         self._data.append(event)
 
@@ -667,11 +689,25 @@ class _Audit:
         ]
 
 
+class _NotificationReads:
+    def __init__(self, data: dict[tuple[str, str], datetime]) -> None:
+        self._data = data
+
+    def find(self, username: str, ids: Sequence[str]) -> set[str]:
+        return {key for key in ids if (username, key) in self._data}
+
+    def mark(self, username: str, ids: Sequence[str], at: datetime) -> None:
+        for key in ids:
+            self._data.setdefault((username, key), at)
+
+
 class MemoryUnitOfWork:
     def __init__(self, store: MemoryStore) -> None:
         self._store = store
 
     def __enter__(self) -> Self:
+        self._notification_reads = dict(self._store.notification_reads)
+        self.notification_reads = _NotificationReads(self._notification_reads)
         self._projects = dict(self._store.projects)
         self._jobs = dict(self._store.jobs)
         self._runs = dict(self._store.runs)
@@ -717,6 +753,7 @@ class MemoryUnitOfWork:
         return None  # uncommitted work is simply dropped
 
     def commit(self) -> None:
+        self._store.notification_reads = self._notification_reads
         self._store.projects = self._projects
         self._store.jobs = self._jobs
         self._store.runs = self._runs

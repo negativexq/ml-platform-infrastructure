@@ -22,7 +22,7 @@ export default defineConfig({
   },
   server: {
     // `npm run dev` proxies the API to a running control plane (make cp-demo).
-    proxy: { '^/(projects|pipeline-runs|runs|model-versions|rollouts)': 'http://127.0.0.1:8080' },
+    proxy: { '^/(projects|pipeline-runs|runs|model-versions|rollouts|platform|me|auth)': 'http://127.0.0.1:8080' },
   },
   test: { environment: 'node' },
 });

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { api, enc, type S } from '../api/client';
+import { api, ApiError, enc, type S } from '../api/client';
 import { Badge, Empty, Section, Snippet, Table, Time } from '../components/bits';
 import { Dag } from '../components/Dag';
 import { useOverlays } from '../components/overlays';
@@ -18,22 +18,25 @@ const HISTORY = 20;
 /** Ask for a commit and start a run of `pipeline` (latest version unless one is given). */
 export function useRunPipeline(project: string) {
   const { form, toast } = useOverlays();
-  return async (pipelines: { name: string; version: number }[], preselect?: string, version?: number) => {
-    const run = await form<S['PipelineRunOut']>({
+  return async (pipelines: { name: string; version: number; project?: string; projectLabel?: string }[], preselect?: string, version?: number) => {
+    const result = await form<{ run: S['PipelineRunOut']; project: string }>({
       title: 'Run a pipeline', submitLabel: 'Start run',
       intro: version ? `Runs version ${version}. You can follow it live on the next page.` : 'Runs the latest version of the pipeline. You can follow it live on the next page.',
       fields: [
         { name: 'pipeline', label: 'Pipeline', required: true, value: preselect,
-          options: pipelines.map((x) => ({ value: x.name, label: `${x.name} (v${version ?? x.version})` })) },
+          options: pipelines.map((x) => ({ value: x.project ? `${x.project}/${x.name}` : x.name, label: `${x.projectLabel ? x.projectLabel + ' / ' : ''}${x.name} (v${version ?? x.version})` })) },
         { name: 'commit_sha', label: 'Commit', placeholder: 'a83d2c1', hint: 'Optional. Recorded on the run and on every model it registers.' },
       ],
-      submit: (v) => {
-        const pipeline = v.pipeline ?? '';
+      submit: async (v) => {
+        const pipeline = pipelines.find((x) => (x.project ? `${x.project}/${x.name}` : x.name) === v.pipeline);
+        if (!pipeline) throw new ApiError(422, 'invalid_argument', 'Choose a pipeline');
+        const targetProject = pipeline.project ?? project;
         const pinned = version ? `?version=${version}` : '';
-        return api.post<S['PipelineRunOut']>(`/projects/${enc(project)}/pipelines/${enc(pipeline)}/runs` + pinned, v.commit_sha ? { commit_sha: v.commit_sha } : {});
+        const run = await api.post<S['PipelineRunOut']>(`/projects/${enc(targetProject)}/pipelines/${enc(pipeline.name)}/runs` + pinned, v.commit_sha ? { commit_sha: v.commit_sha } : {});
+        return { run, project: targetProject };
       },
     });
-    if (run) { toast('Run started'); go(routes.pipelineRun(project, run.id)); }
+    if (result) { toast('Run started'); go(routes.pipelineRun(result.project, result.run.id)); }
   };
 }
 
@@ -57,7 +60,7 @@ export function PipelinesPage({ project }: { project: string }) {
           <p className="sub">Multi-step workflows. Health is measured over each pipeline's last {HISTORY} runs.</p>
           {rows.length === 0 ? (
             <>
-              <Empty>No pipelines yet. Pipelines are defined in code and registered through the API, usually from CI.</Empty>
+              <Empty actions={<a href="#/help?topic=guides">How to register and run a pipeline</a>}>No pipelines yet. Pipelines are defined in code and registered through the API, usually from CI.</Empty>
               <Snippet label="Register a pipeline from CI" code={pipelineCurl(project, 'training', [
                 { name: 'prepare', job: 'prepare-data', depends_on: [] }, { name: 'train', job: 'train-model', depends_on: ['prepare'] }])} />
             </>

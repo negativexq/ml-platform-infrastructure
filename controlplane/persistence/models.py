@@ -349,3 +349,11 @@ class AuditEventRow(Base):
     payload: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
     # The trace the change was made in: an audit row can be opened as a trace.
     trace_id: Mapped[str | None] = mapped_column(String(32), index=True)
+
+
+class NotificationReadRow(Base):
+    __tablename__ = "notification_reads"
+
+    username: Mapped[str] = mapped_column(String(200), primary_key=True)
+    notification_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    read_at: Mapped[datetime] = _ts()

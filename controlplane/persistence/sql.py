@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from collections.abc import Collection, Sequence
+from datetime import datetime
 from types import TracebackType
 from typing import Any, Self
 from uuid import UUID
 
 from sqlalchemy import Engine, create_engine, delete, func, select, update
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
 from sqlalchemy.sql import Select
@@ -64,6 +66,7 @@ from controlplane.persistence.models import (
     MembershipRow,
     ModelRow,
     ModelVersionRow,
+    NotificationReadRow,
     PipelineDefinitionRow,
     PipelineRunRow,
     ProjectRow,
@@ -301,8 +304,13 @@ class SqlRuns:
         limit: int,
         offset: int,
         statuses: Collection[RunStatus] | None = None,
+        finished_since: datetime | None = None,
     ) -> Sequence[Run]:
         stmt = select(RunRow).where(RunRow.project_id == project_id)
+        if finished_since is not None:
+            stmt = stmt.where(
+                func.coalesce(RunRow.finished_at, RunRow.updated_at) >= finished_since
+            )
         if statuses:
             stmt = stmt.where(RunRow.status.in_([s.value for s in statuses]))
         if job_id is not None:
@@ -489,8 +497,14 @@ class SqlPipelineRuns:
         limit: int,
         offset: int,
         statuses: Collection[RunStatus] | None = None,
+        finished_since: datetime | None = None,
     ) -> Sequence[PipelineRun]:
         stmt = select(PipelineRunRow).where(PipelineRunRow.project_id == project_id)
+        if finished_since is not None:
+            stmt = stmt.where(
+                func.coalesce(PipelineRunRow.finished_at, PipelineRunRow.updated_at)
+                >= finished_since
+            )
         if statuses:
             stmt = stmt.where(PipelineRunRow.status.in_([s.value for s in statuses]))
         if definition_ids is not None:
@@ -1225,6 +1239,22 @@ class SqlAudit:
     def __init__(self, session: Session) -> None:
         self._s = session
 
+    def latest(
+        self, *, project_id: UUID, entity_type: str, entity_id: UUID, actions: Sequence[str]
+    ) -> AuditEvent | None:
+        row = self._s.scalars(
+            select(AuditEventRow)
+            .where(
+                AuditEventRow.project_id == project_id,
+                AuditEventRow.entity_type == entity_type,
+                AuditEventRow.entity_id == entity_id,
+                AuditEventRow.action.in_(actions),
+            )
+            .order_by(AuditEventRow.occurred_at.desc(), AuditEventRow.id.desc())
+            .limit(1)
+        ).first()
+        return _audit(row) if row else None
+
     def record(self, event: AuditEvent) -> None:
         self._s.add(
             AuditEventRow(
@@ -1390,12 +1420,43 @@ class SqlApiKeys:
             raise NotFound("api key", key.key_id)
 
 
+class SqlNotificationReads:
+    def __init__(self, session: Session) -> None:
+        self._s = session
+
+    def find(self, username: str, ids: Sequence[str]) -> set[str]:
+        if not ids:
+            return set()
+        return set(
+            self._s.scalars(
+                select(NotificationReadRow.notification_id).where(
+                    NotificationReadRow.username == username,
+                    NotificationReadRow.notification_id.in_(ids),
+                )
+            )
+        )
+
+    def mark(self, username: str, ids: Sequence[str], at: datetime) -> None:
+        if ids:
+            self._s.execute(
+                insert(NotificationReadRow)
+                .values(
+                    [
+                        {"username": username, "notification_id": key, "read_at": at}
+                        for key in set(ids)
+                    ]
+                )
+                .on_conflict_do_nothing()
+            )
+
+
 class SqlUnitOfWork:
     def __init__(self, session_factory: sessionmaker[Session]) -> None:
         self._factory = session_factory
 
     def __enter__(self) -> Self:
         self._session = self._factory()
+        self.notification_reads = SqlNotificationReads(self._session)
         self.projects = SqlProjects(self._session)
         self.jobs = SqlJobs(self._session)
         self.runs = SqlRuns(self._session)

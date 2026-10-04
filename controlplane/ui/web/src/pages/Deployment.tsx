@@ -73,7 +73,7 @@ export function DeploymentPage({ project, name }: { project: string; name: strin
               if (await confirm({ title: 'Abort this rollout?', body: `All traffic returns to r${live.from_revision}. The canary is not promoted.`, confirmLabel: 'Abort rollout', danger: true }))
                 await act(() => api.post(`/rollouts/${live.id}/abort`), 'Abort requested');
             }} />}
-            <div className="cols"><EndpointCard endpoint={d.endpoint} metrics={metrics} live={live} /><Revisions d={d} /></div>
+            <div className="cols"><EndpointCard project={project} endpoint={d.endpoint} metrics={metrics} live={live} /><Revisions d={d} /></div>
             <MetricTrends project={project} endpoint={d.endpoint.name} />
             <ApiAccessCard project={project} endpoint={d.endpoint} />
             {d.endpoint.kind === 'llm'
@@ -115,11 +115,11 @@ function RolloutCard({ r, onAbort, allowed, revisions }: { r: Rollout; onAbort: 
   );
 }
 
-function EndpointCard({ endpoint, metrics, live }: { endpoint: S['EndpointOut']; metrics: S['EndpointMetricsOut'] | null; live: Rollout | undefined }) {
+function EndpointCard({ project, endpoint, metrics, live }: { project: string; endpoint: S['EndpointOut']; metrics: S['EndpointMetricsOut'] | null; live: Rollout | undefined }) {
   const rows = metrics?.available ? metrics.revisions : [];
   return (
     <div className="card" data-testid="endpoint">
-      <h2>Endpoint<Badge status={endpoint.status} /></h2>
+      <h2><a href={routes.endpoint(project, endpoint.name)}>Endpoint</a><Badge status={endpoint.status} /></h2>
       <p className="small">
         <span className="mono">{endpoint.name}</span>
         {endpoint.url && <>{' · '}<span className="mono muted">{endpoint.url}</span><CopyButton text={endpoint.url} what="endpoint URL" /></>}

@@ -46,7 +46,7 @@ export function DeploymentsPage({ project }: { project: string }) {
             </div>
           </div>
           <p className="sub">What serves traffic, how it is split, and how it is doing right now.</p>
-          {rows.length === 0 ? <Empty>No deployments yet.</Empty> : (
+          {rows.length === 0 ? <Empty actions={<><button className="btn primary" type="button" disabled={!access.may('operator')} title={access.why('operator')} onClick={() => deploy()}>Deploy a version</button><a href="#/help?topic=guides">Deployment guide</a></>}>No deployments yet. Deploy an accepted model version or a function image to expose its API.</Empty> : (
             <Table testid="deployments" head={['Deployment', 'Status', 'Serving', 'Traffic', 'p95', '5xx', 'Endpoint']}>
               {rows.map(({ d, live, metrics }) => {
                 const active = d.revisions.find((r) => r.revision === d.active_revision);
