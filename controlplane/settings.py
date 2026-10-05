@@ -15,6 +15,8 @@ class Settings(BaseSettings):
     system_namespace: str = "mlp-system"
     api_service_account: str = "mlp-controlplane-api"
     project_secret_cluster_role: str = "mlp-system-mlp-controlplane-project-secrets"
+    project_workload_cluster_role: str = "mlp-system-mlp-controlplane-project-workload-reader"
+    reconciler_watchdog_seconds: float = Field(default=300, ge=10)
     platform_namespace: str = "ml-platform"
     observability_namespace: str = "observability"
     serving_namespaces: str = "knative-serving,kourier-system,istio-system"

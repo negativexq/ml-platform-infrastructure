@@ -125,7 +125,7 @@ apply all migrations through `0019` before starting this image.
 
 ## Availability and leadership
 
-Default API/gateway replicas are 2, with `minAvailable: 1` PDBs, hostname topology spread
+Default API/gateway/reconciler replicas are 2, with `minAvailable: 1` PDBs, hostname topology spread
 and rolling updates (`maxUnavailable: 0`, `maxSurge: 1`). Local values use one replica.
 Spread uses `ScheduleAnyway`: multiple nodes and spare capacity are prerequisites for
 node-failure protection; a single-node cluster cannot provide it. API replicas share the
@@ -144,6 +144,26 @@ pending. See the first-upgrade procedure in [installation.md](installation.md).
 `CP_LEADER_ELECTION_ENABLED=false` is an explicit single-process mode; the chart refuses
 multiple replicas in that mode. Settings also expose lease name, duration, renew deadline
 and retry interval. Values must satisfy retry < deadline < duration.
+
+Kubernetes providers share a bounded SDK transport: 3-second connect and 20-second
+socket-read timeouts, with automatic transport retries disabled. Lease calls retain their
+stricter `(2, 3)` limits. Socket limits are not whole-operation deadlines: trickling
+responses, non-Kubernetes calls or blocked persistence can still stall a main thread.
+
+`CP_RECONCILER_WATCHDOG_SECONDS` defaults to 300. An independent watchdog starts only
+after leadership acquisition (also in single-process mode). The main thread heartbeats
+at pass boundaries, between batch entities and during planned idle waits. Lease renewal
+never heartbeats it. If progress stops for the configured duration, the watchdog calls
+`os._exit(1)` even when Lease renewals succeed; the pod restarts and standby can take over
+after Lease expiry. A large batch making entity progress does not exhaust this deadline.
+Tune above the longest legitimate single-entity reconciliation time; a slow entity can
+otherwise cause restart loops. The watchdog relies on Python threads being scheduled;
+it cannot preempt a native extension holding the GIL indefinitely. Provider mutations
+can complete remotely after client/process exit, so idempotency/CAS remain necessary.
+
+Reconciler's `minAvailable: 1` PDB protects voluntary eviction availability, not node
+crashes or guaranteed uninterrupted leadership. Drain of the leader still incurs takeover
+latency. Local single-replica values render no PDBs.
 
 ## Migration ownership and compatibility
 

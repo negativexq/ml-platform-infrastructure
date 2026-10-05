@@ -1,4 +1,4 @@
-{{- range $component := list "api" "gateway" }}
+{{- range $component := list "api" "gateway" "reconciler" }}
 {{- if gt (int (index $.Values $component).replicas) 1 }}
 ---
 apiVersion: policy/v1

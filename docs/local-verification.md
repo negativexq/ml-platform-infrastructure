@@ -817,3 +817,27 @@ starting the new leader/standby pair. See [installation.md](installation.md).
 Read-only tool inventory: Docker daemon reachable, Docker/Trivy/kubectl installed; Syft
 and native `psql`/`pg_dump`/`pg_restore` absent. No fixture, image build or drill was
 started. Release preflight rejects missing tools before building or creating fixtures.
+
+## Workload read scope and hung-leader hardening (2026-10-05)
+
+- Lightweight suite: **373 passed, 5 skipped, 184 deselected** with SQL/browser variants
+  excluded as before. No PostgreSQL, Docker or cluster fixtures were started.
+- Ruff passed; mypy passed for **180 source files**, including manual acceptance tools.
+- Helm default/local lint passed; kubeconform default **21 valid resources**, production
+  with synthetic site overrides **25 valid resources**, zero invalid/errors/skips.
+- RBAC render/unit checks cover namespace-only workload-reader bindings, no API
+  cluster-wide workload reads, foreign-binding refusal and CAS repair.
+- A temporary loopback socket server accepted a Kubernetes SDK request without replying;
+  a short test read timeout interrupted it. The server/client were closed afterwards.
+  SDK tests cover Core, custom resources, RBAC and networking default limits, disabled
+  transport retries and preservation of the stricter Lease timeout.
+- Watchdog tests prove successful Lease renewal does not refresh main-loop progress,
+  and batch entity heartbeats preserve long progressing batches. Live hung-leader failover
+  and voluntary eviction/PDB behavior are not proven by these tests.
+- Storage-account deletion tests cover asynchronous serving deletion, multiple historic
+  revisions, foreign/generated-name rejection, pagination, UID/resourceVersion
+  preconditions and retryable cleanup conflicts. Live credential cleanup remains pending.
+
+CPU acceptance now checks both Secret and workload-reader authorization. See
+[acceptance.md](acceptance.md) for pending cluster drills and
+[operations.md](operations.md) for watchdog tuning and its limits.

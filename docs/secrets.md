@@ -48,11 +48,12 @@ a completion event. Refresh provider metadata to determine the actual result.
 The API checks namespace ownership and secret ownership labels; it neither adopts nor
 overwrites foreign secrets. The API service account receives Secret CRUD through RoleBindings only in provisioned
 project namespaces. The shared Secret ClusterRole is never ClusterRoleBound to the API.
-The reconciler can bind only that named role and receives no Secret CRUD verbs; it remains
-a privileged namespace/RBAC provisioner. Binding creation respects Kubernetes escalation
-checks. Application ownership checks still constrain which secrets the API manages. Other
-API namespace/workflow/pod-log read permissions remain cluster-scoped; this change
-restricts Secret API permissions specifically.
+The API also receives pod/log, workflow, InferenceService and Knative Revision reads
+through a separate `project-workload-reader` ClusterRole, bound only in owned project
+namespaces. Neither project role has an API ClusterRoleBinding. The API's cluster-bound
+role retains only namespace `get` for ownership checks. The reconciler can bind only the
+two named project roles and receives no Secret CRUD verbs; it remains a privileged
+namespace/RBAC provisioner. Application ownership checks still constrain API operations.
 Existing READY projects acquire/repair the binding through drift reconciliation. A foreign
 binding is refused; API SA name/namespace and role name come from Helm configuration.
 Project operators can create workloads that reference secrets, and can consequently
@@ -133,8 +134,13 @@ requires an `s3://` registry artifact URI and creates a revision-scoped serving
 ServiceAccount with only that Secret reference and `automountServiceAccountToken: false`.
 The serving account receives no workload executor RoleBinding. Foreign accounts are
 refused; drift repairs use resource versions and trigger a fresh backend apply identity.
-Rollback preserves the credential name, not historical values. These accounts stay until
-namespace deletion so historic revisions can restart; automatic account pruning is absent.
+Rollback preserves the credential name, not historical values. Accounts for historic
+revisions remain while the deployment exists. Once KServe confirms the InferenceService
+is absent during deployment deletion, all matching revision accounts are removed.
+Cleanup verifies project namespace ownership, project/deployment labels and generated
+account names, then deletes with UID/resourceVersion preconditions. Foreign accounts
+are left alone; conflicts/outages retry before the deployment is marked DELETED.
+Namespace deletion also removes these accounts.
 
 This implements [KServe 0.15's credential path](https://github.com/kserve/kserve/blob/v0.15.0/pkg/credentials/service_account_credentials.go):
 the controller injects the referenced Secret and its S3 annotations into the initializer.

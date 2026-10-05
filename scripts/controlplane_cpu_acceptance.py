@@ -96,37 +96,46 @@ def execute(args: argparse.Namespace) -> None:
                 "resourcequota/mlp-quota",
                 "role/mlp-workflow-executor",
                 "rolebinding/mlp-api-secrets",
+                "rolebinding/mlp-api-workload-reader",
             ):
                 kubectl("-n", namespace, "get", resource)
             api_sa = (
                 f"system:serviceaccount:{args.system_namespace}:{args.release}-controlplane-api"
             )
-            for ns, expected in (
-                (namespace, "yes"),
-                (args.system_namespace, "no"),
-                ("kube-system", "no"),
+            for resource in (
+                "secrets",
+                "pods",
+                "pods/log",
+                "workflows.argoproj.io",
+                "inferenceservices.serving.kserve.io",
+                "revisions.serving.knative.dev",
             ):
-                result = subprocess.run(
-                    [
-                        "kubectl",
-                        "--context",
-                        args.context,
-                        "auth",
-                        "can-i",
-                        "get",
-                        "secrets",
-                        "-n",
-                        ns,
-                        "--as",
-                        api_sa,
-                    ],
-                    capture_output=True,
-                    text=True,
-                    timeout=30,
-                    check=False,
-                )
-                if result.stdout.strip() != expected:
-                    raise RuntimeError("API Secret RBAC scope mismatch")
+                for ns, expected in (
+                    (namespace, "yes"),
+                    (args.system_namespace, "no"),
+                    ("kube-system", "no"),
+                ):
+                    result = subprocess.run(
+                        [
+                            "kubectl",
+                            "--context",
+                            args.context,
+                            "auth",
+                            "can-i",
+                            "get",
+                            resource,
+                            "-n",
+                            ns,
+                            "--as",
+                            api_sa,
+                        ],
+                        capture_output=True,
+                        text=True,
+                        timeout=30,
+                        check=False,
+                    )
+                    if result.stdout.strip() != expected:
+                        raise RuntimeError(f"API RBAC scope mismatch: {resource} in {ns}")
             record(PHASES[0])
             pulls = []
             if args.registry_secret:

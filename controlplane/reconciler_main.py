@@ -34,6 +34,7 @@ from controlplane.reconciliation.projects import ProjectReconciler
 from controlplane.reconciliation.retention import WorkflowRetentionReconciler
 from controlplane.reconciliation.rollouts import RolloutReconciler
 from controlplane.reconciliation.runs import RunReconciler
+from controlplane.reconciliation.watchdog import ReconcileWatchdog, heartbeat, progress
 from controlplane.settings import Settings
 
 SERVICE_NAME = "mlp-controlplane-reconciler"
@@ -53,11 +54,14 @@ def _traceparent(
 
 
 def _pass(name: str, step: Callable[[], list[Any]]) -> None:
+    heartbeat()
     try:
         for result in step():
             log.info("reconciled", reconciler=name, result=str(result))
     except Exception:  # noqa: BLE001 - one bad pass must not kill the loop
         log.exception("pass failed", reconciler=name)
+    finally:
+        heartbeat()
 
 
 def main() -> None:
@@ -91,6 +95,7 @@ def main() -> None:
             api_service_account=settings.api_service_account,
             api_namespace=settings.system_namespace,
             secret_cluster_role=settings.project_secret_cluster_role,
+            workload_cluster_role=settings.project_workload_cluster_role,
         ),
         "cluster",
         observability.CLUSTER_MUTATIONS,
@@ -170,11 +175,14 @@ def main() -> None:
         if settings.leader_election_enabled
         else None
     )
+    watchdog = ReconcileWatchdog(settings.reconciler_watchdog_seconds)
+    token = progress.set(watchdog.beat)
     log.info("reconciler started", telemetry=telemetry.enabled, standby=leadership is not None)
     try:
         if leadership:
             leadership.wait()
             log.info("reconciler leadership acquired", identity=leadership.identity)
+        watchdog.start()
         while True:
             # Only report passes that did something; converged entities are silent.
             _pass(
@@ -208,8 +216,14 @@ def main() -> None:
                 _pass("model_discovery", discovery.reconcile_all)
             if settings.workflow_retention_seconds:
                 _pass("workflow_retention", retention.reconcile_all)
-            time.sleep(settings.reconcile_interval_seconds)
+            # Idle waits are expected progress, including unusually long configured intervals.
+            until = time.monotonic() + settings.reconcile_interval_seconds
+            while time.monotonic() < until:
+                heartbeat()
+                time.sleep(min(1.0, max(0.0, until - time.monotonic())))
     finally:
+        watchdog.close()
+        progress.reset(token)
         if leadership:
             leadership.close()
         telemetry.shutdown()

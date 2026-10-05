@@ -284,3 +284,73 @@ def test_storage_account_is_revision_scoped_and_never_grants_workload_rbac() -> 
     )
     with pytest.raises(Conflict, match="not owned"):
         adapter._storage_account(spec, write=True)
+
+
+def test_delete_preserves_storage_accounts_until_service_is_absent() -> None:
+    adapter = KServeServingProvider(Mock())
+    adapter._custom = Mock()
+    adapter._core = Mock()
+    adapter._custom.get_namespaced_custom_object.return_value = {
+        "metadata": {"deletionTimestamp": "now"}
+    }
+    adapter.delete(REF)
+    adapter._core.list_namespaced_service_account.assert_not_called()
+    adapter._core.read_namespace.assert_not_called()
+
+
+def test_delete_cleans_all_owned_revisions_with_preconditions_and_skips_foreign() -> None:
+    from kubernetes import client
+
+    from controlplane.adapters.serving.kserve import storage_account_name
+    from controlplane.application.namespaces import LABEL_MANAGED_BY, MANAGED_BY
+
+    adapter = KServeServingProvider(Mock())
+    adapter._custom = Mock()
+    adapter._custom.delete_namespaced_custom_object.side_effect = ApiException(status=404)
+    adapter._custom.get_namespaced_custom_object.side_effect = ApiException(status=404)
+    adapter._core = Mock()
+    adapter._core.read_namespace.return_value = client.V1Namespace(
+        metadata=client.V1ObjectMeta(
+            labels={LABEL_MANAGED_BY: MANAGED_BY, "mlp.io/project-id": "project"}
+        )
+    )
+
+    def account(number: int, *, owner: str = "function") -> Any:
+        spec = ServingSpec(owner, "mlp-test", "s3://model", number)
+        return client.V1ServiceAccount(
+            metadata=client.V1ObjectMeta(
+                name=storage_account_name(spec),
+                uid=f"uid-{number}",
+                resource_version="12",
+                labels={
+                    "mlp.io/project-id": "project",
+                    "mlp.io/deployment": owner,
+                    "mlp.io/storage-owner": owner,
+                    "mlp.io/storage-revision": str(number),
+                },
+            )
+        )
+
+    first, second, foreign = account(1), account(2), account(3, owner="other")
+    forged = account(4)
+    forged.metadata.name = "mlp-workload"
+    adapter._core.list_namespaced_service_account.side_effect = [
+        client.V1ServiceAccountList(
+            items=[first, foreign, forged], metadata=client.V1ListMeta(_continue="next")
+        ),
+        client.V1ServiceAccountList(items=[second], metadata=client.V1ListMeta()),
+    ]
+    adapter.delete(REF)
+    deletes = adapter._core.delete_namespaced_service_account.call_args_list
+    assert [c.args[0] for c in deletes] == [first.metadata.name, second.metadata.name]
+    assert deletes[0].kwargs["body"].preconditions.uid == "uid-1"
+    assert deletes[0].kwargs["body"].preconditions.resource_version == "12"
+    assert adapter._core.list_namespaced_service_account.call_args.kwargs["_continue"] == "next"
+    adapter._core.list_namespaced_service_account.side_effect = None
+    adapter._core.list_namespaced_service_account.return_value = client.V1ServiceAccountList(
+        items=[first], metadata=client.V1ListMeta()
+    )
+    adapter._core.delete_namespaced_service_account.side_effect = ApiException(status=409)
+    with pytest.raises(ApiException) as conflict:
+        adapter.delete(REF)
+    assert conflict.value.status == 409

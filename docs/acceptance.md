@@ -157,3 +157,22 @@ revoked-key rejection, signed-in project roles, deployments and run/model lineag
 the reconciler stopped until external namespaces/Secrets/workflows and artifact state
 have been reconciled. Record these service results and actual RPO/RTO separately. The
 prepared database command does not claim these service/OIDC checks.
+
+## Workload read scope, stalled leader and credential cleanup
+
+CPU acceptance now checks the API identity's Secret and workload-reader permissions:
+allowed in its owned project namespace, denied in system and kube-system namespaces.
+This includes pod logs, workflows, InferenceServices and Knative Revisions. Execute the
+gate to obtain cluster authorization evidence; render/unit tests alone do not prove it.
+
+For a live hung-leader drill, stall the main reconciler thread in a provider call while
+allowing the renewal thread to run. Confirm Lease renewals continue initially, then
+watchdog exit at `CP_RECONCILER_WATCHDOG_SECONDS`, pod restart and standby acquisition
+after Lease expiry. Record timings and convergence. Also evict a reconciler and verify
+its PDB prevents simultaneous voluntary eviction of both ready replicas.
+
+For S3 cleanup, create multiple storage-bound revisions, confirm their accounts remain
+after canary/rollback, then delete the deployment. Wait for KServe disappearance and
+platform DELETED; verify only that deployment's owned storage accounts disappear and
+other deployment/foreign accounts remain. Retry a cleanup conflict/outage and verify
+it is not marked DELETED prematurely. These live drills remain pending.

@@ -16,6 +16,23 @@ rules:
   - apiGroups: [""]
     resources: [namespaces]
     verbs: [get]
+---
+# Bound only by RoleBindings in owned project namespaces; never a ClusterRoleBinding.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Release.Namespace }}-{{ $name }}-project-secrets
+rules:
+  - apiGroups: [""]
+    resources: [secrets]
+    verbs: [get, list, create, update, delete]
+---
+# Workload data-plane reads are bound only inside owned project namespaces.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Release.Namespace }}-{{ $name }}-project-workload-reader
+rules:
   - apiGroups: [serving.kserve.io]
     resources: [inferenceservices]
     verbs: [get]
@@ -28,16 +45,6 @@ rules:
   - apiGroups: [""]
     resources: [pods, pods/log]
     verbs: [get, list]
----
-# Bound only by RoleBindings in owned project namespaces; never a ClusterRoleBinding.
-apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
-metadata:
-  name: {{ .Release.Namespace }}-{{ $name }}-project-secrets
-rules:
-  - apiGroups: [""]
-    resources: [secrets]
-    verbs: [get, list, create, update, delete]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -58,7 +65,7 @@ rules:
     verbs: [get, list, create, patch, update, delete]
   - apiGroups: [rbac.authorization.k8s.io]
     resources: [clusterroles]
-    resourceNames: [{{ printf "%s-%s-project-secrets" .Release.Namespace $name | quote }}]
+    resourceNames: [{{ printf "%s-%s-project-secrets" .Release.Namespace $name | quote }}, {{ printf "%s-%s-project-workload-reader" .Release.Namespace $name | quote }}]
     verbs: [bind]
   - apiGroups: [argoproj.io]
     resources: [workflowtaskresults]

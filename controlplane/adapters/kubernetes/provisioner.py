@@ -14,6 +14,7 @@ from uuid import UUID
 from kubernetes import client, config
 from kubernetes.client.exceptions import ApiException
 
+from controlplane.adapters.kubernetes.client import BoundedApiClient
 from controlplane.adapters.kubernetes.networking import NetworkTopology, project_policies
 from controlplane.application.namespaces import LABEL_MANAGED_BY, LABEL_PROJECT_ID, MANAGED_BY
 from controlplane.application.providers import NamespaceSpec, NamespaceState, Observation
@@ -50,7 +51,7 @@ def load_api_client(path: str | None = None) -> client.ApiClient:
             config.load_incluster_config()
         except config.ConfigException:
             config.load_kube_config()
-    return client.ApiClient()
+    return BoundedApiClient()
 
 
 class KubernetesClusterProvider:
@@ -62,11 +63,15 @@ class KubernetesClusterProvider:
         api_service_account: str = "",
         api_namespace: str = "mlp-system",
         secret_cluster_role: str = "",
+        workload_cluster_role: str = "",
     ) -> None:
         self._topology = topology or NetworkTopology()
         self._api_service_account = api_service_account
         self._api_namespace = api_namespace
         self._secret_cluster_role = secret_cluster_role
+        self._workload_cluster_role = workload_cluster_role
+        if workload_cluster_role and not api_service_account:
+            raise ValueError("API workload RBAC requires a service account")
         if bool(api_service_account) != bool(secret_cluster_role):
             raise ValueError("API secret RBAC requires both service account and ClusterRole")
         self._api = api_client
@@ -99,6 +104,16 @@ class KubernetesClusterProvider:
                     "name": self._secret_cluster_role,
                 },
             }
+            if self._workload_cluster_role:
+                bindings["workloadrolebinding"] = {
+                    **bindings["secretrolebinding"],
+                    "metadata": {"name": "mlp-api-workload-reader", **meta},
+                    "roleRef": {
+                        "apiGroup": "rbac.authorization.k8s.io",
+                        "kind": "ClusterRole",
+                        "name": self._workload_cluster_role,
+                    },
+                }
         return {
             **bindings,
             "serviceaccount": {"metadata": {"name": SERVICE_ACCOUNT, **meta}},
@@ -267,7 +282,7 @@ class KubernetesClusterProvider:
     # -- writes -----------------------------------------------------------
 
     def _upsert(self, kind: str, ns: str, body: dict[str, Any]) -> None:
-        secret_binding = kind == "secretrolebinding"
+        api_binding = kind in {"secretrolebinding", "workloadrolebinding"}
         kind = "networkpolicy" if kind.endswith("networkpolicy") else kind
         kind = "rolebinding" if kind.endswith("rolebinding") else kind
         create, replace = {
@@ -301,11 +316,11 @@ class KubernetesClusterProvider:
         if current is None:
             create(ns, body)
         else:
-            if secret_binding:
+            if api_binding:
                 labels = current.metadata.labels or {}
                 if any(labels.get(k) != v for k, v in body["metadata"]["labels"].items()):
-                    raise Conflict("API secret binding exists and is not owned by this project")
+                    raise Conflict("API project binding exists and is not owned by this project")
                 if self._api.sanitize_for_serialization(current.role_ref) != body["roleRef"]:
-                    raise Conflict("API secret binding has an unexpected immutable role reference")
+                    raise Conflict("API project binding has an unexpected immutable role reference")
                 body["metadata"]["resourceVersion"] = current.metadata.resource_version
             replace(name, ns, body)

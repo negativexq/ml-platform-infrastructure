@@ -171,13 +171,15 @@ cluster installation, real GPU/TLS workloads and recovery drills remain pending.
 
 ### Security, HA and manual acceptance tooling
 
-API Secret RBAC is restricted by project RoleBindings; the API ClusterRole no longer
-grants Secret CRUD. Existing READY projects repair missing bindings. Migration processes
+API Secret CRUD and workload/log reads are restricted by project RoleBindings; the
+API ClusterRole retains only namespace get for ownership checks. Existing READY projects repair missing bindings. Migration processes
 use PostgreSQL advisory locking and follow the documented expand/contract contract.
 API/gateway default to two replicas with PDB/spread/rolling settings; two reconcilers
-coordinate via Lease, with explicit single-process local mode. Production values enforce
+coordinate via Lease with a main-loop progress watchdog and their own PDB, with explicit
+single-process local mode. Kubernetes SDK transport calls have bounded timeouts. Production values enforce
 network/site/identity/image configuration. Private S3/MinIO initializer credentials now
-have a separate revision-scoped serving account/reference path.
+have a separate revision-scoped serving account/reference path, with owned-account
+cleanup after deployment deletion.
 
 Manual image, limiter load/outage, database recovery and full CPU acceptance commands are
 prepared; these remain live gates until executed. See [acceptance.md](acceptance.md).

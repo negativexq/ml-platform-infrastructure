@@ -12,6 +12,7 @@ metadata:
 {{- $_ := set $config "CP_PROJECT_EGRESS_ENABLED" (.Values.networkPolicy.projectEgressEnabled | toString) }}
 {{- $_ := set $config "CP_API_SERVICE_ACCOUNT" (printf "%s-api" (include "controlplane.name" .)) }}
 {{- $_ := set $config "CP_PROJECT_SECRET_CLUSTER_ROLE" (printf "%s-%s-project-secrets" .Release.Namespace (include "controlplane.name" .)) }}
+{{- $_ := set $config "CP_PROJECT_WORKLOAD_CLUSTER_ROLE" (printf "%s-%s-project-workload-reader" .Release.Namespace (include "controlplane.name" .)) }}
 {{- $_ := set $config "CP_LEADER_ELECTION_ENABLED" (.Values.reconciler.leaderElection | toString) }}
 {{- $_ := set $config "CP_LEADER_LEASE_NAME" (printf "%s-reconciler" (include "controlplane.name" .)) }}
 data:

@@ -23,6 +23,7 @@ from kubernetes.utils.quantity import parse_quantity
 
 from controlplane.adapters.kubernetes import load_api_client
 from controlplane.application.context import current_traceparent
+from controlplane.application.namespaces import LABEL_MANAGED_BY, LABEL_PROJECT_ID, MANAGED_BY
 from controlplane.application.providers import ServingSpec, ServingState, ServingStatus
 from controlplane.domain.entities import FunctionServing
 from controlplane.domain.errors import Conflict
@@ -579,3 +580,58 @@ class KServeServingProvider:
         except ApiException as exc:
             if exc.status != 404:
                 raise
+        # KServe deletion can be asynchronous. Preserve rollback credentials while it exists.
+        if self._read(ref) is None:
+            self._delete_storage_accounts(namespace, name)
+
+    def _delete_storage_accounts(self, namespace: str, name: str) -> None:
+        try:
+            ns = self._core.read_namespace(namespace)
+        except ApiException as exc:
+            if exc.status == 404:
+                return
+            raise
+        labels = ns.metadata.labels or {}
+        project_id = labels.get(LABEL_PROJECT_ID)
+        if labels.get(LABEL_MANAGED_BY) != MANAGED_BY or not project_id:
+            raise Conflict("storage account cleanup requires an owned project namespace")
+        expected = {
+            LABEL_PROJECT_ID: project_id,
+            "mlp.io/deployment": name,
+            "mlp.io/storage-owner": name,
+        }
+        selector = ",".join(f"{key}={value}" for key, value in expected.items())
+        continuation = ""
+        while True:
+            accounts = self._core.list_namespaced_service_account(
+                namespace, label_selector=selector, limit=100, _continue=continuation
+            )
+            for account in accounts.items:
+                meta = account.metadata
+                actual = meta.labels or {}
+                revision = actual.get("mlp.io/storage-revision", "")
+                identity = hashlib.sha256(name.encode()).hexdigest()[:12]
+                if (
+                    any(actual.get(key) != value for key, value in expected.items())
+                    or not revision.isdigit()
+                    or meta.name != f"mlp-storage-{identity}-{revision}"
+                    or not meta.uid
+                    or not meta.resource_version
+                ):
+                    continue  # Never delete a foreign or unidentifiable account.
+                try:
+                    self._core.delete_namespaced_service_account(
+                        meta.name,
+                        namespace,
+                        body=client.V1DeleteOptions(
+                            preconditions=client.V1Preconditions(
+                                uid=meta.uid, resource_version=meta.resource_version
+                            )
+                        ),
+                    )
+                except ApiException as exc:
+                    if exc.status != 404:
+                        raise  # A conflict or outage retries cleanup before marking DELETED.
+            continuation = accounts.metadata._continue or ""
+            if not continuation:
+                return

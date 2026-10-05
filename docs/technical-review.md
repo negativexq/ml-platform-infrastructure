@@ -400,3 +400,17 @@ Recommended changes:
 The next release should be judged by that complete lifecycle and its failure behavior.
 GPU infrastructure and AWS deployment can remain separate milestones; they need not block
 the CPU-only platform from becoming reproducible and verifiable.
+
+## Follow-up hardening (2026-10-05)
+
+API workload/log reads now follow the same project RoleBinding scope as Secrets; its
+cluster-bound role retains namespace get only. Project drift reconciliation backfills
+bindings. Kubernetes SDK calls have shared connect/read limits without automatic retries.
+A main-loop progress watchdog fail-stops a stalled leader independently of Lease renewal,
+with batch entity heartbeats to preserve long progressing passes. Reconciler now has a
+PDB. Storage credential accounts persist through revision rollback and are cleaned with
+ownership and delete preconditions after full serving-resource deletion.
+
+These are implementation/unit/render guarantees. Live RBAC denial, stalled-leader
+failover, voluntary drain and credential cleanup evidence remains outstanding; see
+[acceptance.md](acceptance.md).

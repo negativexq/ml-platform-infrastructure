@@ -8,6 +8,7 @@ from collections.abc import Callable, Iterable
 from uuid import UUID
 
 from controlplane.domain.errors import Conflict
+from controlplane.reconciliation.watchdog import heartbeat
 
 log = logging.getLogger(__name__)
 
@@ -54,6 +55,7 @@ def reconcile_batch[T](
         backoff.prune(set(ids))
     results = []
     for entity_id in ids:
+        heartbeat()
         if backoff is not None and not backoff.ready(entity_id):
             continue
         try:

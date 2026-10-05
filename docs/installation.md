@@ -178,3 +178,12 @@ live Kubernetes access or Lease/RBAC behavior.
 This command was prepared/tested with mocked orchestration, not executed with Docker.
 No image build, Trivy result or actual SBOM is claimed. See [acceptance.md](acceptance.md)
 for load, outage, CPU and recovery commands and remaining live evidence.
+
+### Workload reader RBAC upgrade
+
+API pod/log, workflow, InferenceService and Knative Revision reads now use the
+`project-workload-reader` role via per-project `mlp-api-workload-reader` bindings.
+Existing owned namespaces receive this binding through project drift reconciliation.
+During upgrade, reads can briefly return Forbidden until the reconciler repairs bindings;
+verify them before accepting traffic. Do not restore cluster-wide workload read access.
+The only cluster-bound API permission left is namespace `get` for ownership checks.
