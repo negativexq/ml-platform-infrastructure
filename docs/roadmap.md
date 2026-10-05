@@ -185,3 +185,12 @@ Manual image, limiter load/outage, database recovery and full CPU acceptance com
 prepared; these remain live gates until executed. See [acceptance.md](acceptance.md).
 Logs/archive/streaming, operational cold-start metrics, exact tokenization, adversarial
 canary attribution, CNI isolation and GPU/Hub/private-registry failure drills remain open.
+
+### Reconciler admission boundary (open)
+
+Namespace-scoped API grants do not contain a compromised cluster-wide reconciler.
+RoleBinding admission must restrict namespace ownership, roleRef, subject and binding
+name and protect namespace ownership labels against forgery. Cluster-wide workflow and
+serving writes also need a boundary; binding-only checks are insufficient for full
+containment. This hardening is not implemented. See
+[operations.md](operations.md#reconciler-provisioning-trust-boundary).

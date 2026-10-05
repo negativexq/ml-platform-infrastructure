@@ -20,6 +20,7 @@ from controlplane.application.providers import ExperimentProvider
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import Model, ModelVersion
 from controlplane.domain.states import ModelKind, ModelStatus
+from controlplane.reconciliation.watchdog import heartbeat
 
 SYSTEM = "reconciler"
 
@@ -58,6 +59,7 @@ class ModelAliasReconciler:
             ids = [m.id for m in uow.models.list_all() if m.kind is ModelKind.CLASSIC]
         results = []
         for model_id in ids:
+            heartbeat()
             try:
                 results.append(self.reconcile(model_id))
             except Exception as exc:  # noqa: BLE001 - registry trouble must not stop other models

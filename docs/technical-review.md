@@ -414,3 +414,14 @@ ownership and delete preconditions after full serving-resource deletion.
 These are implementation/unit/render guarantees. Live RBAC denial, stalled-leader
 failover, voluntary drain and credential cleanup evidence remains outstanding; see
 [acceptance.md](acceptance.md).
+
+### Provisioner trust boundary and alias progress follow-up
+
+ModelAliasReconciler now heartbeats between classic models, preserving drift recording
+on registry failures; its progressing-pass watchdog regression is covered. Reconciler
+RoleBinding creation and named ClusterRole bind permissions remain cluster-wide, so a
+compromised provisioner can grant either project role inside a foreign namespace.
+Admission enforcement is still open. Namespace-label-only protection would be bypassable
+with existing namespace patch permissions; cluster-wide workflow/serving creation also
+remains privileged. See the explicit
+[trust-boundary contract](operations.md#reconciler-provisioning-trust-boundary).

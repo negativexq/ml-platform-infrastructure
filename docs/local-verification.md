@@ -841,3 +841,18 @@ started. Release preflight rejects missing tools before building or creating fix
 CPU acceptance now checks both Secret and workload-reader authorization. See
 [acceptance.md](acceptance.md) for pending cluster drills and
 [operations.md](operations.md) for watchdog tuning and its limits.
+
+## Alias watchdog edge case and provisioning audit (2026-10-05)
+
+Added a heartbeat between ModelAliasReconciler models without changing per-model drift
+recording. Focused non-SQL model/provider tests: **25 passed, 17 deselected**. Two new
+regression cases simulate a 480-second progressing alias pass against a 300-second
+watchdog, including a failed registry operation followed by successful models.
+Ruff and mypy (**180 source files**) passed. No cluster was started or changed.
+
+Chart inspection plus upstream RBAC documentation confirm the indirect privilege path:
+cluster-wide RoleBinding mutation plus named project-role bind grants can grant access
+in foreign namespaces. Admission enforcement is absent. Ownership selector labels are
+also editable by the reconciler. The remaining trust boundary and proposed enforcement
+contract are documented in [operations.md](operations.md#reconciler-provisioning-trust-boundary);
+no live attack/denial test was performed.

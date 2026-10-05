@@ -178,3 +178,43 @@ dual-read/write/backfill code before switching consumers. Remove/rename/drop onl
 later release after old writers and rollback dependencies are retired. Document any
 feature-specific rollback limits separately. Prove compatibility on a database clone with
 both image versions before release; offline DDL alone does not prove this contract.
+
+## Reconciler provisioning trust boundary
+
+The API's Secret/workload bindings are namespace-scoped, but the reconciler remains a
+trusted cluster-wide provisioner. Its ClusterRole grants RoleBinding mutations throughout
+the cluster and `bind` on the two named project ClusterRoles. A compromised reconciler
+can therefore create a RoleBinding for either role in a foreign namespace, with an
+attacker-selected subject. It has no direct Secret CRUD, but these combined permissions
+can grant that access indirectly. This is an inference from the chart's rules and
+[Kubernetes binding authorization](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#restrictions-on-role-binding-creation-or-update),
+not an executed compromise test. No ValidatingAdmissionPolicy, Gatekeeper or Kyverno
+constraint currently enforces the provisioning boundary in this repository.
+
+Future admission enforcement must apply to reconciler RoleBinding writes in **all**
+namespaces, denying foreign namespaces rather than matching only managed ones. Require
+`mlp-*` names and trusted namespace ownership, exact binding names, roleRef and subjects:
+`mlp-api-secrets` / project-secrets and `mlp-api-workload-reader` / project-workload-reader,
+each with only the configured API ServiceAccount in the control-plane namespace. Preserve
+legitimate workload-executor and control-plane Lease bindings through explicit rules.
+Validate updates and deletion as well as creation, using oldObject where appropriate.
+
+The actual ownership label is `app.kubernetes.io/managed-by=mlp-controlplane`, alongside
+`mlp.io/project-id`; there is no `mlp.io/managed-by` label. Label-only selection is not a
+security boundary because the reconciler also has namespace patch/update permission.
+Protect existing ownership labels and reject foreign namespace mutation/creation by the
+reconciler as part of the same admission contract. The
+[Kubernetes admission tutorial](https://kubernetes.io/docs/tutorials/cluster-management/admission-policies/)
+explains why editable selector labels can bypass enforcement. Admission policy resources
+and their configuration must remain writable only by separately trusted operators.
+
+Binding checks alone do not sandbox the entire reconciler: it can also create workflows
+and serving resources cluster-wide, potentially referencing credentials in foreign
+namespaces. A full compromise boundary requires restricting those provider writes and
+service account references too, or moving provisioning to a separately trusted component.
+Live negative tests must cover direct SA impersonation, foreign namespace writes, forged
+ownership labels, alternate subjects/binding names and allowed project drift repair.
+
+Model alias passes heartbeat between classic models, including after a failed MLflow
+operation, while retaining per-model drift reporting. Slow single-model operations remain
+subject to the configured watchdog deadline.

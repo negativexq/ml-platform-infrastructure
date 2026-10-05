@@ -1,12 +1,15 @@
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
-from uuid import uuid4
+from uuid import UUID, uuid4
 
 import pytest
 from kubernetes import client
 
 from controlplane.adapters.kubernetes.client import REQUEST_TIMEOUT, BoundedApiClient
 from controlplane.adapters.kubernetes.leadership import LeaseLeadership
+from controlplane.domain.states import ModelKind
 from controlplane.reconciliation.batch import reconcile_batch
+from controlplane.reconciliation.model_aliases import AliasResult, ModelAliasReconciler
 from controlplane.reconciliation.watchdog import ReconcileWatchdog, progress
 
 
@@ -109,3 +112,46 @@ def test_kubernetes_socket_read_timeout_interrupts_a_hung_server(
         listener.close()
         worker.join(2)
         api.close()
+
+
+@pytest.mark.parametrize("registry_failure", [False, True])
+def test_alias_pass_heartbeats_between_models_even_after_registry_failure(
+    registry_failure: bool,
+) -> None:
+    now = [0.0]
+    fatal = MagicMock()
+    watchdog = ReconcileWatchdog(300, clock=lambda: now[0], fatal=fatal)
+    factory = MagicMock()
+    ids = [uuid4() for _ in range(4)]
+    factory.return_value.__enter__.return_value.models.list_all.return_value = [
+        SimpleNamespace(id=model_id, kind=ModelKind.CLASSIC) for model_id in ids
+    ]
+    aliases = ModelAliasReconciler(factory, MagicMock())
+
+    def slow_registry(model_id: UUID) -> AliasResult:
+        now[0] += 120
+        assert not watchdog.check()
+        if registry_failure and model_id == ids[0]:
+            raise ConnectionError("MLflow unavailable")
+        assert model_id in ids
+        return AliasResult(model_id)
+
+    token = progress.set(watchdog.beat)
+    try:
+        with (
+            patch.object(aliases, "reconcile", side_effect=slow_registry) as reconcile,
+            patch.object(aliases, "_set_drift") as drift,
+        ):
+            results = aliases.reconcile_all()
+            assert reconcile.call_count == 4
+            if registry_failure:
+                drift.assert_called_once_with(
+                    ids[0], "alias sync failed: ConnectionError: MLflow unavailable"
+                )
+            else:
+                drift.assert_not_called()
+        assert [result.model_id for result in results] == ids[int(registry_failure) :]
+        assert now[0] == 480  # Total pass exceeds the watchdog; each model makes progress.
+        fatal.assert_not_called()
+    finally:
+        progress.reset(token)
