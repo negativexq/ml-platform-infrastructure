@@ -521,6 +521,7 @@ class FakeSecretProvider:
         values: Mapping[str, str],
         kind: str,
         expected_version: str | None,
+        annotations: Mapping[str, str] | None = None,
     ) -> Any:
         from controlplane.application.secrets import SecretInfo
         from controlplane.domain.errors import AlreadyExists, Conflict
@@ -533,7 +534,19 @@ class FakeSecretProvider:
         ):
             raise Conflict("secret changed")
         self._version += 1
-        info = SecretInfo(name, tuple(sorted(values)), kind, str(self._version))
+        info = SecretInfo(
+            name,
+            tuple(sorted(values)),
+            kind,
+            str(self._version),
+            dict(
+                annotations
+                if annotations is not None
+                else existing[0].annotations
+                if existing
+                else {}
+            ),
+        )
         self._data[(project.id, name)] = (info, dict(values))
         return info
 

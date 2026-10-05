@@ -17,6 +17,7 @@ import structlog
 
 from controlplane import observability
 from controlplane.adapters.kubernetes import KubernetesClusterProvider, load_api_client
+from controlplane.adapters.kubernetes.leadership import LeaseLeadership
 from controlplane.adapters.kubernetes.networking import NetworkTopology
 from controlplane.adapters.metrics import PrometheusMetricsProvider
 from controlplane.adapters.mlflow import MlflowExperimentProvider
@@ -84,7 +85,15 @@ def main() -> None:
         isolate_egress=settings.project_egress_enabled,
     )
     cluster = observe(
-        KubernetesClusterProvider(api, topology), "cluster", observability.CLUSTER_MUTATIONS
+        KubernetesClusterProvider(
+            api,
+            topology,
+            api_service_account=settings.api_service_account,
+            api_namespace=settings.system_namespace,
+            secret_cluster_role=settings.project_secret_cluster_role,
+        ),
+        "cluster",
+        observability.CLUSTER_MUTATIONS,
     )
     workflow = observe(ArgoWorkflowProvider(api), "workflow", observability.WORKFLOW_MUTATIONS)
     serving = observe(KServeServingProvider(api), "serving", observability.SERVING_MUTATIONS)
@@ -149,8 +158,23 @@ def main() -> None:
     )
     retention = WorkflowRetentionReconciler(uow, workflow, settings.workflow_retention_seconds)
 
-    log.info("reconciler started", telemetry=telemetry.enabled)
+    leadership = (
+        LeaseLeadership.from_api_client(
+            api,
+            settings.system_namespace,
+            settings.leader_lease_name,
+            duration=settings.leader_lease_duration_seconds,
+            renew_deadline=settings.leader_renew_deadline_seconds,
+            retry=settings.leader_retry_seconds,
+        )
+        if settings.leader_election_enabled
+        else None
+    )
+    log.info("reconciler started", telemetry=telemetry.enabled, standby=leadership is not None)
     try:
+        if leadership:
+            leadership.wait()
+            log.info("reconciler leadership acquired", identity=leadership.identity)
         while True:
             # Only report passes that did something; converged entities are silent.
             _pass(
@@ -186,6 +210,8 @@ def main() -> None:
                 _pass("workflow_retention", retention.reconcile_all)
             time.sleep(settings.reconcile_interval_seconds)
     finally:
+        if leadership:
+            leadership.close()
         telemetry.shutdown()
 
 

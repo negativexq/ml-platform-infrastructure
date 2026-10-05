@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import math
 import time
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 
 from sqlalchemy import Engine, text
 
@@ -12,22 +12,36 @@ from controlplane.application.gateway import Allowance
 
 
 class SqlTokenBucketLimiter:
-    def __init__(self, engine: Engine) -> None:
+    def __init__(
+        self, engine: Engine, *, observe: Callable[[str, str, float], None] | None = None
+    ) -> None:
         if engine.dialect.name not in {"postgresql", "sqlite"}:
             raise ValueError("unsupported rate-limit database")
         self._engine = engine
+        self._observe = observe or (lambda operation, outcome, seconds: None)
 
     def take(self, buckets: Sequence[tuple[str, int]], units: int) -> Allowance:
-        return self._operate(buckets, units, "take")
+        return self._measured(buckets, units, "take")
 
     def admit(self, buckets: Sequence[tuple[str, int]]) -> Allowance:
-        return self._operate(buckets, 0, "admit")
+        return self._measured(buckets, 0, "admit")
 
     def refund(self, buckets: Sequence[tuple[str, int]], units: int) -> None:
-        self._operate(buckets, units, "refund")
+        self._measured(buckets, units, "refund")
 
     def charge(self, buckets: Sequence[tuple[str, int]], units: int) -> None:
-        self._operate(buckets, units, "charge")
+        self._measured(buckets, units, "charge")
+
+    def _measured(
+        self, buckets: Sequence[tuple[str, int]], units: int, operation: str
+    ) -> Allowance:
+        started, outcome = time.monotonic(), "error"
+        try:
+            allowance = self._operate(buckets, units, operation)
+            outcome = "allowed" if allowance.allowed else "denied"
+            return allowance
+        finally:
+            self._observe(operation, outcome, time.monotonic() - started)
 
     def _operate(self, buckets: Sequence[tuple[str, int]], units: int, operation: str) -> Allowance:
         if not buckets or units < 0 or any(limit <= 0 for _, limit in buckets):

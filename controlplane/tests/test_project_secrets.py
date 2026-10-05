@@ -238,7 +238,7 @@ def test_registry_refs_and_model_refs_are_validated_and_names_only(
         },
     )
     assert created.status_code == 201, created.text
-    assert created.json()["secret_refs"] == refs
+    assert created.json()["secret_refs"] == {**refs, "storage_secret": None}
     listed = client.get(base + "/secrets").json()["items"]
     registry_uses = next(s for s in listed if s["name"] == "registry")["used_by"]
     assert registry_uses == [{"kind": "model", "name": "secure-function", "revision": None}]
@@ -361,3 +361,32 @@ def test_deployment_snapshots_references_without_secret_values(
 def test_secret_names_reject_invalid_dns_subdomains(name: str) -> None:
     with pytest.raises(InvalidArgument):
         SecretKeyRef(name, "key")
+
+
+def test_storage_credentials_annotations_rotation_and_protected_usage(
+    uow_factory: Callable[[], UnitOfWork], clock: Any
+) -> None:
+    from controlplane.application.models import ModelService
+
+    project, provider, _ = setup(uow_factory, clock)
+    service = ProjectSecretService(uow_factory, provider, clock)
+    values = {"AWS_ACCESS_KEY_ID": "access", "AWS_SECRET_ACCESS_KEY": "secret"}
+    annotations = {
+        "serving.kserve.io/s3-endpoint": "minio.internal:9000",
+        "serving.kserve.io/s3-usehttps": "0",
+    }
+    created = service.put(project.name, "storage", values, "Opaque", annotations=annotations)
+    rotated = service.put(project.name, "storage", values, "Opaque", created.version)
+    assert rotated.annotations == annotations
+    ModelService(uow_factory, clock, secrets=provider).create(
+        project.name, "private-model", {}, secret_refs=SecretRefs(storage_secret="storage")
+    )
+    with pytest.raises(Conflict, match="referenced"):
+        service.delete(project.name, "storage", rotated.version)
+    with pytest.raises(InvalidArgument):
+        service.put(project.name, "bad", values, "Opaque", annotations={"arbitrary": "no"})
+    with pytest.raises(InvalidArgument):
+        JobService(uow_factory, clock, secrets=provider).create(
+            project.name,
+            CreateJob("wrong", "image", secret_refs=SecretRefs(storage_secret="storage")),
+        )

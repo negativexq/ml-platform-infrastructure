@@ -1,0 +1,23 @@
+# Merge site-specific values LAST. Empty required fields deliberately block rendering.
+production:
+  enabled: true
+api:
+  replicas: 2
+gateway:
+  replicas: 2
+networkPolicy:
+  enabled: true
+  projectEgressEnabled: true
+  apiCIDRs: []
+  externalHTTPSCIDRs: []
+image:
+  digest: ""
+identity:
+  existingSecret: ""
+config:
+  CP_AUTH_MODE: oidc
+  CP_OIDC_ISSUER: ""
+  CP_OIDC_CLIENT_ID: ""
+  CP_PUBLIC_URL: ""
+  CP_GATEWAY_URL: ""
+  CP_GATEWAY_LIMIT_STORE: postgres

@@ -16,9 +16,6 @@ rules:
   - apiGroups: [""]
     resources: [namespaces]
     verbs: [get]
-  - apiGroups: [""]
-    resources: [secrets]
-    verbs: [get, list, create, update, delete]
   - apiGroups: [serving.kserve.io]
     resources: [inferenceservices]
     verbs: [get]
@@ -31,6 +28,16 @@ rules:
   - apiGroups: [""]
     resources: [pods, pods/log]
     verbs: [get, list]
+---
+# Bound only by RoleBindings in owned project namespaces; never a ClusterRoleBinding.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Release.Namespace }}-{{ $name }}-project-secrets
+rules:
+  - apiGroups: [""]
+    resources: [secrets]
+    verbs: [get, list, create, update, delete]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
@@ -49,6 +56,10 @@ rules:
   - apiGroups: [rbac.authorization.k8s.io]
     resources: [roles, rolebindings]
     verbs: [get, list, create, patch, update, delete]
+  - apiGroups: [rbac.authorization.k8s.io]
+    resources: [clusterroles]
+    resourceNames: [{{ printf "%s-%s-project-secrets" .Release.Namespace $name | quote }}]
+    verbs: [bind]
   - apiGroups: [argoproj.io]
     resources: [workflowtaskresults]
     verbs: [create, patch] # permits delegating these verbs to the workload Role
@@ -75,4 +86,33 @@ roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
   name: {{ $.Release.Namespace }}-{{ $name }}-{{ $component }}
+{{- end }}
+
+{{- if .Values.reconciler.leaderElection }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: {{ $name }}-leader
+rules:
+  - apiGroups: [coordination.k8s.io]
+    resources: [leases]
+    verbs: [create]
+  - apiGroups: [coordination.k8s.io]
+    resources: [leases]
+    resourceNames: [{{ printf "%s-reconciler" $name | quote }}]
+    verbs: [get, update]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: {{ $name }}-leader
+subjects:
+  - kind: ServiceAccount
+    name: {{ $name }}-reconciler
+    namespace: {{ .Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: {{ $name }}-leader
 {{- end }}

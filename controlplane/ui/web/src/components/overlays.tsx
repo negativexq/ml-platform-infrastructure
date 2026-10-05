@@ -30,7 +30,7 @@ export function Modal({
 export type ConfirmOptions = { title: string; body: ReactNode; confirmLabel?: string; danger?: boolean };
 
 export type Field = {
-  name: string; label: string; type?: 'text' | 'textarea' | 'password' | 'secret-refs'; project?: string; required?: boolean; pattern?: string;
+  name: string; label: string; type?: 'text' | 'textarea' | 'password' | 'secret-refs'; project?: string; storageWhen?: (values: Record<string, string>) => boolean; required?: boolean; pattern?: string;
   visibleWhen?: (values: Record<string, string>) => boolean;
   hint?: string; placeholder?: string; value?: string; options?: { value: string; label: string }[];
 };
@@ -179,7 +179,7 @@ function FormBody({ request }: { request: { options: FormOptions<unknown>; resol
           <div className="field" key={f.name}>
             <label htmlFor={id}>{f.label}{f.required && <span className="req" aria-hidden="true"> *</span>}</label>
             {f.type === 'secret-refs' ? (
-              <SecretRefsPicker project={f.project || ''} id={id} name={f.name}
+              <SecretRefsPicker allowStorage={f.storageWhen?.(values)} project={f.project || ''} id={id} name={f.name}
                 inputRef={setRef(f.name)} onChange={value => setValues(old => old[f.name] === value ? old : ({ ...old, [f.name]: value }))} />
             ) : f.options ? (
               <select id={id} name={f.name} required={f.required} defaultValue={values[f.name]} ref={setRef(f.name)} aria-describedby={hint}>

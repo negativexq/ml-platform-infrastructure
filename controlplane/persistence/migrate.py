@@ -7,7 +7,7 @@ from pathlib import Path
 
 from alembic import command
 from alembic.config import Config
-from sqlalchemy import Engine
+from sqlalchemy import Connection, Engine, text
 
 from controlplane.persistence.sql import make_engine
 
@@ -21,13 +21,28 @@ def _config(connection: object) -> Config:
     return cfg
 
 
+# Stable identifier shared by every release and both upgrade/downgrade paths.
+MIGRATION_LOCK = 0x4D4C504D494752
+
+
+def _lock(connection: Connection) -> None:
+    if connection.dialect.name == "postgresql":
+        acquired = connection.scalar(
+            text("SELECT pg_try_advisory_xact_lock(:key)"), {"key": MIGRATION_LOCK}
+        )
+        if not acquired:
+            raise RuntimeError("another control-plane migration owns the database lock")
+
+
 def upgrade(engine: Engine, revision: str = "head") -> None:
     with engine.begin() as conn:
+        _lock(conn)
         command.upgrade(_config(conn), revision)
 
 
 def downgrade(engine: Engine, revision: str) -> None:
     with engine.begin() as conn:
+        _lock(conn)
         command.downgrade(_config(conn), revision)
 
 

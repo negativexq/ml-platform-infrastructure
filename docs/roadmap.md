@@ -17,8 +17,8 @@ Code fixes do not close the real-cluster gates below.
   should be replaced with new digest registrations before relying on rollback identity.
 - Project, run, pipeline, deployment and rollout batches isolate/log per-entity errors,
   then continue. Failed entities use process-local exponential backoff (5–300 seconds).
-- [Control-plane image and chart](installation.md) are prepared: API, gateway, single
-  reconciler, RBAC, migration hook, Services and optional Ingresses. Image runtime checks,
+- [Control-plane image and chart](installation.md) are prepared: API, gateway, Lease-elected
+  reconcilers, RBAC, migration hook, Services and optional Ingresses. Image runtime checks,
   pinned dependency/bootstrap bundles are prepared; live installation and readiness/policy validation remain open.
 - [Connectivity matrix](networking.md) and database/OIDC policy corrections are prepared;
   configurable serving ingress and workload egress policies are implemented; actual CNI
@@ -168,3 +168,18 @@ Base-image/dependency pins, checksum-verified bootstrap bundles and manual-sync 
 manifests are prepared. See [installation.md](installation.md). These code changes are
 locally verified; image builds, live migrations through `0019`, PostgreSQL concurrency,
 cluster installation, real GPU/TLS workloads and recovery drills remain pending.
+
+### Security, HA and manual acceptance tooling
+
+API Secret RBAC is restricted by project RoleBindings; the API ClusterRole no longer
+grants Secret CRUD. Existing READY projects repair missing bindings. Migration processes
+use PostgreSQL advisory locking and follow the documented expand/contract contract.
+API/gateway default to two replicas with PDB/spread/rolling settings; two reconcilers
+coordinate via Lease, with explicit single-process local mode. Production values enforce
+network/site/identity/image configuration. Private S3/MinIO initializer credentials now
+have a separate revision-scoped serving account/reference path.
+
+Manual image, limiter load/outage, database recovery and full CPU acceptance commands are
+prepared; these remain live gates until executed. See [acceptance.md](acceptance.md).
+Logs/archive/streaming, operational cold-start metrics, exact tokenization, adversarial
+canary attribution, CNI isolation and GPU/Hub/private-registry failure drills remain open.

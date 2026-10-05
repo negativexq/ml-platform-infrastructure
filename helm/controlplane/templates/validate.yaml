@@ -1,0 +1,33 @@
+{{- if and (gt (int .Values.gateway.replicas) 1) (ne .Values.config.CP_GATEWAY_LIMIT_STORE "postgres") }}
+{{- fail "multiple gateway replicas require CP_GATEWAY_LIMIT_STORE=postgres" }}
+{{- end }}
+{{- if .Values.production.enabled }}
+{{- if or (lt (int .Values.api.replicas) 2) (lt (int .Values.gateway.replicas) 2) (lt (int .Values.reconciler.replicas) 2) (not .Values.reconciler.leaderElection) }}
+{{- fail "production requires at least two API/gateway/reconciler replicas and leader election" }}
+{{- end }}
+{{- if or (not .Values.networkPolicy.enabled) (not .Values.networkPolicy.projectEgressEnabled) }}
+{{- fail "production requires control-plane and project network isolation" }}
+{{- end }}
+{{- if or (not .Values.networkPolicy.apiCIDRs) (not .Values.networkPolicy.externalHTTPSCIDRs) }}
+{{- fail "production requires explicit API and external HTTPS CIDRs" }}
+{{- end }}
+{{- range concat .Values.networkPolicy.apiCIDRs .Values.networkPolicy.externalHTTPSCIDRs }}
+{{- if or (eq . "0.0.0.0/0") (eq . "::/0") }}
+{{- fail "production CIDRs must not allow all destinations" }}
+{{- end }}
+{{- end }}
+{{- if not (regexMatch "^sha256:[a-f0-9]{64}$" .Values.image.digest) }}
+{{- fail "production requires a full image.digest" }}
+{{- end }}
+{{- if or (ne .Values.config.CP_AUTH_MODE "oidc") (not .Values.identity.existingSecret) (not .Values.config.CP_OIDC_ISSUER) (not .Values.config.CP_OIDC_CLIENT_ID) (not .Values.config.CP_PUBLIC_URL) (not .Values.config.CP_GATEWAY_URL) }}
+{{- fail "production requires OIDC, identity Secret, client ID and public URLs" }}
+{{- end }}
+{{- end }}
+
+{{- if .Values.production.enabled }}
+{{- range list .Values.config.CP_OIDC_ISSUER .Values.config.CP_PUBLIC_URL .Values.config.CP_GATEWAY_URL }}
+{{- if not (hasPrefix "https://" .) }}
+{{- fail "production identity and public URLs must use HTTPS" }}
+{{- end }}
+{{- end }}
+{{- end }}

@@ -20,11 +20,13 @@ class SecretRefsIn(BaseModel):
     model_config = ConfigDict(extra="forbid")
     env: dict[str, SecretKeyRefIn] = Field(default_factory=dict)
     image_pull_secrets: list[str] = Field(default_factory=list)
+    storage_secret: str | None = None
 
     def to_domain(self) -> SecretRefs:
         return SecretRefs(
             {k: SecretKeyRef(v.name, v.key) for k, v in self.env.items()},
             tuple(self.image_pull_secrets),
+            self.storage_secret,
         )
 
     @classmethod
@@ -34,6 +36,7 @@ class SecretRefsIn(BaseModel):
 
 class SecretWrite(BaseModel):
     model_config = ConfigDict(extra="forbid")
+    annotations: dict[str, str] | None = None
     values: dict[str, SecretStr]
     kind: Literal["Opaque", "kubernetes.io/dockerconfigjson"] = "Opaque"
 
@@ -49,6 +52,7 @@ class SecretUseOut(BaseModel):
 
 
 class SecretOut(BaseModel):
+    annotations: dict[str, str] = Field(default_factory=dict)
     used_by: list[SecretUseOut] = Field(default_factory=list)
     name: str
     keys: list[str]
@@ -57,7 +61,13 @@ class SecretOut(BaseModel):
 
     @classmethod
     def from_info(cls, info: SecretInfo) -> "SecretOut":
-        return cls(name=info.name, keys=list(info.keys), kind=info.kind, version=info.version)
+        return cls(
+            name=info.name,
+            keys=list(info.keys),
+            kind=info.kind,
+            version=info.version,
+            annotations=dict(info.annotations),
+        )
 
 
 class SecretList(BaseModel):
@@ -88,7 +98,11 @@ def secrets_router() -> APIRouter:
     def create_secret(project: str, name: str, body: SecretWrite, request: Request) -> SecretOut:
         return SecretOut.from_info(
             service(request).put(
-                project, name, {k: v.get_secret_value() for k, v in body.values.items()}, body.kind
+                project,
+                name,
+                {k: v.get_secret_value() for k, v in body.values.items()},
+                body.kind,
+                annotations=body.annotations,
             )
         )
 
@@ -101,6 +115,7 @@ def secrets_router() -> APIRouter:
                 {k: v.get_secret_value() for k, v in body.values.items()},
                 body.kind,
                 body.expected_version,
+                body.annotations,
             )
         )
 

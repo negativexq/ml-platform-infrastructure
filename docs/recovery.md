@@ -76,3 +76,27 @@ The restore verifier also accepts complete legacy 18-table manifests at heads
 `0014`–`0016`. Use the backup script from the installed release before upgrading an old
 schema; this version queries the shared-bucket table added in `0017`. Restore legacy
 archives first, then migrate the isolated recovery database through `0019` for this image.
+
+## Platform disaster recovery scope
+
+Control-plane DB recovery preserves access metadata, deployment history, lineage and
+shared budgets; it is one component of platform recovery. The coordinated plan also needs:
+
+| Component | Required recovery evidence |
+| --- | --- |
+| MLflow DB | Registered/run identities and their exact artifact URIs, restored to an agreed checkpoint |
+| MinIO/S3 | Artifact/object versions and checksums referenced by that MLflow checkpoint; retention must preserve rollback objects |
+| Kubernetes Secrets | Credential values, namespace ownership/project IDs and names; DB backups contain references only |
+| OIDC | Realm/client configuration and stable user/group subjects; session signing secrets and remote credential state |
+| Kubernetes/runtime | CRDs/controllers, namespaces, policies/RBAC and owned serving/workflow identities |
+| Logs | Independent archived logs and retention; pod/workflow metadata is not a durable log backup |
+
+Restore databases/object checkpoints in isolation, reconstruct owned namespaces and
+Secrets from their backups, restore identity configuration, then validate API/gateway
+without starting the reconciler or allowing inference/training writes. Secrets and
+artifacts must be usable before workloads restart. Resume one elected leader only after
+checking resources created after the snapshot; do not silently adopt foreign ownership.
+Revalidate revoked keys and remote credential revocation independently. A database dump
+cannot establish atomic cross-system consistency; document checkpoint skew and any
+replay/repair policy before switching clients. See [acceptance.md](acceptance.md) for the
+prepared equality drill and pending service-level checks.

@@ -9,6 +9,7 @@ Not exercised against a real KServe yet: see docs/local-verification.md.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import urllib.error
 import urllib.request
@@ -24,6 +25,7 @@ from controlplane.adapters.kubernetes import load_api_client
 from controlplane.application.context import current_traceparent
 from controlplane.application.providers import ServingSpec, ServingState, ServingStatus
 from controlplane.domain.entities import FunctionServing
+from controlplane.domain.errors import Conflict
 
 GROUP, VERSION, PLURAL = "serving.kserve.io", "v1beta1", "inferenceservices"
 KNATIVE_GROUP, KNATIVE_VERSION = "serving.knative.dev", "v1"
@@ -136,6 +138,11 @@ def _predictor_model(spec: ServingSpec) -> dict[str, Any]:
     }
 
 
+def storage_account_name(spec: ServingSpec) -> str:
+    identity = hashlib.sha256(spec.name.encode()).hexdigest()[:12]
+    return f"mlp-storage-{identity}-{spec.revision}"
+
+
 def build_inference_service(spec: ServingSpec) -> dict[str, Any]:
     """The revision's model server: the MLflow server (v2 protocol) for classic models, an
     LLM runtime for language models.
@@ -154,7 +161,9 @@ def build_inference_service(spec: ServingSpec) -> dict[str, Any]:
         },
         "spec": {
             "predictor": {
-                "serviceAccountName": SERVICE_ACCOUNT,
+                "serviceAccountName": storage_account_name(spec)
+                if spec.secret_refs.storage_secret
+                else SERVICE_ACCOUNT,
                 **(
                     {"minReplicas": spec.min_scale, "maxReplicas": spec.max_scale}
                     if spec.runtime == "huggingface"
@@ -253,6 +262,7 @@ def _ready(status: Mapping[str, Any]) -> bool:
 class KServeServingProvider:
     def __init__(self, api_client: client.ApiClient) -> None:
         self._custom = client.CustomObjectsApi(api_client)
+        self._core = client.CoreV1Api(api_client)
 
     @classmethod
     def from_kubeconfig(cls, path: str | None = None) -> KServeServingProvider:
@@ -272,7 +282,54 @@ class KServeServingProvider:
 
     def matches(self, spec: ServingSpec) -> bool:
         existing = self._read(f"{spec.namespace}/{spec.name}")
-        return existing is not None and self._matches(existing, spec)
+        return (
+            existing is not None
+            and self._matches(existing, spec)
+            and not self._storage_account(spec, write=False)
+        )
+
+    def _storage_account(self, spec: ServingSpec, *, write: bool) -> bool:
+        """Return drift; create/repair only an owned revision-scoped serving account."""
+        secret = spec.secret_refs.storage_secret
+        if not secret:
+            return False
+        if spec.runtime != "mlflow" or not spec.model_uri.startswith("s3://"):
+            raise Conflict("storage credentials require classic S3 serving")
+        name = storage_account_name(spec)
+        labels = {
+            **spec.labels,
+            "mlp.io/storage-owner": spec.name,
+            "mlp.io/storage-revision": str(spec.revision),
+        }
+        try:
+            current = self._core.read_namespaced_service_account(name, spec.namespace)
+        except ApiException as exc:
+            if exc.status != 404:
+                raise
+            current = None
+        if current is not None:
+            actual_labels = current.metadata.labels or {}
+            if any(actual_labels.get(k) != v for k, v in labels.items()):
+                raise Conflict("storage service account is not owned by this revision")
+            names = [s.name for s in (current.secrets or [])]
+            if names == [secret] and current.automount_service_account_token is False:
+                return False
+        if write:
+            body = client.V1ServiceAccount(
+                metadata=client.V1ObjectMeta(
+                    name=name,
+                    namespace=spec.namespace,
+                    labels=labels,
+                    resource_version=current.metadata.resource_version if current else None,
+                ),
+                secrets=[client.V1ObjectReference(name=secret)],
+                automount_service_account_token=False,
+            )
+            if current is None:
+                self._core.create_namespaced_service_account(spec.namespace, body)
+            else:
+                self._core.replace_namespaced_service_account(name, spec.namespace, body)
+        return True
 
     @staticmethod
     def _matches(existing: dict[str, Any], spec: ServingSpec) -> bool:
@@ -290,6 +347,7 @@ class KServeServingProvider:
     def deploy(self, spec: ServingSpec) -> str:
         """Create-or-update. Idempotent: applying the same spec twice changes nothing."""
         ref = f"{spec.namespace}/{spec.name}"
+        storage_changed = self._storage_account(spec, write=True)
         body = build_inference_service(spec)
         existing = self._read(ref)
         if existing is None:
@@ -305,7 +363,7 @@ class KServeServingProvider:
                 if exc.status != 409:  # 409: created concurrently, fall through to patch
                     raise
         else:
-            if self._matches(existing, spec):
+            if self._matches(existing, spec) and not storage_changed:
                 return ref
             # Remember what was serving before, so a canary knows what receives the rest
             # of the traffic and which backend revision to label its metrics with.

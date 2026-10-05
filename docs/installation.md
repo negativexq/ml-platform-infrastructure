@@ -75,13 +75,13 @@ database Secret; it does not depend on chart-owned configuration or ServiceAccou
 do not exist during pre-install. A failed migration blocks the Helm operation. Failed Jobs
 remain available for inspection; successful ones are removed.
 
-Only one reconciler replica is allowed. Its Deployment uses `Recreate`, so a Helm upgrade
-does not deliberately overlap old and new processes. This is a single-process deployment
-policy, not leader election: operators must not start another reconciler against the same
-database. Separate simultaneous Helm releases/migration processes are also unsupported.
+The default chart runs two reconcilers with namespaced Lease leader election and rolling
+updates. Local/no-election mode runs one with `Recreate`. PostgreSQL advisory locking
+serializes migration ownership; simultaneous independent Helm releases remain unsupported.
+See [operations.md](operations.md) for election and expand/contract contracts.
 
 The gateway defaults to shared PostgreSQL buckets (`CP_GATEWAY_LIMIT_STORE=postgres`),
-so replicas share capacity and debt. The default replica count remains one. Explicit
+so replicas share capacity and debt. The default replica count is now two, as for the API. Explicit
 `memory` mode and demo mode keep independent per-process limits.
 
 API and gateway startup/liveness probes use `/healthz`; readiness uses `/readyz`
@@ -139,3 +139,42 @@ Provision the dedicated DB, namespace, DB/identity Secrets and site identity/net
 first. The bootstrap installs serving/workflow dependencies and the control plane, not
 PostgreSQL or an identity provider. Actual image build, live migrations and CPU/GPU/TLS
 lifecycle checks remain release gates.
+
+## First upgrade to Lease election and scoped Secret RBAC
+
+The previous image (`2652c3e`) does not participate in election. Before this first upgrade,
+scale its reconciler Deployment to zero and wait for its pods to terminate. Then upgrade
+the chart/image together. New leaders must never overlap a Lease-unaware old reconciler.
+Subsequent upgrades between election-aware images can roll normally. Do not roll back to
+a Lease-unaware image while any newer reconciler is running. This first transition has a
+control-loop pause; API/gateway can remain available.
+
+The new chart removes API cluster-wide Secret verbs and creates a named Secret role.
+Project reconciliation backfills namespace RoleBindings; Secret operations may be
+unavailable briefly until this converges. Verify API `get/list/create/update/delete` in
+owned project namespaces and denial in the system, unrelated and kube-system namespaces.
+The API cannot create RBAC bindings itself. A compromised API still reaches every managed
+project namespace; this change isolates infrastructure/unmanaged secrets, not individual
+projects from that shared service account.
+
+## Production profile and manual release gates
+
+Merge `values-production.yaml` and then site values. Production enables control-plane and
+project network isolation, requires explicit API/external HTTPS CIDRs, OIDC identity/public
+URLs and an image digest, and rejects catch-all IPv4/IPv6 CIDRs. Missing site values fail
+rendering. Validate issuer/storage/telemetry/API paths on the actual enforcing CNI; a valid
+manifest is not proof of isolation.
+
+`make cp-release-check CP_IMAGE=registry.example/controlplane:release CP_RELEASE_OUT=/tmp/release-evidence`
+requires a clean committed checkout plus Docker, Trivy and Syft. It builds the source
+revision into the image label and uses the resulting image ID for all four commands.
+It creates isolated disposable PostgreSQL/network fixtures, migrates to the image head,
+checks API/gateway health/readiness, runs the reconciler on empty state with a smoke
+kubeconfig, cuts/restarts PostgreSQL, produces an SPDX SBOM and gates fixable HIGH/CRITICAL
+vulnerabilities plus secrets. The report records image/source/DB identities and checks.
+Fixtures are removed; failures retain a failed report. The smoke config does not prove
+live Kubernetes access or Lease/RBAC behavior.
+
+This command was prepared/tested with mocked orchestration, not executed with Docker.
+No image build, Trivy result or actual SBOM is claimed. See [acceptance.md](acceptance.md)
+for load, outage, CPU and recovery commands and remaining live evidence.

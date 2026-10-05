@@ -76,6 +76,13 @@ The findings below describe the reviewed commit, not necessarily the current cod
 - **Secret forms and release preparation: implemented/prepared.** Forms select names/keys;
   Settings reports usage. Base/dependency pins, checksum-verified offline bundles and
   manual-sync GitOps manifests are prepared; image/runtime installation remains pending.
+- **Scoped Secret RBAC and HA: implemented, live gates pending.** API Secret verbs moved
+  to project RoleBindings; the provisioner can bind only the named Secret role. API/gateway
+  have two replicas/PDB/spread, reconcilers use Lease election, and migration ownership
+  uses PostgreSQL advisory locking. First upgrade must stop the old Lease-unaware reconciler.
+- **Storage auth and manual evidence tooling: prepared.** Classic private S3/MinIO serving
+  uses revision-scoped credential accounts; image/load/recovery/CPU commands are available.
+  No Docker/cluster execution or scan/drill result is claimed; see [acceptance.md](acceptance.md).
 - See [operations.md](operations.md) for defaults, API contracts and retained limitations.
 - **Cluster verification is still open.** Check annotation propagation on the installed
   KServe version, grant the reconciler read access to `serving.knative.dev/revisions`, and

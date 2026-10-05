@@ -34,8 +34,9 @@ resources and the HTTP path. Readiness is independent of the workload's request 
 The project, job run, pipeline run, deployment and rollout batches isolate provider errors.
 A failed entity waits 5, 10, 20, 40, 80, 160, then at most 300 seconds before another attempt;
 other entities continue. A successful attempt or optimistic conflict clears the backoff.
-Backoff is process-local and resets on restart. The chart still requires one reconciler;
-this does not provide distributed ownership or leader election.
+Backoff is process-local and resets on restart. The production chart runs two reconcilers with Lease leader election; only the leader
+executes passes. Backoff still resets on a takeover. Local mode disables election and
+requires exactly one process.
 
 ## Execution deadlines
 
@@ -121,3 +122,39 @@ timestamps. After at least one matching output, the run is checkpointed; later r
 need manual discovery. Completed discoveries survive restart and do not auto-evaluate/promote models.
 Retention updates preserve discovery checkpoints. Migration `0017` stores gateway buckets;
 apply all migrations through `0019` before starting this image.
+
+## Availability and leadership
+
+Default API/gateway replicas are 2, with `minAvailable: 1` PDBs, hostname topology spread
+and rolling updates (`maxUnavailable: 0`, `maxSurge: 1`). Local values use one replica.
+Spread uses `ScheduleAnyway`: multiple nodes and spare capacity are prerequisites for
+node-failure protection; a single-node cluster cannot provide it. API replicas share the
+same signed-cookie secret; multiple gateway replicas require PostgreSQL buckets.
+
+Reconciler election uses a namespaced `coordination.k8s.io/Lease`, resource-version CAS
+and per-process identities. Defaults: 30-second lease, 15-second renewal deadline,
+2-second retry; Kubernetes calls are bounded. A standby waits until an unchanged observed
+lease has expired. Ownership loss/deadline expiry fail-stops the process, preventing it
+from continuing control loops without leadership. SIGTERM stops renewal and leaves the
+lease to expire after shutdown; takeover may pause convergence for tens of seconds.
+Lease ownership is not an external-system fencing token; provider CAS/idempotency remain
+required for in-flight operations. Real API partition, pod drain and takeover tests remain
+pending. See the first-upgrade procedure in [installation.md](installation.md).
+
+`CP_LEADER_ELECTION_ENABLED=false` is an explicit single-process mode; the chart refuses
+multiple replicas in that mode. Settings also expose lease name, duration, renew deadline
+and retry interval. Values must satisfy retry < deadline < duration.
+
+## Migration ownership and compatibility
+
+Upgrade/downgrade acquire the same PostgreSQL transaction advisory lock before Alembic.
+A concurrent migration fails immediately without running DDL; connection/transaction
+cleanup releases the lock. This serializes schema changes, not independent Helm releases
+or application writers.
+
+Release N migrations must preserve N−1 application schema compatibility throughout the
+rollout and a failed upgrade. Add nullable/defaulted columns and new tables first; deploy
+dual-read/write/backfill code before switching consumers. Remove/rename/drop only in a
+later release after old writers and rollback dependencies are retired. Document any
+feature-specific rollback limits separately. Prove compatibility on a database clone with
+both image versions before release; offline DDL alone does not prove this contract.

@@ -13,6 +13,8 @@ class Settings(BaseSettings):
     # Empty: in-cluster config, then ~/.kube/config.
     kubeconfig: str = ""
     system_namespace: str = "mlp-system"
+    api_service_account: str = "mlp-controlplane-api"
+    project_secret_cluster_role: str = "mlp-system-mlp-controlplane-project-secrets"
     platform_namespace: str = "ml-platform"
     observability_namespace: str = "observability"
     serving_namespaces: str = "knative-serving,kourier-system,istio-system"
@@ -21,6 +23,11 @@ class Settings(BaseSettings):
     workflow_retention_seconds: int = Field(default=0, ge=0, le=31536000)
     project_egress_enabled: bool = False
     model_discovery_delay_seconds: int = Field(default=120, ge=0, le=86400)
+    leader_election_enabled: bool = True
+    leader_lease_name: str = "mlp-controlplane-reconciler"
+    leader_lease_duration_seconds: int = Field(default=30, ge=10)
+    leader_renew_deadline_seconds: int = Field(default=15, ge=5)
+    leader_retry_seconds: float = Field(default=2, gt=0)
     reconcile_interval_seconds: float = 10.0
     # MLflow tracking server the control plane queries. Empty: tracking is not configured.
     mlflow_tracking_uri: str = ""

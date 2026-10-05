@@ -128,6 +128,8 @@ class ModelService:
         function: FunctionServing | None,
         secret_refs: SecretRefs | None,
     ) -> tuple[ModelView, bool]:
+        if secret_refs and secret_refs.storage_secret and kind is not ModelKind.CLASSIC:
+            raise InvalidArgument("storage credentials apply only to classic serving models")
         with self._uow_factory() as uow:
             project = resolve_project(uow, project_ref)
             locked_project = uow.projects.lock(project.id)

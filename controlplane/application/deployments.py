@@ -472,6 +472,8 @@ class DeploymentService:
         )
         if uri is None:
             raise Conflict(f"the registry has no artifact for {model.name!r} version {mv.version}")
+        if model.secret_refs.storage_secret and not uri.startswith("s3://"):
+            raise Conflict("storage_secret requires an s3:// registry artifact URI")
         return uri
 
     @staticmethod

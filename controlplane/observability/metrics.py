@@ -149,3 +149,29 @@ class GatewayUsageMetrics:
             call.prompt_tokens,
             call.completion_tokens,
         )
+
+
+class GatewayLimiterMetrics:
+    def __init__(self) -> None:
+        self._duration = metrics.get_meter("controlplane").create_histogram(
+            "mlp.gateway.limiter.duration",
+            unit="s",
+            description="Limiter transaction latency",
+            explicit_bucket_boundaries_advisory=[
+                0.001,
+                0.005,
+                0.01,
+                0.025,
+                0.05,
+                0.1,
+                0.25,
+                0.5,
+                1,
+                2,
+                3,
+                6,
+            ],
+        )
+
+    def record(self, operation: str, outcome: str, seconds: float) -> None:
+        self._duration.record(seconds, {"operation": operation, "outcome": outcome})

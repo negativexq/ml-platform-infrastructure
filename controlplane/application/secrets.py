@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from typing import Protocol
 
 from controlplane.application.identity import current_actor
@@ -11,7 +11,12 @@ from controlplane.application.projects import Clock, UnitOfWorkFactory, utc_now
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import Project
 from controlplane.domain.errors import Conflict, InvalidArgument
-from controlplane.domain.secrets import SecretRefs, secret_key, secret_name
+from controlplane.domain.secrets import (
+    SecretRefs,
+    secret_key,
+    secret_name,
+    validate_storage_annotations,
+)
 from controlplane.domain.states import ProjectStatus
 
 
@@ -21,6 +26,7 @@ class SecretInfo:
     keys: tuple[str, ...]
     kind: str
     version: str
+    annotations: Mapping[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)
@@ -40,6 +46,7 @@ class SecretProvider(Protocol):
         values: Mapping[str, str],
         kind: str,
         expected_version: str | None,
+        annotations: Mapping[str, str] | None = None,
     ) -> SecretInfo: ...
     def delete(self, project: Project, name: str, expected_version: str) -> None: ...
 
@@ -57,6 +64,12 @@ def validate_refs(
     for ref in refs.env.values():
         if ref.key not in found[ref.name].keys:
             raise InvalidArgument("referenced secret key does not exist")
+    if refs.storage_secret:
+        storage = found[refs.storage_secret]
+        if storage.kind != "Opaque" or not {"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"} <= set(
+            storage.keys
+        ):
+            raise InvalidArgument("S3 storage requires an Opaque secret with AWS credential keys")
     for name in refs.image_pull_secrets:
         if found[name].kind != "kubernetes.io/dockerconfigjson":
             raise InvalidArgument("image pull references require a registry secret")
@@ -92,6 +105,7 @@ class ProjectSecretService:
         values: Mapping[str, str],
         kind: str,
         expected_version: str | None = None,
+        annotations: Mapping[str, str] | None = None,
     ) -> SecretInfo:
         project = self._project(ref)
         secret_name(name)
@@ -118,13 +132,20 @@ class ProjectSecretService:
                 raise InvalidArgument(
                     "registry secret requires a valid .dockerconfigjson auths object"
                 ) from None
+        if annotations is not None:
+            validate_storage_annotations(annotations)
+            if annotations and (
+                kind != "Opaque"
+                or not {"AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY"} <= set(values)
+            ):
+                raise InvalidArgument("S3 annotations require AWS credential keys")
         # Rotation may change values, not remove keys/type used by existing references.
         if expected_version is not None:
             old = self._backend().get(project, name)
             if old.kind != kind or set(old.keys) - set(values):
                 raise Conflict("rotation must preserve secret type and existing keys")
         self._audit(project, name, "secret.write_requested", expected_version or "new")
-        info = self._backend().put(project, name, values, kind, expected_version)
+        info = self._backend().put(project, name, values, kind, expected_version, annotations)
         self._audit(
             project,
             name,

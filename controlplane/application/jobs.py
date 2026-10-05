@@ -10,7 +10,7 @@ from controlplane.application.projects import Clock, UnitOfWorkFactory, utc_now
 from controlplane.application.secrets import SecretProvider, validate_refs
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import JobDefinition, Project
-from controlplane.domain.errors import AlreadyExists, Conflict, NotFound
+from controlplane.domain.errors import AlreadyExists, Conflict, InvalidArgument, NotFound
 from controlplane.domain.secrets import SecretRefs
 
 
@@ -50,6 +50,8 @@ class JobService:
     def create(self, project_ref: str, cmd: CreateJob) -> tuple[JobDefinition, bool]:
         """Create a job definition. Identical repeat -> existing, `created=False`;
         same name with different content -> Conflict (definitions are immutable)."""
+        if cmd.secret_refs.storage_secret:
+            raise InvalidArgument("storage credentials apply only to classic serving models")
         try:
             with self._uow_factory() as uow:
                 project = resolve_project(uow, project_ref)

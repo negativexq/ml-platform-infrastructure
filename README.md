@@ -175,3 +175,8 @@ and Settings shows their usage. See [installation preparation](docs/installation
 pinned, checksum-verified bootstrap bundles and manual-sync GitOps. Run `make cp-check-light`
 for checks without PostgreSQL/browser startup, or `make cp-http-test` for native gateway
 streaming tests.
+
+Security/HA preparation now includes namespace-scoped API Secret RBAC, API/gateway PDBs
+and two replicas, Lease-elected reconcilers, migration ownership locks and a production
+policy profile. Manual image, load/outage, recovery and CPU lifecycle gates are described
+in [docs/acceptance.md](docs/acceptance.md); their live results remain pending.

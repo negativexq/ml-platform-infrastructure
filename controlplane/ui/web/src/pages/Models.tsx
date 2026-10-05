@@ -36,7 +36,7 @@ export function ModelsPage({ project, functions = false }: { project: string; fu
       title: functions ? 'Register a function' : 'Register a model', submitLabel: 'Register',
       intro: functions ? 'Register a container workload, then add an image version and deploy it.' : 'Versions come from the registry (or, for an LLM, from the Hugging Face Hub); the acceptance thresholds decide which ones may become candidates.',
       fields: [
-        { name: 'secretRefs', label: 'Workload secrets', type: 'secret-refs' as const, project },
+        { name: 'secretRefs', label: 'Workload secrets', type: 'secret-refs' as const, project, storageWhen: (v: Record<string, string>) => v.kind === 'classic' },
         { name: 'name', label: 'Name', required: true, pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$', placeholder: 'scorer', hint: 'Lowercase letters, digits and dashes.' },
         { name: 'kind', label: 'Kind', required: true, value: functions ? 'function' : 'classic', options: [
           { value: 'classic', label: 'Classic model (predictive, from the registry)' }, { value: 'llm', label: 'LLM (served on GPUs, chat API)' },

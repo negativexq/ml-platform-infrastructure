@@ -1,0 +1,15 @@
+{{- range $component := list "api" "gateway" }}
+{{- if gt (int (index $.Values $component).replicas) 1 }}
+---
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: {{ include "controlplane.name" $ }}-{{ $component }}
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ $.Release.Name }}
+      app.kubernetes.io/name: mlp-controlplane-{{ $component }}
+{{- end }}
+{{- end }}

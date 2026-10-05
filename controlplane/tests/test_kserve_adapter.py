@@ -249,3 +249,38 @@ def test_drift_repair_replaces_predictor_with_cas_and_then_is_idempotent() -> No
     assert adapter.matches(spec)
     adapter.deploy(spec)
     adapter._custom.patch_namespaced_custom_object.assert_called_once()
+
+
+def test_storage_account_is_revision_scoped_and_never_grants_workload_rbac() -> None:
+    from kubernetes import client
+
+    from controlplane.adapters.serving.kserve import storage_account_name
+    from controlplane.domain.errors import Conflict
+    from controlplane.domain.secrets import SecretRefs
+
+    spec = ServingSpec(
+        "private",
+        "mlp-test",
+        "s3://models/v1",
+        1,
+        secret_refs=SecretRefs(storage_secret="s3-creds"),
+    )
+    adapter = KServeServingProvider(Mock())
+    adapter._core = Mock()
+    adapter._core.read_namespaced_service_account.side_effect = ApiException(status=404)
+    assert adapter._storage_account(spec, write=True)
+    body = adapter._core.create_namespaced_service_account.call_args.args[1]
+    assert body.automount_service_account_token is False
+    assert [s.name for s in body.secrets] == ["s3-creds"]
+    assert build_inference_service(spec)["spec"]["predictor"][
+        "serviceAccountName"
+    ] == storage_account_name(spec)
+    from dataclasses import replace
+
+    assert storage_account_name(replace(spec, revision=2)) != storage_account_name(spec)
+    adapter._core.read_namespaced_service_account.side_effect = None
+    adapter._core.read_namespaced_service_account.return_value = client.V1ServiceAccount(
+        metadata=client.V1ObjectMeta(name=body.metadata.name, labels={"foreign": "yes"})
+    )
+    with pytest.raises(Conflict, match="not owned"):
+        adapter._storage_account(spec, write=True)

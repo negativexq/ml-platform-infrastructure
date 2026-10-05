@@ -4,3 +4,12 @@ config:
   CP_OIDC_ISSUER: ""
   CP_MLFLOW_TRACKING_URI: http://platform-mlflow.ml-platform.svc.cluster.local:5000
   CP_STEP_MLFLOW_TRACKING_URI: http://platform-mlflow.ml-platform.svc.cluster.local:5000
+
+api:
+  replicas: 1
+gateway:
+  replicas: 1
+
+reconciler:
+  replicas: 1
+  leaderElection: false

@@ -3,11 +3,12 @@ import { api, ApiError, enc, type S } from '../api/client';
 import { QueryView, useLiveQuery } from '../lib/query';
 
 type Binding = { variable: string; secret: string; key: string };
-export function SecretRefsPicker({ project, name, id, onChange, inputRef }: {
+export function SecretRefsPicker({ project, name, id, onChange, inputRef, allowStorage = false }: {
   project: string; name: string; id: string; onChange: (value: string) => void;
-  inputRef: (element: HTMLInputElement | null) => void;
+  inputRef: (element: HTMLInputElement | null) => void; allowStorage?: boolean;
 }) {
   const [bindings, setBindings] = useState<Binding[]>([]);
+  const [storage, setStorage] = useState('');
   const [pulls, setPulls] = useState<string[]>([]);
   const catalog = useLiveQuery(['secret-references', project], () =>
     api.get<S['SecretList']>(`/projects/${enc(project)}/secret-references`));
@@ -18,6 +19,7 @@ export function SecretRefsPicker({ project, name, id, onChange, inputRef }: {
   const encoded = JSON.stringify(error ? { _error: error } : {
     env: Object.fromEntries(bindings.map(b => [b.variable, { name: b.secret, key: b.key }])),
     image_pull_secrets: pulls,
+    ...(allowStorage && storage ? { storage_secret: storage } : {}),
   });
   useEffect(() => onChange(encoded), [encoded, onChange]);
   function edit(index: number, patch: Partial<Binding>) {
@@ -49,6 +51,13 @@ export function SecretRefsPicker({ project, name, id, onChange, inputRef }: {
             e.target.checked ? [...names, s.name] : names.filter(n => n !== s.name))} /> {s.name}
         </label>)}
       </fieldset>
+      {allowStorage && <label>Model artifact credentials (S3/MinIO)
+        <select aria-label="Storage secret" value={storage} onChange={e => setStorage(e.target.value)}>
+          <option value="">No storage credentials</option>
+          {items.filter(s => s.kind === 'Opaque' && s.keys.includes('AWS_ACCESS_KEY_ID') && s.keys.includes('AWS_SECRET_ACCESS_KEY'))
+            .map(s => <option key={s.name} value={s.name}>{s.name}</option>)}
+        </select>
+      </label>}
       {!items.length && <p className="muted">No project secrets. An admin can create them in Settings → Secrets.</p>}
     </>}</QueryView>
     {error && <small className="hint">{error}</small>}

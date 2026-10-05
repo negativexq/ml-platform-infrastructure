@@ -1,5 +1,5 @@
-{{- if ne (int .Values.reconciler.replicas) 1 }}
-{{- fail "reconciler.replicas must be 1 until leader election is implemented" }}
+{{- if and (not .Values.reconciler.leaderElection) (ne (int .Values.reconciler.replicas) 1) }}
+{{- fail "reconciler.replicas must be 1 when leader election is disabled" }}
 {{- end }}
 {{- $name := include "controlplane.name" . }}
 {{- range $component := list "api" "gateway" "reconciler" }}
@@ -12,9 +12,13 @@ metadata:
   name: {{ $name }}-{{ $component }}
 spec:
   replicas: {{ $settings.replicas }}
-  {{- if eq $component "reconciler" }}
+  {{- if and (eq $component "reconciler") (not $.Values.reconciler.leaderElection) }}
   strategy:
     type: Recreate
+  {{- else }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate: {maxUnavailable: 0, maxSurge: 1}
   {{- end }}
   selector:
     matchLabels:
@@ -29,6 +33,17 @@ spec:
       annotations:
         checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") $ | sha256sum }}
     spec:
+      terminationGracePeriodSeconds: 30
+      {{- if and (or (ne $component "reconciler") $.Values.reconciler.leaderElection) (gt (int $settings.replicas) 1) }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/instance: {{ $.Release.Name }}
+              app.kubernetes.io/name: mlp-controlplane-{{ $component }}
+      {{- end }}
       serviceAccountName: {{ $name }}-{{ $component }}
       securityContext:
         {{- include "controlplane.podSecurity" $ | nindent 8 }}

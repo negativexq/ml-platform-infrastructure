@@ -46,9 +46,15 @@ and Kubernetes mutation are not one transaction: a failure can leave an intent w
 a completion event. Refresh provider metadata to determine the actual result.
 
 The API checks namespace ownership and secret ownership labels; it neither adopts nor
-overwrites foreign secrets. Its Kubernetes service account has cluster-wide secret CRUD
-permissions, while the gateway and reconciler do not receive secret CRUD permissions.
-Application ownership checks therefore remain a security boundary for the management API.
+overwrites foreign secrets. The API service account receives Secret CRUD through RoleBindings only in provisioned
+project namespaces. The shared Secret ClusterRole is never ClusterRoleBound to the API.
+The reconciler can bind only that named role and receives no Secret CRUD verbs; it remains
+a privileged namespace/RBAC provisioner. Binding creation respects Kubernetes escalation
+checks. Application ownership checks still constrain which secrets the API manages. Other
+API namespace/workflow/pod-log read permissions remain cluster-scoped; this change
+restricts Secret API permissions specifically.
+Existing READY projects acquire/repair the binding through drift reconciliation. A foreign
+binding is refused; API SA name/namespace and role name come from Helm configuration.
 Project operators can create workloads that reference secrets, and can consequently
 read those credentials from their own running code. Admin-only secret management does
 not isolate credentials from people authorized to execute arbitrary project workloads.
@@ -77,9 +83,8 @@ Jobs compile environment references to Argo `secretKeyRef`. Pipeline steps inher
 job references and the workflow combines registry secret names. Models use KServe
 predictor environment references and `imagePullSecrets`; deployments snapshot reference
 names into immutable revisions for rollback. An explicit LLM `HF_TOKEN` reference
-overrides the legacy optional `mlp-hf-token/token` convention. Classic model runtime
-environment references do not configure KServe's separate storage initializer; artifact
-download authentication still needs its service-account/provider configuration.
+overrides the legacy optional `mlp-hf-token/token` convention. Classic model runtime environment references do not configure the storage initializer.
+Use the separate `storage_secret` reference below for private S3/MinIO model artifacts.
 
 Rotation changes the named secret's values, including what old revisions use on future
 starts. Running containers retain their existing environment; restart/redeploy them to
@@ -107,3 +112,38 @@ CAS requests, redacted errors and deletion protection. No cluster was started or
 Live gates remain: apply migration `0016`, verify actual namespace RBAC and ownership,
 run a private-image job/function, rotate a credential and restart its consumer, and restore
 the secret store alongside a control-plane DB backup.
+
+## Private S3/MinIO artifacts
+
+Create an Opaque project Secret containing `AWS_ACCESS_KEY_ID`, `AWS_SECRET_ACCESS_KEY`
+and optional `AWS_SESSION_TOKEN`. The write API accepts optional `annotations` containing
+only `serving.kserve.io/s3-endpoint` (hostname:port, no URL scheme), `s3-region`,
+`s3-usehttps` (`0`/`1`) and `s3-useanoncredential` (`false`). Endpoint settings are
+nonsecret metadata; values remain write-only. Omitted annotations on rotation preserve
+the previous settings; an explicit empty mapping removes them.
+
+Register a classic model with:
+
+```json
+{"secret_refs": {"storage_secret": "artifact-storage"}}
+```
+
+The UI offers matching AWS credential secrets in its artifact selector. Deployment
+requires an `s3://` registry artifact URI and creates a revision-scoped serving
+ServiceAccount with only that Secret reference and `automountServiceAccountToken: false`.
+The serving account receives no workload executor RoleBinding. Foreign accounts are
+refused; drift repairs use resource versions and trigger a fresh backend apply identity.
+Rollback preserves the credential name, not historical values. These accounts stay until
+namespace deletion so historic revisions can restart; automatic account pruning is absent.
+
+This implements [KServe 0.15's credential path](https://github.com/kserve/kserve/blob/v0.15.0/pkg/credentials/service_account_credentials.go):
+the controller injects the referenced Secret and its S3 annotations into the initializer.
+Training separately binds AWS keys as env references and configures
+`MLFLOW_S3_ENDPOINT_URL`; storage references are rejected on jobs/functions/LLMs.
+Live private-artifact loading remains pending. IRSA, custom CA/provider support and gated
+Hub initializer credentials require separate contracts.
+
+Schema compatibility with an older image does not imply storage-feature compatibility.
+Pre-storage-reference code does not understand these references/settings; do not resume
+older writers against new storage-bound models during a rollback without validating their
+behavior and credential metadata preservation.

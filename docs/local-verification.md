@@ -784,3 +784,36 @@ Remaining gates: real PostgreSQL migrations/locking/outages, image build and fou
 commands, pinned dependency installation on the target Kubernetes version, CNI/RBAC,
 real CPU/GPU/TLS serving and canary/rollback, workload credential rotation/private pulls,
 UI browser acceptance and recovery drills. See [roadmap.md](roadmap.md).
+
+## Scoped RBAC, availability and release gates (2026-10-05)
+
+No Docker, PostgreSQL, browser or cluster process was started for this batch. Native
+loopback HTTP servers used by existing gateway tests were stopped after their tests.
+
+- Lightweight suite: **366 passed, 5 skipped, 184 deselected**. SQL/browser variants and
+  two opt-in PostgreSQL acceptance checks remain unexecuted.
+- Ruff passed; mypy passed for **177 source files**, including all manual acceptance tools.
+- UI typed API regeneration and TypeScript/production build passed; the existing bundle
+  size warning remains (about 557 KB).
+- Helm default/local lint passed. Default schema validation: **19 valid resources**;
+  production profile with synthetic site values: **23 valid resources**. Missing production
+  values are deliberately rejected. These are rendering results, not CNI/RBAC evidence.
+- Unit gates cover namespace Secret binding shape, API ClusterRole Secret removal, PDB/HA
+  settings, migration lock refusal, standby expiry/CAS conflicts and fail-stop on renewal
+  outage. These do not prove live Lease failover or pod drain.
+- Storage reference validation, S3 annotation preservation on rotation, protected deletion
+  and separate revision-owned token-disabled storage accounts passed. No private artifact
+  was downloaded; no Secret values appear in responses or reports.
+- Image release orchestration was exercised with mocked commands; all four entrypoints,
+  image ID reuse, cleanup, scans and mandatory SBOM commands were checked. No actual image,
+  Trivy result or SBOM was generated.
+- Acceptance CLI help paths and CPU default plan-only behavior passed. Recovery refusal
+  and restoration of source libpq environment after failure were tested without a server.
+
+The image, load/outage, recovery and CPU lifecycle commands in [acceptance.md](acceptance.md)
+remain live gates. First deployment must stop any Lease-unaware old reconciler before
+starting the new leader/standby pair. See [installation.md](installation.md).
+
+Read-only tool inventory: Docker daemon reachable, Docker/Trivy/kubectl installed; Syft
+and native `psql`/`pg_dump`/`pg_restore` absent. No fixture, image build or drill was
+started. Release preflight rejects missing tools before building or creating fixtures.

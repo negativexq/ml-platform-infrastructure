@@ -9,6 +9,7 @@ from controlplane.application.namespaces import LABEL_MANAGED_BY, LABEL_PROJECT_
 from controlplane.application.secrets import SecretInfo
 from controlplane.domain.entities import Project
 from controlplane.domain.errors import AlreadyExists, Conflict, NotFound
+from controlplane.domain.secrets import S3_ANNOTATIONS
 
 
 class KubernetesSecretProvider:
@@ -22,6 +23,7 @@ class KubernetesSecretProvider:
             tuple(sorted(secret.data or {})),
             secret.type or "Opaque",
             secret.metadata.resource_version,
+            {k: v for k, v in (secret.metadata.annotations or {}).items() if k in S3_ANNOTATIONS},
         )
 
     @staticmethod
@@ -72,10 +74,13 @@ class KubernetesSecretProvider:
         values: Mapping[str, str],
         kind: str,
         expected_version: str | None,
+        annotations: Mapping[str, str] | None = None,
     ) -> SecretInfo:
         self._namespace(project)
         if expected_version is not None:
             existing = self.get(project, name)
+            if annotations is None:
+                annotations = existing.annotations
             if existing.version != expected_version:
                 raise Conflict("secret changed; refresh before rotating")
         secret = client.V1Secret(
@@ -85,6 +90,7 @@ class KubernetesSecretProvider:
                 name=name,
                 namespace=project.namespace,
                 resource_version=expected_version,
+                annotations=dict(annotations or {}),
                 labels={LABEL_MANAGED_BY: MANAGED_BY, LABEL_PROJECT_ID: str(project.id)},
             ),
         )

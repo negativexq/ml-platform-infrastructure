@@ -30,7 +30,7 @@ config:
   CP_WORKFLOW_RETENTION_SECONDS: "0" # opt in; e.g. 604800 keeps workflow/pod logs for 7 days
 
 api:
-  replicas: 1
+  replicas: 2
   resources:
     requests: {cpu: 100m, memory: 256Mi}
     limits: {cpu: "1", memory: 1Gi}
@@ -41,7 +41,7 @@ api:
     annotations: {}
     tls: []
 gateway:
-  replicas: 1 # PostgreSQL limiter shares budgets across gateway replicas
+  replicas: 2 # PostgreSQL limiter shares budgets across gateway replicas
   resources:
     requests: {cpu: 100m, memory: 256Mi}
     limits: {cpu: "1", memory: 1Gi}
@@ -55,7 +55,8 @@ gateway:
       nginx.ingress.kubernetes.io/proxy-body-size: 10m
     tls: []
 reconciler:
-  replicas: 1 # enforced: no leader election; Recreate avoids rollout overlap
+  replicas: 2
+  leaderElection: true
   resources:
     requests: {cpu: 100m, memory: 256Mi}
     limits: {cpu: "1", memory: 1Gi}
@@ -77,3 +78,6 @@ networkPolicy:
   ingressNamespace: ingress-nginx
   servingNamespaces: [knative-serving, kourier-system, istio-system]
 # No CNI, Argo, KServe/Knative, identity or database is installed by this chart.
+
+production:
+  enabled: false # production profile enables strict site configuration checks

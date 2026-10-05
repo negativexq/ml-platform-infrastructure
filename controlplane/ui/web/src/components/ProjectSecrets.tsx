@@ -23,17 +23,21 @@ function SecretManagement({ project }: { project: string }) {
         fields: [
           ...(!secret ? [{ name: 'name', label: 'Secret name', required: true, placeholder: 'training-credentials' },
             { name: 'kind', label: 'Type', value: 'Opaque', options: [{ value: 'Opaque', label: 'Key/value secret' }, { value: 'kubernetes.io/dockerconfigjson', label: 'Registry credentials' }] }] : []),
+          { name: 'annotations', label: 'S3 storage settings (JSON)', type: 'textarea', value: JSON.stringify(secret?.annotations || {}), hint: 'Optional serving.kserve.io/s3-endpoint, s3-region and s3-usehttps annotations. Contains endpoint settings, never credentials.' },
           { name: 'values', label: 'New values (JSON object)', type: 'password', required: true,
             hint: secret ? `Provide all keys: ${secret.keys.join(', ')}. Existing values cannot be read back.` : 'Example: {"AWS_ACCESS_KEY_ID":"…","AWS_SECRET_ACCESS_KEY":"…"}. Registry secrets use a .dockerconfigjson key whose value is a JSON string.' },
         ],
         submit: (v) => {
           let values: Record<string, string>;
+          let annotations: Record<string, string>;
           try {
             values = JSON.parse(v.values || '');
+            annotations = JSON.parse(v.annotations || '{}');
+            if (!annotations || Array.isArray(annotations) || typeof annotations !== 'object' || Object.values(annotations).some(x => typeof x !== 'string')) throw new Error();
             if (!values || Array.isArray(values) || typeof values !== 'object' || Object.values(values).some(x => typeof x !== 'string')) throw new Error();
           } catch { throw new ApiError(422, 'invalid_argument', 'Values must be a JSON object of strings'); }
-          return secret ? api.put<Secret>(`${base}/${enc(secret.name)}`, { values, kind: secret.kind, expected_version: secret.version })
-            : api.post<Secret>(`${base}/${enc(v.name || '')}`, { values, kind: v.kind });
+          return secret ? api.put<Secret>(`${base}/${enc(secret.name)}`, { values, annotations, kind: secret.kind, expected_version: secret.version })
+            : api.post<Secret>(`${base}/${enc(v.name || '')}`, { values, annotations, kind: v.kind });
         },
       });
     if (result) { toast(secret ? 'Secret rotated' : 'Secret created'); await query.refetch(); }
