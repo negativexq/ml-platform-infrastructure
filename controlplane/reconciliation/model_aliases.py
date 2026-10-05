@@ -118,7 +118,7 @@ class ModelAliasReconciler:
             if current is None:
                 return
             # While drift is being repaired the flag is set; once repaired it is cleared.
-            uow.models.update(current.with_alias_drift(drift))
+            uow.models.update_alias_drift(current.with_alias_drift(drift))
             uow.audit.record(
                 AuditEvent(
                     occurred_at=now,
@@ -137,5 +137,5 @@ class ModelAliasReconciler:
             model = uow.models.get(model_id)
             if model is None or model.alias_drift == drift:
                 return
-            uow.models.update(model.with_alias_drift(drift))
+            uow.models.update_alias_drift(model.with_alias_drift(drift))
             uow.commit()

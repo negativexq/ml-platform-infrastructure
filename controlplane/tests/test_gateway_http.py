@@ -125,7 +125,7 @@ def test_real_http_function_and_llm_streaming_admission() -> None:
             for name in ("ticket-router", "assistant-prod"):
                 endpoint = uow.endpoints.get_by_name(project.id, name)
                 assert endpoint is not None
-                uow.endpoints.update(
+                uow.endpoints.update_lifecycle(
                     replace(endpoint, url=upstream_url), expected_status=endpoint.status
                 )
             uow.commit()

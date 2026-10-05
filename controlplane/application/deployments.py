@@ -263,7 +263,7 @@ class DeploymentService:
             assert endpoint is not None
             # Close admission in the same transaction as the deletion intent.
             down = replace(endpoint, status=EndpointStatus.UNAVAILABLE, updated_at=now)
-            uow.endpoints.update(down, expected_status=endpoint.status)
+            uow.endpoints.update_lifecycle(down, expected_status=endpoint.status)
             deleting = deployment.transition_to(DeploymentStatus.DELETING, now)
             uow.deployments.update(deleting, expected_status=deployment.status)
             uow.audit.record(
@@ -329,6 +329,9 @@ class DeploymentService:
             deployment = uow.deployments.lock(deployment.id)
             assert deployment is not None
             self._ensure_live(deployment)
+            mv = uow.model_versions.lock(mv.id)
+            if mv is None or mv.status not in DEPLOYABLE:
+                raise Conflict("model version is no longer deployable")
             latest = uow.revisions.list(deployment.id)
             if latest and latest[-1].model_version_id == mv.id:
                 return self._view(uow, deployment), False
@@ -429,6 +432,12 @@ class DeploymentService:
             current = uow.deployments.lock(deployment.id)
             assert current is not None
             self._ensure_live(current)
+            mv = uow.model_versions.lock(mv.id)
+            if mv is None or mv.status not in DEPLOYABLE:
+                raise Conflict("model version is no longer deployable")
+            for existing in uow.revisions.list(current.id):
+                if existing.model_version_id == mv.id:
+                    return existing
             now = self._clock()
             revision = DeploymentRevision(
                 deployment_id=deployment.id,
@@ -490,7 +499,8 @@ class DeploymentService:
         if endpoint.kind is kind:
             return
         updated = replace(endpoint, kind=kind, protocol=protocol, limits=limits, updated_at=now)
-        uow.endpoints.update(updated, expected_status=endpoint.status)
+        uow.endpoints.initialize_limits(updated, expected_updated_at=endpoint.updated_at)
+        uow.endpoints.update_lifecycle(updated, expected_status=endpoint.status)
 
     def chat(self, project_ref: str, name: str, payload: Mapping[str, Any]) -> Mapping[str, Any]:
         """One chat completion through the platform (the playground). Outside callers use the

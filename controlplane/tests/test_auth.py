@@ -67,7 +67,16 @@ class Env:
         JobService(self.uow_factory, self.clock).create(name, CreateJob(name="train", image="t:1"))
         return name
 
+    def subject(self, username: str) -> str:
+        return (
+            OidcProvider(self.idp.issuer, audience=API_AUDIENCE)
+            .principal({"sub": f"sub-{username}", "preferred_username": username})
+            .user_subject
+        )
+
     def grant(self, project: str, subject: str, role: str, by: str = "alice") -> httpx.Response:
+        if subject.startswith("user:"):
+            subject = self.subject(subject.removeprefix("user:"))
         response: httpx.Response = self.client.put(
             f"/projects/{project}/members/{subject}", json={"role": role}, headers=self.as_(by)
         )
@@ -123,7 +132,7 @@ def test_the_creator_is_admin_and_others_see_nothing_until_invited(env: Env) -> 
     members = env.client.get(f"/projects/{project}/members", headers=env.as_("alice")).json()[
         "items"
     ]
-    assert [(m["subject"], m["role"]) for m in members] == [("user:alice", "admin")]
+    assert [(m["subject"], m["role"]) for m in members] == [(env.subject("alice"), "admin")]
     assert env.client.get("/me", headers=env.as_("alice")).json()["roles"] == {project: "admin"}
 
 
@@ -192,7 +201,7 @@ def test_a_project_keeps_an_admin(env: Env) -> None:
     assert demote.status_code == 409 and "last admin" in demote.json()["error"]["message"]
     assert (
         env.client.delete(
-            f"/projects/{project}/members/user:alice", headers=env.as_("alice")
+            f"/projects/{project}/members/{env.subject('alice')}", headers=env.as_("alice")
         ).status_code
         == 409
     )
@@ -200,7 +209,7 @@ def test_a_project_keeps_an_admin(env: Env) -> None:
     assert env.grant(project, "user:alice", "viewer").status_code == 200
     assert (
         env.client.delete(
-            f"/projects/{project}/members/user:alice", headers=env.as_("bob")
+            f"/projects/{project}/members/{env.subject('alice')}", headers=env.as_("bob")
         ).status_code
         == 204
     )
@@ -418,3 +427,12 @@ def test_oversized_identity_claims_do_not_emit_a_truncated_browser_cookie(
     response = env.client.get(f"{back.path}?{back.query}", follow_redirects=False)
     assert response.status_code == 400 and "session size limit" in response.text
     assert SESSION_COOKIE not in env.client.cookies
+
+
+def test_oidc_subject_rename_and_username_reuse(env: Env) -> None:
+    project = env.project("alice")
+    renamed = {"authorization": f"Bearer {env.idp.token('new-name', sub='sub-alice')}"}
+    replacement = {"authorization": f"Bearer {env.idp.token('alice', sub='replacement-sub')}"}
+    assert env.client.get(f"/projects/{project}/members", headers=renamed).status_code == 200
+    assert env.client.get(f"/projects/{project}/members", headers=replacement).status_code == 403
+    assert env.client.get("/me", headers=renamed).json()["user_subject"] == env.subject("alice")

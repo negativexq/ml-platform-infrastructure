@@ -278,6 +278,12 @@ class DeploymentRevisionRow(Base):
 class RolloutRow(Base):
     __tablename__ = "rollouts"
     __table_args__ = (
+        Index(
+            "uq_rollouts_one_active_version",
+            "model_version_id",
+            unique=True,
+            postgresql_where=text("status IN ('PENDING', 'PROGRESSING')"),
+        ),
         # One rollout in flight per deployment, enforced by the database.
         Index(
             "uq_rollouts_one_active",

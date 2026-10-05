@@ -224,7 +224,9 @@ class NotificationService:
                             rollout.status_reason,
                             attention=rollout.status is RolloutStatus.ROLLED_BACK,
                         )
-            read = uow.notification_reads.find(principal.username, [n.id for n in notifications])
+            read = uow.notification_reads.find(
+                principal.user_subject, [n.id for n in notifications]
+            )
         return sorted(
             (replace(n, read=n.id in read) for n in notifications),
             key=lambda n: (n.needs_attention, n.occurred_at, n.id),
@@ -238,6 +240,6 @@ class NotificationService:
         visible = {n.id for n in self.list(principal)}
         accepted = visible if all_notifications else visible.intersection(ids)
         with self._uow_factory() as uow:
-            uow.notification_reads.mark(principal.username, list(accepted), self._clock())
+            uow.notification_reads.mark(principal.user_subject, list(accepted), self._clock())
             uow.commit()
         return len(accepted)

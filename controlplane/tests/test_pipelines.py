@@ -341,7 +341,9 @@ def test_api_flow(uow_factory: Factory, clock: Callable[[], Any], env: Env) -> N
     assert started.status_code == 202
     run_id = started.json()["id"]
     replay = client.post(
-        "/projects/credit-risk/pipelines/flow/runs", headers={"Idempotency-Key": "k1"}
+        "/projects/credit-risk/pipelines/flow/runs",
+        json={"commit_sha": "abc123"},
+        headers={"Idempotency-Key": "k1"},
     )
     assert replay.status_code == 200 and replay.json()["id"] == run_id
 

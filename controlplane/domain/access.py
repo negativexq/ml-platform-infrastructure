@@ -7,7 +7,8 @@ Three roles, each including the ones below it:
     admin     everything, plus deleting the project, changing acceptance thresholds and
               deciding who is a member
 
-A member is a user (`user:alice`) or a group from the identity provider (`group:ml-team`).
+A member is an OIDC user (`user:oidc-<digest>`; local dev `user:alice`)
+or a group from the identity provider (`group:ml-team`).
 Someone's role in a project is the highest role among their own and their groups'.
 """
 
@@ -46,8 +47,8 @@ _RANK = {
     ProjectRole.ADMIN: 3,
 }
 
-# `user:<name>` or `group:<name>`. Names are what the identity provider says (a username or
-# an email for users, a group name or path for groups), so they are kept as given.
+# `user:<stable-id>` or `group:<name>`. OIDC user IDs are bounded issuer/sub digests;
+# explicitly configured static/development identities may still use a local username.
 _SUBJECT = re.compile(r"^(user|group):[^\s:][^\s]{0,199}$")
 
 
@@ -93,6 +94,12 @@ class Principal:
     display_name: str | None = None
     platform_admin: bool = False  # sees and may do everything, in every project
 
+    subject_id: str | None = None  # stable issuer-scoped OIDC identity; None for static/dev callers
+
+    @property
+    def user_subject(self) -> str:
+        return f"user:{self.subject_id or self.username}"
+
     @property
     def subjects(self) -> tuple[str, ...]:
-        return (f"user:{self.username}", *(f"group:{g}" for g in self.groups))
+        return (self.user_subject, *(f"group:{g}" for g in self.groups))

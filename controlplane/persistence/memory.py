@@ -20,6 +20,7 @@ from controlplane.domain.entities import (
     Deployment,
     DeploymentRevision,
     Endpoint,
+    EndpointLimits,
     Evaluation,
     JobDefinition,
     Model,
@@ -87,7 +88,6 @@ class _ApiKeys:
         if key.key_id not in self._data:
             raise NotFound("api key", key.key_id)
         self._data[key.key_id] = key
-
 
     def touch(self, key_id: str, at: datetime) -> None:
         current = self._data.get(key_id)
@@ -459,10 +459,15 @@ class _Models:
     def list_all(self) -> Sequence[Model]:
         return sorted(self._data.values(), key=lambda m: (m.created_at, m.id))
 
-    def update(self, model: Model) -> None:
+    def update_thresholds(self, model: Model) -> None:
         if model.id not in self._data:
             raise NotFound("model", model.id)
-        self._data[model.id] = model
+        self._data[model.id] = replace(self._data[model.id], thresholds=model.thresholds)
+
+    def update_alias_drift(self, model: Model) -> None:
+        if model.id not in self._data:
+            raise NotFound("model", model.id)
+        self._data[model.id] = replace(self._data[model.id], alias_drift=model.alias_drift)
 
 
 class _ModelVersions:
@@ -481,6 +486,9 @@ class _ModelVersions:
 
     def get(self, version_id: UUID) -> ModelVersion | None:
         return self._data.get(version_id)
+
+    def lock(self, version_id: UUID) -> ModelVersion | None:
+        return self.get(version_id)
 
     def get_by_ref(self, model_id: UUID, external_ref: str) -> ModelVersion | None:
         return next(
@@ -672,7 +680,7 @@ class _Endpoints:
             (e for e in self._data.values() if e.project_id == project_id and e.name == name), None
         )
 
-    def update(self, endpoint: Endpoint, *, expected_status: EndpointStatus) -> None:
+    def update_lifecycle(self, endpoint: Endpoint, *, expected_status: EndpointStatus) -> None:
         current = self._data.get(endpoint.id)
         if current is None:
             raise NotFound("endpoint", endpoint.id)
@@ -680,7 +688,29 @@ class _Endpoints:
             raise Conflict(
                 f"endpoint {endpoint.id} is {current.status.value}, not {expected_status.value}"
             )
-        self._data[endpoint.id] = endpoint
+        self._data[endpoint.id] = replace(
+            endpoint, exposure=current.exposure, limits=current.limits
+        )
+
+    def initialize_limits(self, endpoint: Endpoint, *, expected_updated_at: datetime) -> None:
+        current = self._data.get(endpoint.id)
+        if (
+            current is not None
+            and current.limits == EndpointLimits()
+            and current.updated_at == expected_updated_at
+        ):
+            self._data[endpoint.id] = replace(current, limits=endpoint.limits)
+
+    def update_access(self, endpoint: Endpoint) -> None:
+        current = self._data.get(endpoint.id)
+        if current is None:
+            raise NotFound("endpoint", endpoint.id)
+        self._data[endpoint.id] = replace(
+            current,
+            exposure=endpoint.exposure,
+            limits=endpoint.limits,
+            updated_at=endpoint.updated_at,
+        )
 
 
 class _Rollouts:
@@ -688,7 +718,10 @@ class _Rollouts:
         self._data = data
 
     def add(self, rollout: Rollout) -> None:
-        if self.get_active(rollout.deployment_id) is not None:
+        if self.get_active(rollout.deployment_id) is not None or any(
+            r.model_version_id == rollout.model_version_id and not r.is_terminal
+            for r in self._data.values()
+        ):
             raise AlreadyExists("rollout", rollout.deployment_id)
         self._data[rollout.id] = rollout
 

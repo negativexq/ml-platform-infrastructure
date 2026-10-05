@@ -190,7 +190,7 @@ class ModelService:
         with self._uow_factory() as uow:
             project, model = self._load(uow, project_ref, name)
             updated = model.with_thresholds(thresholds)
-            uow.models.update(updated)
+            uow.models.update_thresholds(updated)
             uow.audit.record(
                 _audit(
                     self._clock(),
@@ -527,7 +527,7 @@ def promote_version(
     champion, records the Promotion and the audit event. Idempotent for a version that
     is already CHAMPION. Used by PromotionService and by a successful rollout, so the
     champion changes in exactly the transaction that proves it deserved to."""
-    version = uow.model_versions.get(version_id)
+    version = uow.model_versions.lock(version_id)
     if version is None:
         raise NotFound("model version", version_id)
     model = uow.models.get(version.model_id)
@@ -588,7 +588,7 @@ def restore_champion(
     uow: UnitOfWork, version_id: UUID, now: datetime, **audit_extra: object
 ) -> None:
     """ARCHIVED -> CHAMPION: put a former champion back (deployment rollback)."""
-    version = uow.model_versions.get(version_id)
+    version = uow.model_versions.lock(version_id)
     if version is None:
         raise NotFound("model version", version_id)
     if version.status is ModelStatus.CHAMPION:

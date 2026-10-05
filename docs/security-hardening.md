@@ -173,6 +173,9 @@ architectures and CUDA/GPU image compatibility have not been verified.
 - Version locks resolved without installing the MLflow/training dependencies or building
   images. No AWS plan/apply, live cluster tests, GPU tests or image scans were performed.
 
+The subsequent identity/concurrency fixes and their migration steps are recorded in
+[concurrency-identity-audit.md](concurrency-identity-audit.md).
+
 ## Tests and evidence still required
 
 Run these on an **isolated acceptance deployment**, with the exact released images/chart,

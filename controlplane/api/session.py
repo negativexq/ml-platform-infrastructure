@@ -17,7 +17,7 @@ from typing import Any
 from controlplane.domain.access import Principal
 
 SESSION_COOKIE = "mlp_session"
-SESSION_PURPOSE = "session-v2"
+SESSION_PURPOSE = "session-v3"
 MAX_SESSION_SECONDS = 900
 MAX_ADMIN_SESSION_SECONDS = 300
 MAX_COOKIE_BYTES = 3800
@@ -62,6 +62,7 @@ class Signer:
 def principal_to_session(p: Principal) -> dict[str, Any]:
     return {
         "u": p.username,
+        "s": p.subject_id,
         "g": list(p.groups),
         "e": p.email,
         "n": p.display_name,
@@ -73,6 +74,7 @@ def principal_from_session(data: dict[str, Any]) -> Principal | None:
     try:
         return Principal(
             username=str(data["u"]),
+            subject_id=data.get("s"),
             groups=tuple(str(g) for g in data.get("g", [])),
             email=data.get("e"),
             display_name=data.get("n"),

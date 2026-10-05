@@ -121,7 +121,7 @@ class ApiAccessService:
                 return endpoint, False
             now = self._clock()
             updated = endpoint.exposed(Exposure(exposure), limits, now)
-            uow.endpoints.update(updated, expected_status=endpoint.status)
+            uow.endpoints.update_access(updated)
             uow.audit.record(
                 _event(
                     now,

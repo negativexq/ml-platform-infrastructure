@@ -21,6 +21,7 @@ from controlplane.application.projects import Clock, UnitOfWorkFactory, utc_now
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import (
     DEFAULT_STEPS,
+    DEPLOYABLE,
     Rollout,
     RolloutGate,
     validate_steps,
@@ -97,6 +98,11 @@ class RolloutService:
                 raise Conflict(f"revision {stable} is already the stable revision")
             if uow.rollouts.get_active(deployment.id) is not None:
                 raise Conflict("this deployment already has a rollout in progress")
+            candidate = uow.model_versions.lock(revision.model_version_id)
+            if candidate is None or candidate.status not in DEPLOYABLE:
+                raise Conflict("model version is no longer deployable")
+            if any(r.model_version_id == candidate.id for r in uow.rollouts.list_active()):
+                raise Conflict("this model version already has a rollout in progress")
             now = self._clock()
             rollout = Rollout(
                 deployment_id=deployment.id,
@@ -112,7 +118,9 @@ class RolloutService:
             try:
                 uow.rollouts.add(rollout)
             except AlreadyExists:
-                raise Conflict("this deployment already has a rollout in progress") from None
+                raise Conflict(
+                    "deployment or model version already has a rollout in progress"
+                ) from None
             uow.audit.record(
                 _event(
                     now,

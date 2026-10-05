@@ -42,6 +42,7 @@ _ERRORS: dict[int | str, dict[str, object]] = {
 
 
 class MeOut(BaseModel):
+    user_subject: str
     username: str
     display_name: str | None
     email: str | None
@@ -112,6 +113,7 @@ def identity_router() -> APIRouter:
                         roles[project.name] = role
         return MeOut(
             username=principal.username,
+            user_subject=principal.user_subject,
             display_name=principal.display_name,
             email=principal.email,
             groups=list(principal.groups),

@@ -35,7 +35,7 @@ from controlplane.domain.entities import (
     Verdict,
     evaluate_gate,
 )
-from controlplane.domain.errors import NotFound
+from controlplane.domain.errors import Conflict, NotFound
 from controlplane.domain.states import ModelStatus, RolloutStatus
 from controlplane.reconciliation.batch import ReconcileBackoff, reconcile_batch
 
@@ -88,6 +88,13 @@ class RolloutReconciler:
         before = rollout.status
         if rollout.is_terminal:
             return RolloutResult(rollout_id, before, before, rollout.percent)
+        with self._uow_factory() as uow:
+            candidate = uow.model_versions.get(rollout.model_version_id)
+        if candidate is None or candidate.status not in (
+            ModelStatus.CANDIDATE,
+            ModelStatus.CHAMPION,
+        ):
+            return self._rollback(ctx, "candidate version is no longer deployable")
         if rollout.abort_requested:
             return self._rollback(ctx, "aborted by user")
 
@@ -165,7 +172,17 @@ class RolloutReconciler:
                 gate=gate.reason,
             )
             return self._same(ctx, advanced)
-        return self._succeed(ctx, gate.reason)
+        try:
+            return self._succeed(ctx, gate.reason)
+        except Conflict:
+            with self._uow_factory() as uow:
+                candidate = uow.model_versions.get(rollout.model_version_id)
+            if candidate is not None and candidate.status not in (
+                ModelStatus.CANDIDATE,
+                ModelStatus.CHAMPION,
+            ):
+                return self._rollback(ctx, "candidate version was rejected during promotion")
+            raise
 
     # -- outcomes ---------------------------------------------------------------
 

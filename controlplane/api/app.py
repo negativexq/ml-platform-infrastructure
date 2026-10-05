@@ -93,7 +93,7 @@ def _projects_router() -> APIRouter:
         # With sign-in on, whoever creates a project is its first admin.
         owner = None
         if request.app.state.auth is not None:
-            owner = f"user:{request_principal(request).username}"
+            owner = request_principal(request).user_subject
         project, created = service(request).create(
             CreateProject(
                 name=body.name, display_name=body.display_name, description=body.description

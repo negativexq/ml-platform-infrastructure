@@ -278,7 +278,7 @@ class GatewayService:
             principal = self._authenticator.authenticate(token)
         except Unauthenticated as exc:
             raise GatewayError(401, "unauthenticated", str(exc)) from exc
-        return Caller(name=f"user:{principal.username}", principal=principal)
+        return Caller(name=principal.user_subject, principal=principal)
 
     def _authorize(self, caller: Caller, route: Route) -> None:
         if caller.key is not None:

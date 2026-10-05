@@ -39,7 +39,11 @@ def server(idp: FakeIdP) -> Iterator[Server]:
         audience=API_AUDIENCE,
         client_id=CLIENT_ID,
         client_secret=CLIENT_SECRET,
-        platform_admins=["user:root"],
+        platform_admins=[
+            OidcProvider(idp.issuer, audience=API_AUDIENCE)
+            .principal({"sub": "sub-root", "preferred_username": "root"})
+            .user_subject
+        ],
     )
     demo = build_demo(
         auth=AuthConfig(
@@ -49,8 +53,16 @@ def server(idp: FakeIdP) -> Iterator[Server]:
     token = bind_principal(Principal(username="setup", platform_admin=True))
     try:
         members = MembershipService(demo.uow_factory)
-        members.set_role("credit-risk", "user:alice", ProjectRole.ADMIN)
-        members.set_role("credit-risk", "user:bob", ProjectRole.VIEWER)
+        members.set_role(
+            "credit-risk",
+            provider.principal({"sub": "sub-alice", "preferred_username": "alice"}).user_subject,
+            ProjectRole.ADMIN,
+        )
+        members.set_role(
+            "credit-risk",
+            provider.principal({"sub": "sub-bob", "preferred_username": "bob"}).user_subject,
+            ProjectRole.VIEWER,
+        )
     finally:
         reset_principal(token)
     srv = Server(demo)
@@ -162,10 +174,13 @@ def test_an_admin_manages_members(page: Page, server: Server, idp: FakeIdP) -> N
     page.locator("#f-role").select_option("operator")
     page.get_by_test_id("form-submit").click()
     expect(rows).to_have_count(3)
-    bob = page.locator("[data-testid=member-row][data-subject='user:bob']")
+    provider = OidcProvider(idp.issuer, audience=API_AUDIENCE)
+    bob_subject = provider.principal({"sub": "sub-bob"}).user_subject
+    alice_subject = provider.principal({"sub": "sub-alice"}).user_subject
+    bob = page.locator(f"[data-testid=member-row][data-subject='{bob_subject}']")
     bob.get_by_test_id("member-role").select_option("operator")
     expect(bob.get_by_test_id("member-role")).to_have_value("operator")
-    alice = page.locator("[data-testid=member-row][data-subject='user:alice']")
+    alice = page.locator(f"[data-testid=member-row][data-subject='{alice_subject}']")
     alice.get_by_test_id("member-role").select_option("viewer")  # the last admin: refused
     expect(page.locator(".toast.bad")).to_contain_text("last admin")
     bob.get_by_test_id("remove-member").click()

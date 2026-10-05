@@ -82,6 +82,12 @@ class PipelineRunService:
         idempotency_key: str | None = None,
         timeout_seconds: int = 3600,
     ) -> tuple[PipelineRunView, bool]:
+        with self._uow_factory() as uow:
+            project = resolve_project(uow, project_ref)
+            requested = uow.pipelines.get_version(project.id, pipeline_name, version)
+            if requested is None:
+                raise NotFound("pipeline", pipeline_name)
+            version = requested.version  # freeze latest before any unique-key race
         try:
             return self._create(
                 project_ref,
@@ -98,6 +104,10 @@ class PipelineRunService:
                 existing = uow.pipeline_runs.get_by_idempotency_key(project.id, idempotency_key)
             if existing is None:
                 raise
+            if existing.pipeline_definition_id != requested.id or existing.commit_sha != commit_sha:
+                raise Conflict(
+                    "idempotency key was used for a different pipeline or commit"
+                ) from None
             if existing.timeout_seconds != timeout_seconds:
                 raise Conflict("idempotency key was used with a different timeout") from None
             return self.view(existing.id), False
@@ -123,10 +133,10 @@ class PipelineRunService:
                 if existing is not None:
                     if existing.pipeline_definition_id != definition.id:
                         raise Conflict(f"idempotency key {key!r} was used for a different pipeline")
+                    if existing.commit_sha != commit_sha:
+                        raise Conflict("idempotency key was used with a different commit")
                     if existing.timeout_seconds != timeout_seconds:
-                        raise Conflict(
-                            "idempotency key was used with a different timeout"
-                        ) from None
+                        raise Conflict("idempotency key was used with a different timeout")
                     return self._view(uow, existing), False
             if project.status is not ProjectStatus.READY:
                 raise Conflict(

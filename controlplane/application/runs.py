@@ -53,12 +53,16 @@ class RunService:
                 assert idempotency_key is not None
                 existing = uow.runs.get_by_idempotency_key(project.id, idempotency_key)
                 job = uow.jobs.get_by_name(project.id, job_name)
-            if existing is None or job is None or existing.job_definition_id != job.id:
+            if existing is None or job is None:
                 raise
+            if existing.job_definition_id != job.id:
+                raise Conflict("idempotency key was used for a different job") from None
             if existing.timeout_seconds != (
                 job.timeout_seconds if timeout_seconds is None else timeout_seconds
             ):
                 raise Conflict("idempotency key was used with a different timeout") from None
+            if existing.retry_of != retry_of:
+                raise Conflict("idempotency key was used for a different retry parent") from None
             return existing, False
 
     def _create(
@@ -85,6 +89,10 @@ class RunService:
                     if existing.timeout_seconds != timeout:
                         raise Conflict(
                             "idempotency key was used with a different timeout"
+                        ) from None
+                    if existing.retry_of != retry_of:
+                        raise Conflict(
+                            "idempotency key was used for a different retry parent"
                         ) from None
                     return existing, False
             if project.status is not ProjectStatus.READY:

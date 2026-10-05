@@ -170,7 +170,7 @@ class DeploymentReconciler:
         with self._uow_factory() as uow:
             if endpoint.status is not EndpointStatus.READY:
                 ready = endpoint.transition_to(EndpointStatus.READY, now, url=status.url)
-                uow.endpoints.update(ready, expected_status=endpoint.status)
+                uow.endpoints.update_lifecycle(ready, expected_status=endpoint.status)
                 uow.audit.record(
                     self._event(now, "endpoint.ready", "endpoint", endpoint.id, deployment)
                 )
@@ -195,7 +195,7 @@ class DeploymentReconciler:
         now = self._clock()
         with self._uow_factory() as uow:
             down = endpoint.transition_to(EndpointStatus.UNAVAILABLE, now)
-            uow.endpoints.update(down, expected_status=endpoint.status)
+            uow.endpoints.update_lifecycle(down, expected_status=endpoint.status)
             degraded = deployment.transition_to(DeploymentStatus.DEGRADED, now, reason)
             uow.deployments.update(degraded, expected_status=deployment.status)
             uow.audit.record(
@@ -218,7 +218,7 @@ class DeploymentReconciler:
         with self._uow_factory() as uow:
             if endpoint.status is EndpointStatus.READY:
                 endpoint = endpoint.transition_to(EndpointStatus.UNAVAILABLE, now)
-                uow.endpoints.update(endpoint, expected_status=EndpointStatus.READY)
+                uow.endpoints.update_lifecycle(endpoint, expected_status=EndpointStatus.READY)
             failed = deployment.transition_to(DeploymentStatus.FAILED, now, reason)
             uow.deployments.update(failed, expected_status=deployment.status)
             uow.audit.record(

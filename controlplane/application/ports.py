@@ -171,8 +171,10 @@ class ModelRepository(Protocol):
 
     def list_all(self) -> Sequence[Model]: ...
 
-    def update(self, model: Model) -> None:
-        """Replace thresholds / drift flag (the only mutable parts of a model)."""
+    def update_thresholds(self, model: Model) -> None:
+        """Update thresholds only; never overwrite the reconciler-owned drift flag."""
+
+    def update_alias_drift(self, model: Model) -> None: ...
 
 
 class ModelVersionRepository(Protocol):
@@ -180,6 +182,8 @@ class ModelVersionRepository(Protocol):
         """Raises AlreadyExists if (model, version) or (model, external_ref) exists."""
 
     def get(self, version_id: UUID) -> ModelVersion | None: ...
+
+    def lock(self, version_id: UUID) -> ModelVersion | None: ...
 
     def get_by_ref(self, model_id: UUID, external_ref: str) -> ModelVersion | None: ...
 
@@ -253,8 +257,14 @@ class EndpointRepository(Protocol):
 
     def get_by_name(self, project_id: UUID, name: str) -> Endpoint | None: ...
 
-    def update(self, endpoint: Endpoint, *, expected_status: EndpointStatus) -> None:
-        """Compare-and-swap on status."""
+    def update_lifecycle(self, endpoint: Endpoint, *, expected_status: EndpointStatus) -> None:
+        """Lifecycle fields only, compare-and-swap on status."""
+
+    def initialize_limits(self, endpoint: Endpoint, *, expected_updated_at: datetime) -> None:
+        """Set runtime defaults only while limits still equal the initial defaults."""
+
+    def update_access(self, endpoint: Endpoint) -> None:
+        """Exposure/limits only; preserves lifecycle fields."""
 
 
 class RolloutRepository(Protocol):

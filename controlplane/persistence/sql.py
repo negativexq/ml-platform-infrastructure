@@ -830,14 +830,20 @@ class SqlModels:
             for r in self._s.scalars(select(ModelRow).order_by(ModelRow.created_at, ModelRow.id))
         ]
 
-    def update(self, model: Model) -> None:
+    def update_thresholds(self, model: Model) -> None:
         result = self._s.execute(
             update(ModelRow)
             .where(ModelRow.id == model.id)
             .values(
                 thresholds={k: _threshold_json(v) for k, v in model.thresholds.items()},
-                alias_drift=model.alias_drift,
             )
+        )
+        if getattr(result, "rowcount", 0) != 1:
+            raise NotFound("model", model.id)
+
+    def update_alias_drift(self, model: Model) -> None:
+        result = self._s.execute(
+            update(ModelRow).where(ModelRow.id == model.id).values(alias_drift=model.alias_drift)
         )
         if getattr(result, "rowcount", 0) != 1:
             raise NotFound("model", model.id)
@@ -866,6 +872,15 @@ class SqlModelVersions:
 
     def get(self, version_id: UUID) -> ModelVersion | None:
         row = self._s.get(ModelVersionRow, version_id)
+        return _version(row) if row else None
+
+    def lock(self, version_id: UUID) -> ModelVersion | None:
+        row = self._s.scalars(
+            select(ModelVersionRow)
+            .where(ModelVersionRow.id == version_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        ).first()
         return _version(row) if row else None
 
     def get_by_ref(self, model_id: UUID, external_ref: str) -> ModelVersion | None:
@@ -1240,17 +1255,68 @@ class SqlEndpoints:
         ).first()
         return _endpoint(row) if row else None
 
-    def update(self, endpoint: Endpoint, *, expected_status: EndpointStatus) -> None:
+    def update_lifecycle(self, endpoint: Endpoint, *, expected_status: EndpointStatus) -> None:
         result = self._s.execute(
             update(EndpointRow)
             .where(EndpointRow.id == endpoint.id, EndpointRow.status == expected_status.value)
-            .values(**_endpoint_values(endpoint))
+            .values(
+                **{
+                    k: v
+                    for k, v in _endpoint_values(endpoint).items()
+                    if k
+                    not in {
+                        "exposure",
+                        "limit_units_per_minute",
+                        "limit_max_body_kb",
+                        "limit_timeout_seconds",
+                    }
+                }
+            )
         )
         if getattr(result, "rowcount", 0) == 1:
             return
         if self._s.get(EndpointRow, endpoint.id) is None:
             raise NotFound("endpoint", endpoint.id)
         raise Conflict(f"endpoint {endpoint.id} is no longer {expected_status.value}")
+
+    def initialize_limits(self, endpoint: Endpoint, *, expected_updated_at: datetime) -> None:
+        defaults = EndpointLimits()
+        self._s.execute(
+            update(EndpointRow)
+            .where(
+                EndpointRow.id == endpoint.id,
+                EndpointRow.updated_at == expected_updated_at,
+                EndpointRow.limit_units_per_minute == defaults.units_per_minute,
+                EndpointRow.limit_max_body_kb == defaults.max_body_kb,
+                EndpointRow.limit_timeout_seconds == defaults.timeout_seconds,
+            )
+            .values(
+                limit_units_per_minute=endpoint.limits.units_per_minute,
+                limit_max_body_kb=endpoint.limits.max_body_kb,
+                limit_timeout_seconds=endpoint.limits.timeout_seconds,
+            )
+        )
+
+    def update_access(self, endpoint: Endpoint) -> None:
+        values = _endpoint_values(endpoint)
+        result = self._s.execute(
+            update(EndpointRow)
+            .where(EndpointRow.id == endpoint.id)
+            .values(
+                **{
+                    k: values[k]
+                    for k in (
+                        "exposure",
+                        "limit_units_per_minute",
+                        "limit_max_body_kb",
+                        "limit_timeout_seconds",
+                        "updated_at",
+                    )
+                }
+            )
+        )
+        if getattr(result, "rowcount", 0) != 1:
+            raise NotFound("endpoint", endpoint.id)
 
 
 def _rollout(row: RolloutRow) -> Rollout:

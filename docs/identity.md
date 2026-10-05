@@ -12,7 +12,7 @@ they may do depends on their role in the project.
 | **operator** | + start, cancel and retry runs; register, evaluate and promote models; create deployments, deploy, start and abort canaries, roll back |
 | **admin** | + delete the project, change acceptance thresholds, decide who is a member, open endpoints to the outside, issue and revoke API keys |
 
-* A **member** is a user (`user:alice`) or a group from the identity provider (`group:ml-team`).
+* A **member** is a stable OIDC user (`user:oidc-<digest>`; `user:alice` only for static/development identities) or a group from the identity provider (`group:ml-team`).
   A person's role is the highest of their own and their groups'.
 * Whoever **creates a project** becomes its first admin. A project always keeps at least one
   admin: demoting or removing the last one is refused.
@@ -47,11 +47,18 @@ Any OpenID Connect provider: the control plane only knows an issuer URL.
   (`connect-src 'self'`) is unchanged. A browser request that changes something must also send
   `x-mlp-csrf: 1`, which another site cannot make a browser send. Sign-out ends the provider's
   session through client-based logout (`end_session_endpoint` with `client_id`); the provider may request confirmation. ID tokens are never stored in the cookie.
-* The username comes from `CP_OIDC_USERNAME_CLAIM` (default `preferred_username`, then
+* OIDC authorization uses `user:oidc-<sha256>`: the digest is SHA-256 of compact UTF-8
+  JSON `[iss, sub]` (without ASCII escaping), using the verified issuer and subject.
+  `/me.user_subject` returns the exact grant identifier. Copy that value when granting a
+  user membership or configuring an explicit user in `CP_PLATFORM_ADMINS`; groups keep
+  `group:<name>`. Reassigning a username does not transfer grants; renaming a user retains
+  their stable identity. Gateway caller/rate-limit and notification-read identity use the
+  same stable subject. Audit actor names remain display usernames.
+* The display username comes from `CP_OIDC_USERNAME_CLAIM` (default `preferred_username`, then
   `email`, then `sub`), groups from `CP_OIDC_GROUPS_CLAIM` (default `groups`; Keycloak group
   paths like `/ml-team` become `ml-team`).
 * Role changes made in the platform apply at the next request. Group changes made in the
-  identity provider apply at the next sign-in. Sessions expire after at most 15 minutes; platform-admin sessions after at most 5 minutes. Old eight-hour cookies are rejected after upgrade. This bounds staleness; it is not immediate IdP revocation.
+  identity provider apply at the next sign-in. Sessions expire after at most 15 minutes; platform-admin sessions after at most 5 minutes. Old cookies, including username-only session-v2 cookies, are rejected after upgrade. This bounds staleness; it is not immediate IdP revocation.
 
 ## Configuration
 
@@ -98,3 +105,15 @@ Not yet: the control plane deployed in the cluster (its manifests do not exist y
 must then be one URL that both the browser and the pod resolve, i.e. an ingress host), a
 production Keycloak (database, TLS, HA), and service accounts for CI (client-credentials
 tokens work as bearer tokens once the client has the `mlp` audience and a membership).
+
+## Upgrading from username grants
+
+OIDC no longer matches existing `user:<username>` membership or platform-admin entries.
+They remain stored but do not grant an OIDC caller access. Do not automatically map them
+through the current username owner: that could transfer privileges to a replacement account.
+Establish a trusted issuer/sub mapping or explicitly re-grant users after verifying their
+identity. Before upgrade, retain a verified group platform-admin or configure a verified
+stable user platform-admin subject, so administrators can perform re-grants. Old browser
+cookies require fresh sign-in. Historical notification-read state keyed by username is not
+transferred to the new identity. Static/development principals retain their explicit local
+username behavior and must not be used as production OIDC authorization.

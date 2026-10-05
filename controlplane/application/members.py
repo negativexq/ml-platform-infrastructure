@@ -30,6 +30,8 @@ class MembershipService:
         role = ProjectRole(role)
         with self._uow_factory() as uow:
             project = resolve_project(uow, project_ref)
+            if uow.projects.lock(project.id) is None:
+                raise NotFound("project", project.id)
             existing = uow.memberships.get(project.id, subject)
             if existing is None:
                 created = Membership.create(
@@ -52,6 +54,8 @@ class MembershipService:
     def remove(self, project_ref: str, subject: str) -> None:
         with self._uow_factory() as uow:
             project = resolve_project(uow, project_ref)
+            if uow.projects.lock(project.id) is None:
+                raise NotFound("project", project.id)
             existing = uow.memberships.get(project.id, subject)
             if existing is None:
                 raise NotFound("member", subject)

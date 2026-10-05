@@ -188,7 +188,7 @@ def test_bad_deployment_and_endpoint_are_one_actionable_incident(
             replace(deployment, status=DeploymentStatus.FAILED, updated_at=clock()),
             expected_status=deployment.status,
         )
-        uow.endpoints.update(
+        uow.endpoints.update_lifecycle(
             replace(endpoint, status=EndpointStatus.UNAVAILABLE, updated_at=clock()),
             expected_status=endpoint.status,
         )

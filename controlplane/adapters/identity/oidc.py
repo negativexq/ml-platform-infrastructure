@@ -8,6 +8,7 @@ needs no restart.
 
 from __future__ import annotations
 
+import hashlib
 import json
 import time
 import urllib.error
@@ -92,6 +93,17 @@ class OidcProvider:
         return claims
 
     def principal(self, claims: Mapping[str, Any]) -> Principal:
+        sub = claims.get("sub")
+        if not isinstance(sub, str) or not sub:
+            raise Unauthenticated("the token has no stable subject")
+        subject_id = (
+            "oidc-"
+            + hashlib.sha256(
+                json.dumps(
+                    [claims.get("iss", self.issuer), sub], ensure_ascii=False, separators=(",", ":")
+                ).encode()
+            ).hexdigest()
+        )
         username = str(
             claims.get(self._username_claim) or claims.get("email") or claims.get("sub") or ""
         )
@@ -99,9 +111,10 @@ class OidcProvider:
             raise Unauthenticated("the token names no user")
         raw = claims.get(self._groups_claim) or []
         groups = tuple(sorted({str(g).lstrip("/") for g in raw if str(g).strip("/")}))
-        subjects = {f"user:{username}", *(f"group:{g}" for g in groups)}
+        subjects = {f"user:{subject_id}", *(f"group:{g}" for g in groups)}
         return Principal(
             username=username,
+            subject_id=subject_id,
             groups=groups,
             email=claims.get("email"),
             display_name=claims.get("name"),
