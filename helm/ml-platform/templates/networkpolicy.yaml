@@ -18,11 +18,15 @@ spec:
       {{- include "ml-platform.selectorLabels" . | nindent 6 }}
   policyTypes: [Ingress]
   ingress:
-    # Node-port traffic (source = node IP after SNAT) and the monitoring
-    # namespace's Prometheus both need /predict and /metrics on 8000.
+    # Allow only a named ingress controller, monitoring, or explicit trusted lab CIDRs.
     - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.ingressNamespace }}
+        {{- range .Values.networkPolicy.ingressCIDRs }}
         - ipBlock:
-            cidr: 0.0.0.0/0
+            cidr: {{ . | quote }}
+        {{- end }}
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: {{ .Values.networkPolicy.monitoringNamespace }}

@@ -31,3 +31,23 @@
 {{- end }}
 {{- end }}
 {{- end }}
+
+{{- $secrets := list }}
+{{- range $component := list "api" "gateway" "reconciler" "migration" }}
+{{- $db := index $.Values.database $component }}
+{{- if or (not $db.existingSecret) (not $db.urlKey) }}
+{{- fail "each database component requires an existingSecret and urlKey" }}
+{{- end }}
+{{- if has $db.existingSecret $secrets }}
+{{- fail "API, gateway, reconciler and migration require four distinct database Secrets" }}
+{{- end }}
+{{- $secrets = append $secrets $db.existingSecret }}
+{{- end }}
+
+{{- if and .Values.production.enabled (ne (toString .Values.config.CP_JOB_IMAGE_DIGEST_REQUIRED) "true") }}
+{{- fail "production requires immutable training image digests" }}
+{{- end }}
+
+{{- if and .Values.production.enabled (ne (toString .Values.config.CP_DATABASE_ROLE_ENFORCEMENT) "true") }}
+{{- fail "production requires runtime database role enforcement" }}
+{{- end }}

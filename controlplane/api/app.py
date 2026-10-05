@@ -177,6 +177,7 @@ def create_app(
     gateway_url: str = "",
     readiness: Callable[[], None] | None = None,
     secrets: SecretProvider | None = None,
+    require_job_image_digest: bool = False,
 ) -> FastAPI:
     """`auth=None` runs without sign-in: every caller is an anonymous platform admin. That is
     for local development, the demo and tests; production passes an `AuthConfig`."""
@@ -195,7 +196,9 @@ def create_app(
     app.state.members = MembershipService(uow_factory, clock)
     app.state.projects = ProjectService(uow_factory, clock)
     app.state.secrets = ProjectSecretService(uow_factory, secrets, clock)
-    app.state.jobs = JobService(uow_factory, clock, secrets)
+    app.state.jobs = JobService(
+        uow_factory, clock, secrets, require_image_digest=require_job_image_digest
+    )
     app.state.runs = RunService(uow_factory, clock)
     app.state.pipelines = PipelineService(uow_factory, clock)
     app.state.pipeline_runs = PipelineRunService(uow_factory, clock, experiments)

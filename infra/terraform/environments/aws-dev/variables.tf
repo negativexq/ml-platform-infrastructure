@@ -83,7 +83,12 @@ variable "node_max_size" {
 variable "public_access_cidrs" {
   description = "CIDRs allowed to reach the EKS public API endpoint. Narrow to an office or home IP before real use."
   type        = list(string)
-  default     = ["0.0.0.0/0"]
+  validation {
+    condition = length(var.public_access_cidrs) > 0 && alltrue([
+      for cidr in var.public_access_cidrs : can(cidrhost(cidr, 0)) && try(tonumber(split("/", cidr)[1]) > 0, false)
+    ])
+    error_message = "Provide explicit valid office/VPN CIDRs; /0 API access is forbidden."
+  }
 }
 
 variable "monthly_budget_usd" {
@@ -96,4 +101,15 @@ variable "budget_alert_emails" {
   description = "Addresses notified when forecast spend crosses the budget."
   type        = list(string)
   default     = []
+}
+
+variable "database_client_security_group_ids" {
+  description = "Existing dedicated MLflow pod security groups; configure SecurityGroupPolicy before use."
+  type        = list(string)
+  validation {
+    condition = length(var.database_client_security_group_ids) > 0 && alltrue([
+      for id in var.database_client_security_group_ids : can(regex("^sg-[0-9a-f]+$", id))
+    ])
+    error_message = "At least one dedicated workload security group is required."
+  }
 }

@@ -22,9 +22,10 @@ seccompProfile:
   type: RuntimeDefault
 {{- end -}}
 {{- define "controlplane.databaseEnv" -}}
+{{- $database := index .root.Values.database .component -}}
 - name: CP_DATABASE_URL
   valueFrom:
     secretKeyRef:
-      name: {{ .Values.database.existingSecret | quote }}
-      key: {{ .Values.database.urlKey | quote }}
+      name: {{ $database.existingSecret | quote }}
+      key: {{ $database.urlKey | quote }}
 {{- end -}}

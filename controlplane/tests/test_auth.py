@@ -388,3 +388,33 @@ def test_only_platform_admins_grant_gpus(env: Env) -> None:
         headers=env.as_("root", ["platform-admins"]),
     )
     assert root.status_code == 200 and root.json()["gpu_quota"] == 4
+
+
+@pytest.mark.parametrize("admin,expected_ttl", [(False, 900), (True, 300)])
+def test_browser_cookie_is_token_free_and_authorization_snapshot_is_short(
+    env: Env, idp: FakeIdP, admin: bool, expected_ttl: int
+) -> None:
+    import time
+
+    from controlplane.api.session import SESSION_PURPOSE
+
+    idp.next_user = {"preferred_username": "alice", "groups": ["platform-admins"] if admin else []}
+    client = _sign_in(env, idp)
+    value = client.cookies[SESSION_COOKIE]
+    data = Signer(SECRET).loads(value, purpose=SESSION_PURPOSE)
+    assert data is not None and "it" not in data
+    assert 0 < data["exp"] - time.time() <= expected_ttl
+    logout = client.post("/auth/logout", headers={"x-mlp-csrf": "1"})
+    assert "id_token_hint" not in parse_qs(urlsplit(logout.json()["logout_url"]).query)
+
+
+def test_oversized_identity_claims_do_not_emit_a_truncated_browser_cookie(
+    env: Env, idp: FakeIdP
+) -> None:
+    idp.next_user = {"preferred_username": "alice", "groups": ["g" * 5000]}
+    start = env.client.get("/auth/login", follow_redirects=False)
+    at_idp = httpx.get(start.headers["location"], follow_redirects=False)
+    back = urlsplit(at_idp.headers["location"])
+    response = env.client.get(f"{back.path}?{back.query}", follow_redirects=False)
+    assert response.status_code == 400 and "session size limit" in response.text
+    assert SESSION_COOKIE not in env.client.cookies

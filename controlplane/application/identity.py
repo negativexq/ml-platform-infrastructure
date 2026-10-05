@@ -80,7 +80,8 @@ class LoginProvider(Protocol):
         self, *, code: str, redirect_uri: str, code_verifier: str, nonce: str
     ) -> tuple[Principal, str | None]:
         """Exchange the code, verify the ID token, and say who signed in. Also returns the
-        ID token itself, kept only to end the provider's session at sign-out."""
+        ID token itself for provider integrations; browser login discards it after validation.
+        """
 
     def logout_url(
         self, *, post_logout_redirect_uri: str, id_token_hint: str | None = None

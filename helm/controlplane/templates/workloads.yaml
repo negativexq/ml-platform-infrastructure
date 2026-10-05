@@ -82,12 +82,12 @@ spec:
           envFrom:
             - configMapRef:
                 name: {{ $name }}
-            {{- if $.Values.identity.existingSecret }}
+            {{- if and (eq $component "api") $.Values.identity.existingSecret }}
             - secretRef:
                 name: {{ $.Values.identity.existingSecret }}
             {{- end }}
           env:
-            {{- include "controlplane.databaseEnv" $ | nindent 12 }}
+            {{- include "controlplane.databaseEnv" (dict "root" $ "component" $component) | nindent 12 }}
             - name: OTEL_SERVICE_NAME
               value: {{ ternary "mlp-gateway" (printf "mlp-controlplane-%s" $component) (eq $component "gateway") }}
           resources:

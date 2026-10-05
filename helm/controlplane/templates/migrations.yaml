@@ -31,7 +31,7 @@ spec:
           imagePullPolicy: {{ .Values.image.pullPolicy }}
           command: [python, -m, controlplane.persistence.migrate, upgrade]
           env:
-            {{- include "controlplane.databaseEnv" . | nindent 12 }}
+            {{- include "controlplane.databaseEnv" (dict "root" . "component" "migration") | nindent 12 }}
           resources:
             {{- toYaml .Values.migrations.resources | nindent 12 }}
           securityContext:

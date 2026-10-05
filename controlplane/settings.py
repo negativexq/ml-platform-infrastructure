@@ -9,6 +9,7 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="CP_")
 
+    database_role_enforcement: bool = True
     database_url: str = "postgresql+psycopg://platform:platform@localhost:5432/controlplane"
     # Empty: in-cluster config, then ~/.kube/config.
     kubeconfig: str = ""
@@ -40,6 +41,7 @@ class Settings(BaseSettings):
     # Where outside callers reach the gateway (https://api.example.com). Shown in the UI and
     # used to build each public endpoint's URL. Empty: no gateway is deployed.
     gateway_url: str = ""
+    job_image_digest_required: bool = True
     gateway_limit_store: Literal["postgres", "memory"] = "postgres"
     # Logging. JSON by default (cluster log collectors want it); set false for a console.
     log_json: bool = True
@@ -62,7 +64,7 @@ class Settings(BaseSettings):
     platform_admins: str = ""
     # Signs the session cookie; at least 32 characters. Rotating it signs everyone out.
     session_secret: str = ""
-    session_hours: float = 8.0
+    session_hours: float = Field(default=0.25, gt=0, le=0.25)
     # Where users reach the platform, for the sign-in redirect (https://mlp.example.com).
     # Empty: taken from the request, which is wrong behind some proxies.
     public_url: str = ""

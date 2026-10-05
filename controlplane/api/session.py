@@ -17,6 +17,10 @@ from typing import Any
 from controlplane.domain.access import Principal
 
 SESSION_COOKIE = "mlp_session"
+SESSION_PURPOSE = "session-v2"
+MAX_SESSION_SECONDS = 900
+MAX_ADMIN_SESSION_SECONDS = 300
+MAX_COOKIE_BYTES = 3800
 LOGIN_COOKIE = "mlp_login"
 
 

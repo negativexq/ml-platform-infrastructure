@@ -19,7 +19,11 @@ from controlplane.api.errors import DomainHttpError, PlatformRoute
 from controlplane.api.schemas import ErrorOut
 from controlplane.api.session import (
     LOGIN_COOKIE,
+    MAX_ADMIN_SESSION_SECONDS,
+    MAX_COOKIE_BYTES,
+    MAX_SESSION_SECONDS,
     SESSION_COOKIE,
+    SESSION_PURPOSE,
     principal_to_session,
 )
 from controlplane.application.identity import role_in
@@ -226,7 +230,7 @@ def login_router(config: AuthConfig) -> APIRouter:
         if pending is None or not code or not state or state != pending.get("s"):
             return _sign_in_failed("this sign-in expired or did not start here; try again")
         try:
-            principal, id_token = await to_thread.run_sync(
+            principal, _id_token = await to_thread.run_sync(
                 lambda: login.complete(
                     code=code,
                     redirect_uri=f"{base_url(request)}/auth/callback",
@@ -239,15 +243,21 @@ def login_router(config: AuthConfig) -> APIRouter:
         response = RedirectResponse(
             _safe_next(pending.get("next")), status_code=status.HTTP_302_FOUND
         )
-        ttl = int(config.session_hours * 3600)
+        ttl = min(
+            int(config.session_hours * 3600),
+            MAX_ADMIN_SESSION_SECONDS if principal.platform_admin else MAX_SESSION_SECONDS,
+        )
+        value = signer.dumps(
+            principal_to_session(principal), purpose=SESSION_PURPOSE, ttl_seconds=ttl
+        )
+        if len(value.encode()) > MAX_COOKIE_BYTES:
+            return _sign_in_failed(
+                "identity claims exceed the session size limit; use an API access token"
+            )
         cookie(
             response,
             SESSION_COOKIE,
-            signer.dumps(
-                {**principal_to_session(principal), "it": id_token},
-                purpose="session",
-                ttl_seconds=ttl,
-            ),
+            value,
             ttl,
         )
         response.delete_cookie(LOGIN_COOKIE, path="/")
@@ -257,10 +267,7 @@ def login_router(config: AuthConfig) -> APIRouter:
     def logout(request: Request) -> JSONResponse:
         if request.headers.get("x-mlp-csrf") != "1":
             raise DomainHttpError(Unauthenticated("sign out from the UI"))
-        session = signer.loads(request.cookies.get(SESSION_COOKIE, ""), purpose="session") or {}
-        url = login.logout_url(
-            post_logout_redirect_uri=f"{base_url(request)}/ui/", id_token_hint=session.get("it")
-        )
+        url = login.logout_url(post_logout_redirect_uri=f"{base_url(request)}/ui/")
         response = JSONResponse({"logout_url": url})
         response.delete_cookie(SESSION_COOKIE, path="/")
         return response

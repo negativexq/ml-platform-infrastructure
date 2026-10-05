@@ -8,8 +8,10 @@ imagePullSecrets: []
 # Pre-create this Secret in the release namespace. Its url key is a SQLAlchemy
 # PostgreSQL URL for a dedicated control-plane database, not the MLflow schema.
 database:
-  existingSecret: mlp-controlplane-db
-  urlKey: url
+  api: {existingSecret: mlp-controlplane-db-api, urlKey: url}
+  gateway: {existingSecret: mlp-controlplane-db-gateway, urlKey: url}
+  reconciler: {existingSecret: mlp-controlplane-db-reconciler, urlKey: url}
+  migration: {existingSecret: mlp-controlplane-db-migration, urlKey: url}
 # Optional Secret with CP_OIDC_CLIENT_SECRET and CP_SESSION_SECRET for browser sign-in.
 identity:
   existingSecret: ""
@@ -22,6 +24,9 @@ config:
   CP_PUBLIC_URL: ""
   CP_GATEWAY_URL: ""
   CP_GATEWAY_LIMIT_STORE: postgres
+  CP_JOB_IMAGE_DIGEST_REQUIRED: "true"
+  CP_DATABASE_ROLE_ENFORCEMENT: "true"
+  CP_SESSION_HOURS: "0.25"
   CP_PLATFORM_ADMINS: ""
   CP_MLFLOW_TRACKING_URI: ""
   CP_STEP_MLFLOW_TRACKING_URI: ""

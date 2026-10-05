@@ -25,6 +25,7 @@ from controlplane.adapters.serving import KServeServingProvider
 from controlplane.adapters.workflow import ArgoWorkflowProvider
 from controlplane.application.ports import UnitOfWork
 from controlplane.observability import instrument_reconciler, observe, observed_uow_factory
+from controlplane.persistence.readiness import DatabaseReadiness
 from controlplane.persistence.sql import SqlUnitOfWork, make_engine, sql_uow_factory
 from controlplane.reconciliation.deployments import DeploymentReconciler
 from controlplane.reconciliation.model_aliases import ModelAliasReconciler
@@ -71,7 +72,11 @@ def main() -> None:
     )
     signal.signal(signal.SIGTERM, lambda *_: (_ for _ in ()).throw(SystemExit(0)))
 
-    sessions = sql_uow_factory(make_engine(settings.database_url))
+    engine = make_engine(settings.database_url)
+    DatabaseReadiness(
+        engine, component="reconciler" if settings.database_role_enforcement else None
+    )()
+    sessions = sql_uow_factory(engine)
     uow = observed_uow_factory(lambda: SqlUnitOfWork(sessions))
     api = load_api_client(settings.kubeconfig or None)
 
@@ -100,7 +105,11 @@ def main() -> None:
         "cluster",
         observability.CLUSTER_MUTATIONS,
     )
-    workflow = observe(ArgoWorkflowProvider(api), "workflow", observability.WORKFLOW_MUTATIONS)
+    workflow = observe(
+        ArgoWorkflowProvider(api, require_image_digest=settings.job_image_digest_required),
+        "workflow",
+        observability.WORKFLOW_MUTATIONS,
+    )
     serving = observe(KServeServingProvider(api), "serving", observability.SERVING_MUTATIONS)
     experiments = (
         observe(

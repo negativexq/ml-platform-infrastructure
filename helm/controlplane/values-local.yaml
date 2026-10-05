@@ -1,6 +1,8 @@
 # Trusted local development only; API callers are anonymous platform admins.
 config:
   CP_AUTH_MODE: none
+  CP_JOB_IMAGE_DIGEST_REQUIRED: "false"
+  CP_DATABASE_ROLE_ENFORCEMENT: "false"
   CP_OIDC_ISSUER: ""
   CP_MLFLOW_TRACKING_URI: http://platform-mlflow.ml-platform.svc.cluster.local:5000
   CP_STEP_MLFLOW_TRACKING_URI: http://platform-mlflow.ml-platform.svc.cluster.local:5000

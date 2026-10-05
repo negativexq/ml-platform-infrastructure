@@ -46,12 +46,12 @@ Any OpenID Connect provider: the control plane only knows an issuer URL.
   signed with `CP_SESSION_SECRET`; no token reaches the page, and the UI's CSP
   (`connect-src 'self'`) is unchanged. A browser request that changes something must also send
   `x-mlp-csrf: 1`, which another site cannot make a browser send. Sign-out ends the provider's
-  session too (`end_session_endpoint` with `id_token_hint`).
+  session through client-based logout (`end_session_endpoint` with `client_id`); the provider may request confirmation. ID tokens are never stored in the cookie.
 * The username comes from `CP_OIDC_USERNAME_CLAIM` (default `preferred_username`, then
   `email`, then `sub`), groups from `CP_OIDC_GROUPS_CLAIM` (default `groups`; Keycloak group
   paths like `/ml-team` become `ml-team`).
 * Role changes made in the platform apply at the next request. Group changes made in the
-  identity provider apply at the next sign-in (the session carries the groups; 8 h by default).
+  identity provider apply at the next sign-in. Sessions expire after at most 15 minutes; platform-admin sessions after at most 5 minutes. Old eight-hour cookies are rejected after upgrade. This bounds staleness; it is not immediate IdP revocation.
 
 ## Configuration
 
@@ -64,7 +64,7 @@ Any OpenID Connect provider: the control plane only knows an issuer URL.
 | `CP_SESSION_SECRET` | 32+ random characters; rotating it signs everyone out |
 | `CP_PUBLIC_URL` | where users reach the platform, for the redirect URI (`https://mlp.example.com`) |
 | `CP_PLATFORM_ADMINS` | comma-separated subjects |
-| `CP_SESSION_HOURS` | default 8 |
+| `CP_SESSION_HOURS` | default and maximum 0.25 (15 minutes); platform-admin sessions are capped at 5 minutes |
 
 ## Locally, with Keycloak
 

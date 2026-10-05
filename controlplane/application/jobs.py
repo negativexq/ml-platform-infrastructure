@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
 from uuid import UUID
@@ -36,20 +37,30 @@ def resolve_project(uow: UnitOfWork, ref: str) -> Project:
     return project
 
 
+def require_training_digest(image: str) -> None:
+    if not re.fullmatch(r"[^\s@]+@sha256:[a-f0-9]{64}", image):
+        raise InvalidArgument("training image requires a full immutable @sha256 digest")
+
+
 class JobService:
     def __init__(
         self,
         uow_factory: UnitOfWorkFactory,
         clock: Clock = utc_now,
         secrets: SecretProvider | None = None,
+        *,
+        require_image_digest: bool = False,
     ) -> None:
         self._uow_factory = uow_factory
         self._clock = clock
         self._secrets = secrets
+        self._require_image_digest = require_image_digest
 
     def create(self, project_ref: str, cmd: CreateJob) -> tuple[JobDefinition, bool]:
         """Create a job definition. Identical repeat -> existing, `created=False`;
         same name with different content -> Conflict (definitions are immutable)."""
+        if self._require_image_digest:
+            require_training_digest(cmd.image)
         if cmd.secret_refs.storage_secret:
             raise InvalidArgument("storage credentials apply only to classic serving models")
         try:

@@ -1,8 +1,8 @@
-# Defaults for the ml-platform inference chart.
+# Legacy inference lab chart; current platform deployments use helm/controlplane.
 #
 # Nothing environment-specific is hardcoded here: every endpoint, image tag and
-# credential reference is a value. One chart serves every environment; the
-# differences live in values-<env>.yaml.
+# credential reference is a value. This chart is retained for historical/local labs;
+# it is not the current production platform deployment path.
 
 nameOverride: ""
 fullnameOverride: ""
@@ -55,6 +55,8 @@ logging:
 networkPolicy:
   enabled: false
   monitoringNamespace: observability
+  ingressNamespace: ingress-nginx
+  ingressCIDRs: [] # explicit trusted node/source CIDRs for NodePort labs
 
 autoscaling:
   enabled: false

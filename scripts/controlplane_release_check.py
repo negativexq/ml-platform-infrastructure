@@ -153,6 +153,8 @@ current-context: smoke
                 "-e",
                 "CP_AUTH_MODE=none",
                 "-e",
+                "CP_DATABASE_ROLE_ENFORCEMENT=false",
+                "-e",
                 "CP_DATABASE_URL=" + url,
                 "-e",
                 "CP_KUBECONFIG=/fixtures/config",

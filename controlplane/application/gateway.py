@@ -467,7 +467,5 @@ class GatewayService:
             return
         self._touched[key.key_id] = now
         with self._uow_factory() as uow:
-            current = uow.api_keys.get(key.key_id)
-            if current is not None:
-                uow.api_keys.update(current.used(self._clock()))
-                uow.commit()
+            uow.api_keys.touch(key.key_id, self._clock())
+            uow.commit()

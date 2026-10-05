@@ -173,7 +173,7 @@ class OidcProvider:
     def logout_url(
         self, *, post_logout_redirect_uri: str, id_token_hint: str | None = None
     ) -> str | None:
-        """With the ID token as a hint the provider ends its session without asking again."""
+        """Client-based logout; the provider may ask the user to confirm sign-out."""
         endpoint = self.metadata.get("end_session_endpoint")
         if not endpoint:
             return None

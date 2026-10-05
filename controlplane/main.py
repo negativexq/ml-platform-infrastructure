@@ -34,6 +34,8 @@ log = logging.getLogger(__name__)
 def app_factory() -> FastAPI:
     settings = Settings()
     engine = make_engine(settings.database_url)
+    if settings.database_role_enforcement:
+        DatabaseReadiness(engine, component="api")()
     telemetry = observability.configure(
         SERVICE_NAME, json_logs=settings.log_json, log_level=settings.log_level, engine=engine
     )
@@ -41,7 +43,9 @@ def app_factory() -> FastAPI:
 
     sessions = sql_uow_factory(engine)
     workflow = observe(
-        ArgoWorkflowProvider.from_kubeconfig(settings.kubeconfig or None),
+        ArgoWorkflowProvider.from_kubeconfig(
+            settings.kubeconfig or None, require_image_digest=settings.job_image_digest_required
+        ),
         "workflow",
         observability.WORKFLOW_MUTATIONS,
     )
@@ -90,12 +94,15 @@ def app_factory() -> FastAPI:
             else None
         ),
         gateway_url=settings.gateway_url,
-        readiness=DatabaseReadiness(engine),
+        require_job_image_digest=settings.job_image_digest_required,
+        readiness=DatabaseReadiness(
+            engine, component="api" if settings.database_role_enforcement else None
+        ),
         secrets=KubernetesSecretProvider(load_api_client(settings.kubeconfig or None)),
     )
 
 
-def auth_config(settings: Settings) -> AuthConfig | None:
+def auth_config(settings: Settings, *, browser_login: bool = True) -> AuthConfig | None:
     """Fail at start-up, with the fix in the message, rather than run open by accident."""
     if settings.auth_mode == "none":
         log.warning("CP_AUTH_MODE=none: no sign-in, every caller is an anonymous platform admin")
@@ -114,7 +121,7 @@ def auth_config(settings: Settings) -> AuthConfig | None:
         groups_claim=settings.oidc_groups_claim,
         platform_admins=[s.strip() for s in settings.platform_admins.split(",") if s.strip()],
     )
-    web = bool(settings.oidc_client_id)
+    web = browser_login and bool(settings.oidc_client_id)
     if web and len(settings.session_secret) < 32:
         raise RuntimeError("browser sign-in needs CP_SESSION_SECRET (32+ random characters)")
     return AuthConfig(

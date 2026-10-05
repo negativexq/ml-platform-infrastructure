@@ -89,6 +89,12 @@ class _ApiKeys:
         self._data[key.key_id] = key
 
 
+    def touch(self, key_id: str, at: datetime) -> None:
+        current = self._data.get(key_id)
+        if current is not None:
+            self._data[key_id] = current.used(at)
+
+
 class _Memberships:
     def __init__(self, data: dict[UUID, Membership]) -> None:
         self._data = data

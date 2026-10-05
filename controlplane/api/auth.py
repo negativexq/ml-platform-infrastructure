@@ -20,7 +20,7 @@ from anyio import to_thread
 from fastapi import Request
 
 from controlplane.api.errors import DomainHttpError
-from controlplane.api.session import SESSION_COOKIE, Signer, principal_from_session
+from controlplane.api.session import SESSION_COOKIE, SESSION_PURPOSE, Signer, principal_from_session
 from controlplane.application.identity import (
     Authenticator,
     LoginProvider,
@@ -47,7 +47,7 @@ class AuthConfig:
     login: LoginProvider | None = None
     signer: Signer | None = None
     public_url: str = ""  # e.g. https://mlp.example.com, for the sign-in redirect URI
-    session_hours: float = 8.0
+    session_hours: float = 0.25
     secure_cookies: bool = True
 
 
@@ -124,7 +124,7 @@ class AuthMiddleware:
         for part in cookie_header.split(";"):
             name, _, value = part.strip().partition("=")
             if name == SESSION_COOKIE and value:
-                data = self.config.signer.loads(value, purpose="session")
+                data = self.config.signer.loads(value, purpose=SESSION_PURPOSE)
                 return principal_from_session(data) if data else None
         return None
 

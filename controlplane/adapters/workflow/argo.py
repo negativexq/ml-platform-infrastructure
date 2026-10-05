@@ -5,12 +5,19 @@ Not exercised against a real Argo yet: see docs/local-verification.md.
 
 from __future__ import annotations
 
+import json
 from typing import Any
 
 from kubernetes import client
 from kubernetes.client.exceptions import ApiException
 
 from controlplane.adapters.kubernetes import load_api_client
+from controlplane.adapters.kubernetes.security import (
+    TRAINING_ACCOUNT,
+    container_security,
+    pod_security,
+)
+from controlplane.application.jobs import require_training_digest
 from controlplane.application.providers import (
     ExternalState,
     StepSpec,
@@ -20,7 +27,8 @@ from controlplane.application.providers import (
 from controlplane.domain.errors import NotFound
 
 GROUP, VERSION, PLURAL = "argoproj.io", "v1alpha1", "workflows"
-SERVICE_ACCOUNT = "mlp-workload"
+
+SERVICE_ACCOUNT = TRAINING_ACCOUNT
 DEFAULT_DEADLINE_SECONDS = 3600
 # A pod stuck on one of these will never start; Argo itself would wait for the deadline.
 _UNSTARTABLE = ("ImagePullBackOff", "ErrImagePull", "InvalidImageName", "ErrImageNeverPull")
@@ -65,6 +73,7 @@ def _split(ref: str) -> tuple[str, str]:
 def _container(step: StepSpec) -> dict[str, Any]:
     container: dict[str, Any] = {
         "image": step.image,
+        "securityContext": container_security(),
         "env": [{"name": k, "value": v} for k, v in step.env.items()]
         + [
             {"name": k, "valueFrom": {"secretKeyRef": {"name": r.name, "key": r.key}}}
@@ -112,6 +121,18 @@ def build_workflow(spec: WorkflowSpec) -> dict[str, Any]:
         "spec": {
             "entrypoint": entrypoint,
             "serviceAccountName": SERVICE_ACCOUNT,
+            "securityContext": {
+                **pod_security(),
+                "runAsUser": 1000,
+                "runAsGroup": 1000,
+                "fsGroup": 1000,
+            },
+            "podSpecPatch": json.dumps(
+                {
+                    "initContainers": [{"name": "init", "securityContext": container_security()}],
+                    "containers": [{"name": "wait", "securityContext": container_security()}],
+                }
+            ),
             "activeDeadlineSeconds": spec.timeout_seconds,
             **(
                 {"imagePullSecrets": [{"name": n} for n in spec.image_pull_secrets]}
@@ -124,15 +145,21 @@ def build_workflow(spec: WorkflowSpec) -> dict[str, Any]:
 
 
 class ArgoWorkflowProvider:
-    def __init__(self, api_client: client.ApiClient) -> None:
+    def __init__(self, api_client: client.ApiClient, *, require_image_digest: bool = True) -> None:
+        self._require_image_digest = require_image_digest
         self._custom = client.CustomObjectsApi(api_client)
         self._core = client.CoreV1Api(api_client)
 
     @classmethod
-    def from_kubeconfig(cls, path: str | None = None) -> ArgoWorkflowProvider:
-        return cls(load_api_client(path))
+    def from_kubeconfig(
+        cls, path: str | None = None, *, require_image_digest: bool = True
+    ) -> ArgoWorkflowProvider:
+        return cls(load_api_client(path), require_image_digest=require_image_digest)
 
     def submit(self, spec: WorkflowSpec, idempotency_key: str) -> str:
+        if self._require_image_digest:
+            for step in spec.steps:
+                require_training_digest(step.image)
         # The workflow name is derived from the run, so the name *is* the idempotency
         # key: a second submit hits 409 and returns the workflow that already exists.
         try:

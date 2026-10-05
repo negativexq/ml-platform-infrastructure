@@ -1551,6 +1551,12 @@ class SqlApiKeys:
             raise NotFound("api key", key.key_id)
 
 
+    def touch(self, key_id: str, at: datetime) -> None:
+        self._s.execute(
+            update(ApiKeyRow).where(ApiKeyRow.key_id == key_id).values(last_used_at=at)
+        )
+
+
 class SqlNotificationReads:
     def __init__(self, session: Session) -> None:
         self._s = session

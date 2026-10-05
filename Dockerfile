@@ -1,7 +1,8 @@
 # Multi-stage: the builder carries pip and the toolchain; the runtime image
 # gets only the installed packages and the app. Shrinks the attack surface and
 # keeps build-only CVEs out of what ships.
-FROM python:3.12-slim AS builder
+ARG PYTHON_IMAGE=python:3.12-slim-bookworm@sha256:54c85f3c47607a77f32adec749d3c81d1348bf25833671f512b26a9b6d778cb3
+FROM ${PYTHON_IMAGE} AS builder
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -14,10 +15,12 @@ COPY constraints/inference.txt ./constraints/inference.txt
 COPY app ./app
 COPY scripts ./scripts
 # Versions come from the lock (scripts/lock.sh), so the same commit builds the same image.
-RUN pip install --upgrade pip && pip install -c constraints/inference.txt --prefix=/install .
+RUN pip install -c constraints/inference.txt --prefix=/install .
 
 # ---------------------------------------------------------------------------
-FROM python:3.12-slim AS runtime
+FROM ${PYTHON_IMAGE} AS runtime
+ARG SOURCE_REVISION=unknown
+LABEL org.opencontainers.image.revision=${SOURCE_REVISION}
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \

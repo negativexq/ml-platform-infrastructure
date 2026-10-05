@@ -100,3 +100,5 @@ Revalidate revoked keys and remote credential revocation independently. A databa
 cannot establish atomic cross-system consistency; document checkpoint skew and any
 replay/repair policy before switching clients. See [acceptance.md](acceptance.md) for the
 prepared equality drill and pending service-level checks.
+
+After restore, provision the separate runtime LOGIN users and reapply the [runtime grant manifest](security-hardening.md#postgresql-privileges-and-deployment-order). Restore uses `--no-privileges`; row/schema verification alone does not establish the restored role boundary. Verify the audit trigger and runtime denial tests before exposing traffic.

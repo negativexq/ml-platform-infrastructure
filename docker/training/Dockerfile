@@ -1,4 +1,7 @@
-FROM python:3.12-slim
+ARG PYTHON_IMAGE=python:3.12-slim-bookworm@sha256:54c85f3c47607a77f32adec749d3c81d1348bf25833671f512b26a9b6d778cb3
+FROM ${PYTHON_IMAGE}
+ARG SOURCE_REVISION=unknown
+LABEL org.opencontainers.image.revision=${SOURCE_REVISION}
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
@@ -7,16 +10,8 @@ ENV PYTHONDONTWRITEBYTECODE=1 \
 WORKDIR /app
 
 # Full mlflow (not skinny) for the sklearn flavor and the model registry.
-RUN pip install --upgrade pip && pip install \
-      "mlflow==3.15.0" \
-      "scikit-learn>=1.5" \
-      "pandas>=2.2" \
-      "numpy>=2.1" \
-      "boto3>=1.35" && \
-    pip install --upgrade \
-      "cryptography>=50.0.0" \
-      "setuptools>=78.1.1" \
-      "msgpack>=1.2.1"
+COPY constraints/training.txt /tmp/requirements.txt
+RUN python -m pip install --no-deps -r /tmp/requirements.txt
 
 COPY scripts/train.py ./scripts/train.py
 

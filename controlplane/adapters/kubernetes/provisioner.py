@@ -16,11 +16,12 @@ from kubernetes.client.exceptions import ApiException
 
 from controlplane.adapters.kubernetes.client import BoundedApiClient
 from controlplane.adapters.kubernetes.networking import NetworkTopology, project_policies
+from controlplane.adapters.kubernetes.security import SERVING_ACCOUNT, TRAINING_ACCOUNT
 from controlplane.application.namespaces import LABEL_MANAGED_BY, LABEL_PROJECT_ID, MANAGED_BY
 from controlplane.application.providers import NamespaceSpec, NamespaceState, Observation
 from controlplane.domain.errors import Conflict
 
-SERVICE_ACCOUNT = "mlp-workload"
+SERVICE_ACCOUNT = TRAINING_ACCOUNT
 QUOTA = "mlp-quota"
 LIMIT_RANGE = "mlp-limits"
 NETWORK_POLICY = "mlp-baseline"
@@ -116,7 +117,19 @@ class KubernetesClusterProvider:
                 }
         return {
             **bindings,
-            "serviceaccount": {"metadata": {"name": SERVICE_ACCOUNT, **meta}},
+            "serviceaccount": {
+                "metadata": {"name": TRAINING_ACCOUNT, **meta},
+                "automountServiceAccountToken": True,
+            },
+            "servingserviceaccount": {
+                "metadata": {"name": SERVING_ACCOUNT, **meta},
+                "automountServiceAccountToken": False,
+            },
+            # Remove token mounting from the old shared account during upgrades.
+            "legacyserviceaccount": {
+                "metadata": {"name": "mlp-workload", **meta},
+                "automountServiceAccountToken": False,
+            },
             "resourcequota": {
                 "metadata": {"name": QUOTA, **meta},
                 "spec": {"hard": dict(spec.quota)},
@@ -166,6 +179,7 @@ class KubernetesClusterProvider:
     # -- reads ------------------------------------------------------------
 
     def _read(self, kind: str, ns: str, name: str) -> Any | None:
+        kind = "serviceaccount" if kind.endswith("serviceaccount") else kind
         kind = "networkpolicy" if kind.endswith("networkpolicy") else kind
         kind = "rolebinding" if kind.endswith("rolebinding") else kind
         readers = {
@@ -283,6 +297,7 @@ class KubernetesClusterProvider:
 
     def _upsert(self, kind: str, ns: str, body: dict[str, Any]) -> None:
         api_binding = kind in {"secretrolebinding", "workloadrolebinding"}
+        kind = "serviceaccount" if kind.endswith("serviceaccount") else kind
         kind = "networkpolicy" if kind.endswith("networkpolicy") else kind
         kind = "rolebinding" if kind.endswith("rolebinding") else kind
         create, replace = {

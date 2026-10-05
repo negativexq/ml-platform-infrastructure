@@ -37,10 +37,12 @@ It deliberately uses an existing PostgreSQL database and Secrets.
 
 Before installation:
 
-1. Create a **dedicated control-plane database** and database user. Reusing the existing
+1. Create a **dedicated control-plane database**, migration/schema owner and three runtime LOGIN users. Reusing the existing
    PostgreSQL server is fine; pointing migrations at MLflow's database/schema is not.
-2. Create the release namespace and an existing Secret `mlp-controlplane-db` with key
-   `url` containing its `postgresql+psycopg://…/controlplane` connection URL. Use the
+2. Apply migration `0020` and configure the dedicated runtime grant manifest. Create
+   four existing Secrets: `mlp-controlplane-db-api`, `mlp-controlplane-db-gateway`,
+   `mlp-controlplane-db-reconciler`, `mlp-controlplane-db-migration`. Each has key `url`
+   containing its own `postgresql+psycopg://…/controlplane` connection URL. Use the
    organisation's secret provisioning mechanism; credentials are not stored in values.
 3. Install Argo Workflows, KServe in Serverless mode and Knative with a functioning ingress
    implementation. The Argo controller must watch the generated `mlp-*` namespaces.
@@ -101,7 +103,7 @@ read-only filesystem compatibility and actual memory consumption still need clus
 ## Readiness and lifecycle configuration
 
 Readiness probes use `/readyz` (database and matching schema heads); `/healthz` remains
-liveness. Apply migrations through `0019` before starting this image. Set
+liveness. Apply migrations through `0020` and configure separated runtime roles before starting this image. Set
 `config.CP_WORKFLOW_RETENTION_SECONDS` only after choosing a log retention window; its
 default `0` disables workflow cleanup. Network isolation is separately configurable
 through `networkPolicy`; configure API CIDRs and required external destinations first.
@@ -213,3 +215,5 @@ execute admission. CPU acceptance includes the same check. Existing foreign or c
 RBAC/namespace resources may need trusted-operator repair; the reconciler will not adopt
 them. Chart rollback/uninstall can remove enforcement; retain/review policies when
 rolling back to a pre-0.2.0 release and rerun the gate.
+
+Security upgrade prerequisites, DB grants and remaining live gates: [security-hardening.md](security-hardening.md).

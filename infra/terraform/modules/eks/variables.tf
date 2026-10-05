@@ -22,7 +22,12 @@ variable "public_subnet_ids" {
 variable "public_access_cidrs" {
   description = "CIDRs allowed to reach the public API endpoint. Narrow this before using the cluster for anything real."
   type        = list(string)
-  default     = ["0.0.0.0/0"]
+  validation {
+    condition = length(var.public_access_cidrs) > 0 && alltrue([
+      for cidr in var.public_access_cidrs : can(cidrhost(cidr, 0)) && try(tonumber(split("/", cidr)[1]) > 0, false)
+    ])
+    error_message = "Explicit valid API CIDRs are required; /0 access is forbidden."
+  }
 }
 
 variable "enabled_cluster_log_types" {

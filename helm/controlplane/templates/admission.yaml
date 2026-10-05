@@ -32,6 +32,15 @@ spec:
         variables.target.metadata.name == 'mlp-' + variables.target.metadata.labels['mlp.io/project']
       message: reconciler may manage only owned mlp project namespaces
     - expression: >-
+        request.operation == 'DELETE' ||
+        (has(object.metadata.labels) && ['enforce', 'warn', 'audit'].all(mode,
+          'pod-security.kubernetes.io/' + mode in object.metadata.labels &&
+          object.metadata.labels['pod-security.kubernetes.io/' + mode] == 'restricted') &&
+        ['enforce-version', 'warn-version', 'audit-version'].all(mode,
+          !('pod-security.kubernetes.io/' + mode in object.metadata.labels) ||
+          object.metadata.labels['pod-security.kubernetes.io/' + mode] == 'latest'))
+      message: reconciler must preserve restricted Pod Security at the current cluster version
+    - expression: >-
         request.operation == 'CREATE' ||
         (oldObject != null && has(oldObject.metadata.labels) &&
         ['app.kubernetes.io/managed-by', 'mlp.io/project-id', 'mlp.io/project'].all(k,
@@ -133,7 +142,7 @@ spec:
            (variables.target.metadata.name == 'mlp-workflow-executor' &&
             variables.target.roleRef.kind == 'Role' &&
             variables.target.roleRef.name == 'mlp-workflow-executor' &&
-            s.name == 'mlp-workload' && s.namespace == request.namespace))))
+            s.name == 'mlp-training' && s.namespace == request.namespace))))
       message: reconciler RoleBindings require exact names, role references and service account subjects
 ---
 apiVersion: admissionregistration.k8s.io/v1

@@ -176,11 +176,13 @@ def prepare(
         "        raise SystemExit('dependency checksum mismatch: '+artifact['name'])",
         "PY",
         f"{kubectl} get namespace mlp-system >/dev/null",
-        f"{kubectl} -n mlp-system get secret "
-        + q(values.get("database", {}).get("existingSecret", "mlp-controlplane-db"))
-        + " >/dev/null",
         f"{kubectl} create namespace argo --dry-run=client -o yaml | {kubectl} apply -f -",
     ]
+    for component in ("api", "gateway", "reconciler", "migration"):
+        secret = values.get("database", {}).get(component, {}).get(
+            "existingSecret", f"mlp-controlplane-db-{component}"
+        )
+        steps.insert(-1, f"{kubectl} -n mlp-system get secret " + q(secret) + " >/dev/null")
     for artifact in artifacts:
         path = q(str((deps / artifact["file"]).resolve()))
         name = artifact["name"]

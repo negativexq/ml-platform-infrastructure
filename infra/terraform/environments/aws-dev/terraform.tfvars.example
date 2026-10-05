@@ -19,8 +19,11 @@ github_subject_claims = [
 create_github_oidc_provider = true
 
 # Narrow this to your own IP before using the cluster for anything real.
-public_access_cidrs = ["0.0.0.0/0"]
+public_access_cidrs = ["203.0.113.10/32"] # replace with your actual office/VPN IP
 
 # Budget alerts. Leave the list empty and no budget is created.
 monthly_budget_usd  = 150
 budget_alert_emails = ["you@example.com"]
+
+# Existing dedicated MLflow pod SG; configure AWS VPC CNI SecurityGroupPolicy.
+database_client_security_group_ids = ["sg-0123456789abcdef0"]

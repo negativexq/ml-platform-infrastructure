@@ -9,7 +9,7 @@ output "cluster_endpoint" {
 }
 
 output "cluster_security_group_id" {
-  description = "Security group EKS attaches to managed nodes; grant this ingress on RDS."
+  description = "Shared EKS/node security group; do not grant database ingress to this group."
   value       = aws_eks_cluster.this.vpc_config[0].cluster_security_group_id
 }
 

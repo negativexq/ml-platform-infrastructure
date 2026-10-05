@@ -1,5 +1,7 @@
 # Roadmap
 
+Current security remediation, local evidence and outstanding deployment/test work: [security-hardening.md](security-hardening.md).
+
 Where the platform stands, what is missing, and what comes next. Kept up to date with the
 code; the original milestone plan is in [history/](history/).
 

@@ -243,6 +243,41 @@ def test_rendered_admission_cel_allows_provisioning_and_denies_escape() -> None:
             resource="namespaces",
             group="",
         )
+    for mode in ("enforce", "warn", "audit"):
+        for value in ("baseline", "privileged", None):
+            weakened = deepcopy(ns)
+            key = "pod-security.kubernetes.io/" + mode
+            if value is None:
+                del weakened["metadata"]["labels"][key]
+            else:
+                weakened["metadata"]["labels"][key] = value
+            case(
+                f"weaken-PSA-{mode}-{value}",
+                "namespace-owner",
+                weakened,
+                False,
+                operation="UPDATE",
+                old=ns,
+                namespace=None,
+                resource="namespaces",
+                group="",
+            )
+        stale = deepcopy(ns)
+        stale["metadata"]["labels"][f"pod-security.kubernetes.io/{mode}-version"] = "v1.24"
+        case(
+            f"weaken-PSA-version-{mode}",
+            "namespace-owner",
+            stale,
+            False,
+            operation="UPDATE",
+            old=ns,
+            namespace=None,
+            resource="namespaces",
+            group="",
+        )
+    legacy = deepcopy(desired["rolebinding"])
+    legacy["subjects"][0]["name"] = "mlp-workload"
+    case("deny-legacy-shared-SA-binding", "project-rbac", legacy, False)
     unrelated = deepcopy(ns)
     unrelated["metadata"]["labels"]["example.test/info"] = "new"
     case(

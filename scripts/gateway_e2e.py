@@ -93,7 +93,7 @@ def check(what: str, ok: bool) -> None:
 
 
 def main() -> None:
-    import pgserver  # type: ignore[import-untyped]
+    import pgserver
 
     from controlplane.adapters.fakes import (
         FakeClusterProvider,
@@ -110,9 +110,17 @@ def main() -> None:
     from controlplane.reconciliation.deployments import DeploymentReconciler
     from controlplane.reconciliation.projects import ProjectReconciler
 
-    pg = pgserver.get_server(tempfile.mkdtemp(prefix="gw-pg-"), cleanup_mode="stop")
+    pg = pgserver.get_server(  # type: ignore[attr-defined]
+        tempfile.mkdtemp(prefix="gw-pg-"), cleanup_mode="stop"
+    )
     db = pg.get_uri().replace("postgresql://", "postgresql+psycopg://", 1)
-    env = {**os.environ, "CP_DATABASE_URL": db, "CP_AUTH_MODE": "none", "PYTHONPATH": str(ROOT)}
+    env = {
+        **os.environ,
+        "CP_DATABASE_URL": db,
+        "CP_AUTH_MODE": "none",
+        "CP_DATABASE_ROLE_ENFORCEMENT": "false",
+        "PYTHONPATH": str(ROOT),
+    }
     subprocess.run(
         [sys.executable, "-m", "controlplane.persistence.migrate", "upgrade"], env=env, check=True
     )

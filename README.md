@@ -121,7 +121,7 @@ reply = client.chat.completions.create(model="assistant-prod",
 | Gateway | Included in the control-plane chart; standalone example at `k8s/gateway/gateway.yaml` has Ingress/TLS and a topology-specific NetworkPolicy ([networking](docs/networking.md)) |
 | Identity | `k8s/identity/` (Keycloak), configured with `CP_OIDC_*` settings |
 | Observability | `make observability-up`: OpenTelemetry Collector, Tempo, dashboards, alerts |
-| AWS | Terraform for EKS, RDS and S3 in `infra/terraform` (designed, not yet applied) |
+| AWS | Legacy infrastructure lab in `infra/terraform`; current control-plane AWS deployment remains pending |
 
 Settings are environment variables prefixed `CP_` (`controlplane/settings.py`).
 
@@ -143,6 +143,7 @@ The full list of what is missing and what comes next: [`docs/roadmap.md`](docs/r
 ## Documentation
 
 * [Roadmap: what is missing and what comes next](docs/roadmap.md)
+* [Security hardening and remaining tests](docs/security-hardening.md)
 * [Identity and roles](docs/identity.md)
 * [Gateway and API keys](docs/gateway.md)
 * [Web UI design](docs/ui.md)
@@ -159,7 +160,7 @@ The full list of what is missing and what comes next: [`docs/roadmap.md`](docs/r
 * **Committed credentials:** only disposable local-development defaults.
 * **API keys:** stored hashed and shown once.
 * **Sessions:** HttpOnly signed cookies, with CSRF protection.
-* **Workloads:** run under Pod Security `restricted` with default-deny NetworkPolicies.
+* **Workloads:** project namespaces enforce Pod Security `restricted`; serving has no Kubernetes token/RBAC. Production requires site-configured NetworkPolicies. Live controller/CNI validation remains pending ([security hardening](docs/security-hardening.md)).
 
 ## License
 

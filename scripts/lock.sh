@@ -13,12 +13,14 @@ trap 'rm -rf "$MLP_LOCK_TEMP"' EXIT
 lock() {
   local name="$1"
   local options=()
+  local input=pyproject.toml
+  [[ "$name" == training || "$name" == mlflow ]] && input="constraints/$name.in"
   [[ "$name" == controlplane ]] && options+=(--extra controlplane)
   if [[ -f "constraints/$name.txt" && "${MLP_LOCK_UPGRADE:-0}" != 1 ]]; then
     cp "constraints/$name.txt" "$MLP_LOCK_TEMP/$name.previous"
     options+=(--constraint "$MLP_LOCK_TEMP/$name.previous")
   fi
-  "$MLP_UV" pip compile pyproject.toml "${options[@]}" --python-version 3.12 \
+  "$MLP_UV" pip compile "$input" "${options[@]}" --python-version 3.12 \
     --python-platform x86_64-unknown-linux-gnu --no-header --no-annotate --quiet \
     --output-file "$MLP_LOCK_TEMP/$name.txt"
   {
@@ -29,7 +31,7 @@ lock() {
   echo "Regenerated constraints/$name.txt for Linux/amd64."
 }
 case "${1:-all}" in
-  all) lock inference; lock controlplane ;;
-  inference|controlplane) lock "$1" ;;
-  *) echo "usage: scripts/lock.sh [all|inference|controlplane]" >&2; exit 2 ;;
+  all) lock inference; lock controlplane; lock training; lock mlflow ;;
+  inference|controlplane|training|mlflow) lock "$1" ;;
+  *) echo "usage: scripts/lock.sh [all|inference|controlplane|training|mlflow]" >&2; exit 2 ;;
 esac

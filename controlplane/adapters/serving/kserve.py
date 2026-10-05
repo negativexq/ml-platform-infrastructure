@@ -22,6 +22,11 @@ from kubernetes.client.exceptions import ApiException
 from kubernetes.utils.quantity import parse_quantity
 
 from controlplane.adapters.kubernetes import load_api_client
+from controlplane.adapters.kubernetes.security import (
+    SERVING_ACCOUNT,
+    container_security,
+    pod_security,
+)
 from controlplane.application.context import current_traceparent
 from controlplane.application.namespaces import LABEL_MANAGED_BY, LABEL_PROJECT_ID, MANAGED_BY
 from controlplane.application.providers import ServingSpec, ServingState, ServingStatus
@@ -33,7 +38,8 @@ KNATIVE_GROUP, KNATIVE_VERSION = "serving.knative.dev", "v1"
 ANNOTATION_REVISION = "mlp.io/revision"
 ANNOTATION_PREVIOUS = "mlp.io/previous-revision"
 ANNOTATION_APPLY = "mlp.io/apply-id"
-SERVICE_ACCOUNT = "mlp-workload"
+
+SERVICE_ACCOUNT = SERVING_ACCOUNT
 PREDICT_TIMEOUT_SECONDS = 10
 CHAT_TIMEOUT_SECONDS = 120
 
@@ -63,6 +69,7 @@ def _function_predictor(spec: ServingSpec) -> dict[str, Any]:
         "containers": [
             {
                 "name": "kserve-container",
+                "securityContext": container_security(),
                 "image": spec.model_uri,
                 "ports": [{"containerPort": port, "protocol": "TCP"}],
                 "env": [{"name": k, "value": str(v)} for k, v in sorted(env.items())]
@@ -162,6 +169,8 @@ def build_inference_service(spec: ServingSpec) -> dict[str, Any]:
         },
         "spec": {
             "predictor": {
+                "automountServiceAccountToken": False,
+                "securityContext": pod_security(),
                 "serviceAccountName": storage_account_name(spec)
                 if spec.secret_refs.storage_secret
                 else SERVICE_ACCOUNT,
@@ -181,7 +190,9 @@ def build_inference_service(spec: ServingSpec) -> dict[str, Any]:
                 **(
                     _function_predictor(spec)
                     if spec.runtime == "container"
-                    else {"model": _predictor_model(spec)}
+                    else {
+                        "model": {**_predictor_model(spec), "securityContext": container_security()}
+                    }
                 ),
                 "canaryTrafficPercent": spec.canary_percent,
             }
@@ -219,6 +230,8 @@ def _owned_matches(actual: Any, desired: Any, key: str = "") -> bool:
             "volumeMounts",
             "volumes",
             "readinessProbe",
+            "securityContext",
+            "automountServiceAccountToken",
         }
         if any(k not in desired and actual.get(k) not in (None, [], {}) for k in owned):
             return False

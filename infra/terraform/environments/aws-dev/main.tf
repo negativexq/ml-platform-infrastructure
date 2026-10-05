@@ -58,16 +58,27 @@ module "eks" {
   tags = local.tags
 }
 
+resource "terraform_data" "database_boundary" {
+  input = var.database_client_security_group_ids
+  lifecycle {
+    precondition {
+      condition     = !contains(var.database_client_security_group_ids, module.eks.cluster_security_group_id)
+      error_message = "RDS clients must use dedicated pod security groups, not the shared EKS/node group."
+    }
+  }
+}
+
 module "rds" {
-  source = "../../modules/rds"
+  depends_on = [terraform_data.database_boundary]
+  source     = "../../modules/rds"
 
   name               = local.name
   vpc_id             = module.vpc.vpc_id
   private_subnet_ids = module.vpc.private_subnet_ids
 
-  # Only the cluster's own security group may reach PostgreSQL — not the VPC
-  # CIDR, and certainly not the internet.
-  allowed_security_group_ids = [module.eks.cluster_security_group_id]
+  # Require workload-specific pod security groups (AWS VPC CNI SecurityGroupPolicy).
+  # Never substitute the shared cluster/node security group for this boundary.
+  allowed_security_group_ids = var.database_client_security_group_ids
 
   tags = local.tags
 }

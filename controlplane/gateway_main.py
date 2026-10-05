@@ -28,6 +28,8 @@ SERVICE_NAME = "mlp-gateway"
 def app_factory() -> FastAPI:
     settings = Settings()
     engine = make_engine(settings.database_url)
+    if settings.database_role_enforcement:
+        DatabaseReadiness(engine, component="gateway")()
     telemetry = observability.configure(
         SERVICE_NAME, json_logs=settings.log_json, log_level=settings.log_level, engine=engine
     )
@@ -35,7 +37,8 @@ def app_factory() -> FastAPI:
     # One log line per forwarded call is noise at this volume; metrics and request ids carry it.
     logging.getLogger("httpx").setLevel(logging.WARNING)
     sessions = sql_uow_factory(engine)
-    auth = auth_config(settings)  # signed-in callers (client credentials) need the invoker role
+    # Gateway validates bearer tokens; it needs no browser client/session secrets.
+    auth = auth_config(settings, browser_login=False)
     service = GatewayService(
         lambda: SqlUnitOfWork(sessions),
         HttpUpstream(),
@@ -45,4 +48,9 @@ def app_factory() -> FastAPI:
         recorders=[GatewayUsageMetrics()],
         authenticator=auth.authenticator if auth is not None else None,
     )
-    return create_gateway(service, readiness=DatabaseReadiness(engine))
+    return create_gateway(
+        service,
+        readiness=DatabaseReadiness(
+            engine, component="gateway" if settings.database_role_enforcement else None
+        ),
+    )

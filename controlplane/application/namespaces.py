@@ -16,12 +16,14 @@ DEFAULT_QUOTA = {
     "requests.memory": "8Gi",
     "limits.cpu": "8",
     "limits.memory": "16Gi",
+    "requests.ephemeral-storage": "16Gi",
+    "limits.ephemeral-storage": "32Gi",
     "pods": "50",
 }
-DEFAULT_LIMITS = {"cpu": "500m", "memory": "512Mi"}
+DEFAULT_LIMITS = {"cpu": "500m", "memory": "512Mi", "ephemeral-storage": "2Gi"}
 # What each GPU of quota brings with it, so an LLM replica fits (see adapters/serving/kserve.py).
 PER_GPU = {"requests.cpu": 4, "limits.cpu": 8, "requests.memory": 16, "limits.memory": 24}
-DEFAULT_REQUESTS = {"cpu": "100m", "memory": "128Mi"}
+DEFAULT_REQUESTS = {"cpu": "100m", "memory": "128Mi", "ephemeral-storage": "256Mi"}
 
 
 def namespace_spec(project: Project) -> NamespaceSpec:
@@ -33,6 +35,14 @@ def namespace_spec(project: Project) -> NamespaceSpec:
             LABEL_PROJECT_ID: str(project.id),
             LABEL_PROJECT: project.name,
             LABEL_MANAGED_BY: MANAGED_BY,
+            **{
+                f"pod-security.kubernetes.io/{mode}": "restricted"
+                for mode in ("enforce", "warn", "audit")
+            },
+            **{
+                f"pod-security.kubernetes.io/{mode}-version": "latest"
+                for mode in ("enforce", "warn", "audit")
+            },
         },
         quota=_quota(project.gpu_quota),
         default_limits=DEFAULT_LIMITS,
