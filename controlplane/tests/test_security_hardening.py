@@ -35,7 +35,9 @@ def test_namespace_and_service_accounts_enforce_separate_boundaries() -> None:
     spec = namespace_spec(project)
     for mode in ("enforce", "warn", "audit"):
         assert spec.labels[f"pod-security.kubernetes.io/{mode}"] == "restricted"
-        assert spec.labels[f"pod-security.kubernetes.io/{mode}-version"] == "latest"
+        assert spec.labels[f"pod-security.kubernetes.io/{mode}-version"] == (
+            "v1.30" if mode == "enforce" else "latest"
+        )
     assert spec.quota["limits.ephemeral-storage"] == "32Gi"
     assert spec.quota["requests.ephemeral-storage"] == "16Gi"
     assert (
@@ -69,7 +71,14 @@ def test_argo_secures_main_and_injected_executor_containers() -> None:
     patch = json.loads(body["podSpecPatch"])
     assert patch["initContainers"][0]["name"] == "init"
     assert patch["containers"][0]["name"] == "wait"
-    assert patch["containers"][0]["securityContext"] == context
+    # No inherited primary identity may override an image's numeric USER (e.g. 65532).
+    for field in ("runAsUser", "runAsGroup"):
+        assert field not in body["securityContext"]
+        assert field not in context
+    assert body["securityContext"]["fsGroup"] == 1000  # shared-volume supplemental group
+    for executor in (patch["initContainers"][0], patch["containers"][0]):
+        assert executor["securityContext"] == {**context, "runAsUser": 1000, "runAsGroup": 1000}
+    assert "USER 1000:1000" in (ROOT / "docker/training/Dockerfile").read_text()
 
 
 def test_model_predictor_disables_token_mount_and_sets_restricted_context() -> None:

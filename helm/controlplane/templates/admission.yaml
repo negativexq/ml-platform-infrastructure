@@ -36,10 +36,12 @@ spec:
         (has(object.metadata.labels) && ['enforce', 'warn', 'audit'].all(mode,
           'pod-security.kubernetes.io/' + mode in object.metadata.labels &&
           object.metadata.labels['pod-security.kubernetes.io/' + mode] == 'restricted') &&
-        ['enforce-version', 'warn-version', 'audit-version'].all(mode,
-          !('pod-security.kubernetes.io/' + mode in object.metadata.labels) ||
+        'pod-security.kubernetes.io/enforce-version' in object.metadata.labels &&
+        object.metadata.labels['pod-security.kubernetes.io/enforce-version'] == 'v1.30' &&
+        ['warn-version', 'audit-version'].all(mode,
+          'pod-security.kubernetes.io/' + mode in object.metadata.labels &&
           object.metadata.labels['pod-security.kubernetes.io/' + mode] == 'latest'))
-      message: reconciler must preserve restricted Pod Security at the current cluster version
+      message: reconciler must preserve restricted Pod Security with enforcement v1.30 and warn/audit latest
     - expression: >-
         request.operation == 'CREATE' ||
         (oldObject != null && has(oldObject.metadata.labels) &&

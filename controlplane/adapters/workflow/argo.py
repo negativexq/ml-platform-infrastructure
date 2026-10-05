@@ -123,14 +123,31 @@ def build_workflow(spec: WorkflowSpec) -> dict[str, Any]:
             "serviceAccountName": SERVICE_ACCOUNT,
             "securityContext": {
                 **pod_security(),
-                "runAsUser": 1000,
-                "runAsGroup": 1000,
+                # Shared-volume supplemental group; preserve the image's primary UID/GID.
                 "fsGroup": 1000,
             },
             "podSpecPatch": json.dumps(
                 {
-                    "initContainers": [{"name": "init", "securityContext": container_security()}],
-                    "containers": [{"name": "wait", "securityContext": container_security()}],
+                    "initContainers": [
+                        {
+                            "name": "init",
+                            "securityContext": {
+                                **container_security(),
+                                "runAsUser": 1000,
+                                "runAsGroup": 1000,
+                            },
+                        }
+                    ],
+                    "containers": [
+                        {
+                            "name": "wait",
+                            "securityContext": {
+                                **container_security(),
+                                "runAsUser": 1000,
+                                "runAsGroup": 1000,
+                            },
+                        }
+                    ],
                 }
             ),
             "activeDeadlineSeconds": spec.timeout_seconds,

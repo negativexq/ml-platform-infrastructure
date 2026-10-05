@@ -16,6 +16,6 @@ RUN python -m pip install --no-deps -r /tmp/requirements.txt
 COPY scripts/train.py ./scripts/train.py
 
 RUN useradd --uid 1000 --create-home trainer && chown -R trainer /app
-USER trainer
+USER 1000:1000
 
 ENTRYPOINT ["python", "scripts/train.py"]

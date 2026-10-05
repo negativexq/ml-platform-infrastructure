@@ -11,7 +11,7 @@ no platform database was used. CI remains intentionally disabled and is not a fi
 
 | Audit finding | Repository remediation | Remaining evidence or work |
 | --- | --- | --- |
-| **1 — dynamic namespace PSA** | Namespace desired state now includes enforce/warn/audit `restricted`, with all policy versions set to `latest`. Namespace admission rejects lowering/removing the policy or pinning an older version. Argo main/init/wait and KServe predictor containers receive explicit restricted contexts. | Actual PSA rejection and compatibility of injected Argo/KServe/Knative containers remain untested in a cluster. |
+| **1 — dynamic namespace PSA** | Namespace desired state now includes enforce/warn/audit `restricted`, with enforcement pinned to `v1.30` and warn/audit at `latest`. Namespace admission requires these exact versions and rejects missing versions or policy weakening. Argo main/init/wait and KServe predictor containers receive explicit restricted contexts. | Actual PSA rejection and compatibility of injected Argo/KServe/Knative containers remain untested in a cluster. |
 | **2 — shared workload SA** | `mlp-training` has the executor RoleBinding; `mlp-serving` has no RoleBinding and disables token automount. Serving PodSpecs also explicitly disable automount, including storage-account workloads. The old `mlp-workload` account loses its executor binding and desired automount is false. | Reconcile existing projects and replace old running pods; inspect projected volumes and real authorization. |
 | **3 — shared database credential** | Chart 0.3.0 requires four distinct Secret names. A DBA grant tool configures separate API/reconciler/gateway privilege roles. Runtime startup/readiness checks reject owner/privileged/mixed-role credentials. Gateway key usage now writes only `last_used_at`. Only API mounts the OIDC/session Secret; gateway bearer authentication explicitly disables browser login. | Provision separate LOGIN users/passwords and Secrets; run the full API/reconciler/gateway lifecycle using those credentials. |
 | **4 — audit append-only boundary** | Migration `0020` adds a PostgreSQL trigger rejecting UPDATE, DELETE and TRUNCATE. Runtime grant manifests allow audit SELECT/INSERT for API/reconciler, with no audit access for gateway. | This protects against runtime credentials; DBA/migration owners can explicitly disable/drop the trigger. It is not WORM storage or protection against a DBA. External archival/hash-chain retention remains optional future work. |
@@ -38,10 +38,22 @@ no platform database was used. CI remains intentionally disabled and is not a fi
 
 Shared context builders live in `controlplane/adapters/kubernetes/security.py`.
 Containers use non-root execution, RuntimeDefault seccomp, no privilege escalation and
-`capabilities.drop: [ALL]`. Argo Workflow pod context sets UID/GID/fsGroup 1000; strategic
-PodSpec patches cover the injected `init` and `wait` containers. KServe sets the predictor
+`capabilities.drop: [ALL]`. Argo main workloads retain the image's numeric `USER` and primary group; pod/main contexts
+only require non-root execution, without a fixed UID/GID. Strategic PodSpec patches set
+UID/GID 1000 explicitly on injected `init` and `wait` executors. Pod `fsGroup: 1000` remains
+as a supplemental shared-volume group, without overriding the main container's identity.
+The bundled training Dockerfile declares `USER 1000:1000`, allowing kubelet to verify its
+non-root identity; external images must likewise declare a numeric non-root USER. KServe sets the predictor
 pod context and model/custom container context, and detects drift in security/token fields.
 Storage revision accounts retain their existing no-token behavior.
+
+Chart 0.3.1 and namespace desired state pin PSA enforcement to `v1.30`, the chart's declared
+minimum Kubernetes version. Warn/audit stay at `latest` to expose upcoming policy changes.
+This is a deterministic supported baseline, **not a live-tested Kubernetes certification**.
+Raising it requires a coordinated code/chart release and workload acceptance tests. Existing
+owned namespaces can migrate from `latest` to the pin on their next reconciliation after
+the updated admission policy is installed. The pin intentionally excludes newer restricted
+checks from enforcement until that reviewed upgrade; monitor warn/audit findings.
 
 These settings intentionally do not force a read-only filesystem on arbitrary training or
 serving images; that is not required by restricted PSA. Root-dependent images or injected
@@ -118,6 +130,20 @@ architectures and CUDA/GPU image compatibility have not been verified.
 
 ## Verification completed locally
 
+### UID compatibility and PSA pin follow-up (2026-10-05)
+
+- Lightweight suite: **399 passed, 5 skipped, 188 deselected**; browser and SQL suites
+  excluded. Targeted security/admission tests: **16 passed**.
+- Actual rendered admission CEL: **184 cases passed**, including missing/wrong version
+  rejection and the upgrade from old `latest` namespace labels to the fixed pin.
+- Regression checks verify no pod/main UID or primary GID override, restricted contexts
+  retained, explicit numeric executor identities and the bundled numeric Dockerfile USER.
+  They inspect generated specs; they do not run images with USER 65532.
+- Helm lint, Ruff, mypy (**180 controlplane source files**) and diff whitespace checks
+  passed. No cluster, Docker daemon, database or AWS resources were started or changed.
+
+### Original hardening batch
+
 - Lightweight suite: **399 passed, 5 skipped, 188 deselected**. SQL parametrizations and
   browser suites were excluded from that run; no cluster startup is part of it.
 - Rendered native admission CEL: **178 cases passed**, including PSA downgrade/version
@@ -158,13 +184,18 @@ assertions and retained reports; a script's presence is not a passing result.
 
 - [ ] Create a project; verify all six PSA labels. Submit a privileged/root/hostPath pod
   and assert the expected restricted PSA denial. Test removing/lowering PSA labels and
-  version pinning while impersonating the reconciler; assert the platform policy denial.
+  missing/incorrect version labels while impersonating the reconciler; assert the platform policy denial.
 - [ ] Reconcile an existing project: RoleBinding subject changes to `mlp-training`, old
   `mlp-workload` loses executor permissions, serving/storage accounts disable automount.
   Replace existing pods and prove serving has no projected Kubernetes token and cannot
   write WorkflowTaskResults; training can report results but cannot access foreign projects.
 - [ ] Run real Argo job and multi-step pipeline under restricted PSA, including init/wait
-  containers, output volumes and private image pulls.
+  containers, output volumes and private image pulls. Run permission-sensitive training
+  images with numeric USER 1000 and 65532; verify primary UID/GID, shared-volume outputs
+  and executor artifact handling. Root or name-only USER images must fail safely.
+- [ ] Upgrade Kubernetes with the same platform release: enforcement must remain `v1.30`,
+  while warn/audit follow the new server version. Verify migration from old `latest` labels
+  and review newer restricted warnings before advancing the enforced baseline.
 - [ ] Run real KServe custom function, MLflow model and pinned Hugging Face model; inspect
   predictor, storage-initializer and Knative sidecars for PSA/token behavior. Deliberate
   security-context drift must be rejected or repaired without a false READY result.

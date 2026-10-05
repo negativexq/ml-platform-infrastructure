@@ -10,6 +10,9 @@ LABEL_PROJECT = "mlp.io/project"
 LABEL_MANAGED_BY = "app.kubernetes.io/managed-by"
 MANAGED_BY = "mlp-controlplane"
 
+# Pin enforcement to the chart minimum Kubernetes version; preview upgrades with warn/audit.
+PSA_ENFORCE_VERSION = "v1.30"
+
 # Defaults until per-project quota becomes a platform setting.
 DEFAULT_QUOTA = {
     "requests.cpu": "4",
@@ -40,7 +43,9 @@ def namespace_spec(project: Project) -> NamespaceSpec:
                 for mode in ("enforce", "warn", "audit")
             },
             **{
-                f"pod-security.kubernetes.io/{mode}-version": "latest"
+                f"pod-security.kubernetes.io/{mode}-version": (
+                    PSA_ENFORCE_VERSION if mode == "enforce" else "latest"
+                )
                 for mode in ("enforce", "warn", "audit")
             },
         },
