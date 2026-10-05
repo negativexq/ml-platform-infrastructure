@@ -1391,6 +1391,17 @@ class SqlRollouts:
         ).first()
         return _rollout(row) if row else None
 
+    def get_active_by_version(self, version_id: UUID) -> Rollout | None:
+        row = self._s.scalars(
+            select(RolloutRow).where(
+                RolloutRow.model_version_id == version_id,
+                RolloutRow.status.in_(
+                    [RolloutStatus.PENDING.value, RolloutStatus.PROGRESSING.value]
+                ),
+            )
+        ).first()
+        return _rollout(row) if row else None
+
     def list(self, deployment_id: UUID) -> Sequence[Rollout]:
         rows = self._s.scalars(
             select(RolloutRow)

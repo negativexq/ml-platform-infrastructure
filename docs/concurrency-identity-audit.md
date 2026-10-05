@@ -135,3 +135,47 @@ configuration as described above; username-only grants/cookies are intentionally
 - Browser/controller/data-plane acceptance remains pending. SQL field-owner tests deliberately
   submit stale snapshots; broader load, mixed membership operations, migration of real legacy
   identities/duplicate rollouts, and real traffic restoration still require acceptance evidence.
+
+## Follow-up: manual promotion during an active rollout
+
+The follow-up audit of `16d8a68` identified a further correctness bug: manual promotion
+could turn an active canary into CHAMPION before the rollout verdict, leaving its stable
+version ARCHIVED even after the canary rolled back. This path is now closed.
+
+`PromotionService.promote` locks the requested version before querying its active rollout
+reservation in the same transaction. A PENDING or PROGRESSING reservation returns Conflict
+(HTTP 409); no champion transition, promotion record or audit event is committed. Rollout
+start uses the same version lock and the new `get_active_by_version` repository query. SQL
+uses the existing active-version index from migration 0021; no further migration is needed.
+The rollout's own successful promotion remains permitted. A completed/aborted reservation
+no longer blocks the normal manual promotion rules or already-champion idempotent replay.
+
+Two PostgreSQL connections test both orders while deliberately holding the winning version
+lock: rollout-first blocks then rejects manual promotion, while promotion-first completes
+before rollout start observes CHAMPION. The rollout path takes project/deployment locks
+before version lock; manual promotion takes only the version lock and does not subsequently
+request project/deployment locks.
+
+- Final lightweight suite: **419 passed, 5 skipped, 217 deselected**. Browser and SQL
+  parametrizations were excluded from this run.
+- Targeted promotion/model/rollout suites: **93 passed, 2 skipped**. The skipped cases are
+  memory variants of the two PostgreSQL concurrency tests.
+- Regression tests cover PENDING and PROGRESSING denial, stable champion preservation on
+  abort/failure, successful rollout promotion, terminal reservation release and manual replay.
+- Ruff and mypy (**183 source files**) passed. Native PostgreSQL was an isolated temporary
+  fixture; no Kubernetes cluster, Docker daemon or AWS resources were started or changed.
+- [ ] Live API/canary drill: promotion returns 409 during traffic shifting, failed canary
+  restores stable serving, and MLflow champion/candidate aliases follow the intended DB state.
+- [ ] Inspect pre-upgrade active CHAMPION rollouts: distinguish versions promoted before
+  rollout start from versions manually promoted mid-rollout by the old release. Existing
+  inconsistent champion/serving/alias state needs explicit review and repair; the guard does
+  not infer or rewrite historical promotion intent.
+
+### Remaining audit identity nuance
+
+`current_actor()` still records the display username. Reused usernames are authorization-safe
+but historical audit actors can be ambiguous. Add a separately persisted stable `actor_subject`
+while keeping the display actor, propagate it through audit API/export/recovery paths, and test
+rename/reuse across both bearer and browser flows. Do not backfill old username-only events
+by resolving today's username owner; retain unknown identity where no trusted mapping exists.
+This metadata enhancement remains pending and is not part of the promotion fix.

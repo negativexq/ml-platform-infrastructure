@@ -609,6 +609,12 @@ class PromotionService:
 
     def promote(self, version_id: UUID) -> VersionView:
         with self._uow_factory() as uow:
+            if uow.model_versions.lock(version_id) is None:
+                raise NotFound("model version", version_id)
+            if uow.rollouts.get_active_by_version(version_id) is not None:
+                raise Conflict(
+                    "model version has an active rollout; promotion is decided by the rollout"
+                )
             promote_version(uow, version_id, self._clock())
             uow.commit()
             return ModelService._version_view(uow, version_id)

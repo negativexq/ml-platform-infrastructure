@@ -276,6 +276,9 @@ class RolloutRepository(Protocol):
     def get_active(self, deployment_id: UUID) -> Rollout | None:
         """The PENDING or PROGRESSING rollout of a deployment, if any."""
 
+    def get_active_by_version(self, version_id: UUID) -> Rollout | None:
+        """The active reservation for a model version, if any."""
+
     def list(self, deployment_id: UUID) -> Sequence[Rollout]:
         """Newest first."""
 

@@ -738,6 +738,16 @@ class _Rollouts:
             None,
         )
 
+    def get_active_by_version(self, version_id: UUID) -> Rollout | None:
+        return next(
+            (
+                r
+                for r in self._data.values()
+                if r.model_version_id == version_id and not r.is_terminal
+            ),
+            None,
+        )
+
     def list(self, deployment_id: UUID) -> Sequence[Rollout]:
         return sorted(
             (r for r in self._data.values() if r.deployment_id == deployment_id),

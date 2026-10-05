@@ -101,7 +101,7 @@ class RolloutService:
             candidate = uow.model_versions.lock(revision.model_version_id)
             if candidate is None or candidate.status not in DEPLOYABLE:
                 raise Conflict("model version is no longer deployable")
-            if any(r.model_version_id == candidate.id for r in uow.rollouts.list_active()):
+            if uow.rollouts.get_active_by_version(candidate.id) is not None:
                 raise Conflict("this model version already has a rollout in progress")
             now = self._clock()
             rollout = Rollout(
