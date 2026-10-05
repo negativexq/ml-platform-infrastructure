@@ -1,0 +1,190 @@
+{{- $name := include "controlplane.name" . }}
+{{- $reconciler := printf "system:serviceaccount:%s:%s-reconciler" .Release.Namespace $name }}
+{{- $prefix := printf "%s-%s" .Release.Namespace $name }}
+# Match the actor, not editable object/namespace selectors. Foreign namespaces must deny.
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: {{ $prefix }}-namespace-owner
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [""]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE, DELETE]
+        resources: [namespaces, namespaces/status]
+  matchConditions:
+    - name: reconciler
+      expression: "request.userInfo.username == '{{ $reconciler }}'"
+  variables:
+    - name: target
+      expression: "request.operation == 'DELETE' ? oldObject : object"
+  validations:
+    - expression: >-
+        variables.target.metadata.name.startsWith('mlp-') &&
+        has(variables.target.metadata.labels) &&
+        'app.kubernetes.io/managed-by' in variables.target.metadata.labels &&
+        variables.target.metadata.labels['app.kubernetes.io/managed-by'] == 'mlp-controlplane' &&
+        'mlp.io/project-id' in variables.target.metadata.labels &&
+        variables.target.metadata.labels['mlp.io/project-id'].matches('^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$') &&
+        'mlp.io/project' in variables.target.metadata.labels &&
+        variables.target.metadata.name == 'mlp-' + variables.target.metadata.labels['mlp.io/project']
+      message: reconciler may manage only owned mlp project namespaces
+    - expression: >-
+        request.operation == 'CREATE' ||
+        (oldObject != null && has(oldObject.metadata.labels) &&
+        ['app.kubernetes.io/managed-by', 'mlp.io/project-id', 'mlp.io/project'].all(k,
+          k in oldObject.metadata.labels && k in variables.target.metadata.labels &&
+          oldObject.metadata.labels[k] == variables.target.metadata.labels[k]))
+      message: reconciler cannot adopt foreign namespaces or change project ownership
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: {{ $prefix }}-namespace-owner
+spec:
+  policyName: {{ $prefix }}-namespace-owner
+  validationActions: [Deny]
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: {{ $prefix }}-project-writes
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: ['*']
+        apiVersions: ['*']
+        operations: [CREATE, UPDATE, DELETE]
+        resources: ['*/*']
+        scope: Namespaced
+  matchConditions:
+    - name: reconciler
+      expression: "request.userInfo.username == '{{ $reconciler }}'"
+  variables:
+    - name: target
+      expression: "request.operation == 'DELETE' ? oldObject : object"
+  validations:
+    - expression: >-
+        (request.resource.group == 'coordination.k8s.io' && request.resource.resource == 'leases' &&
+        request.namespace == '{{ .Release.Namespace }}' &&
+        variables.target.metadata.name == '{{ $name }}-reconciler' &&
+        request.operation in ['CREATE', 'UPDATE']) ||
+        (request.namespace.startsWith('mlp-') && namespaceObject != null &&
+        has(namespaceObject.metadata.labels) &&
+        'app.kubernetes.io/managed-by' in namespaceObject.metadata.labels &&
+        namespaceObject.metadata.labels['app.kubernetes.io/managed-by'] == 'mlp-controlplane' &&
+        'mlp.io/project-id' in namespaceObject.metadata.labels &&
+        namespaceObject.metadata.labels['mlp.io/project-id'].matches('^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$') &&
+        'mlp.io/project' in namespaceObject.metadata.labels &&
+        request.namespace == 'mlp-' + namespaceObject.metadata.labels['mlp.io/project'])
+      message: reconciler writes require an owned project namespace or its exact control-plane Lease
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: {{ $prefix }}-project-writes
+spec:
+  policyName: {{ $prefix }}-project-writes
+  validationActions: [Deny]
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: {{ $prefix }}-project-rbac
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [rbac.authorization.k8s.io]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE, DELETE]
+        resources: [rolebindings]
+        scope: Namespaced
+  matchConditions:
+    - name: reconciler
+      expression: "request.userInfo.username == '{{ $reconciler }}'"
+  variables:
+    - name: target
+      expression: "request.operation == 'DELETE' ? oldObject : object"
+  validations:
+    - expression: >-
+        has(variables.target.metadata.labels) &&
+        'mlp.io/project-id' in variables.target.metadata.labels &&
+        variables.target.metadata.labels['mlp.io/project-id'] == namespaceObject.metadata.labels['mlp.io/project-id'] &&
+        'app.kubernetes.io/managed-by' in variables.target.metadata.labels &&
+        variables.target.metadata.labels['app.kubernetes.io/managed-by'] == 'mlp-controlplane'
+      message: project RBAC objects must carry matching project ownership
+    - expression: >-
+        (variables.target.roleRef.apiGroup == 'rbac.authorization.k8s.io' &&
+        has(variables.target.subjects) && size(variables.target.subjects) == 1 &&
+        variables.target.subjects.all(s, s.kind == 'ServiceAccount' &&
+          (!has(s.apiGroup) || s.apiGroup == '') &&
+          ((variables.target.metadata.name == 'mlp-api-secrets' &&
+            variables.target.roleRef.kind == 'ClusterRole' &&
+            variables.target.roleRef.name == '{{ $prefix }}-project-secrets' &&
+            s.name == '{{ $name }}-api' && s.namespace == '{{ .Release.Namespace }}') ||
+           (variables.target.metadata.name == 'mlp-api-workload-reader' &&
+            variables.target.roleRef.kind == 'ClusterRole' &&
+            variables.target.roleRef.name == '{{ $prefix }}-project-workload-reader' &&
+            s.name == '{{ $name }}-api' && s.namespace == '{{ .Release.Namespace }}') ||
+           (variables.target.metadata.name == 'mlp-workflow-executor' &&
+            variables.target.roleRef.kind == 'Role' &&
+            variables.target.roleRef.name == 'mlp-workflow-executor' &&
+            s.name == 'mlp-workload' && s.namespace == request.namespace))))
+      message: reconciler RoleBindings require exact names, role references and service account subjects
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: {{ $prefix }}-project-rbac
+spec:
+  policyName: {{ $prefix }}-project-rbac
+  validationActions: [Deny]
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicy
+metadata:
+  name: {{ $prefix }}-workflow-role
+spec:
+  failurePolicy: Fail
+  matchConstraints:
+    resourceRules:
+      - apiGroups: [rbac.authorization.k8s.io]
+        apiVersions: [v1]
+        operations: [CREATE, UPDATE, DELETE]
+        resources: [roles]
+        scope: Namespaced
+  matchConditions:
+    - name: reconciler
+      expression: "request.userInfo.username == '{{ $reconciler }}'"
+  variables:
+    - name: target
+      expression: "request.operation == 'DELETE' ? oldObject : object"
+  validations:
+    - expression: >-
+        has(variables.target.metadata.labels) &&
+        'mlp.io/project-id' in variables.target.metadata.labels &&
+        variables.target.metadata.labels['mlp.io/project-id'] == namespaceObject.metadata.labels['mlp.io/project-id'] &&
+        'app.kubernetes.io/managed-by' in variables.target.metadata.labels &&
+        variables.target.metadata.labels['app.kubernetes.io/managed-by'] == 'mlp-controlplane'
+      message: project RBAC objects must carry matching project ownership
+    - expression: >-
+        (variables.target.metadata.name == 'mlp-workflow-executor' &&
+        has(variables.target.rules) && size(variables.target.rules) == 1 &&
+        variables.target.rules.all(r,
+          r.apiGroups == ['argoproj.io'] && r.resources == ['workflowtaskresults'] &&
+          r.verbs == ['create', 'patch'] &&
+          (!has(r.resourceNames) || size(r.resourceNames) == 0) &&
+          (!has(r.nonResourceURLs) || size(r.nonResourceURLs) == 0)))
+      message: reconciler may create only the exact workflow executor Role
+---
+apiVersion: admissionregistration.k8s.io/v1
+kind: ValidatingAdmissionPolicyBinding
+metadata:
+  name: {{ $prefix }}-workflow-role
+spec:
+  policyName: {{ $prefix }}-workflow-role
+  validationActions: [Deny]

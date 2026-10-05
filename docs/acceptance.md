@@ -176,3 +176,34 @@ after canary/rollback, then delete the deployment. Wait for KServe disappearance
 platform DELETED; verify only that deployment's owned storage accounts disappear and
 other deployment/foreign accounts remain. Retry a cleanup conflict/outage and verify
 it is not marked DELETED prematurely. These live drills remain pending.
+
+## Reconciler admission enforcement
+
+Offline, with Helm and Go 1.23+ (dependencies pinned in `scripts/admission-cel/go.sum`):
+
+```bash
+make cp-admission-check
+```
+
+The gate evaluates the actual rendered CEL using cel-go. Allowed namespace provisioning,
+project bindings/repair/deletion, exact workflow Role and Lease writes pass. Direct-SA
+fixtures reject foreign namespaces/provider writes, ownership adoption/removal/change,
+wrong binding name/roleRef/subject and extra subjects. These are CEL expression and chart
+contracts, not Kubernetes structural-schema type checking or live admission evidence.
+
+On a deployed 0.2.0 chart, with a preexisting owned project:
+
+```bash
+python scripts/controlplane_admission_check.py --context <context> \
+  --release mlp --system-namespace mlp-system --project-namespace mlp-<project>
+```
+
+This reads all four policies/bindings, requires current observed generations and completed
+zero-warning type checks, and impersonates the reconciler for nine server dry runs.
+It checks allowed owned binding repair and denial of alternate subjects/names, extra
+subjects, foreign bindings/provider writes, ownership changes and foreign label forgery.
+Dry runs persist nothing. Denied operations must report the expected release's policy;
+RBAC denial, network failure, bad fixtures and unrelated policies are gate failures.
+CPU acceptance invokes this gate during its project/RBAC phase. Live admission enforcement
+has not been run in this RAM-constrained batch; record context, Kubernetes version,
+source SHA, command output and policy status when executing it.

@@ -425,3 +425,14 @@ Admission enforcement is still open. Namespace-label-only protection would be by
 with existing namespace patch permissions; cluster-wide workflow/serving creation also
 remains privileged. See the explicit
 [trust-boundary contract](operations.md#reconciler-provisioning-trust-boundary).
+
+### Admission enforcement implementation
+
+Chart 0.2.0 closes the previously documented provisioning-write path with four native
+fail-closed policies: namespace ownership cannot be forged/adopted by the reconciler,
+all its namespaced mutations require project ownership (except its exact control-plane
+Lease), and Role/RoleBinding shape and subjects are constrained. Policies are always
+rendered and Kubernetes 1.30+ is required. Actual CEL fixture tests include allowed
+provisioning/repair and direct compromised-SA requests. A live server dry-run gate is
+included in CPU acceptance. No policy was deployed to a cluster in this batch; live
+controller type checking and direct-SA denial evidence remains a release gate.

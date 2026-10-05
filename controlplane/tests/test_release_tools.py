@@ -158,3 +158,64 @@ def test_missing_scan_tool_fails_before_build_or_fixture_creation(tmp_path: Path
             release.check("image:release", "postgres:test", tmp_path / "report", True)
         run.assert_not_called()
     assert not json.loads((tmp_path / "report/report.json").read_text())["passed"]
+
+
+@pytest.mark.parametrize("failure", ["rbac", "network", "wrong-policy", "wrong-binding", "none"])
+def test_admission_live_gate_requires_policy_denial_and_never_persists(failure: str) -> None:
+    admission = load("controlplane_admission_check")
+    prefix = "mlp-system-test-controlplane"
+    labels = {
+        "app.kubernetes.io/managed-by": "mlp-controlplane",
+        "mlp.io/project-id": "00000000-0000-0000-0000-000000000001",
+        "mlp.io/project": "team",
+    }
+    calls: list[list[str]] = []
+
+    def fake(args: list[str], **kwargs: Any) -> subprocess.CompletedProcess[str]:
+        calls.append(args)
+        if args[3] == "get":
+            resource = args[4]
+            if resource.startswith("validatingadmissionpolicy/"):
+                body = {
+                    "metadata": {"generation": 1},
+                    "spec": {"failurePolicy": "Fail"},
+                    "status": {"observedGeneration": 1, "typeChecking": {}},
+                }
+            elif resource.startswith("validatingadmissionpolicybinding/"):
+                body = {
+                    "spec": {"policyName": resource.split("/")[1], "validationActions": ["Deny"]}
+                }
+            elif resource.startswith("namespace/"):
+                body = {"metadata": {"name": resource.split("/")[1], "labels": dict(labels)}}
+            else:
+                body = {
+                    "metadata": {"name": "mlp-api-secrets", "labels": dict(labels)},
+                    "subjects": [{"kind": "ServiceAccount", "name": "test-controlplane-api"}],
+                }
+            return subprocess.CompletedProcess(args, 0, stdout=json.dumps(body), stderr="")
+        assert "--dry-run=server" in args and "--as" in args
+        target = json.loads(kwargs["input"])
+        if target == {
+            "metadata": {"name": "mlp-api-secrets", "labels": labels},
+            "subjects": [{"kind": "ServiceAccount", "name": "test-controlplane-api"}],
+        }:
+            return subprocess.CompletedProcess(args, 0, stdout="ok", stderr="")
+        error = {
+            "rbac": "Forbidden: cannot create rolebindings",
+            "network": "Connection refused",
+            "wrong-policy": "ValidatingAdmissionPolicy 'unrelated' denied request",
+            "wrong-binding": (
+                f"ValidatingAdmissionPolicy 'unrelated' with binding '{prefix}-project-rbac' "
+                "denied request"
+            ),
+            "none": f"ValidatingAdmissionPolicy '{prefix}-project-rbac' denied request",
+        }[failure]
+        return subprocess.CompletedProcess(args, 1, stdout="", stderr=error)
+
+    with patch.object(admission.subprocess, "run", side_effect=fake):
+        if failure == "none":
+            assert admission.verify("context", "test", "mlp-system", "mlp-team") == 9
+        else:
+            with pytest.raises(RuntimeError, match="policy-specific denial"):
+                admission.verify("context", "test", "mlp-system", "mlp-team")
+    assert all(args[3] == "get" or "--dry-run=server" in args for args in calls)

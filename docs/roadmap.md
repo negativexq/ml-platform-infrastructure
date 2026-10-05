@@ -186,11 +186,10 @@ prepared; these remain live gates until executed. See [acceptance.md](acceptance
 Logs/archive/streaming, operational cold-start metrics, exact tokenization, adversarial
 canary attribution, CNI isolation and GPU/Hub/private-registry failure drills remain open.
 
-### Reconciler admission boundary (open)
+### Reconciler admission boundary
 
-Namespace-scoped API grants do not contain a compromised cluster-wide reconciler.
-RoleBinding admission must restrict namespace ownership, roleRef, subject and binding
-name and protect namespace ownership labels against forgery. Cluster-wide workflow and
-serving writes also need a boundary; binding-only checks are insufficient for full
-containment. This hardening is not implemented. See
-[operations.md](operations.md#reconciler-provisioning-trust-boundary).
+Chart 0.2.0 adds always-on fail-closed native policies for namespace ownership,
+namespace-scoped provider writes, exact project RoleBindings/subjects and the workflow
+executor Role. Kubernetes 1.30+ is required. Rendered CEL tests and a server dry-run live
+gate are available; live cluster enforcement remains unverified until that gate runs.
+See [operations.md](operations.md#reconciler-provisioning-trust-boundary).

@@ -10,6 +10,7 @@ import os
 import re
 import secrets
 import subprocess
+import sys
 import time
 from collections.abc import Callable
 from dataclasses import asdict
@@ -136,7 +137,27 @@ def execute(args: argparse.Namespace) -> None:
                     )
                     if result.stdout.strip() != expected:
                         raise RuntimeError(f"API RBAC scope mismatch: {resource} in {ns}")
-            record(PHASES[0])
+            admission = subprocess.run(
+                [
+                    sys.executable,
+                    "scripts/controlplane_admission_check.py",
+                    "--context",
+                    args.context,
+                    "--release",
+                    args.release,
+                    "--system-namespace",
+                    args.system_namespace,
+                    "--project-namespace",
+                    namespace,
+                ],
+                capture_output=True,
+                text=True,
+                timeout=360,
+                check=False,
+            )
+            if admission.returncode:
+                raise RuntimeError("Reconciler admission boundary gate failed")
+            record(PHASES[0], admission_checked=True)
             pulls = []
             if args.registry_secret:
                 call(

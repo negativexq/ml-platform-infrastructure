@@ -54,9 +54,11 @@ namespaces. Neither project role has an API ClusterRoleBinding. The API's cluste
 role retains only namespace `get` for ownership checks. The reconciler can bind only the
 two named project roles and receives no Secret CRUD verbs; it remains a privileged
 namespace/RBAC provisioner. Application ownership checks still constrain API operations. The reconciler's cluster-wide
-RoleBinding writes plus named `bind` grants can indirectly grant Secret access outside
-project namespaces if that container is compromised. No admission boundary currently
-prevents this; see [the provisioning trust boundary](operations.md#reconciler-provisioning-trust-boundary).
+RoleBinding writes plus named `bind` grants would indirectly grant Secret access outside
+project namespaces without admission enforcement. Chart 0.2.0 now installs fail-closed
+policies enforcing owned namespaces and exact bindings/subjects, and preventing foreign
+namespace adoption. Apply the chart and pass its live admission gate before claiming the
+cluster is protected; see [the provisioning trust boundary](operations.md#reconciler-provisioning-trust-boundary).
 Existing READY projects acquire/repair the binding through drift reconciliation. A foreign
 binding is refused; API SA name/namespace and role name come from Helm configuration.
 Project operators can create workloads that reference secrets, and can consequently

@@ -117,7 +117,7 @@ reply = client.chat.completions.create(model="assistant-prod",
 | --- | --- |
 | Local cluster | `make local-up`: kind, Argo CD (GitOps), MLflow, PostgreSQL, MinIO, Prometheus, Grafana |
 | Database | `make cp-migrate`: Alembic migrations |
-| Control plane | `docker/controlplane/Dockerfile` and `helm/controlplane`: API, reconciler, gateway, migration Job and RBAC; prepared, runtime verification pending ([installation](docs/installation.md)) |
+| Control plane | `docker/controlplane/Dockerfile` and `helm/controlplane`: API, reconciler, gateway, migration Job, RBAC and fail-closed admission policies (Kubernetes 1.30+); prepared, runtime verification pending ([installation](docs/installation.md)) |
 | Gateway | Included in the control-plane chart; standalone example at `k8s/gateway/gateway.yaml` has Ingress/TLS and a topology-specific NetworkPolicy ([networking](docs/networking.md)) |
 | Identity | `k8s/identity/` (Keycloak), configured with `CP_OIDC_*` settings |
 | Observability | `make observability-up`: OpenTelemetry Collector, Tempo, dashboards, alerts |

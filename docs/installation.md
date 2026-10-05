@@ -187,3 +187,29 @@ Existing owned namespaces receive this binding through project drift reconciliat
 During upgrade, reads can briefly return Forbidden until the reconciler repairs bindings;
 verify them before accepting traffic. Do not restore cluster-wide workload read access.
 The only cluster-bound API permission left is namespace `get` for ownership checks.
+
+### Admission requirements (chart 0.2.0)
+
+Kubernetes **1.30+** and an enabled ValidatingAdmissionPolicy admission controller are
+required; unsupported versions fail Helm compatibility checks. The chart always installs
+four native policies and Deny bindings. No optional switch silently disables enforcement.
+The Helm installer needs cluster permissions to manage admission policies/bindings,
+separate from the reconciler runtime identity. Controllers/admins are exempt from these
+SA-specific policies. See
+[Kubernetes 1.30 policy GA](https://kubernetes.io/blog/2024/04/24/validating-admission-policy-ga/).
+
+After applying/upgrading the chart, wait for policy controller type checking, then run:
+
+```bash
+python scripts/controlplane_admission_check.py --context <context> \
+  --release mlp --system-namespace mlp-system --project-namespace mlp-<existing-project>
+```
+
+Use credentials that can read policy status and impersonate the reconciler. The gate
+uses server dry runs only, preserving the existing project. It fails for missing policies,
+wrong bindings, stale generation/type warnings and failures not caused by the expected
+policy. This proves admission activation beyond RBAC `can-i` checks; `can-i` does not
+execute admission. CPU acceptance includes the same check. Existing foreign or corrupted
+RBAC/namespace resources may need trusted-operator repair; the reconciler will not adopt
+them. Chart rollback/uninstall can remove enforcement; retain/review policies when
+rolling back to a pre-0.2.0 release and rerun the gate.

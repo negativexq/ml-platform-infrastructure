@@ -181,39 +181,53 @@ both image versions before release; offline DDL alone does not prove this contra
 
 ## Reconciler provisioning trust boundary
 
-The API's Secret/workload bindings are namespace-scoped, but the reconciler remains a
-trusted cluster-wide provisioner. Its ClusterRole grants RoleBinding mutations throughout
-the cluster and `bind` on the two named project ClusterRoles. A compromised reconciler
-can therefore create a RoleBinding for either role in a foreign namespace, with an
-attacker-selected subject. It has no direct Secret CRUD, but these combined permissions
-can grant that access indirectly. This is an inference from the chart's rules and
-[Kubernetes binding authorization](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#restrictions-on-role-binding-creation-or-update),
-not an executed compromise test. No ValidatingAdmissionPolicy, Gatekeeper or Kyverno
-constraint currently enforces the provisioning boundary in this repository.
+Chart 0.2.0 installs four always-on native `admissionregistration.k8s.io/v1`
+ValidatingAdmissionPolicies with `failurePolicy: Fail` and `validationActions: [Deny]`.
+They require Kubernetes 1.30+ with the ValidatingAdmissionPolicy admission controller
+active. Policies match the exact Helm reconciler ServiceAccount username, across all
+namespaces, without editable namespace/object selectors:
 
-Future admission enforcement must apply to reconciler RoleBinding writes in **all**
-namespaces, denying foreign namespaces rather than matching only managed ones. Require
-`mlp-*` names and trusted namespace ownership, exact binding names, roleRef and subjects:
-`mlp-api-secrets` / project-secrets and `mlp-api-workload-reader` / project-workload-reader,
-each with only the configured API ServiceAccount in the control-plane namespace. Preserve
-legitimate workload-executor and control-plane Lease bindings through explicit rules.
-Validate updates and deletion as well as creation, using oldObject where appropriate.
+- `namespace-owner`: namespace create/update/delete requires `mlp-<project>`, platform
+  managed-by, a UUID project ID and matching project name. Existing ownership labels
+  must be preserved; an unowned namespace cannot be adopted or relabelled by this SA.
+- `project-writes`: all namespaced reconciler mutations, including subresources and
+  workflow/serving/ServiceAccount writes, require a consistently owned project namespace.
+  The only foreign-namespace exception is create/update of its exact leader Lease in
+  the control-plane namespace. Foreign provider writes cannot bypass binding checks.
+- `project-rbac`: API Secret/workload-reader RoleBindings require their exact names,
+  ClusterRole references, matching ownership labels and a single configured API SA
+  subject in the control-plane namespace. The workflow executor binding instead names
+  only the project-local workload SA and exact executor Role. Arbitrary subjects, extra
+  subjects and alternate binding names are rejected. Updates can repair a drifted
+  subject; deletion validates oldObject.
+- `workflow-role`: reconciler Role writes permit only the exact workflowtaskresults
+  create/patch executor Role and project ownership labels.
 
-The actual ownership label is `app.kubernetes.io/managed-by=mlp-controlplane`, alongside
-`mlp.io/project-id`; there is no `mlp.io/managed-by` label. Label-only selection is not a
-security boundary because the reconciler also has namespace patch/update permission.
-Protect existing ownership labels and reject foreign namespace mutation/creation by the
-reconciler as part of the same admission contract. The
-[Kubernetes admission tutorial](https://kubernetes.io/docs/tutorials/cluster-management/admission-policies/)
-explains why editable selector labels can bypass enforcement. Admission policy resources
-and their configuration must remain writable only by separately trusted operators.
+The shared Secret/workload ClusterRoles are still bound only in project namespaces.
+The reconciler's cluster-wide RoleBinding mutations plus named `bind` permission would
+allow foreign grants without these policies; see
+[Kubernetes binding authorization](https://kubernetes.io/docs/reference/access-authn-authz/rbac/#restrictions-on-role-binding-creation-or-update).
+No direct Secret CRUD was added. Its existing cluster-wide read permissions remain.
+A compromised reconciler can still disrupt or create workloads inside owned projects;
+this boundary protects foreign namespaces, not individual projects from that provisioner.
+Policies, bindings and installer credentials remain separately trusted: the reconciler
+has no permission to edit admission configuration or ClusterRoleBindings. Administrator
+and controller requests are not restricted by these reconciler-specific policies.
 
-Binding checks alone do not sandbox the entire reconciler: it can also create workflows
-and serving resources cluster-wide, potentially referencing credentials in foreign
-namespaces. A full compromise boundary requires restricting those provider writes and
-service account references too, or moving provisioning to a separately trusted component.
-Live negative tests must cover direct SA impersonation, foreign namespace writes, forged
-ownership labels, alternate subjects/binding names and allowed project drift repair.
+The ownership label is `app.kubernetes.io/managed-by=mlp-controlplane` with
+`mlp.io/project-id` and `mlp.io/project`. Label-only selection would be bypassable with
+namespace patch permission; the namespace policy prevents that adoption/ownership change.
+See [Validating Admission Policy](https://kubernetes.io/docs/reference/access-authn-authz/validating-admission-policy/).
+No Gatekeeper/Kyverno deployment is required. Helm installs the policy resources; actual
+protection depends on applying this chart and passing the live gate on the target cluster.
+
+`make cp-admission-check` requires Helm and Go 1.23+ and evaluates actual rendered CEL
+with a pinned Go CEL engine; it does not start a cluster. The live gate checks controller
+observed generations/type-check warnings and server-side dry-run operations with SA
+impersonation. CPU acceptance runs it after project provisioning; the operator must be
+allowed to impersonate the reconciler. Connection, RBAC, malformed fixture and unrelated
+policy errors fail the gate rather than being mistaken for a successful denial. See
+[acceptance.md](acceptance.md#reconciler-admission-enforcement).
 
 Model alias passes heartbeat between classic models, including after a failed MLflow
 operation, while retaining per-model drift reporting. Slow single-model operations remain

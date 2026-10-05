@@ -7,7 +7,7 @@
         local-up local-test local-down \
         tf-fmt tf-validate tf-lint tf-check \
         identity-up ui-install ui-build ui-api ui-dev cp-install cp-test cp-check cp-check-light cp-migrate cp-run cp-reconcile cp-gateway gateway-e2e cp-demo lock envtest-up envtest-down \
-        cp-docker-build cp-helm-lint cp-helm-template cp-http-test cp-bootstrap-help cp-release-check cp-limiter-check-help cp-recovery-check-help cp-cpu-acceptance-help
+        cp-docker-build cp-helm-lint cp-helm-template cp-http-test cp-bootstrap-help cp-release-check cp-admission-check cp-limiter-check-help cp-recovery-check-help cp-cpu-acceptance-help
 
 IMAGE ?= ml-platform-inference:dev
 
@@ -215,6 +215,11 @@ cp-http-test:
 CP_RELEASE_OUT ?= /tmp/mlp-release-check
 cp-release-check:
 	python scripts/controlplane_release_check.py --build --image $(CP_IMAGE) --out $(CP_RELEASE_OUT)
+
+cp-admission-check:
+	go version >/dev/null
+	helm version --short >/dev/null
+	pytest controlplane/tests/test_admission_policy.py -s
 
 cp-cpu-acceptance-help:
 	python scripts/controlplane_cpu_acceptance.py --help

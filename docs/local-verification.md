@@ -856,3 +856,31 @@ in foreign namespaces. Admission enforcement is absent. Ownership selector label
 also editable by the reconciler. The remaining trust boundary and proposed enforcement
 contract are documented in [operations.md](operations.md#reconciler-provisioning-trust-boundary);
 no live attack/denial test was performed.
+
+## Reconciler admission enforcement (2026-10-05)
+
+Chart 0.2.0 always renders four native fail-closed policies and Deny bindings. It requires
+Kubernetes 1.30+. No running cluster, Docker or PostgreSQL fixture was started/changed.
+
+- Final lightweight suite: **382 passed, 5 skipped, 184 deselected**. Ruff and mypy
+  (**182 source files**) passed; native CEL helper `go vet` passed.
+- `make cp-admission-check`: **165 actual rendered CEL cases passed**, covering namespace
+  provisioning/immutable ownership, forbidden foreign writes and label forgery, exact
+  API/workload executor binding shapes, updates/deletes, subject repair and Lease writes.
+- Live-gate orchestration tests reject RBAC/network errors and unrelated policy denials,
+  including an unrelated policy with a matching release binding name. All writes use
+  `--dry-run=server`; no fixture is persisted. CLI help passed.
+- Helm default/local lint passed; kubeconform default **29 valid**, production with
+  synthetic site overrides **33 valid**, zero invalid/errors/skips. Kubernetes 1.29
+  compatibility rejection passed. Default and local profiles both include the policies.
+- The first broad run encountered the existing real-HTTP streaming-disconnect test's
+  timing failure; its isolated rerun and subsequent full suites passed. No gateway code
+  changed in this batch.
+
+CEL tests use a pinned Go engine with dynamic fixture types; they do not prove Kubernetes
+structural-schema type checking or admission activation. The new live gate requires
+current policy observed generations and completed zero-warning type checks, verifies
+bindings, then checks nine allowed/denied operations by impersonating the reconciler.
+It is also called from CPU acceptance after project provisioning. Running it on the
+installed chart remains required for actual cluster enforcement evidence; see
+[acceptance.md](acceptance.md#reconciler-admission-enforcement).
