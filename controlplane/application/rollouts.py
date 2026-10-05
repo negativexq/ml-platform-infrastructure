@@ -8,7 +8,12 @@ from datetime import datetime
 from uuid import UUID
 
 from controlplane.application.context import current_traceparent
-from controlplane.application.deployments import DeploymentService
+from controlplane.application.deployments import (
+    DeploymentService,
+    check_gpus,
+    held_gpus,
+    lock_project,
+)
 from controlplane.application.identity import current_actor
 from controlplane.application.jobs import resolve_project
 from controlplane.application.ports import UnitOfWork
@@ -71,7 +76,7 @@ class RolloutService:
             project_ref, deployment_name, model_name, version
         )
         with self._uow_factory() as uow:
-            project = resolve_project(uow, project_ref)
+            project = lock_project(uow, resolve_project(uow, project_ref))
             deployment = uow.deployments.get_by_name(project.id, deployment_name)
             assert deployment is not None
             deployment = uow.deployments.lock(deployment.id)
@@ -84,6 +89,7 @@ class RolloutService:
                     f"deployment {deployment_name!r} is {deployment.status.value}; "
                     "a canary needs a READY deployment with a stable revision"
                 )
+            check_gpus(uow, project, deployment, held_gpus(uow, deployment, revision))
             stable = deployment.active_revision
             if deployment.desired_revision != stable:
                 raise Conflict("the deployment is still converging on its desired revision")
@@ -130,7 +136,7 @@ class RolloutService:
 
     def list(self, project_ref: str, deployment_name: str) -> Sequence[RolloutView]:
         with self._uow_factory() as uow:
-            project = resolve_project(uow, project_ref)
+            project = lock_project(uow, resolve_project(uow, project_ref))
             deployment = uow.deployments.get_by_name(project.id, deployment_name)
             if deployment is None:
                 raise NotFound("deployment", deployment_name)

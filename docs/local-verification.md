@@ -16,8 +16,8 @@ start pods; those results do not establish Argo, KServe, CNI or GPU behavior.
 
 **Not yet verified:** anything that runs a pod, Argo Workflows, KServe or a CNI.
 
-The image and Helm chart source is now prepared; build/runtime checks and dependency
-bootstrap remain open. See [installation.md](installation.md), [networking.md](networking.md)
+The image/chart and pinned offline bootstrap source are prepared; actual image builds,
+cluster installation and runtime checks remain open. See [installation.md](installation.md), [networking.md](networking.md)
 and [roadmap.md](roadmap.md).
 
 ---
@@ -640,7 +640,7 @@ kubectl apply -f k8s/gateway/gateway.yaml   # after setting the host, the issuer
 | 2 | Through the ingress with TLS: `curl https://<host>/v1/<project>/<endpoint>/predict -H 'Authorization: Bearer <key>'` gives the model's answer | **you**: needs the ingress controller and cert-manager |
 | 3 | The gateway reaches KServe at the endpoint's in-cluster URL (`/v2/models/<name>/infer`) through Knative's local gateway | **you**: KServe Serverless; the NetworkPolicy allows `kourier-system`, `istio-system`, `knative-serving` and the project namespaces |
 | 4 | A long answer is streamed, not buffered | **you**: `proxy-buffering: off` on the ingress; matters for LLM endpoints later |
-| 5 | Two replicas: the effective limit is up to twice the configured one (per-replica buckets) | **you**: accept, or add a shared store behind the `RateLimiter` port |
+| 5 | Two production replicas share PostgreSQL capacity, including concurrent reservations and restarts | **you**: live PostgreSQL/replica acceptance; demo/explicit memory mode remains per process |
 | 6 | Prometheus scrapes `mlp_gateway_*` (OTLP → Collector → Prometheus), the usage panel and Monitor show data, `GatewayHighErrorRate` fires when the model is scaled to zero with no activator | **you** |
 | 7 | A client-credentials token from Keycloak with the invoker role is accepted, without the role 403 | **you**: same issuer settings as the API |
 
@@ -750,3 +750,37 @@ No PostgreSQL server, browser, Docker runtime or cluster was started for this ba
   and waiting for the backend with the new apply ID.
 
 Live checks and rotation/recovery limitations are recorded in [secrets.md](secrets.md).
+
+## Shared budgets, discovery and release preparation (2026-10-05)
+
+This batch started no Docker, cluster, PostgreSQL or browser processes. Tests briefly
+started two native loopback HTTP servers, then stopped them; SQLite was used for local
+shared-limiter concurrency. Live-system checks below remain pending.
+
+- Final lightweight suite: **354 passed, 5 skipped, 181 deselected**. PostgreSQL/browser
+  variants were deliberately excluded; skipped provider gates remain pending.
+- Ruff passed; mypy passed for 168 source files.
+- UI TypeScript/production build passed; the existing >500 KB bundle warning remains.
+- Native HTTP tests cover function forwarding, LLM JSON/SSE, first-event streaming,
+  concurrent reservations, usage refunds, missing usage and peer disconnection.
+- Shared SQLite bucket tests cover two instances, concurrent callers, atomic composite
+  admission, debt/refunds and restart persistence. These do not prove PostgreSQL locking.
+- Maximum-replica GPU/transition quota tests and full Hub SHA validation passed. Hub
+  fixtures are synthetic; no weights were downloaded or GPU workloads started.
+- Scoped pipeline discovery retries, durable completion and stale retention updates
+  passed with the memory backend; PostgreSQL variants were excluded for RAM.
+- Secret role/catalog/reference tests passed; browser interaction and private-image
+  pulls/rotation remain untested in this batch.
+- Bootstrap tests cover offline preparation, immutable inputs, tampered caches and
+  dirty-checkout rejection before cluster writes. All nine cached dependencies passed
+  SHA-256 verification; KServe CRD OCI pull by digest was also verified.
+- Helm lint and default rendering passed; kubeconform validated 14 chart resources.
+  The locally prepared bootstrap render also validates; installer shell syntax passes.
+  The preview uses a placeholder image and a dirty checkout, so it cannot be installed.
+- PostgreSQL offline DDL rendered through head `0019`; ORM/backup inventory contains
+  19 durable tables. Live migration/backup/restore was not run.
+
+Remaining gates: real PostgreSQL migrations/locking/outages, image build and four process
+commands, pinned dependency installation on the target Kubernetes version, CNI/RBAC,
+real CPU/GPU/TLS serving and canary/rollback, workload credential rotation/private pulls,
+UI browser acceptance and recovery drills. See [roadmap.md](roadmap.md).

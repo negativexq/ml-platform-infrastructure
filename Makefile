@@ -7,7 +7,7 @@
         local-up local-test local-down \
         tf-fmt tf-validate tf-lint tf-check \
         identity-up ui-install ui-build ui-api ui-dev cp-install cp-test cp-check cp-check-light cp-migrate cp-run cp-reconcile cp-gateway gateway-e2e cp-demo lock envtest-up envtest-down \
-        cp-docker-build cp-helm-lint cp-helm-template
+        cp-docker-build cp-helm-lint cp-helm-template cp-http-test cp-bootstrap-help
 
 IMAGE ?= ml-platform-inference:dev
 
@@ -205,9 +205,15 @@ cp-check:
 	pytest controlplane/tests -p no:warnings
 
 cp-check-light:
-	ruff check controlplane scripts/controlplane_backup.py
-	mypy controlplane scripts/controlplane_backup.py
+	ruff check controlplane scripts/controlplane_backup.py scripts/controlplane_bootstrap.py
+	mypy controlplane scripts/controlplane_backup.py scripts/controlplane_bootstrap.py
 	pytest controlplane/tests --ignore=controlplane/tests/test_ui.py --ignore=controlplane/tests/test_ui_auth.py --ignore=controlplane/tests/test_persistence_pg.py -k 'not sql' -p no:warnings
+
+cp-http-test:
+	pytest controlplane/tests/test_gateway_http.py -p no:warnings
+
+cp-bootstrap-help:
+	python scripts/controlplane_bootstrap.py --help
 
 cp-migrate:
 	python -m controlplane.persistence.migrate upgrade

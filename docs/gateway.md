@@ -93,7 +93,7 @@ for chunk in client.chat.completions.create(model="assistant-prod", stream=True,
   byte-based prompt estimate plus a bounded output cap in both endpoint and caller buckets.
   The default output cap is at most 256; callers can supply positive `max_tokens` or
   `max_completion_tokens`. Completed valid usage refunds unused units; an overrun is debt.
-  This is an estimate, not an exact tokenizer or a limit shared across replicas.
+  The estimate is not an exact tokenizer; production reservations are shared across replicas.
 * **Defaults.** A new LLM endpoint starts at 20,000 tokens per minute, a 512 KB body and a
   120-second timeout. An admin changes them like any limits; a key's own limit is in tokens
   too.
@@ -150,8 +150,17 @@ Two token buckets per call, both of which must have room:
 * **The endpoint's limit**, for all callers together, protects the model.
 * **The caller's limit**, a key's own or else the endpoint's, gives each caller a fair share.
 
-The buckets live in each gateway replica's memory, so N replicas allow up to N times the
-configured rate. The `RateLimiter` port takes a shared store (Redis) when that matters.
+Production defaults to `CP_GATEWAY_LIMIT_STORE=postgres`: the existing control-plane
+database stores buckets, debt and reservations across gateway replicas/restarts. Both
+buckets are locked in stable order and updated atomically using database time. Backend
+errors return a redacted 503 before forwarding; lock/statement waits are bounded.
+Settlement failures retain the reservation and log a generic warning. Bucket rows currently
+have no automatic expiry; include their growth in database maintenance. Demo mode and an
+explicit `memory` setting use per-process buckets, so additional replicas multiply capacity.
+
+`make cp-http-test` uses native HTTP servers to check function forwarding, JSON/streaming
+chat, concurrent reservation, missing usage and peer disconnection. It starts no PostgreSQL,
+Docker or cluster; real ingress/TLS and GPU acceptance remain pending.
 
 ## Running it
 

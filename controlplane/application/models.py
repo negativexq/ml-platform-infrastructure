@@ -214,7 +214,9 @@ class ModelService:
 
     # -- versions -----------------------------------------------------------
 
-    def discover(self, project_ref: str, name: str) -> DiscoveryResult:
+    def discover(
+        self, project_ref: str, name: str, *, pipeline_run_id: UUID | None = None
+    ) -> DiscoveryResult:
         """Register the registry's versions the platform has not seen yet.
         Idempotent: a version already known (by registry reference) is never duplicated."""
         if self._experiments is None:
@@ -228,6 +230,8 @@ class ModelService:
         existing = 0
         for registered in found:
             lineage = self._lineage(registered.run_ref)
+            if pipeline_run_id is not None and lineage != pipeline_run_id:
+                continue
             for _ in range(3):  # a concurrent discover can take our version number
                 try:
                     version, was_new = self._register(model, project, registered.ref, lineage)

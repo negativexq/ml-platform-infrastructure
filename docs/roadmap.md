@@ -19,7 +19,7 @@ Code fixes do not close the real-cluster gates below.
   then continue. Failed entities use process-local exponential backoff (5–300 seconds).
 - [Control-plane image and chart](installation.md) are prepared: API, gateway, single
   reconciler, RBAC, migration hook, Services and optional Ingresses. Image runtime checks,
-  dependency installation/bootstrap and live readiness/policy validation remain open.
+  pinned dependency/bootstrap bundles are prepared; live installation and readiness/policy validation remain open.
 - [Connectivity matrix](networking.md) and database/OIDC policy corrections are prepared;
   configurable serving ingress and workload egress policies are implemented; actual CNI
   tests remain open.
@@ -32,9 +32,9 @@ Code fixes do not close the real-cluster gates below.
 | --- | --- |
 | **Projects and access** | Projects with their own namespace and quota. OIDC sign-in for the browser (server-side PKCE, signed session cookie) and for bearer tokens. Project roles (`invoker` < `viewer` < `operator` < `admin`) for users and groups, plus platform admins. A fail-closed policy table and an audit trail |
 | **Training** | Jobs and pipeline DAGs on Argo Workflows. Retry, cancel and logs; step timelines and failure reasons. Lineage from a run to the model versions it produced |
-| **Models** | Versions from the MLflow registry, or for LLMs from the Hugging Face Hub. Thresholds and evaluation, promotion to champion, registry aliases kept in sync |
+| **Models** | Versions from the MLflow registry (including discovery after successful pipelines), or full-commit-pinned LLM versions from the Hugging Face Hub. Thresholds and evaluation, promotion to champion, registry aliases kept in sync |
 | **Serving** | Immutable revisions. Canary rollouts with gates (error rate, p95, minimum traffic) that roll back automatically. Manual rollback. Metrics and trends per revision |
-| **LLMs** | LLM models with GPU and context settings. Versions from the Hugging Face Hub, judged on offline results. KServe's Hugging Face runtime (vLLM) on GPUs. Per-project GPU quota, set by platform admins and checked on deploy and canary. In the UI: model and hub forms with verdict previews, a chat playground, OpenAI snippets, token usage per caller, and GPU quota and use |
+| **LLMs** | LLM models with GPU and context settings. Versions from the Hugging Face Hub, judged on offline results. KServe's Hugging Face runtime (vLLM) on GPUs. Per-project GPU quota, set by platform admins and checked on deploy, rollback and canary using maximum replica capacity. In the UI: model and hub forms with verdict previews, a chat playground, OpenAI snippets, token usage per caller, and GPU quota and use |
 | **Gateway** | A separate service that makes endpoints public. Per-caller API keys, shown once and stored hashed. Limits per endpoint and per key: requests, or tokens for LLMs. Streaming, OpenAI-compatible chat completions, usage by caller. Ingress, TLS and NetworkPolicy manifests |
 | **Monitoring** | Monitor page (reconcilers, API, gateway, external systems). Grafana dashboard, 10 promtool-tested alerts, traces from request to reconciler |
 | **Functions** | The team's own container behind an endpoint. Versions are images, deployable at once, served by KServe on Knative with a replica range (scale to zero), concurrency and environment. Called at `POST …/invoke` with any JSON, through the gateway with keys and limits, with canaries and rollback like models |
@@ -42,13 +42,13 @@ Code fixes do not close the real-cluster gates below.
 
 ## Missing in the code
 
-### LLM end-to-end check
-- **`make gateway-e2e`:** add an LLM case (stream, token count, token limit) against a
-  stand-in OpenAI-compatible server.
+### Gateway acceptance
+- Native HTTP function/LLM tests cover streaming, usage refunds, concurrent reservations
+  and disconnects (`make cp-http-test`). Real ingress/TLS and GPU serving remain live gates.
 
 ### Functions
-- **Image pull secrets.** Private registries need a pull secret in each project namespace.
-  There is no per-project mechanism yet, so it is created by hand.
+- Private registry references are managed through project Secrets and registration selectors.
+  Actual image pulls and credential rotation still need a live workload check.
 - **Cold starts are not shown.** Neither the gateway nor the Monitor reports how often calls
   wait for a function to start.
 
@@ -67,7 +67,8 @@ Code fixes do not close the real-cluster gates below.
   - MLflow and S3 credentials for training steps.
   - The Hugging Face token (`mlp-hf-token`) for gated models.
 
-  Today all of these are created by hand.
+  Manage these with the project Secrets API/UI. Storage-initializer authentication still
+  needs its service-account/provider configuration; see [secrets.md](secrets.md).
 
 ## Not yet run against the real thing
 
@@ -94,8 +95,9 @@ Already verified for real here:
 
 ## Known limitations
 
-- **Rate limits are kept per gateway replica.** With N replicas, the real limit can be up to
-  N times the configured one. A shared store (Redis) behind the `RateLimiter` port fixes it.
+- **Production limits use shared PostgreSQL buckets.** Native concurrency tests pass;
+  cross-process PostgreSQL locking and outage behavior remain live acceptance gates.
+  Explicit `CP_GATEWAY_LIMIT_STORE=memory` and demo mode keep per-process budgets.
 - **Token admission uses estimates.** Missing usage and interrupted streams consume their
   reservation. A model-specific tokenizer is still needed for exact hard token ceilings.
 - **LLM evaluation uses results supplied at registration.** There is no built-in evaluation
@@ -103,10 +105,9 @@ Already verified for real here:
 - **Canary rollouts need `CP_PROMETHEUS_URL`.** Without it, they do not advance.
 - **Missing operations:**
   - no durable log archive or physical run-history purging;
-  - no log streaming;
-  - no automatic discovery of model versions after a pipeline run.
-- **`constraints/controlplane.txt` was edited by hand** (`httpx`). Regenerate it with
-  `make lock`.
+  - no log streaming.
+- Dependencies are regenerated for Linux/amd64 with pinned uv; deliberate upgrades and
+  image/runtime validation remain release work. See [installation.md](installation.md).
 - **AWS is designed in Terraform but has never been applied.**
 
 ## Next, in order
@@ -117,10 +118,10 @@ Already verified for real here:
    and real topology verification remain open.
 2. **Prove the CPU lifecycle:** project → training → model version → serving → gateway →
    canary/rollback → function scale-to-zero/reactivation, following `local-verification.md`.
-3. **Finish LLM verification:** add the stand-in HTTP streaming/token-limit e2e case, then
-   run GPU serving, real ingress/TLS streaming and quota gates when resources are available.
+3. **Finish LLM verification:** run GPU serving, real ingress/TLS streaming and
+   maximum-replica/canary quota gates when resources are available.
 4. **Production hardening:**
-   - a shared rate-limit store;
+   - shared PostgreSQL limiter concurrency/outage acceptance;
    - live acceptance checks for [project secrets](secrets.md), including rotation/restart and private-image pulls;
    - live deletion/retention and control-plane restore acceptance drills;
    - log streaming.
@@ -150,5 +151,20 @@ in project-owned Kubernetes Secrets; registration validates names/keys and immut
 workload revisions snapshot references. Rotation uses version checks, referenced deletion
 is protected, and secret values are excluded from API responses and audit payloads.
 Migration `0016` and live workload/rotation/recovery gates remain pending. See
-[secrets.md](secrets.md) for scope and limits. The remaining shared limiter, replica GPU
-accounting, Hub pinning, automatic discovery and bootstrap work is still open.
+[secrets.md](secrets.md) for scope and limits.
+
+### Shared budgets and release preparation
+
+Production gateway buckets now live in PostgreSQL (migration `0017`), with atomic
+endpoint/caller reservations. LLM GPU admission reserves per-replica GPUs multiplied by
+`max_scale`, including active/desired and canary overlap (migration `0018`). New Hub
+registrations require a full lowercase 40-character commit SHA.
+
+Successful pipeline runs trigger delayed, lineage-scoped MLflow discovery with durable
+checkpoints (migration `0019`); discovery does not evaluate or promote versions. Job/model
+forms select secret names and keys; Settings shows referencing definitions/revisions.
+
+Base-image/dependency pins, checksum-verified bootstrap bundles and manual-sync GitOps
+manifests are prepared. See [installation.md](installation.md). These code changes are
+locally verified; image builds, live migrations through `0019`, PostgreSQL concurrency,
+cluster installation, real GPU/TLS workloads and recovery drills remain pending.

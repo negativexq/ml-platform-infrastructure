@@ -106,7 +106,7 @@ def _predictor_model(spec: ServingSpec) -> dict[str, Any]:
     mem_request, mem_limit = LLM_MEMORY_PER_GPU_GI
     return {
         "modelFormat": {"name": "huggingface"},
-        "storageUri": spec.model_uri,
+        "storageUri": spec.model_uri.replace("@", ":", 1),
         "args": args,
         "env": _secret_env(spec)
         + (
@@ -155,6 +155,11 @@ def build_inference_service(spec: ServingSpec) -> dict[str, Any]:
         "spec": {
             "predictor": {
                 "serviceAccountName": SERVICE_ACCOUNT,
+                **(
+                    {"minReplicas": spec.min_scale, "maxReplicas": spec.max_scale}
+                    if spec.runtime == "huggingface"
+                    else {}
+                ),
                 **(
                     {"imagePullSecrets": [{"name": n} for n in spec.secret_refs.image_pull_secrets]}
                     if spec.secret_refs.image_pull_secrets

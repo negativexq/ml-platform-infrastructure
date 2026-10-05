@@ -10,6 +10,7 @@ from uuid import UUID
 from sqlalchemy import (
     Boolean,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -119,6 +120,12 @@ class PipelineRunRow(Base):
     __table_args__ = (
         UniqueConstraint("project_id", "idempotency_key", name="uq_pipeline_runs_idempotency_key"),
         Index("ix_pipeline_runs_status", "status"),
+        Index(
+            "ix_pipeline_runs_discovery",
+            "status",
+            "models_discovered_at",
+            "model_discovery_checked_at",
+        ),
         Index("ix_pipeline_runs_retention", "status", "workflow_cleaned_at", "finished_at"),
     )
 
@@ -138,6 +145,8 @@ class PipelineRunRow(Base):
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     workflow_cleaned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    models_discovered_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    model_discovery_checked_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class StepRunRow(Base):
@@ -168,6 +177,8 @@ class ModelRow(Base):
     kind: Mapped[str] = mapped_column(String(16), nullable=False, server_default="classic")
     llm_gpus: Mapped[int | None] = mapped_column(Integer)
     llm_context_length: Mapped[int | None] = mapped_column(Integer)
+    llm_min_scale: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
+    llm_max_scale: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
     function_settings: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     secret_refs: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, server_default="{}")
     created_at: Mapped[datetime] = _ts()
@@ -257,6 +268,8 @@ class DeploymentRevisionRow(Base):
     runtime: Mapped[str] = mapped_column(String(16), nullable=False, server_default="mlflow")
     gpus: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     context_length: Mapped[int | None] = mapped_column(Integer)
+    min_scale: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
+    max_scale: Mapped[int] = mapped_column(Integer, nullable=False, server_default="1")
     function_settings: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
     secret_refs: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, server_default="{}")
     created_at: Mapped[datetime] = _ts()
@@ -367,3 +380,11 @@ class NotificationReadRow(Base):
     username: Mapped[str] = mapped_column(String(200), primary_key=True)
     notification_id: Mapped[str] = mapped_column(String(64), primary_key=True)
     read_at: Mapped[datetime] = _ts()
+
+
+class GatewayRateBucketRow(Base):
+    __tablename__ = "gateway_rate_buckets"
+
+    name: Mapped[str] = mapped_column(Text, primary_key=True)
+    tokens: Mapped[float] = mapped_column(Float, nullable=False)
+    updated_at: Mapped[float] = mapped_column(Float, nullable=False)

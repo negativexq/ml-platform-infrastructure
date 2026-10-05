@@ -1,3 +1,4 @@
+import { secretRefsFromForm } from '../components/SecretRefsPicker';
 import { useState } from 'react';
 import { api, ApiError, enc, type S } from '../api/client';
 import { Badge, Empty, Table, Time } from '../components/bits';
@@ -35,14 +36,13 @@ export function ModelsPage({ project, functions = false }: { project: string; fu
       title: functions ? 'Register a function' : 'Register a model', submitLabel: 'Register',
       intro: functions ? 'Register a container workload, then add an image version and deploy it.' : 'Versions come from the registry (or, for an LLM, from the Hugging Face Hub); the acceptance thresholds decide which ones may become candidates.',
       fields: [
-        { name: 'secretRefs', label: 'Secret references (JSON)', type: 'textarea' as const,
-          placeholder: '{"env":{"AWS_ACCESS_KEY_ID":{"name":"training-credentials","key":"access-key"}},"image_pull_secrets":["registry-login"]}',
-          hint: 'Use project secret names and keys only. Project admins manage the values in Settings → Secrets.' },
+        { name: 'secretRefs', label: 'Workload secrets', type: 'secret-refs' as const, project },
         { name: 'name', label: 'Name', required: true, pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$', placeholder: 'scorer', hint: 'Lowercase letters, digits and dashes.' },
         { name: 'kind', label: 'Kind', required: true, value: functions ? 'function' : 'classic', options: [
           { value: 'classic', label: 'Classic model (predictive, from the registry)' }, { value: 'llm', label: 'LLM (served on GPUs, chat API)' },
           { value: 'function', label: 'Function (your own container, scales to zero)' }].filter((option) => (option.value === 'function') === functions) },
         { visibleWhen: (v: Record<string, string>) => v.kind === 'llm', name: 'gpus', label: 'GPUs per replica', value: '1', pattern: '[1-8]', hint: 'LLMs only. Taken from the project’s GPU quota; a canary needs them twice.' },
+        { visibleWhen: (v: Record<string, string>) => v.kind === 'llm', name: 'llmScale', label: 'LLM replicas (min-max)', value: '1-1', pattern: '[0-9]{1,2}-[0-9]{1,2}', hint: 'GPU quota reserves the maximum replicas, including overlap during version changes.' },
         { visibleWhen: (v: Record<string, string>) => v.kind === 'llm', name: 'context', label: 'Context length (tokens)', pattern: '[0-9]{3,7}', placeholder: 'the model’s own', hint: 'LLMs only. Longer contexts need more GPU memory.' },
         { name: 'scale', label: 'Replicas (min-max)', value: '0-3', pattern: '[0-9]{1,2}-[0-9]{1,2}', hint: 'Functions only. A minimum of 0 scales to zero when idle; the first call then waits for a cold start.' },
         { name: 'concurrency', label: 'Requests per replica at once', value: '10', pattern: '[0-9]{1,4}', hint: 'Functions only. More replicas start when this is reached.' },
@@ -52,7 +52,7 @@ export function ModelsPage({ project, functions = false }: { project: string; fu
         { name: 'env', label: 'Environment', type: 'textarea' as const, placeholder: 'QUEUE=tier1', hint: 'Functions only. One KEY=value per line. No secrets here: they are visible to project members.' },
         { name: 'thresholds', label: 'Acceptance thresholds', type: 'textarea' as const, placeholder: 'auc >= 0.9\nrmse <= 0.3',
           hint: 'One per line: metric >= number or metric <= number. A version that misses one is rejected.' },
-      ].filter((field) => functions ? !['gpus', 'context', 'thresholds'].includes(field.name) : !['scale', 'concurrency', 'env', 'requests', 'limits', 'readiness'].includes(field.name)),
+      ].filter((field) => functions ? !['gpus', 'context', 'llmScale', 'thresholds'].includes(field.name) : !['scale', 'concurrency', 'env', 'requests', 'limits', 'readiness'].includes(field.name)),
       submit: (v) => {
         let thresholds;
         try { thresholds = parseThresholds(v.thresholds ?? ''); } catch (e) { throw new ApiError(422, 'invalid_argument', e instanceof Error ? e.message : 'invalid'); }
@@ -69,8 +69,9 @@ export function ModelsPage({ project, functions = false }: { project: string; fu
         }
         return api.post<S['ModelOut']>(`/projects/${p}/models`, {
           name: v.name, thresholds, kind: v.kind,
-          llm: llm ? { gpus: Number(v.gpus || 1), context_length: v.context ? Number(v.context) : null } : null,
-          function: fn, secret_refs: JSON.parse(v.secretRefs || '{}'),
+          llm: llm ? { gpus: Number(v.gpus || 1), context_length: v.context ? Number(v.context) : null,
+            min_scale: Number((v.llmScale || '1-1').split('-')[0]), max_scale: Number((v.llmScale || '1-1').split('-')[1]) } : null,
+          function: fn, secret_refs: secretRefsFromForm(v.secretRefs),
         });
       },
       preview: (v) => (v.kind === 'function'

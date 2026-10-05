@@ -21,6 +21,7 @@ config:
   CP_OIDC_CLIENT_ID: ""
   CP_PUBLIC_URL: ""
   CP_GATEWAY_URL: ""
+  CP_GATEWAY_LIMIT_STORE: postgres
   CP_PLATFORM_ADMINS: ""
   CP_MLFLOW_TRACKING_URI: ""
   CP_STEP_MLFLOW_TRACKING_URI: ""
@@ -40,7 +41,7 @@ api:
     annotations: {}
     tls: []
 gateway:
-  replicas: 1 # limits are per replica until a shared limiter is implemented
+  replicas: 1 # PostgreSQL limiter shares budgets across gateway replicas
   resources:
     requests: {cpu: 100m, memory: 256Mi}
     limits: {cpu: "1", memory: 1Gi}

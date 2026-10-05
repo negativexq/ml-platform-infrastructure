@@ -1,5 +1,7 @@
 """Project secret management. Values go only to the configured secret provider."""
 
+from __future__ import annotations
+
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass
 from typing import Protocol
@@ -19,6 +21,13 @@ class SecretInfo:
     keys: tuple[str, ...]
     kind: str
     version: str
+
+
+@dataclass(frozen=True, slots=True)
+class SecretUse:
+    kind: str
+    name: str
+    revision: int | None = None
 
 
 class SecretProvider(Protocol):
@@ -174,3 +183,21 @@ class ProjectSecretService:
                 )
             )
             uow.commit()
+
+    def usage(self, ref: str) -> Mapping[str, Sequence[SecretUse]]:
+        project = self._project(ref)
+        result: dict[str, list[SecretUse]] = {}
+        with self._uow() as uow:
+            for job in uow.jobs.list(project.id):
+                for name in job.secret_refs.names:
+                    result.setdefault(name, []).append(SecretUse("job", job.name))
+            for model in uow.models.list(project.id):
+                for name in model.secret_refs.names:
+                    result.setdefault(name, []).append(SecretUse("model", model.name))
+            for deployment in uow.deployments.list(project.id):
+                for revision in uow.revisions.list(deployment.id):
+                    for name in revision.secret_refs.names:
+                        result.setdefault(name, []).append(
+                            SecretUse("revision", deployment.name, revision.revision)
+                        )
+        return result

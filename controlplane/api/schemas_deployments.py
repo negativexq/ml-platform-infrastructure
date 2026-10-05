@@ -91,8 +91,12 @@ class RevisionOut(BaseModel):
             model_version_id=v.revision.model_version_id,
             runtime=v.revision.runtime,
             gpus=v.revision.gpus,
-            min_scale=v.revision.function.min_scale if v.revision.function else None,
-            max_scale=v.revision.function.max_scale if v.revision.function else None,
+            min_scale=v.revision.function.min_scale
+            if v.revision.function
+            else v.revision.min_scale,
+            max_scale=v.revision.function.max_scale
+            if v.revision.function
+            else v.revision.max_scale,
             created_at=v.revision.created_at,
         )
 

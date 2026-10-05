@@ -21,7 +21,7 @@ def archive(tmp_path: Path) -> Path:
             {
                 "format_version": 1,
                 "sha256": backup.digest(tmp_path / "database.dump"),
-                "schema_heads": ["0015"],
+                "schema_heads": ["0019"],
                 "counts": {t: (3 if t == "projects" else 0) for t in backup.TABLES},
             }
         )
@@ -67,7 +67,7 @@ def test_restore_uses_atomic_transaction_and_verifies_snapshot(
             backup,
             "metadata",
             return_value={
-                "schema_heads": ["0015"],
+                "schema_heads": ["0019"],
                 "counts": {t: (3 if t == "projects" else 0) for t in backup.TABLES},
             },
         ),
@@ -82,3 +82,19 @@ def test_backup_inventory_covers_every_durable_table() -> None:
     from controlplane.persistence.models import Base
 
     assert set(backup.TABLES) == set(Base.metadata.tables)
+
+
+def test_legacy_manifest_requires_complete_old_inventory(tmp_path: Path) -> None:
+    source = archive(tmp_path)
+    manifest = json.loads((source / "manifest.json").read_text())
+    manifest["schema_heads"] = ["0016"]
+    del manifest["counts"]["gateway_rate_buckets"]
+    (source / "manifest.json").write_text(json.dumps(manifest))
+    with patch.object(backup, "run_tool", return_value=""):
+        backup.restore(source, False)
+    del manifest["counts"]["projects"]
+    (source / "manifest.json").write_text(json.dumps(manifest))
+    with patch.object(backup, "run_tool") as tool:
+        with pytest.raises(RuntimeError, match="counts"):
+            backup.restore(source, False)
+        tool.assert_not_called()

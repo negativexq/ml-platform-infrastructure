@@ -30,6 +30,9 @@ class ThresholdIn(BaseModel):
 
 
 class LlmServingIn(BaseModel):
+    min_scale: int = Field(1, ge=0, le=50)
+    max_scale: int = Field(1, ge=1, le=50)
+
     model_config = ConfigDict(extra="forbid")
 
     gpus: int = Field(1, ge=1, le=8, description="GPUs per replica (tensor parallel above 1)")
@@ -111,16 +114,21 @@ class ModelCreate(BaseModel):
         if self.kind is not ModelKind.LLM:
             return None
         given = self.llm or LlmServingIn()
-        return LlmServing(gpus=given.gpus, context_length=given.context_length)
+        return LlmServing(
+            gpus=given.gpus,
+            context_length=given.context_length,
+            min_scale=given.min_scale,
+            max_scale=given.max_scale,
+        )
 
 
 class HubVersionCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     source: str = Field(
-        description="hf://<org>/<model>[@<revision>]; pin a revision so the version always "
-        "means the same weights",
-        examples=["hf://Qwen/Qwen2.5-7B-Instruct@a09a354"],
+        description="hf://<org>/<model>@<40-character lowercase commit SHA>; "
+        "branches, tags and short hashes are rejected",
+        examples=["hf://Qwen/Qwen2.5-7B-Instruct@a09a354000000000000000000000000000000000"],
     )
     metrics: dict[str, float] = Field(
         default_factory=dict,
@@ -196,6 +204,8 @@ class ModelOut(BaseModel):
                 LlmServingIn(
                     gpus=view.model.serving.gpus,
                     context_length=view.model.serving.context_length,
+                    min_scale=view.model.serving.min_scale,
+                    max_scale=view.model.serving.max_scale,
                 )
                 if view.model.serving
                 else None

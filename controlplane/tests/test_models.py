@@ -297,7 +297,12 @@ def test_non_registry_models_never_call_mlflow_aliases(env: Env, kind: ModelKind
             "credit-risk", "non-registry", "ghcr.io/acme/image@sha256:" + "a" * 64
         )
     else:
-        env.models.register_from_hub("credit-risk", "non-registry", "hf://org/model@abc123", {})
+        env.models.register_from_hub(
+            "credit-risk",
+            "non-registry",
+            "hf://org/model@abc1230000000000000000000000000000000000",
+            {},
+        )
     experiments = Mock(spec=FakeExperimentProvider)
     aliases = ModelAliasReconciler(env.factory, experiments)
     assert aliases.reconcile(view.model.id).synced == ()

@@ -19,7 +19,7 @@ and rotation. Backend and validation errors do not echo submitted values.
 
 | Method and path | Behavior |
 | --- | --- |
-| `GET /projects/{project}/secrets` | List owned names, key names, type and current version |
+| `GET /projects/{project}/secrets` | List owned names, key names, type, current version and referencing definitions/revisions |
 | `POST /projects/{project}/secrets/{name}` | Create; existing names conflict |
 | `PUT /projects/{project}/secrets/{name}` | Replace values using `expected_version` |
 | `DELETE /projects/{project}/secrets/{name}?expected_version=…` | Delete using the current version; referenced secrets are protected |
@@ -66,7 +66,10 @@ Job and model registration accept `secret_refs`:
 }
 ```
 
-The registration forms expose the same JSON field. References are checked for ownership,
+The registration forms provide secret/key selectors and registry-secret checkboxes.
+Operators obtain this metadata through `GET /projects/{project}/secret-references`;
+viewers/invokers cannot access the catalog. Management routes remain admin-only.
+The API still accepts the JSON structure above. References are checked for ownership,
 key existence and registry type at registration. A name cannot appear in both plaintext
 `env` and secret `env`; platform-owned environment names cannot be overridden.
 

@@ -176,6 +176,7 @@ POLICY: dict[tuple[str, str], str | ProjectRole] = {
     ("POST", "/projects"): SIGNED_IN,  # the creator becomes the project's admin
     ("GET", "/platform/health"): SIGNED_IN,  # inventory counts only the caller's projects
     ("DELETE", "/projects/{project_id}"): ProjectRole.ADMIN,
+    ("GET", "/projects/{project}/secret-references"): ProjectRole.OPERATOR,
     ("GET", "/projects/{project}/secrets"): ProjectRole.ADMIN,
     ("POST", "/projects/{project}/secrets/{name}"): ProjectRole.ADMIN,
     ("PUT", "/projects/{project}/secrets/{name}"): ProjectRole.ADMIN,

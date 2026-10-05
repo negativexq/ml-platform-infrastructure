@@ -42,7 +42,14 @@ class SecretRotate(SecretWrite):
     expected_version: str = Field(min_length=1, max_length=128)
 
 
+class SecretUseOut(BaseModel):
+    kind: str
+    name: str
+    revision: int | None = None
+
+
 class SecretOut(BaseModel):
+    used_by: list[SecretUseOut] = Field(default_factory=list)
     name: str
     keys: list[str]
     kind: str
@@ -58,19 +65,26 @@ class SecretList(BaseModel):
 
 
 def secrets_router() -> APIRouter:
-    router = APIRouter(
-        prefix="/projects/{project}/secrets", tags=["secrets"], route_class=PlatformRoute
-    )
+    router = APIRouter(prefix="/projects/{project}", tags=["secrets"], route_class=PlatformRoute)
 
     def service(request: Request) -> ProjectSecretService:
         result: ProjectSecretService = request.app.state.secrets
         return result
 
-    @router.get("", response_model=SecretList)
+    @router.get("/secrets", response_model=SecretList)
     def list_secrets(project: str, request: Request) -> SecretList:
-        return SecretList(items=[SecretOut.from_info(s) for s in service(request).list(project)])
+        usage = service(request).usage(project)
+        items = []
+        for info in service(request).list(project):
+            item = SecretOut.from_info(info)
+            item.used_by = [
+                SecretUseOut(kind=u.kind, name=u.name, revision=u.revision)
+                for u in usage.get(info.name, [])
+            ]
+            items.append(item)
+        return SecretList(items=items)
 
-    @router.post("/{name}", response_model=SecretOut, status_code=201)
+    @router.post("/secrets/{name}", response_model=SecretOut, status_code=201)
     def create_secret(project: str, name: str, body: SecretWrite, request: Request) -> SecretOut:
         return SecretOut.from_info(
             service(request).put(
@@ -78,7 +92,7 @@ def secrets_router() -> APIRouter:
             )
         )
 
-    @router.put("/{name}", response_model=SecretOut)
+    @router.put("/secrets/{name}", response_model=SecretOut)
     def rotate_secret(project: str, name: str, body: SecretRotate, request: Request) -> SecretOut:
         return SecretOut.from_info(
             service(request).put(
@@ -90,7 +104,7 @@ def secrets_router() -> APIRouter:
             )
         )
 
-    @router.delete("/{name}", status_code=204)
+    @router.delete("/secrets/{name}", status_code=204)
     def delete_secret(
         project: str,
         name: str,
@@ -100,5 +114,10 @@ def secrets_router() -> APIRouter:
     ) -> Response:
         service(request).delete(project, name, expected_version, force)
         return Response(status_code=204)
+
+    @router.get("/secret-references", response_model=SecretList)
+    def reference_catalog(project: str, request: Request) -> SecretList:
+        # Workload operators need names/keys to bind credentials, never values.
+        return SecretList(items=[SecretOut.from_info(s) for s in service(request).list(project)])
 
     return router

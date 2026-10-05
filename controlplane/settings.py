@@ -20,6 +20,7 @@ class Settings(BaseSettings):
     external_https_cidrs: str = ""
     workflow_retention_seconds: int = Field(default=0, ge=0, le=31536000)
     project_egress_enabled: bool = False
+    model_discovery_delay_seconds: int = Field(default=120, ge=0, le=86400)
     reconcile_interval_seconds: float = 10.0
     # MLflow tracking server the control plane queries. Empty: tracking is not configured.
     mlflow_tracking_uri: str = ""
@@ -30,6 +31,7 @@ class Settings(BaseSettings):
     # Where outside callers reach the gateway (https://api.example.com). Shown in the UI and
     # used to build each public endpoint's URL. Empty: no gateway is deployed.
     gateway_url: str = ""
+    gateway_limit_store: Literal["postgres", "memory"] = "postgres"
     # Logging. JSON by default (cluster log collectors want it); set false for a console.
     log_json: bool = True
     log_level: str = "INFO"

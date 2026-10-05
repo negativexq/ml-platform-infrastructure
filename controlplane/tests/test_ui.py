@@ -1195,7 +1195,9 @@ def test_creating_an_llm_and_registering_a_hub_version(page: Page, server: Serve
     expect(page.get_by_test_id("llm-serving")).to_contain_text("1 GPU per replica")
 
     page.get_by_test_id("register-hub").click()
-    page.locator("#f-source").fill("hf://Qwen/Qwen2.5-7B-Instruct@a09a354")
+    page.locator("#f-source").fill(
+        "hf://Qwen/Qwen2.5-7B-Instruct@a09a354000000000000000000000000000000000"
+    )
     page.locator("#f-metrics").fill("rouge = 0.31")
     expect(page.get_by_test_id("form-preview")).to_contain_text("would be rejected")
     page.locator("#f-metrics").fill("rouge = 0.45")

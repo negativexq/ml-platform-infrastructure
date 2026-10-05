@@ -281,6 +281,8 @@ class PipelineRun:
     started_at: datetime | None = None
     finished_at: datetime | None = None
     workflow_cleaned_at: datetime | None = None
+    models_discovered_at: datetime | None = None
+    model_discovery_checked_at: datetime | None = None
 
     def __post_init__(self) -> None:
         validate_timeout(self.timeout_seconds)
@@ -466,8 +468,14 @@ class LlmServing:
 
     gpus: int = 1
     context_length: int | None = None  # None: the model's own maximum
+    min_scale: int = 1
+    max_scale: int = 1
 
     def __post_init__(self) -> None:
+        if not 0 <= self.min_scale <= self.max_scale <= 50 or self.max_scale < 1:
+            raise InvalidArgument(
+                "LLM replica range must satisfy 0 <= min <= max <= 50 and max >= 1"
+            )
         if not 1 <= self.gpus <= MAX_GPUS_PER_MODEL:
             raise InvalidArgument(f"an LLM needs 1 to {MAX_GPUS_PER_MODEL} GPUs")
         if self.context_length is not None and not 256 <= self.context_length <= 1_048_576:
@@ -610,16 +618,14 @@ def validate_image(image: str) -> str:
     return image
 
 
-_HUB_SOURCE = re.compile(r"^hf://[A-Za-z0-9][\w.-]{0,95}/[\w.-]{1,96}(@[\w.-]{1,64})?$")
+_HUB_SOURCE = re.compile(r"^hf://[A-Za-z0-9][\w.-]{0,95}/[\w.-]{1,96}@[0-9a-f]{40}$")
 
 
 def validate_hub_source(source: str) -> str:
-    """`hf://<org>/<model>[@<revision>]`: a model on the Hugging Face Hub, ideally pinned to
-    a commit so the same version always means the same weights."""
-    if not _HUB_SOURCE.match(source):
+    """New versions require the full Hub commit identity, never a moving branch/tag."""
+    if not _HUB_SOURCE.fullmatch(source):
         raise InvalidArgument(
-            f"a hub source is hf://<org>/<model>[@<revision>], e.g. "
-            f"hf://Qwen/Qwen2.5-7B-Instruct@a09a354: got {source!r}"
+            "a hub source is hf://<org>/<model>@<40-character lowercase commit SHA>"
         )
     return source
 
@@ -817,6 +823,8 @@ class DeploymentRevision:
     runtime: ServingRuntime = ServingRuntime.MLFLOW
     gpus: int = 0
     context_length: int | None = None
+    min_scale: int = 1
+    max_scale: int = 1
     function: FunctionServing | None = None  # a function revision's scaling and environment
     secret_refs: SecretRefs = field(default_factory=SecretRefs)
     created_at: datetime

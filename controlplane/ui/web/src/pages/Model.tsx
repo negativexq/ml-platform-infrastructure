@@ -67,8 +67,8 @@ export function ModelPage({ project, name, functions = false }: { project: strin
       title: 'Register a version from the hub', submitLabel: 'Register',
       intro: 'A version is a model on the Hugging Face Hub, pinned to a revision so it always means the same weights, with the results of your own offline evaluation. It is judged on those results like any other version.',
       fields: [
-        { name: 'source', label: 'Source', required: true, pattern: '^hf://[A-Za-z0-9][\\w.-]*/[\\w.-]+(@[\\w.-]+)?$', placeholder: 'hf://Qwen/Qwen2.5-7B-Instruct@a09a354',
-          hint: 'hf://<org>/<model>@<revision>. Gated models need the project’s Hugging Face token.' },
+        { name: 'source', label: 'Source', required: true, pattern: '^hf://[A-Za-z0-9][\\w.-]*/[\\w.-]+@[0-9a-f]{40}$', placeholder: 'hf://org/model@<full-commit-sha>',
+          hint: 'A full 40-character lowercase commit SHA is required. Gated models need the project’s Hugging Face token.' },
         { name: 'metrics', label: 'Evaluation results', type: 'textarea', placeholder: Object.keys(thresholds).map((m) => `${m} = 0.8`).join('\n') || 'helpfulness = 0.82',
           hint: 'One per line: metric = number. Use the metrics the thresholds name.' },
       ],

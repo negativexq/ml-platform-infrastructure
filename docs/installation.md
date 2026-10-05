@@ -24,8 +24,10 @@ The same non-root image supports four process commands:
 When RAM is available, build with `make cp-docker-build`. The default image is
 `mlp-controlplane:dev`; override `CP_IMAGE` to publish under your own repository.
 For releases, set the chart's `image.repository` and `image.digest` to the built digest.
-The base image currently follows `python:3.12-slim`; base-image digest pinning and the
-Linux constraint regeneration noted in the roadmap are still release tasks.
+The Dockerfile pins `python:3.12-slim-bookworm` by multi-platform SHA-256 digest.
+Constraints have been regenerated for CPython 3.12/Linux x86_64 using uv 0.12.23.
+Install that tool version and run `make lock` (or set `MLP_UV` to its executable).
+Existing pins are retained; `MLP_LOCK_UPGRADE=1 make lock` requests deliberate upgrades.
 
 ## Chart prerequisites
 
@@ -78,8 +80,9 @@ does not deliberately overlap old and new processes. This is a single-process de
 policy, not leader election: operators must not start another reconciler against the same
 database. Separate simultaneous Helm releases/migration processes are also unsupported.
 
-The gateway starts with one replica because the limiter is per process. More replicas are
-configurable, but do not turn those limits into a shared budget.
+The gateway defaults to shared PostgreSQL buckets (`CP_GATEWAY_LIMIT_STORE=postgres`),
+so replicas share capacity and debt. The default replica count remains one. Explicit
+`memory` mode and demo mode keep independent per-process limits.
 
 API and gateway startup/liveness probes use `/healthz`; readiness uses `/readyz`
 and checks the database and migration heads. The reconciler has no HTTP health surface. Runtime probes,
@@ -88,20 +91,51 @@ read-only filesystem compatibility and actual memory consumption still need clus
 ## What remains before closing installation P0
 
 - Build and run all four commands from the image, including SQL migrations and UI serving.
-- Pin and record the supported Kubernetes/Argo/KServe/Knative versions.
-- Add the dependency installation and control-plane release to bootstrap/GitOps. Existing
+- Validate the pinned dependency baseline against the target Kubernetes version; it is
+  a reproducible preparation baseline, not a certified compatibility/security matrix.
+- Exercise the prepared bootstrap and manual-sync GitOps path below. Existing
   `make local-up` still installs the original inference platform only.
-- Generate the complete topology's policies; the new control-plane chart does not yet
-  install NetworkPolicies. The legacy gateway manifest's policy is a separate example,
-  not automatically applied to chart deployments.
+- Configure the optional chart/project NetworkPolicies and validate actual CNI paths.
 - Run the CPU lifecycle and failure gates in `local-verification.md`.
 
 ## Readiness and lifecycle configuration
 
 Readiness probes use `/readyz` (database and matching schema heads); `/healthz` remains
-liveness. Apply migrations through `0016` before starting this image. Set
+liveness. Apply migrations through `0019` before starting this image. Set
 `config.CP_WORKFLOW_RETENTION_SECONDS` only after choosing a log retention window; its
 default `0` disables workflow cleanup. Network isolation is separately configurable
 through `networkPolicy`; configure API CIDRs and required external destinations first.
 See [operations.md](operations.md), [networking.md](networking.md) and
 [recovery.md](recovery.md) for the contracts and pending acceptance drills.
+
+## Pinned bootstrap and GitOps preparation
+
+`scripts/controlplane-dependencies.json` records versions, artifact SHA-256s and KServe
+OCI digests. The baseline follows [KServe 0.15 quick install](https://github.com/kserve/kserve/blob/v0.15.0/hack/quick_install.sh):
+Gateway API 1.2.1, Istio 1.23.2, cert-manager 1.16.1, Knative operator 1.15.7 / Serving
+1.15.2, KServe 0.15.0 and Argo Workflows 3.6.2. No live compatibility check was run.
+
+Prepare locally with Helm and the Python control-plane environment:
+
+```bash
+python scripts/controlplane_bootstrap.py --out /tmp/mlp-release \
+  --values /path/to/site-values.yaml \
+  --image registry.example/team/controlplane@sha256:<FULL_IMAGE_DIGEST> \
+  --source-revision <FULL_GIT_COMMIT_SHA> \
+  --context <TARGET_CONTEXT> --cache /path/to/dependency-cache
+```
+
+Replace angle-bracket placeholders before running. By default preparation is offline and
+never contacts the cluster. `--fetch` downloads only pinned artifacts and verifies their
+checksums. Preparation emits a packaged chart, rendered resources, values, KnativeServing,
+manual-sync Argo CD Application, plan and installer. Argo CD itself is a prerequisite for
+using the Application; preparation does not apply it or enable automatic sync.
+
+A dirty checkout can produce a review bundle, but installation requires a clean checkout
+matching the full source SHA. Commit/push the release and regenerate before installation.
+The installer verifies dependency/chart checksums before cluster writes and requires an
+explicit context. Only `--apply` executes it; this work did not execute that option.
+Provision the dedicated DB, namespace, DB/identity Secrets and site identity/network values
+first. The bootstrap installs serving/workflow dependencies and the control plane, not
+PostgreSQL or an identity provider. Actual image build, live migrations and CPU/GPU/TLS
+lifecycle checks remain release gates.

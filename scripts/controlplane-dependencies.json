@@ -1,0 +1,72 @@
+{
+  "format_version": 1,
+  "knative_serving_version": "1.15.2",
+  "source": "https://github.com/kserve/kserve/blob/v0.15.0/hack/quick_install.sh",
+  "artifacts": [
+    {
+      "name": "gateway-api",
+      "version": "v1.2.1",
+      "file": "gateway-api.yaml",
+      "url": "https://github.com/kubernetes-sigs/gateway-api/releases/download/v1.2.1/standard-install.yaml",
+      "sha256": "97598bf6ab3b33b9b5c5432bdd24de091e4e9c3aa0575ebb0710a2a19cd64d64"
+    },
+    {
+      "name": "istio-base",
+      "version": "1.23.2",
+      "file": "istio-base.tgz",
+      "url": "https://istio-release.storage.googleapis.com/charts/base-1.23.2.tgz",
+      "sha256": "f79ac5991a58bd312a1bd760c795feae8dc43c707e9585145ad3ab4826bbfed1"
+    },
+    {
+      "name": "istiod",
+      "version": "1.23.2",
+      "file": "istiod.tgz",
+      "url": "https://istio-release.storage.googleapis.com/charts/istiod-1.23.2.tgz",
+      "sha256": "8c5ff2cfe4c17fd89bfc964e6b8fe497a8576bd0ec20da5acf3748e79a05433f"
+    },
+    {
+      "name": "istio-ingressgateway",
+      "version": "1.23.2",
+      "file": "istio-ingressgateway.tgz",
+      "url": "https://istio-release.storage.googleapis.com/charts/gateway-1.23.2.tgz",
+      "sha256": "adf39286e34f71b57dd6f8bd3f05a0efd8dab9ea860a1a0ff9ad621a3b636ba2"
+    },
+    {
+      "name": "cert-manager",
+      "version": "v1.16.1",
+      "file": "cert-manager.yaml",
+      "url": "https://github.com/cert-manager/cert-manager/releases/download/v1.16.1/cert-manager.yaml",
+      "sha256": "ad09a35d3dd404f98f4e16555b01b89bdf7a499932b4567f3e2eddb4ef3cab15"
+    },
+    {
+      "name": "knative-operator",
+      "version": "v1.15.7",
+      "file": "knative-operator.tgz",
+      "url": "https://github.com/knative/operator/releases/download/knative-v1.15.7/knative-operator-v1.15.7.tgz",
+      "sha256": "75fe99a03a89508159da0f72631a2ade3b63a865ae161a94c791f82ff6448644"
+    },
+    {
+      "name": "kserve-crd",
+      "version": "v0.15.0",
+      "file": "kserve-crd.tgz",
+      "oci": "oci://ghcr.io/kserve/charts/kserve-crd",
+      "oci_digest": "sha256:57ad1a5475fd625cb558214ba711752aa77b7d91686a391a5f5320cfa72f3fa8",
+      "sha256": "c9fa31738921d8ac25c74e06e57ff27d9a27f1650f2875625657f507d74f4b71"
+    },
+    {
+      "name": "kserve",
+      "version": "v0.15.0",
+      "file": "kserve.tgz",
+      "oci": "oci://ghcr.io/kserve/charts/kserve",
+      "oci_digest": "sha256:905abce80e975c53b40fba7a12b0b9a1e24bdf65cceebb88fba4ef62bba01406",
+      "sha256": "f7fa2dd99f6b680dad8a3bc69bff960262483bd868e3ec4ad78de6fc772a6401"
+    },
+    {
+      "name": "argo-workflows",
+      "version": "v3.6.2",
+      "file": "argo-workflows.yaml",
+      "url": "https://github.com/argoproj/argo-workflows/releases/download/v3.6.2/install.yaml",
+      "sha256": "ccb878dad6a92f7f61d5851d0a2f7bbc9350f7968562987f79c6184b36e2cd17"
+    }
+  ]
+}

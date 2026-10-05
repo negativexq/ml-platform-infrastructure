@@ -62,12 +62,20 @@ The findings below describe the reviewed commit, not necessarily the current cod
 - **Deadlines and lifecycle: implemented.** Job/run/pipeline deadlines are configurable.
   Admin deletion closes endpoints, waits for serving removal and releases reservations;
   optional terminal-workflow cleanup preserves database history and lineage.
-- **LLM reservation: implemented within one process.** Prompt estimates plus bounded output
+- **LLM reservation: implemented with shared PostgreSQL storage.** Prompt estimates plus bounded output
   reserve both buckets atomically; missing usage and interrupted streams keep the reservation.
-  Actual tokenization, shared limits and replica-aware admission remain open.
+  Maximum-replica GPU admission includes transition/canary overlap. Native HTTP tests
+  cover streaming, concurrent budgets and disconnects; live PostgreSQL/GPU checks and
+  exact tokenization remain open.
 - **Control-plane recovery: tooling prepared, drill pending.** Snapshot-consistent dump,
   checksum/count manifest and empty-target atomic restore checks are available; live recovery
   and RPO/RTO have not been measured. See [recovery.md](recovery.md).
+- **Hub identity and discovery: implemented.** New Hub versions require full commit SHAs.
+  Successful pipelines trigger delayed lineage-scoped MLflow discovery with persistent
+  checkpoints, without automatic evaluation/promotion.
+- **Secret forms and release preparation: implemented/prepared.** Forms select names/keys;
+  Settings reports usage. Base/dependency pins, checksum-verified offline bundles and
+  manual-sync GitOps manifests are prepared; image/runtime installation remains pending.
 - See [operations.md](operations.md) for defaults, API contracts and retained limitations.
 - **Cluster verification is still open.** Check annotation propagation on the installed
   KServe version, grant the reconciler read access to `serving.knative.dev/revisions`, and

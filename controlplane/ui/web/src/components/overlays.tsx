@@ -2,6 +2,7 @@ import {
   createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode,
 } from 'react';
 import { ApiError } from '../api/client';
+import { SecretRefsPicker } from './SecretRefsPicker';
 
 /** Native <dialog>, opened modally while `open`. Esc and backdrop handling come from the platform. */
 export function Modal({
@@ -29,7 +30,7 @@ export function Modal({
 export type ConfirmOptions = { title: string; body: ReactNode; confirmLabel?: string; danger?: boolean };
 
 export type Field = {
-  name: string; label: string; type?: 'text' | 'textarea' | 'password'; required?: boolean; pattern?: string;
+  name: string; label: string; type?: 'text' | 'textarea' | 'password' | 'secret-refs'; project?: string; required?: boolean; pattern?: string;
   visibleWhen?: (values: Record<string, string>) => boolean;
   hint?: string; placeholder?: string; value?: string; options?: { value: string; label: string }[];
 };
@@ -130,8 +131,8 @@ function FormBody({ request }: { request: { options: FormOptions<unknown>; resol
   const [values, setValues] = useState<Record<string, string>>(() => Object.fromEntries(options.fields.map((f) => [f.name, f.value ?? f.options?.[0]?.value ?? ''])));
 
   useEffect(() => {
-    const first = options.fields[0];
-    if (first) refs.current.get(first.name)?.focus();
+    const first = [...refs.current.values()].find(el => !(el instanceof HTMLInputElement && el.type === 'hidden'));
+    first?.focus();
     return () => { if (!done.current) resolve(null); };
   }, [options, resolve]);
 
@@ -177,7 +178,10 @@ function FormBody({ request }: { request: { options: FormOptions<unknown>; resol
         return (
           <div className="field" key={f.name}>
             <label htmlFor={id}>{f.label}{f.required && <span className="req" aria-hidden="true"> *</span>}</label>
-            {f.options ? (
+            {f.type === 'secret-refs' ? (
+              <SecretRefsPicker project={f.project || ''} id={id} name={f.name}
+                inputRef={setRef(f.name)} onChange={value => setValues(old => old[f.name] === value ? old : ({ ...old, [f.name]: value }))} />
+            ) : f.options ? (
               <select id={id} name={f.name} required={f.required} defaultValue={values[f.name]} ref={setRef(f.name)} aria-describedby={hint}>
                 {f.options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>

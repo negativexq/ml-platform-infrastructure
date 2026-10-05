@@ -32,6 +32,7 @@ TABLES = (
     "promotions",
     "rollouts",
     "notification_reads",
+    "gateway_rate_buckets",
 )
 
 
@@ -171,7 +172,13 @@ def verify(source: Path) -> dict[str, Any]:
         raise RuntimeError("invalid backup manifest")
     if (
         not isinstance(manifest.get("counts"), dict)
-        or set(manifest["counts"]) != set(TABLES)
+        or (
+            set(manifest["counts"]) != set(TABLES)
+            and not (
+                manifest.get("schema_heads") in (["0014"], ["0015"], ["0016"])
+                and set(manifest["counts"]) == set(TABLES) - {"gateway_rate_buckets"}
+            )
+        )
         or any(type(n) is not int or n < 0 for n in manifest["counts"].values())
         or not isinstance(manifest.get("schema_heads"), list)
         or not manifest["schema_heads"]

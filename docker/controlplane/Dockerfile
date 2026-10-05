@@ -1,5 +1,6 @@
 # Build from the repository root: docker build -f docker/controlplane/Dockerfile .
-FROM python:3.12-slim AS builder
+ARG PYTHON_IMAGE=python:3.12-slim-bookworm@sha256:54c85f3c47607a77f32adec749d3c81d1348bf25833671f512b26a9b6d778cb3
+FROM ${PYTHON_IMAGE} AS builder
 ENV PIP_NO_CACHE_DIR=1 PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /build
 COPY pyproject.toml ./
@@ -7,7 +8,7 @@ COPY constraints/controlplane.txt ./constraints/controlplane.txt
 COPY controlplane ./controlplane
 RUN python -m pip install --prefix=/install -c constraints/controlplane.txt '.[controlplane]'
 
-FROM python:3.12-slim AS runtime
+FROM ${PYTHON_IMAGE} AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \
     PATH=/install/bin:$PATH \
     PYTHONPATH=/install/lib/python3.12/site-packages

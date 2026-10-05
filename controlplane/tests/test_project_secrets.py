@@ -162,6 +162,10 @@ def test_secret_management_requires_admin_and_cannot_cross_projects(
             == 403
         )
     assert client.get(base, headers={"authorization": "Bearer admin"}).status_code == 200
+    catalog = client.get(
+        "/projects/secret-team/secret-references", headers={"authorization": "Bearer operator"}
+    )
+    assert catalog.status_code == 200 and "hidden" not in catalog.text
     assert client.get(base).status_code == 401
     with uow_factory() as uow:
         uow.memberships.add(
@@ -235,6 +239,9 @@ def test_registry_refs_and_model_refs_are_validated_and_names_only(
     )
     assert created.status_code == 201, created.text
     assert created.json()["secret_refs"] == refs
+    listed = client.get(base + "/secrets").json()["items"]
+    registry_uses = next(s for s in listed if s["name"] == "registry")["used_by"]
+    assert registry_uses == [{"kind": "model", "name": "secure-function", "revision": None}]
     assert "private-value" not in created.text
     assert (
         client.delete(

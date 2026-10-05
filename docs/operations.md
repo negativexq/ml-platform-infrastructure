@@ -6,7 +6,7 @@ Implemented on 2026-10-05 using local tests; no cluster resources were changed.
 
 API and gateway expose unauthenticated `/healthz` (process liveness) and `/readyz`.
 Production readiness checks a database connection and `SELECT 1`, then requires the
-installed Alembic head set to equal the image's migration heads (currently `0016`).
+installed Alembic head set to equal the image's migration heads (currently `0019`).
 Failures return 503 without connection details. PostgreSQL connection/pool waits are
 bounded to three seconds and readiness statements to two seconds. Chart readiness probes
 allow eight seconds; startup/liveness continue to use `/healthz` so a DB outage does not
@@ -98,8 +98,26 @@ usage. Headers report capacity after reservation, before any refund.
 
 This is a conservative text estimate, not model-specific tokenization or a hard guarantee
 on hidden, multimodal or template tokens. Accurate hard token ceilings need a tokenizer
-and runtime contract for each model. Limits remain process-local; multiple gateway
-replicas multiply available capacity. Shared storage and replica-aware GPU/CPU admission
-remain open review items.
+and runtime contract for each model. Production uses shared PostgreSQL buckets; demo/explicit memory mode remains
+process-local. See [gateway.md](gateway.md) for admission and store-failure behavior.
 
 See [control-plane recovery](recovery.md) for backup and restore.
+
+## Maximum-replica GPU reservations
+
+LLM serving accepts `min_scale` and `max_scale` (defaults 1/1; 0 ≤ min ≤ max ≤ 50,
+max ≥ 1). Each immutable revision reserves `gpus * max_scale`. Active, desired and
+canary revisions are counted once each, including transition overlap and rollback targets.
+Project row locks serialize quota changes and admissions. Migration `0018` gives existing
+rows a 1/1 range. This is GPU admission; it does not implement CPU quota admission.
+
+## Pipeline model discovery
+
+With MLflow configured, the reconciler scans successful pipelines after
+`CP_MODEL_DISCOVERY_DELAY_SECONDS` (default 120). It imports classic model versions whose
+tracking-run lineage matches that pipeline UUID. Registry failures retry without changing
+pipeline success; empty outputs are revisited. Migration `0019` persists check/completion
+timestamps. After at least one matching output, the run is checkpointed; later registry publications
+need manual discovery. Completed discoveries survive restart and do not auto-evaluate/promote models.
+Retention updates preserve discovery checkpoints. Migration `0017` stores gateway buckets;
+apply all migrations through `0019` before starting this image.

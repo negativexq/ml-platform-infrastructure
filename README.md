@@ -24,7 +24,7 @@ observability.
 | **Projects and access** | Each project gets its own Kubernetes namespace and resource quota. Sign-in uses OpenID Connect, in the browser or with bearer tokens. Roles (`invoker`, `viewer`, `operator`, `admin`) are granted to users and groups; platform admins oversee everything. A fail-closed policy table decides who may call what. Every change is in an audit trail with the person's name |
 | **Training** | Jobs and multi-step pipelines (DAGs) on Argo Workflows. Runs can be started, cancelled and retried. Each run shows its logs, a step timeline and why it failed. Lineage links a run to the model versions it produced |
 | **Project secrets** | Admins create, rotate and delete project credentials in Settings. Values stay in Kubernetes Secrets; jobs and models use key and private-registry references. Read responses and audit records contain metadata only. See [project secrets](docs/secrets.md) |
-| **Models** | Versions come from the MLflow registry or, for LLMs, from the Hugging Face Hub. Acceptance thresholds decide each version: evaluation makes it a candidate or rejects it, and promotion makes it the champion. Registry aliases are kept in sync |
+| **Models** | Versions come from the MLflow registry, with lineage-scoped discovery after successful pipelines, or full-commit-pinned LLM versions from the Hugging Face Hub. Acceptance thresholds decide each version: evaluation makes it a candidate or rejects it, and promotion makes it the champion. Registry aliases are kept in sync |
 | **Serving** | Immutable revisions. Canary rollouts shift traffic in steps and are gated on error rate, p95 latency and minimum traffic. A canary that fails its gates rolls back automatically, and any deployment can be rolled back by hand. Metrics and trends are kept per revision |
 | **LLMs** | Language models run on GPUs with KServe's Hugging Face runtime (vLLM). Platform admins set each project's GPU quota, and every deploy and canary is checked against it. The API is OpenAI-compatible chat completions, with streaming. The UI has a chat playground and shows token usage per caller |
 | **Functions** | The team's own container behind an endpoint: versions are images, scaled by Knative from zero to a maximum, called with any JSON at `POST …/invoke`. Same keys, limits, canaries and rollback as models |
@@ -167,3 +167,11 @@ The full list of what is missing and what comes next: [`docs/roadmap.md`](docs/r
 
 Control-plane operational contracts: [readiness, lifecycle and budgets](docs/operations.md),
 [network topology](docs/networking.md), and [backup/restore](docs/recovery.md).
+
+Current remediation and remaining live gates are tracked in [docs/roadmap.md](docs/roadmap.md).
+Production gateway limits share PostgreSQL capacity; LLM GPU reservations include maximum
+replicas and transition/canary overlap. Job/model forms select project secret names/keys,
+and Settings shows their usage. See [installation preparation](docs/installation.md) for
+pinned, checksum-verified bootstrap bundles and manual-sync GitOps. Run `make cp-check-light`
+for checks without PostgreSQL/browser startup, or `make cp-http-test` for native gateway
+streaming tests.

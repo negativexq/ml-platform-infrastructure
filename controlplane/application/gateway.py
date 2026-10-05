@@ -12,6 +12,7 @@ into `invoke()` calls and `GatewayReply` / `GatewayError` back into responses.
 from __future__ import annotations
 
 import asyncio
+import logging
 import time
 from collections.abc import AsyncIterator, Callable, Sequence
 from dataclasses import dataclass, field
@@ -32,6 +33,8 @@ from controlplane.domain.states import (
     EndpointStatus,
     Exposure,
 )
+
+log = logging.getLogger(__name__)
 
 CACHE_SECONDS = 5.0  # how stale an endpoint or key may be (a revoked key works this long)
 TOUCH_SECONDS = 60.0  # last_used_at is written at most this often per key
@@ -232,7 +235,7 @@ class GatewayService:
                     )
                 except InvalidChatRequest as exc:
                     raise GatewayError(400, "invalid_request", str(exc)) from exc
-            allowance = self._limit(caller, route, reserved)
+            allowance = await asyncio.to_thread(self._limit, caller, route, reserved)
             admitted = True
             reply = await self._forward(route, body, request_id)
         except GatewayError as error:
@@ -302,7 +305,14 @@ class GatewayService:
 
     def _limit(self, caller: Caller, route: Route, reserved: int = 0) -> Allowance:
         buckets = self._buckets(caller, route)
-        allowance = self._limiter.take(buckets, reserved if route.kind is EndpointKind.LLM else 1)
+        try:
+            allowance = self._limiter.take(
+                buckets, reserved if route.kind is EndpointKind.LLM else 1
+            )
+        except Exception:
+            raise GatewayError(
+                503, "limit_store_unavailable", "rate-limit store unavailable"
+            ) from None
         if not allowance.allowed:
             raise GatewayError(
                 429,
@@ -358,10 +368,15 @@ class GatewayService:
                     meter.total if complete and meter.usage_reported else max(reserved, meter.total)
                 )
                 buckets = self._buckets(caller, route)
-                if measured < reserved:
-                    self._limiter.refund(buckets, reserved - measured)
-                elif measured > reserved:
-                    self._limiter.charge(buckets, measured - reserved)
+                try:
+                    if measured < reserved:
+                        await asyncio.to_thread(self._limiter.refund, buckets, reserved - measured)
+                    elif measured > reserved:
+                        await asyncio.to_thread(self._limiter.charge, buckets, measured - reserved)
+                except Exception:
+                    # An unavailable store never grants a refund locally. Keep the reservation.
+                    log.warning("rate-limit settlement failed; reservation retained")
+                    measured = max(measured, reserved)
                 self._record(
                     caller, route, status, measured, started, meter.prompt, meter.completion
                 )

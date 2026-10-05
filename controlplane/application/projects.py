@@ -116,11 +116,11 @@ class ProjectService:
         """How many GPUs the project's workloads may hold together (platform admins only).
         The reconciler applies it to the namespace's ResourceQuota. Lowering it below what
         is in use is refused: it would leave running LLMs over quota."""
-        from controlplane.application.deployments import gpus_in_use
+        from controlplane.application.deployments import gpus_in_use, lock_project
         from controlplane.application.jobs import resolve_project
 
         with self._uow_factory() as uow:
-            project = resolve_project(uow, project_ref)
+            project = lock_project(uow, resolve_project(uow, project_ref))
             if project.gpu_quota == gpus:
                 return project, False
             used = gpus_in_use(uow, project.id)

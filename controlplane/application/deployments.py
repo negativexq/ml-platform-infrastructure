@@ -80,8 +80,33 @@ def gpus_in_use(uow: UnitOfWork, project_id: UUID, *, besides: UUID | None = Non
         for number in held - {None}:
             assert number is not None
             revision = uow.revisions.get(deployment.id, number)
-            total += revision.gpus if revision else 0
+            total += revision.gpus * revision.max_scale if revision else 0
     return total
+
+
+def held_gpus(
+    uow: UnitOfWork, deployment: Deployment, incoming: DeploymentRevision | None = None
+) -> int:
+    numbers = {deployment.active_revision, deployment.desired_revision} - {None}
+    rollout = uow.rollouts.get_active(deployment.id)
+    if rollout is not None:
+        numbers |= {rollout.from_revision, rollout.to_revision}
+    if incoming:
+        numbers.add(incoming.revision)
+    total = 0
+    for number in numbers:
+        if number is not None:
+            revision = uow.revisions.get(deployment.id, number)
+            if revision is not None:
+                total += revision.gpus * revision.max_scale
+    return total
+
+
+def lock_project(uow: UnitOfWork, project: Project) -> Project:
+    locked = uow.projects.lock(project.id)
+    if locked is None:
+        raise NotFound("project", project.id)
+    return locked
 
 
 def check_gpus(uow: UnitOfWork, project: Project, deployment: Deployment, need: int) -> None:
@@ -266,7 +291,7 @@ class DeploymentService:
         self, project_ref: str, name: str, model_name: str, version: int
     ) -> tuple[DeploymentView, bool]:
         with self._uow_factory() as uow:
-            project = resolve_project(uow, project_ref)
+            project = lock_project(uow, resolve_project(uow, project_ref))
             deployment = uow.deployments.get_by_name(project.id, name)
             if deployment is None:
                 raise NotFound("deployment", name)
@@ -288,16 +313,25 @@ class DeploymentService:
                 return self._view(uow, deployment), False  # already the latest revision
             runtime, gpus, context = serving_of(model)
             _same_kind(revisions, runtime, name)
-            check_gpus(uow, project, deployment, gpus)
+            check_gpus(
+                uow,
+                project,
+                deployment,
+                gpus * (model.serving.max_scale if model.serving else 1)
+                + held_gpus(uow, deployment),
+            )
         model_uri = self._artifact(project, model, mv)
 
         with self._uow_factory() as uow:
-            project = resolve_project(uow, project_ref)
+            project = lock_project(uow, resolve_project(uow, project_ref))
             deployment = uow.deployments.get_by_name(project.id, name)
             assert deployment is not None
             deployment = uow.deployments.lock(deployment.id)
             assert deployment is not None
             self._ensure_live(deployment)
+            latest = uow.revisions.list(deployment.id)
+            if latest and latest[-1].model_version_id == mv.id:
+                return self._view(uow, deployment), False
             now = self._clock()
             revision = DeploymentRevision(
                 deployment_id=deployment.id,
@@ -307,9 +341,17 @@ class DeploymentService:
                 runtime=runtime,
                 gpus=gpus,
                 context_length=context,
+                min_scale=model.serving.min_scale if model.serving else 1,
+                max_scale=model.serving.max_scale if model.serving else 1,
                 function=model.function,
                 secret_refs=model.secret_refs,
                 created_at=now,
+            )
+            check_gpus(
+                uow,
+                project,
+                deployment,
+                revision.gpus * revision.max_scale + held_gpus(uow, deployment),
             )
             uow.revisions.add(revision)
             self._serve_kind(uow, deployment, model, now)
@@ -374,9 +416,16 @@ class DeploymentService:
             _same_kind(revisions, runtime, name)
             # A canary runs next to the stable revision: both hold GPUs until it ends.
             stable = uow.revisions.get(deployment.id, deployment.active_revision or 0)
-            check_gpus(uow, project, deployment, gpus + (stable.gpus if stable else 0))
+            check_gpus(
+                uow,
+                project,
+                deployment,
+                gpus * (model.serving.max_scale if model.serving else 1)
+                + (stable.gpus * stable.max_scale if stable else 0),
+            )
         model_uri = self._artifact(project, model, mv)
         with self._uow_factory() as uow:
+            project = resolve_project(uow, project_ref)
             current = uow.deployments.lock(deployment.id)
             assert current is not None
             self._ensure_live(current)
@@ -389,6 +438,8 @@ class DeploymentService:
                 runtime=runtime,
                 gpus=gpus,
                 context_length=context,
+                min_scale=model.serving.min_scale if model.serving else 1,
+                max_scale=model.serving.max_scale if model.serving else 1,
                 function=model.function,
                 secret_refs=model.secret_refs,
                 created_at=now,
@@ -468,7 +519,7 @@ class DeploymentService:
         a model that is no longer serving: the version being left is archived and the
         one being restored becomes champion again. The audit trail records both."""
         with self._uow_factory() as uow:
-            project = resolve_project(uow, project_ref)
+            project = lock_project(uow, resolve_project(uow, project_ref))
             deployment = uow.deployments.get_by_name(project.id, name)
             if deployment is None:
                 raise NotFound("deployment", name)
@@ -490,6 +541,7 @@ class DeploymentService:
                 raise Conflict("there is no earlier revision to roll back to")
             if target == active and deployment.desired_revision == active:
                 return self._view(uow, deployment)  # already there: idempotent
+            check_gpus(uow, project, deployment, held_gpus(uow, deployment, revisions[target]))
             now = self._clock()
             leaving = uow.model_versions.get(revisions[active].model_version_id)
             restoring = uow.model_versions.get(revisions[target].model_version_id)

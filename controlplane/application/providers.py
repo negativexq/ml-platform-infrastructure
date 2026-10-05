@@ -144,6 +144,8 @@ class ServingSpec:
     runtime: str = "mlflow"
     gpus: int = 0
     context_length: int | None = None
+    min_scale: int = 1
+    max_scale: int = 1
     # A function ("container" runtime): replicas, concurrency, port and environment.
     function: Mapping[str, Any] | None = None
     secret_refs: SecretRefs = field(default_factory=SecretRefs)

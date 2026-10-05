@@ -740,9 +740,17 @@ def _seed(
         serving=LlmServing(gpus=1, context_length=8192),
     )
     hub = (  # (source, helpfulness, toxicity) from an offline evaluation
-        ("hf://Qwen/Qwen2.5-7B-Instruct@a09a354", 0.81, 0.004),
-        ("hf://meta-llama/Llama-3.1-8B-Instruct@0e9e39f", 0.86, 0.003),
-        ("hf://mistralai/Mistral-7B-Instruct-v0.3@e0bc86c", 0.71, 0.006),
+        ("hf://Qwen/Qwen2.5-7B-Instruct@a09a354000000000000000000000000000000000", 0.81, 0.004),
+        (
+            "hf://meta-llama/Llama-3.1-8B-Instruct@0e9e39f000000000000000000000000000000000",
+            0.86,
+            0.003,
+        ),
+        (
+            "hf://mistralai/Mistral-7B-Instruct-v0.3@e0bc86c000000000000000000000000000000000",
+            0.71,
+            0.006,
+        ),
     )
     llm_versions = []
     for source, helpful, toxic in hub:

@@ -428,6 +428,8 @@ def _pipeline_run(row: PipelineRunRow) -> PipelineRun:
         started_at=row.started_at,
         finished_at=row.finished_at,
         workflow_cleaned_at=row.workflow_cleaned_at,
+        models_discovered_at=row.models_discovered_at,
+        model_discovery_checked_at=row.model_discovery_checked_at,
     )
 
 
@@ -516,6 +518,8 @@ class SqlPipelineRuns:
                 started_at=run.started_at,
                 finished_at=run.finished_at,
                 workflow_cleaned_at=run.workflow_cleaned_at,
+                models_discovered_at=run.models_discovered_at,
+                model_discovery_checked_at=run.model_discovery_checked_at,
             )
         )
         _flush_unique(self._s, "pipeline run", run.idempotency_key)
@@ -564,6 +568,43 @@ class SqlPipelineRuns:
             )
             or 0
         )
+
+    def list_discovery_candidates(self, before: datetime, limit: int) -> Sequence[PipelineRun]:
+        rows = self._s.scalars(
+            select(PipelineRunRow)
+            .where(
+                PipelineRunRow.status == RunStatus.SUCCEEDED.value,
+                PipelineRunRow.models_discovered_at.is_(None),
+                PipelineRunRow.finished_at <= before,
+                (
+                    PipelineRunRow.model_discovery_checked_at.is_(None)
+                    | (PipelineRunRow.model_discovery_checked_at <= before)
+                ),
+            )
+            .order_by(
+                func.coalesce(
+                    PipelineRunRow.model_discovery_checked_at, PipelineRunRow.finished_at
+                ),
+                PipelineRunRow.id,
+            )
+            .limit(limit)
+        )
+        return [_pipeline_run(r) for r in rows]
+
+    def mark_model_discovery(self, run_id: UUID, checked_at: datetime, completed: bool) -> bool:
+        result = self._s.execute(
+            update(PipelineRunRow)
+            .where(
+                PipelineRunRow.id == run_id,
+                PipelineRunRow.status == RunStatus.SUCCEEDED.value,
+                PipelineRunRow.models_discovered_at.is_(None),
+            )
+            .values(
+                model_discovery_checked_at=checked_at,
+                models_discovered_at=checked_at if completed else None,
+            )
+        )
+        return getattr(result, "rowcount", 0) == 1
 
     def list_active(self) -> Sequence[PipelineRun]:
         terminal = [s.value for s in (RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED)]
@@ -675,7 +716,12 @@ def _model(row: ModelRow) -> Model:
         alias_drift=row.alias_drift,
         kind=ModelKind(row.kind),
         serving=(
-            LlmServing(gpus=row.llm_gpus, context_length=row.llm_context_length)
+            LlmServing(
+                gpus=row.llm_gpus,
+                context_length=row.llm_context_length,
+                min_scale=row.llm_min_scale,
+                max_scale=row.llm_max_scale,
+            )
             if row.llm_gpus is not None
             else None
         ),
@@ -751,6 +797,8 @@ class SqlModels:
                 kind=model.kind.value,
                 llm_gpus=model.serving.gpus if model.serving else None,
                 llm_context_length=model.serving.context_length if model.serving else None,
+                llm_min_scale=model.serving.min_scale if model.serving else 1,
+                llm_max_scale=model.serving.max_scale if model.serving else 1,
                 function_settings=model.function.to_json() if model.function else None,
                 secret_refs=model.secret_refs.to_json(),
                 created_at=model.created_at,
@@ -982,6 +1030,8 @@ def _revision(row: DeploymentRevisionRow) -> DeploymentRevision:
         runtime=ServingRuntime(row.runtime),
         gpus=row.gpus,
         context_length=row.context_length,
+        min_scale=row.min_scale,
+        max_scale=row.max_scale,
         function=FunctionServing.from_json(row.function_settings)
         if row.function_settings
         else None,
@@ -1124,6 +1174,8 @@ class SqlRevisions:
                 runtime=revision.runtime.value,
                 gpus=revision.gpus,
                 context_length=revision.context_length,
+                min_scale=revision.min_scale,
+                max_scale=revision.max_scale,
                 function_settings=revision.function.to_json() if revision.function else None,
                 secret_refs=revision.secret_refs.to_json(),
                 created_at=revision.created_at,

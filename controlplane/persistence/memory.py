@@ -7,7 +7,7 @@ commit, so rollback semantics match the SQL implementation.
 from __future__ import annotations
 
 from collections.abc import Collection, Sequence
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from datetime import datetime
 from types import TracebackType
 from typing import Self
@@ -340,6 +340,35 @@ class _PipelineRuns:
     def count(self, project_id: UUID) -> int:
         return sum(1 for r in self._data.values() if r.project_id == project_id)
 
+    def list_discovery_candidates(self, before: datetime, limit: int) -> Sequence[PipelineRun]:
+        rows = [
+            r
+            for r in self._data.values()
+            if r.status is RunStatus.SUCCEEDED
+            and r.models_discovered_at is None
+            and r.finished_at is not None
+            and r.finished_at <= before
+            and (r.model_discovery_checked_at is None or r.model_discovery_checked_at <= before)
+        ]
+        return sorted(rows, key=lambda r: (r.model_discovery_checked_at or r.finished_at, r.id))[
+            :limit
+        ]
+
+    def mark_model_discovery(self, run_id: UUID, checked_at: datetime, completed: bool) -> bool:
+        current = self._data.get(run_id)
+        if (
+            current is None
+            or current.status is not RunStatus.SUCCEEDED
+            or current.models_discovered_at
+        ):
+            return False
+        self._data[run_id] = replace(
+            current,
+            model_discovery_checked_at=checked_at,
+            models_discovered_at=checked_at if completed else None,
+        )
+        return True
+
     def list_active(self) -> Sequence[PipelineRun]:
         return sorted(
             (r for r in self._data.values() if not r.is_terminal),
@@ -366,7 +395,11 @@ class _PipelineRuns:
             raise Conflict(
                 f"pipeline run {run.id} is {current.status.value}, not {expected_status.value}"
             )
-        self._data[run.id] = run
+        self._data[run.id] = replace(
+            run,
+            models_discovered_at=current.models_discovered_at,
+            model_discovery_checked_at=current.model_discovery_checked_at,
+        )
 
 
 class _StepRuns:

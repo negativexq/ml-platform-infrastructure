@@ -42,8 +42,8 @@ function SecretManagement({ project }: { project: string }) {
   return <div className="section card" data-testid="project-secrets">
     <div className="section-head"><h2>Secrets</h2><button className="btn" onClick={() => write()}>Create secret</button></div>
     <p className="muted">Project credentials for workloads and private registries. Only names, keys and versions are shown; values are never returned.</p>
-    <QueryView query={query}>{({ items }) => items.length ? <Table head={['Name', 'Keys', 'Type', 'Version', 'Actions']}>
-      {items.map(s => <tr key={s.name}><td>{s.name}</td><td>{s.keys.join(', ')}</td><td>{s.kind}</td><td>{s.version}</td><td>
+    <QueryView query={query}>{({ items }) => items.length ? <Table head={['Name', 'Keys', 'Type', 'Version', 'Used by', 'Actions']}>
+      {items.map(s => <tr key={s.name}><td>{s.name}</td><td>{s.keys.join(', ')}</td><td>{s.kind}</td><td>{s.version}</td><td>{(s.used_by || []).length ? (s.used_by || []).map(u => `${u.kind}: ${u.name}${u.revision ? ` r${u.revision}` : ''}`).join(', ') : 'Unused'}</td><td>
         <button className="btn small" onClick={() => write(s)}>Rotate</button>{' '}
         <button className="btn small danger" onClick={async () => {
           if (await confirm({ title: `Delete ${s.name}?`, body: 'Deletion is blocked if an immutable workload references this secret. Existing history remains.', confirmLabel: 'Delete', danger: true }))

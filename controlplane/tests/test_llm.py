@@ -43,8 +43,8 @@ from controlplane.reconciliation.projects import ProjectReconciler
 from controlplane.tests.test_gateway import Monotonic, Recorder
 
 Factory = Callable[[], UnitOfWork]
-QWEN = "hf://Qwen/Qwen2.5-7B-Instruct@a09a354"
-QWEN_NEXT = "hf://Qwen/Qwen2.5-7B-Instruct@bb46c15"
+QWEN = "hf://Qwen/Qwen2.5-7B-Instruct@a09a354000000000000000000000000000000000"
+QWEN_NEXT = "hf://Qwen/Qwen2.5-7B-Instruct@bb46c15000000000000000000000000000000000"
 CHAT = {"messages": [{"role": "user", "content": "Why was my loan declined?"}]}
 
 
@@ -187,7 +187,9 @@ def test_kserve_runs_an_llm_on_gpus_with_its_context() -> None:
         )
     )
     model = body["spec"]["predictor"]["model"]
-    assert model["modelFormat"] == {"name": "huggingface"} and model["storageUri"] == QWEN
+    assert model["modelFormat"] == {"name": "huggingface"} and model["storageUri"] == QWEN.replace(
+        "@", ":"
+    )
     assert model["args"] == [
         "--model_name=assistant-prod",
         "--max_model_len=8192",
@@ -422,3 +424,60 @@ def test_llm_api_flow(uow_factory: Factory, clock: Any) -> None:
         "openai",
         "chat/completions",
     )
+
+
+def test_gpu_reservation_counts_max_replicas_and_transition_overlap(env: Env) -> None:
+    from controlplane.application.deployments import gpus_in_use
+
+    env.models.create(
+        "support",
+        "scaled",
+        {"score": Threshold(min=0.5)},
+        kind=ModelKind.LLM,
+        serving=LlmServing(gpus=2, min_scale=0, max_scale=3),
+    )
+    env.models.register_from_hub("support", "scaled", QWEN, {"score": 0.8})
+    env.evaluations.evaluate(env.models.get("support", "scaled").versions[0].id)
+    env.deployments.create("support", "scaled-prod")
+    env.projects.set_gpu_quota("support", 5)
+    with pytest.raises(Conflict, match="needs 6 GPUs"):
+        env.deployments.deploy("support", "scaled-prod", "scaled", 1)
+    env.projects.set_gpu_quota("support", 6)
+    view, _ = env.deployments.deploy("support", "scaled-prod", "scaled", 1)
+    assert view.revisions[0].revision.max_scale == 3
+    env.reconciler.reconcile_all()
+    with env.factory() as uow:
+        project = uow.projects.get_by_name("support")
+        assert project is not None
+        assert gpus_in_use(uow, project.id) == 6
+    with pytest.raises(Conflict, match="6 GPUs are in use"):
+        env.projects.set_gpu_quota("support", 5)
+    env.models.register_from_hub("support", "scaled", QWEN_NEXT, {"score": 0.9})
+    env.evaluations.evaluate(env.models.get("support", "scaled").versions[1].id)
+    with pytest.raises(Conflict, match="needs 12 GPUs"):
+        env.deployments.deploy("support", "scaled-prod", "scaled", 2)
+    env.projects.set_gpu_quota("support", 12)
+    env.deployments.deploy("support", "scaled-prod", "scaled", 2)
+    with env.factory() as uow:
+        project = uow.projects.get_by_name("support")
+        assert project is not None
+        assert gpus_in_use(uow, project.id) == 12
+    env.reconciler.reconcile_all()
+    with env.factory() as uow:
+        project = uow.projects.get_by_name("support")
+        assert project is not None
+        assert gpus_in_use(uow, project.id) == 6
+    spec = ServingSpec(
+        "scaled", "mlp-support", QWEN, 1, runtime="huggingface", gpus=2, min_scale=0, max_scale=3
+    )
+    predictor = build_inference_service(spec)["spec"]["predictor"]
+    assert (predictor["minReplicas"], predictor["maxReplicas"]) == (0, 3)
+
+
+@pytest.mark.parametrize("revision", ["", "main", "v1", "a09a354", "A" * 40, "a" * 39])
+def test_hub_registration_requires_full_commit_identity(revision: str) -> None:
+    from controlplane.domain.entities import validate_hub_source
+
+    with pytest.raises(InvalidArgument, match="40-character"):
+        validate_hub_source("hf://org/model" + ("@" + revision if revision else ""))
+    assert validate_hub_source("hf://org/model@" + "a" * 40).endswith("a" * 40)

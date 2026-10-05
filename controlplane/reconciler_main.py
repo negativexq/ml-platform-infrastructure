@@ -27,6 +27,7 @@ from controlplane.observability import instrument_reconciler, observe, observed_
 from controlplane.persistence.sql import SqlUnitOfWork, make_engine, sql_uow_factory
 from controlplane.reconciliation.deployments import DeploymentReconciler
 from controlplane.reconciliation.model_aliases import ModelAliasReconciler
+from controlplane.reconciliation.model_discovery import ModelDiscoveryReconciler
 from controlplane.reconciliation.pipeline_runs import PipelineRunReconciler
 from controlplane.reconciliation.projects import ProjectReconciler
 from controlplane.reconciliation.retention import WorkflowRetentionReconciler
@@ -139,6 +140,13 @@ def main() -> None:
         else None
     )
 
+    discovery = (
+        ModelDiscoveryReconciler(
+            uow, experiments, delay_seconds=settings.model_discovery_delay_seconds
+        )
+        if experiments is not None
+        else None
+    )
     retention = WorkflowRetentionReconciler(uow, workflow, settings.workflow_retention_seconds)
 
     log.info("reconciler started", telemetry=telemetry.enabled)
@@ -172,6 +180,8 @@ def main() -> None:
                     "model_aliases",
                     lambda: [r for r in aliases.reconcile_all() if r.synced or r.drift],
                 )
+            if discovery is not None:
+                _pass("model_discovery", discovery.reconcile_all)
             if settings.workflow_retention_seconds:
                 _pass("workflow_retention", retention.reconcile_all)
             time.sleep(settings.reconcile_interval_seconds)

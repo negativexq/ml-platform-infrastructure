@@ -13,6 +13,7 @@ from fastapi import FastAPI
 
 from controlplane import observability
 from controlplane.adapters.gateway import HttpUpstream, TokenBucketLimiter
+from controlplane.adapters.gateway.sql_limits import SqlTokenBucketLimiter
 from controlplane.application.gateway import GatewayService
 from controlplane.gateway import create_gateway
 from controlplane.main import auth_config
@@ -38,7 +39,9 @@ def app_factory() -> FastAPI:
     service = GatewayService(
         lambda: SqlUnitOfWork(sessions),
         HttpUpstream(),
-        TokenBucketLimiter(),
+        SqlTokenBucketLimiter(engine)
+        if settings.gateway_limit_store == "postgres"
+        else TokenBucketLimiter(),
         recorders=[GatewayUsageMetrics()],
         authenticator=auth.authenticator if auth is not None else None,
     )

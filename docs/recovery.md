@@ -20,7 +20,7 @@ python3 scripts/controlplane_backup.py backup /secure/backups/controlplane-20261
 The destination must not exist. Its permissions are 0700; the custom-format dump and
 manifest are 0600. An exporting read-only repeatable-read transaction stays open while
 `pg_dump --snapshot` and the metadata query use the same snapshot. The manifest records
-schema heads, counts for all 18 durable tables, SHA-256 and UTC timestamp. A failed backup
+schema heads, counts for all 19 durable tables (including shared gateway budgets/debt), SHA-256 and UTC timestamp. A failed backup
 has no completed manifest. Upload/encrypt the complete directory with your backup system,
 restrict access, and define scheduled frequency and retention to match the chosen RPO.
 A dump includes access state and audit data; the script does not print credentials or
@@ -71,3 +71,8 @@ This dump covers the control-plane database only. MLflow database/artifacts, Min
 objects, PostgreSQL roles, Kubernetes resources, Secrets, OIDC identity and durable logs
 need their own backups. Snapshot consistency does not provide a distributed snapshot
 across those systems. Existing [MLflow backup](../scripts/backup.sh) remains separate.
+
+The restore verifier also accepts complete legacy 18-table manifests at heads
+`0014`–`0016`. Use the backup script from the installed release before upgrading an old
+schema; this version queries the shared-bucket table added in `0017`. Restore legacy
+archives first, then migrate the isolated recovery database through `0019` for this image.

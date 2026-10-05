@@ -111,6 +111,8 @@ class DeploymentReconciler:
             runtime=revision.runtime.value,
             gpus=revision.gpus,
             context_length=revision.context_length,
+            min_scale=revision.min_scale,
+            max_scale=revision.max_scale,
             function=revision.function.to_json() if revision.function else None,
             secret_refs=revision.secret_refs,
             labels={

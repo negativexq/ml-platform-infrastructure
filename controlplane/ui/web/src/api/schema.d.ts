@@ -4,210 +4,6 @@
  */
 
 export interface paths {
-    "/healthz": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Liveness */
-        get: operations["healthz_healthz_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/me": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Who the caller is, and their role in each project */
-        get: operations["me_me_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/me/notifications": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Current issues and recent rollout outcomes */
-        get: operations["list_notifications_me_notifications_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/me/notifications/read": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Mark your notifications read */
-        post: operations["mark_read_me_notifications_read_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/model-versions/{version_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Version with its evaluations and promotions */
-        get: operations["get_version_model_versions__version_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/model-versions/{version_id}/evaluate": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Evaluate against the model's thresholds: CANDIDATE or REJECTED */
-        post: operations["evaluate_model_versions__version_id__evaluate_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/model-versions/{version_id}/promote": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Promote a CANDIDATE to CHAMPION (rejected versions cannot be promoted) */
-        post: operations["promote_model_versions__version_id__promote_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/pipeline-runs/{run_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Run with per-step status */
-        get: operations["get_run_pipeline_runs__run_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/pipeline-runs/{run_id}/cancel": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Request cancellation (idempotent) */
-        post: operations["cancel_pipeline_runs__run_id__cancel_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/pipeline-runs/{run_id}/steps/{step}/logs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Step logs, read through the platform */
-        get: operations["step_logs_pipeline_runs__run_id__steps__step__logs_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/pipeline-runs/{run_id}/tracking": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Tracked experiment runs (params, metrics, artifacts) for this run, by platform id */
-        get: operations["tracking_pipeline_runs__run_id__tracking_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/platform/health": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** The control plane's own health: checks with thresholds and trends */
-        get: operations["health_platform_health_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/projects": {
         parameters: {
             query?: never;
@@ -244,283 +40,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/projects/{project}/api-keys": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List API keys */
-        get: operations["list_keys_projects__project__api_keys_get"];
-        put?: never;
-        /** Issue an API key (the secret is in this response only) */
-        post: operations["create_key_projects__project__api_keys_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/projects/{project}/api-keys/{key_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        post?: never;
-        /** Revoke an API key (idempotent; the gateway stops accepting it within seconds) */
-        delete: operations["revoke_key_projects__project__api_keys__key_id__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/projects/{project}/audit": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Audit trail, newest first */
-        get: operations["audit_projects__project__audit_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/projects/{project}/deployments": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List deployments */
-        get: operations["list_deployments_projects__project__deployments_get"];
-        put?: never;
-        /** Create a deployment and its endpoint (idempotent) */
-        post: operations["create_deployment_projects__project__deployments_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/projects/{project}/deployments/{name}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Deployment with its revisions and endpoint */
-        get: operations["get_deployment_projects__project__deployments__name__get"];
-        put?: never;
-        post?: never;
-        /** Delete Deployment */
-        delete: operations["delete_deployment_projects__project__deployments__name__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/projects/{project}/deployments/{name}/revisions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Serve a model version as a new immutable revision (CANDIDATE or CHAMPION only) */
-        post: operations["create_revision_projects__project__deployments__name__revisions_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/projects/{project}/deployments/{name}/rollback": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Serve an earlier revision again (default: the previous one) */
-        post: operations["rollback_projects__project__deployments__name__rollback_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/projects/{project}/deployments/{name}/rollouts": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Rollouts of a deployment, newest first */
-        get: operations["list_rollouts_projects__project__deployments__name__rollouts_get"];
-        put?: never;
-        /** Canary a model version onto a READY deployment, gated step by step */
-        post: operations["start_rollout_projects__project__deployments__name__rollouts_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/projects/{project}/endpoints": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List endpoints */
-        get: operations["list_endpoints_projects__project__endpoints_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/projects/{project}/endpoints/{name}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get an endpoint */
-        get: operations["get_endpoint_projects__project__endpoints__name__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        /** Open an endpoint to the gateway (public) or close it (internal), with limits */
-        patch: operations["set_exposure_projects__project__endpoints__name__patch"];
-        trace?: never;
-    };
-    "/projects/{project}/endpoints/{name}/access": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** How an endpoint is reached from outside: exposure, limits, URL, keys */
-        get: operations["get_access_projects__project__endpoints__name__access_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/projects/{project}/endpoints/{name}/chat": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** One chat completion from an LLM endpoint through the platform (the playground) */
-        post: operations["chat_projects__project__endpoints__name__chat_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/projects/{project}/endpoints/{name}/metrics": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** p95 / error rate / RPS per revision that receives traffic */
-        get: operations["endpoint_metrics_projects__project__endpoints__name__metrics_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/projects/{project}/endpoints/{name}/metrics/history": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** p95 / error rate / RPS over time, per revision serving now */
-        get: operations["endpoint_history_projects__project__endpoints__name__metrics_history_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/projects/{project}/endpoints/{name}/predict": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /** Inference through the platform (409 unless the endpoint is READY) */
-        post: operations["predict_projects__project__endpoints__name__predict_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/projects/{project}/endpoints/{name}/usage": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Calls through the gateway, by caller */
-        get: operations["get_usage_projects__project__endpoints__name__usage_get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/projects/{project}/gpu-quota": {
         parameters: {
             query?: never;
@@ -531,6 +50,59 @@ export interface paths {
         get?: never;
         /** Set how many GPUs a project may hold (platform admins only) */
         put: operations["set_gpu_quota_projects__project__gpu_quota_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/secrets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Secrets */
+        get: operations["list_secrets_projects__project__secrets_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/secrets/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Rotate Secret */
+        put: operations["rotate_secret_projects__project__secrets__name__put"];
+        /** Create Secret */
+        post: operations["create_secret_projects__project__secrets__name__post"];
+        /** Delete Secret */
+        delete: operations["delete_secret_projects__project__secrets__name__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/secret-references": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reference Catalog */
+        get: operations["reference_catalog_projects__project__secret_references_get"];
+        put?: never;
         post?: never;
         delete?: never;
         options?: never;
@@ -590,15 +162,15 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/projects/{project}/members": {
+    "/projects/{project}/runs": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Members of a project */
-        get: operations["list_members_projects__project__members_get"];
+        /** List runs, newest first */
+        get: operations["list_runs_projects__project__runs_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -607,51 +179,15 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/projects/{project}/members/{subject}": {
+    "/runs/{run_id}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
-        /** Grant a role to a user (user:<name>) or group (group:<name>), or change it */
-        put: operations["set_member_projects__project__members__subject__put"];
-        post?: never;
-        /** Remove a member (a project keeps at least one admin) */
-        delete: operations["remove_member_projects__project__members__subject__delete"];
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/projects/{project}/models": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List models */
-        get: operations["list_models_projects__project__models_get"];
-        put?: never;
-        /** Create a model with its acceptance thresholds (idempotent) */
-        post: operations["create_model_projects__project__models_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/projects/{project}/models/{name}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get a model */
-        get: operations["get_model_projects__project__models__name__get"];
+        /** Get a run */
+        get: operations["get_run_runs__run_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -660,7 +196,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/projects/{project}/models/{name}/discover": {
+    "/runs/{run_id}/cancel": {
         parameters: {
             query?: never;
             header?: never;
@@ -669,15 +205,15 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Register versions found in the model registry (idempotent) */
-        post: operations["discover_projects__project__models__name__discover_post"];
+        /** Request cancellation (idempotent) */
+        post: operations["cancel_run_runs__run_id__cancel_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/projects/{project}/models/{name}/images": {
+    "/runs/{run_id}/retry": {
         parameters: {
             query?: never;
             header?: never;
@@ -686,58 +222,23 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Register a function version: a container image (idempotent, a candidate at once) */
-        post: operations["register_image_projects__project__models__name__images_post"];
+        /** Retry a finished run as a new run; the original is left untouched */
+        post: operations["retry_run_runs__run_id__retry_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/projects/{project}/models/{name}/thresholds": {
+    "/runs/{run_id}/logs": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        get?: never;
-        /** Replace the thresholds used by future evaluations */
-        put: operations["set_thresholds_projects__project__models__name__thresholds_put"];
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/projects/{project}/models/{name}/versions": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List versions */
-        get: operations["list_versions_projects__project__models__name__versions_get"];
-        put?: never;
-        /** Register an LLM version from a model hub, with its offline results (idempotent) */
-        post: operations["register_from_hub_projects__project__models__name__versions_post"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/projects/{project}/pipeline-runs": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** List pipeline runs, newest first */
-        get: operations["list_runs_projects__project__pipeline_runs_get"];
+        /** Run logs, read through the platform */
+        get: operations["run_logs_runs__run_id__logs_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -798,15 +299,15 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/projects/{project}/runs": {
+    "/projects/{project}/pipeline-runs": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** List runs, newest first */
-        get: operations["list_runs_projects__project__runs_get"];
+        /** List pipeline runs, newest first */
+        get: operations["list_runs_projects__project__pipeline_runs_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -815,15 +316,15 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/projects/{project}/secrets": {
+    "/pipeline-runs/{run_id}": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** List Secrets */
-        get: operations["list_secrets_projects__project__secrets_get"];
+        /** Run with per-step status */
+        get: operations["get_run_pipeline_runs__run_id__get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -832,7 +333,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/projects/{project}/secrets/{name}": {
+    "/pipeline-runs/{run_id}/cancel": {
         parameters: {
             query?: never;
             header?: never;
@@ -840,28 +341,321 @@ export interface paths {
             cookie?: never;
         };
         get?: never;
-        /** Rotate Secret */
-        put: operations["rotate_secret_projects__project__secrets__name__put"];
-        /** Create Secret */
-        post: operations["create_secret_projects__project__secrets__name__post"];
-        /** Delete Secret */
-        delete: operations["delete_secret_projects__project__secrets__name__delete"];
+        put?: never;
+        /** Request cancellation (idempotent) */
+        post: operations["cancel_pipeline_runs__run_id__cancel_post"];
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/projects/{project}/summary": {
+    "/pipeline-runs/{run_id}/tracking": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Counts for a project */
-        get: operations["summary_projects__project__summary_get"];
+        /** Tracked experiment runs (params, metrics, artifacts) for this run, by platform id */
+        get: operations["tracking_pipeline_runs__run_id__tracking_get"];
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/pipeline-runs/{run_id}/steps/{step}/logs": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Step logs, read through the platform */
+        get: operations["step_logs_pipeline_runs__run_id__steps__step__logs_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/models": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List models */
+        get: operations["list_models_projects__project__models_get"];
+        put?: never;
+        /** Create a model with its acceptance thresholds (idempotent) */
+        post: operations["create_model_projects__project__models_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/models/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get a model */
+        get: operations["get_model_projects__project__models__name__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/models/{name}/thresholds": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Replace the thresholds used by future evaluations */
+        put: operations["set_thresholds_projects__project__models__name__thresholds_put"];
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/models/{name}/versions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List versions */
+        get: operations["list_versions_projects__project__models__name__versions_get"];
+        put?: never;
+        /** Register an LLM version from a model hub, with its offline results (idempotent) */
+        post: operations["register_from_hub_projects__project__models__name__versions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/models/{name}/images": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register a function version: a container image (idempotent, a candidate at once) */
+        post: operations["register_image_projects__project__models__name__images_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/models/{name}/discover": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Register versions found in the model registry (idempotent) */
+        post: operations["discover_projects__project__models__name__discover_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/model-versions/{version_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Version with its evaluations and promotions */
+        get: operations["get_version_model_versions__version_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/model-versions/{version_id}/evaluate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Evaluate against the model's thresholds: CANDIDATE or REJECTED */
+        post: operations["evaluate_model_versions__version_id__evaluate_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/model-versions/{version_id}/promote": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Promote a CANDIDATE to CHAMPION (rejected versions cannot be promoted) */
+        post: operations["promote_model_versions__version_id__promote_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/deployments": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List deployments */
+        get: operations["list_deployments_projects__project__deployments_get"];
+        put?: never;
+        /** Create a deployment and its endpoint (idempotent) */
+        post: operations["create_deployment_projects__project__deployments_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/deployments/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Deployment with its revisions and endpoint */
+        get: operations["get_deployment_projects__project__deployments__name__get"];
+        put?: never;
+        post?: never;
+        /** Delete Deployment */
+        delete: operations["delete_deployment_projects__project__deployments__name__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/deployments/{name}/revisions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Serve a model version as a new immutable revision (CANDIDATE or CHAMPION only) */
+        post: operations["create_revision_projects__project__deployments__name__revisions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/endpoints/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get an endpoint */
+        get: operations["get_endpoint_projects__project__endpoints__name__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Open an endpoint to the gateway (public) or close it (internal), with limits */
+        patch: operations["set_exposure_projects__project__endpoints__name__patch"];
+        trace?: never;
+    };
+    "/projects/{project}/endpoints/{name}/predict": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Inference through the platform (409 unless the endpoint is READY) */
+        post: operations["predict_projects__project__endpoints__name__predict_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/endpoints/{name}/chat": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** One chat completion from an LLM endpoint through the platform (the playground) */
+        post: operations["chat_projects__project__endpoints__name__chat_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/deployments/{name}/rollouts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Rollouts of a deployment, newest first */
+        get: operations["list_rollouts_projects__project__deployments__name__rollouts_get"];
+        put?: never;
+        /** Canary a model version onto a READY deployment, gated step by step */
+        post: operations["start_rollout_projects__project__deployments__name__rollouts_post"];
         delete?: never;
         options?: never;
         head?: never;
@@ -902,24 +696,7 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/runs/{run_id}": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** Get a run */
-        get: operations["get_run_runs__run_id__get"];
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/runs/{run_id}/cancel": {
+    "/projects/{project}/deployments/{name}/rollback": {
         parameters: {
             query?: never;
             header?: never;
@@ -928,23 +705,23 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Request cancellation (idempotent) */
-        post: operations["cancel_run_runs__run_id__cancel_post"];
+        /** Serve an earlier revision again (default: the previous one) */
+        post: operations["rollback_projects__project__deployments__name__rollback_post"];
         delete?: never;
         options?: never;
         head?: never;
         patch?: never;
         trace?: never;
     };
-    "/runs/{run_id}/logs": {
+    "/projects/{project}/summary": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** Run logs, read through the platform */
-        get: operations["run_logs_runs__run_id__logs_get"];
+        /** Counts for a project */
+        get: operations["summary_projects__project__summary_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -953,7 +730,144 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/runs/{run_id}/retry": {
+    "/projects/{project}/endpoints": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List endpoints */
+        get: operations["list_endpoints_projects__project__endpoints_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/endpoints/{name}/metrics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** p95 / error rate / RPS per revision that receives traffic */
+        get: operations["endpoint_metrics_projects__project__endpoints__name__metrics_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/endpoints/{name}/metrics/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** p95 / error rate / RPS over time, per revision serving now */
+        get: operations["endpoint_history_projects__project__endpoints__name__metrics_history_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/audit": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Audit trail, newest first */
+        get: operations["audit_projects__project__audit_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/platform/health": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The control plane's own health: checks with thresholds and trends */
+        get: operations["health_platform_health_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/endpoints/{name}/access": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** How an endpoint is reached from outside: exposure, limits, URL, keys */
+        get: operations["get_access_projects__project__endpoints__name__access_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/endpoints/{name}/usage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Calls through the gateway, by caller */
+        get: operations["get_usage_projects__project__endpoints__name__usage_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/api-keys": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List API keys */
+        get: operations["list_keys_projects__project__api_keys_get"];
+        put?: never;
+        /** Issue an API key (the secret is in this response only) */
+        post: operations["create_key_projects__project__api_keys_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/api-keys/{key_id}": {
         parameters: {
             query?: never;
             header?: never;
@@ -962,8 +876,111 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Retry a finished run as a new run; the original is left untouched */
-        post: operations["retry_run_runs__run_id__retry_post"];
+        post?: never;
+        /** Revoke an API key (idempotent; the gateway stops accepting it within seconds) */
+        delete: operations["revoke_key_projects__project__api_keys__key_id__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Who the caller is, and their role in each project */
+        get: operations["me_me_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/members": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Members of a project */
+        get: operations["list_members_projects__project__members_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/members/{subject}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Grant a role to a user (user:<name>) or group (group:<name>), or change it */
+        put: operations["set_member_projects__project__members__subject__put"];
+        post?: never;
+        /** Remove a member (a project keeps at least one admin) */
+        delete: operations["remove_member_projects__project__members__subject__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/notifications": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Current issues and recent rollout outcomes */
+        get: operations["list_notifications_me_notifications_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/me/notifications/read": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Mark your notifications read */
+        post: operations["mark_read_me_notifications_read_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/healthz": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Liveness */
+        get: operations["healthz_healthz_get"];
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -977,22 +994,22 @@ export interface components {
         /** ApiKeyCreate */
         ApiKeyCreate: {
             /**
-             * Endpoints
-             * @description endpoint names this key may call
-             */
-            endpoints: string[];
-            /** Expires At */
-            expires_at?: string | null;
-            /**
              * Name
              * @description who it is for, e.g. partner-acme
              */
             name: string;
             /**
+             * Endpoints
+             * @description endpoint names this key may call
+             */
+            endpoints: string[];
+            /**
              * Units Per Minute
              * @description this key's own limit; null: the endpoint's
              */
             units_per_minute?: number | null;
+            /** Expires At */
+            expires_at?: string | null;
         };
         /** ApiKeyCreated */
         ApiKeyCreated: {
@@ -1011,48 +1028,37 @@ export interface components {
         /** ApiKeyOut */
         ApiKeyOut: {
             /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Created By */
-            created_by: string;
-            /** Endpoints */
-            endpoints: string[];
-            /** Expires At */
-            expires_at: string | null;
-            /**
              * Key Id
              * @description the public part of the key, safe to show and log
              */
             key_id: string;
-            /** Last Used At */
-            last_used_at: string | null;
             /** Name */
             name: string;
-            /** Revoked At */
-            revoked_at: string | null;
+            /** Endpoints */
+            endpoints: string[];
+            /** Units Per Minute */
+            units_per_minute: number | null;
             /**
              * State
              * @description active, revoked or expired
              */
             state: string;
-            /** Units Per Minute */
-            units_per_minute: number | null;
+            /** Created By */
+            created_by: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Expires At */
+            expires_at: string | null;
+            /** Revoked At */
+            revoked_at: string | null;
+            /** Last Used At */
+            last_used_at: string | null;
         };
         /** AuditEventOut */
         AuditEventOut: {
-            /** Action */
-            action: string;
-            /** Actor */
-            actor: string;
-            /**
-             * Entity Id
-             * Format: uuid
-             */
-            entity_id: string;
-            /** Entity Type */
-            entity_type: string;
             /**
              * Id
              * Format: uuid
@@ -1063,6 +1069,17 @@ export interface components {
              * Format: date-time
              */
             occurred_at: string;
+            /** Actor */
+            actor: string;
+            /** Action */
+            action: string;
+            /** Entity Type */
+            entity_type: string;
+            /**
+             * Entity Id
+             * Format: uuid
+             */
+            entity_id: string;
             /** Payload */
             payload: {
                 [key: string]: unknown;
@@ -1080,58 +1097,58 @@ export interface components {
             /** Caller */
             caller: string;
             /**
-             * Completion Tokens
-             * @description LLMs: tokens generated
+             * Units
+             * @description in the window
              */
-            completion_tokens?: number | null;
+            units: number;
+            /** Rejected */
+            rejected: number;
             /** Errors */
             errors: number;
-            /** Points */
-            points: components["schemas"]["UsagePointOut"][];
             /**
              * Prompt Tokens
              * @description LLMs: tokens sent, in the window
              */
             prompt_tokens?: number | null;
-            /** Rejected */
-            rejected: number;
             /**
-             * Units
-             * @description in the window
+             * Completion Tokens
+             * @description LLMs: tokens generated
              */
-            units: number;
+            completion_tokens?: number | null;
+            /** Points */
+            points: components["schemas"]["UsagePointOut"][];
         };
         /** ChatMessage */
         ChatMessage: {
-            /** Content */
-            content: string;
             /** Role */
             role: string;
+            /** Content */
+            content: string;
         };
         /**
          * ChatRequest
          * @description The playground's request: an OpenAI-style chat, answered in one piece (not streamed).
          */
         ChatRequest: {
-            /** Max Tokens */
-            max_tokens?: number | null;
             /** Messages */
             messages: components["schemas"]["ChatMessage"][];
+            /** Max Tokens */
+            max_tokens?: number | null;
             /** Temperature */
             temperature?: number | null;
         };
         /** CheckOut */
         CheckOut: {
-            /** Max */
-            max: number | null;
             /** Metric */
             metric: string;
-            /** Min */
-            min: number | null;
-            /** Passed */
-            passed: boolean;
             /** Value */
             value: number | null;
+            /** Min */
+            min: number | null;
+            /** Max */
+            max: number | null;
+            /** Passed */
+            passed: boolean;
         };
         /** DeploymentCreate */
         DeploymentCreate: {
@@ -1145,33 +1162,33 @@ export interface components {
         };
         /** DeploymentOut */
         DeploymentOut: {
-            /** Active Revision */
-            active_revision: number | null;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Desired Revision */
-            desired_revision: number | null;
-            endpoint: components["schemas"]["EndpointOut"];
             /**
              * Id
              * Format: uuid
              */
             id: string;
-            /** Name */
-            name: string;
             /**
              * Project Id
              * Format: uuid
              */
             project_id: string;
-            /** Revisions */
-            revisions: components["schemas"]["RevisionOut"][];
+            /** Name */
+            name: string;
             status: components["schemas"]["DeploymentStatus"];
             /** Status Reason */
             status_reason: string | null;
+            /** Desired Revision */
+            desired_revision: number | null;
+            /** Active Revision */
+            active_revision: number | null;
+            endpoint: components["schemas"]["EndpointOut"];
+            /** Revisions */
+            revisions: components["schemas"]["RevisionOut"][];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
             /**
              * Updated At
              * Format: date-time
@@ -1185,34 +1202,34 @@ export interface components {
         DeploymentStatus: "PENDING" | "DEPLOYING" | "READY" | "DEGRADED" | "FAILED" | "DELETING" | "DELETED";
         /** DiscoveryOut */
         DiscoveryOut: {
-            /** Already Known */
-            already_known: number;
             /** Created */
             created: components["schemas"]["ModelVersionSummary"][];
+            /** Already Known */
+            already_known: number;
         };
         /** EndpointAccessOut */
         EndpointAccessOut: {
             /** Endpoint */
             endpoint: string;
-            exposure: components["schemas"]["Exposure"];
-            /**
-             * Keys
-             * @description keys that may call this endpoint
-             */
-            keys: components["schemas"]["ApiKeyOut"][];
             kind: components["schemas"]["EndpointKind"];
+            protocol: components["schemas"]["EndpointProtocol"];
+            exposure: components["schemas"]["Exposure"];
             limits: components["schemas"]["EndpointLimitsBody"];
             /**
              * Operation
              * @description the last part of the public path, e.g. predict
              */
             operation: string;
-            protocol: components["schemas"]["EndpointProtocol"];
             /**
              * Public Url
              * @description null when no gateway URL is configured
              */
             public_url: string | null;
+            /**
+             * Keys
+             * @description keys that may call this endpoint
+             */
+            keys: components["schemas"]["ApiKeyOut"][];
         };
         /** EndpointExposure */
         EndpointExposure: {
@@ -1223,19 +1240,26 @@ export interface components {
         };
         /** EndpointHistoryOut */
         EndpointHistoryOut: {
+            /** Endpoint */
+            endpoint: string;
             /** Available */
             available: boolean;
+            /** Error */
+            error: string | null;
+            /**
+             * Start
+             * Format: date-time
+             */
+            start: string;
             /**
              * End
              * Format: date-time
              */
             end: string;
-            /** Endpoint */
-            endpoint: string;
-            /** Error */
-            error: string | null;
-            /** Markers */
-            markers: components["schemas"]["HistoryMarkerOut"][];
+            /** Step Seconds */
+            step_seconds: number;
+            /** Revisions */
+            revisions: components["schemas"]["RevisionHistoryOut"][];
             /**
              * Max Error Rate
              * @description the live canary's gate, if any
@@ -1243,21 +1267,11 @@ export interface components {
             max_error_rate: number | null;
             /** Max P95 Latency Ms */
             max_p95_latency_ms: number | null;
-            /** Revisions */
-            revisions: components["schemas"]["RevisionHistoryOut"][];
-            /**
-             * Start
-             * Format: date-time
-             */
-            start: string;
-            /** Step Seconds */
-            step_seconds: number;
+            /** Markers */
+            markers: components["schemas"]["HistoryMarkerOut"][];
         };
         /** EndpointItemOut */
         EndpointItemOut: {
-            /** Active Revision */
-            active_revision: number | null;
-            deployment_status: components["schemas"]["DeploymentStatus"];
             /**
              * Id
              * Format: uuid
@@ -1268,6 +1282,9 @@ export interface components {
             status: components["schemas"]["EndpointStatus"];
             /** Url */
             url: string | null;
+            deployment_status: components["schemas"]["DeploymentStatus"];
+            /** Active Revision */
+            active_revision: number | null;
         };
         /**
          * EndpointKind
@@ -1279,6 +1296,12 @@ export interface components {
         /** EndpointLimitsBody */
         EndpointLimitsBody: {
             /**
+             * Units Per Minute
+             * @description all callers together
+             * @default 600
+             */
+            units_per_minute: number;
+            /**
              * Max Body Kb
              * @default 256
              */
@@ -1288,12 +1311,6 @@ export interface components {
              * @default 30
              */
             timeout_seconds: number;
-            /**
-             * Units Per Minute
-             * @description all callers together
-             * @default 600
-             */
-            units_per_minute: number;
         };
         /** EndpointListOut */
         EndpointListOut: {
@@ -1302,10 +1319,10 @@ export interface components {
         };
         /** EndpointMetricsOut */
         EndpointMetricsOut: {
-            /** Available */
-            available: boolean;
             /** Endpoint */
             endpoint: string;
+            /** Available */
+            available: boolean;
             /** Error */
             error: string | null;
             /** Revisions */
@@ -1313,28 +1330,28 @@ export interface components {
         };
         /** EndpointOut */
         EndpointOut: {
-            exposure: components["schemas"]["Exposure"];
             /**
              * Id
              * Format: uuid
              */
             id: string;
-            kind: components["schemas"]["EndpointKind"];
-            limits: components["schemas"]["EndpointLimitsBody"];
             /** Name */
             name: string;
-            protocol: components["schemas"]["EndpointProtocol"];
             status: components["schemas"]["EndpointStatus"];
-            /**
-             * Updated At
-             * Format: date-time
-             */
-            updated_at: string;
             /**
              * Url
              * @description inside the cluster; the public address is the gateway's
              */
             url: string | null;
+            kind: components["schemas"]["EndpointKind"];
+            protocol: components["schemas"]["EndpointProtocol"];
+            exposure: components["schemas"]["Exposure"];
+            limits: components["schemas"]["EndpointLimitsBody"];
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
         };
         /**
          * EndpointProtocol
@@ -1350,29 +1367,29 @@ export interface components {
         EndpointUsageOut: {
             /** Available */
             available: boolean;
-            /** Callers */
-            callers: components["schemas"]["CallerUsageOut"][];
-            /**
-             * End
-             * Format: date-time
-             */
-            end: string;
             /** Error */
             error: string | null;
-            /** P95 Latency Ms */
-            p95_latency_ms: components["schemas"]["SampleValueOut"][];
-            /**
-             * Start
-             * Format: date-time
-             */
-            start: string;
-            /** Step Seconds */
-            step_seconds: number;
             /**
              * Unit
              * @description what quotas count: requests (models) or tokens (LLMs)
              */
             unit: string;
+            /**
+             * Start
+             * Format: date-time
+             */
+            start: string;
+            /**
+             * End
+             * Format: date-time
+             */
+            end: string;
+            /** Step Seconds */
+            step_seconds: number;
+            /** Callers */
+            callers: components["schemas"]["CallerUsageOut"][];
+            /** P95 Latency Ms */
+            p95_latency_ms: components["schemas"]["SampleValueOut"][];
         };
         /** ErrorBody */
         ErrorBody: {
@@ -1387,8 +1404,18 @@ export interface components {
         };
         /** EvaluationOut */
         EvaluationOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            status: components["schemas"]["EvaluationStatus"];
             /** Baseline Version Id */
             baseline_version_id: string | null;
+            /** Metrics */
+            metrics: {
+                [key: string]: number;
+            };
             /** Checks */
             checks: components["schemas"]["CheckOut"][];
             /**
@@ -1396,16 +1423,6 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Metrics */
-            metrics: {
-                [key: string]: number;
-            };
-            status: components["schemas"]["EvaluationStatus"];
         };
         /**
          * EvaluationStatus
@@ -1420,41 +1437,40 @@ export interface components {
         /** FunctionServingIn */
         FunctionServingIn: {
             /**
-             * Concurrency
-             * @description requests one replica takes at once
-             * @default 10
-             */
-            concurrency: number;
-            /** Env */
-            env?: {
-                [key: string]: string;
-            };
-            /** Limits */
-            limits?: {
-                [key: string]: string;
-            };
-            /**
-             * Max Scale
-             * @default 3
-             */
-            max_scale: number;
-            /**
              * Min Scale
              * @description 0: scale to zero when idle
              * @default 0
              */
             min_scale: number;
             /**
+             * Max Scale
+             * @default 3
+             */
+            max_scale: number;
+            /**
+             * Concurrency
+             * @description requests one replica takes at once
+             * @default 10
+             */
+            concurrency: number;
+            /**
              * Port
              * @description where the container listens
              * @default 8080
              */
             port: number;
-            /**
-             * Readiness Initial Delay Seconds
-             * @default 0
-             */
-            readiness_initial_delay_seconds: number;
+            /** Env */
+            env?: {
+                [key: string]: string;
+            };
+            /** Requests */
+            requests?: {
+                [key: string]: string;
+            };
+            /** Limits */
+            limits?: {
+                [key: string]: string;
+            };
             /**
              * Readiness Path
              * @description HTTP readiness path; null uses a TCP probe
@@ -1465,10 +1481,11 @@ export interface components {
              * @default 2
              */
             readiness_timeout_seconds: number;
-            /** Requests */
-            requests?: {
-                [key: string]: string;
-            };
+            /**
+             * Readiness Initial Delay Seconds
+             * @default 0
+             */
+            readiness_initial_delay_seconds: number;
         };
         /** GateIn */
         GateIn: {
@@ -1490,17 +1507,17 @@ export interface components {
              */
             min_requests: number;
             /**
-             * Ready Timeout Seconds
-             * @description Time allowed for the canary to load
-             * @default 600
-             */
-            ready_timeout_seconds: number;
-            /**
              * Step Seconds
              * @description Observation time per step
              * @default 60
              */
             step_seconds: number;
+            /**
+             * Ready Timeout Seconds
+             * @description Time allowed for the canary to load
+             * @default 600
+             */
+            ready_timeout_seconds: number;
         };
         /** GpuQuotaIn */
         GpuQuotaIn: {
@@ -1533,6 +1550,12 @@ export interface components {
         /** HubVersionCreate */
         HubVersionCreate: {
             /**
+             * Source
+             * @description hf://<org>/<model>@<40-character lowercase commit SHA>; branches, tags and short hashes are rejected
+             * @example hf://Qwen/Qwen2.5-7B-Instruct@a09a354000000000000000000000000000000000
+             */
+            source: string;
+            /**
              * Metrics
              * @description offline evaluation results the version is judged on
              * @example {
@@ -1543,12 +1566,6 @@ export interface components {
             metrics?: {
                 [key: string]: number;
             };
-            /**
-             * Source
-             * @description hf://<org>/<model>[@<revision>]; pin a revision so the version always means the same weights
-             * @example hf://Qwen/Qwen2.5-7B-Instruct@a09a354
-             */
-            source: string;
         };
         /** ImageVersionCreate */
         ImageVersionCreate: {
@@ -1561,42 +1578,39 @@ export interface components {
         };
         /** InventoryOut */
         InventoryOut: {
-            /** Deployments */
-            deployments: number;
-            /** Deployments Failed */
-            deployments_failed: number;
-            /** Deployments Ready */
-            deployments_ready: number;
-            /** Oldest Waiting Seconds */
-            oldest_waiting_seconds: number | null;
             /** Projects */
             projects: number;
             /** Projects Not Ready */
             projects_not_ready: number;
-            /** Rollouts Active */
-            rollouts_active: number;
             /** Runs Active */
             runs_active: number;
-            /** Runs Failed 24H */
-            runs_failed_24h: number;
             /**
              * Runs Waiting
              * @description accepted but not started
              */
             runs_waiting: number;
+            /** Oldest Waiting Seconds */
+            oldest_waiting_seconds: number | null;
+            /** Runs Failed 24H */
+            runs_failed_24h: number;
+            /** Deployments */
+            deployments: number;
+            /** Deployments Ready */
+            deployments_ready: number;
+            /** Deployments Failed */
+            deployments_failed: number;
+            /** Rollouts Active */
+            rollouts_active: number;
         };
         /** JobCreate */
         JobCreate: {
-            /** Command */
-            command?: string[];
-            /** Env */
-            env?: {
-                [key: string]: string;
-            };
-            /** Image */
-            image: string;
+            secret_refs?: components["schemas"]["SecretRefsIn"];
             /** Name */
             name: string;
+            /** Image */
+            image: string;
+            /** Command */
+            command?: string[];
             /**
              * Resources
              * @example {
@@ -1607,7 +1621,10 @@ export interface components {
             resources?: {
                 [key: string]: string;
             };
-            secret_refs?: components["schemas"]["SecretRefsIn"];
+            /** Env */
+            env?: {
+                [key: string]: string;
+            };
             /**
              * Timeout Seconds
              * @default 3600
@@ -1621,62 +1638,67 @@ export interface components {
         };
         /** JobOut */
         JobOut: {
-            /** Command */
-            command: string[];
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Env */
-            env: {
-                [key: string]: string;
-            };
             /**
              * Id
              * Format: uuid
              */
             id: string;
-            /** Image */
-            image: string;
-            /** Name */
-            name: string;
             /**
              * Project Id
              * Format: uuid
              */
             project_id: string;
+            secret_refs?: components["schemas"]["SecretRefsIn"];
+            /** Name */
+            name: string;
+            /** Image */
+            image: string;
+            /** Command */
+            command: string[];
             /** Resources */
             resources: {
                 [key: string]: string;
             };
-            secret_refs?: components["schemas"]["SecretRefsIn"];
+            /** Env */
+            env: {
+                [key: string]: string;
+            };
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
             /** Timeout Seconds */
             timeout_seconds: number;
         };
         /** LlmServingIn */
         LlmServingIn: {
             /**
-             * Context Length
-             * @description max tokens in a request; null: the model's
+             * Min Scale
+             * @default 1
              */
-            context_length?: number | null;
+            min_scale: number;
+            /**
+             * Max Scale
+             * @default 1
+             */
+            max_scale: number;
             /**
              * Gpus
              * @description GPUs per replica (tensor parallel above 1)
              * @default 1
              */
             gpus: number;
+            /**
+             * Context Length
+             * @description max tokens in a request; null: the model's
+             */
+            context_length?: number | null;
         };
         /** MeOut */
         MeOut: {
-            /**
-             * Auth
-             * @enum {string}
-             */
-            auth: "oidc" | "none";
-            /** Can Sign Out */
-            can_sign_out: boolean;
+            /** Username */
+            username: string;
             /** Display Name */
             display_name: string | null;
             /** Email */
@@ -1685,12 +1707,17 @@ export interface components {
             groups: string[];
             /** Platform Admin */
             platform_admin: boolean;
+            /**
+             * Auth
+             * @enum {string}
+             */
+            auth: "oidc" | "none";
+            /** Can Sign Out */
+            can_sign_out: boolean;
             /** Roles */
             roles: {
                 [key: string]: components["schemas"]["ProjectRole"];
             };
-            /** Username */
-            username: string;
         };
         /** MemberList */
         MemberList: {
@@ -1699,11 +1726,8 @@ export interface components {
         };
         /** MemberOut */
         MemberOut: {
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
+            /** Subject */
+            subject: string;
             /**
              * Kind
              * @enum {string}
@@ -1712,8 +1736,11 @@ export interface components {
             /** Name */
             name: string;
             role: components["schemas"]["ProjectRole"];
-            /** Subject */
-            subject: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
             /**
              * Updated At
              * Format: date-time
@@ -1731,17 +1758,18 @@ export interface components {
              * Format: date-time
              */
             at: string;
-            /** Error Rate */
-            error_rate: number | null;
             /** P95 Latency Ms */
             p95_latency_ms: number | null;
+            /** Error Rate */
+            error_rate: number | null;
             /** Requests Per Second */
             requests_per_second: number | null;
         };
         /** ModelCreate */
         ModelCreate: {
-            /** @description how a function runs (kind function only) */
-            function?: components["schemas"]["FunctionServingIn"] | null;
+            secret_refs?: components["schemas"]["SecretRefsIn"];
+            /** Name */
+            name: string;
             /**
              * @description classic, llm or function
              * @default classic
@@ -1749,9 +1777,8 @@ export interface components {
             kind: components["schemas"]["ModelKind"];
             /** @description how an LLM is served (kind llm only) */
             llm?: components["schemas"]["LlmServingIn"] | null;
-            /** Name */
-            name: string;
-            secret_refs?: components["schemas"]["SecretRefsIn"];
+            /** @description how a function runs (kind function only) */
+            function?: components["schemas"]["FunctionServingIn"] | null;
             /**
              * Thresholds
              * @example {
@@ -1782,41 +1809,41 @@ export interface components {
         };
         /** ModelOut */
         ModelOut: {
-            /** Alias Drift */
-            alias_drift: string | null;
-            champion: components["schemas"]["ModelVersionSummary"] | null;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            function?: components["schemas"]["FunctionServingIn"] | null;
             /**
              * Id
              * Format: uuid
              */
             id: string;
-            kind: components["schemas"]["ModelKind"];
-            llm: components["schemas"]["LlmServingIn"] | null;
-            /** Name */
-            name: string;
             /**
              * Project Id
              * Format: uuid
              */
             project_id: string;
+            secret_refs?: components["schemas"]["SecretRefsIn"];
+            /** Name */
+            name: string;
             /**
              * Registry Name
              * @description Name to register versions under in the model registry
              */
             registry_name: string;
-            secret_refs?: components["schemas"]["SecretRefsIn"];
             /** Thresholds */
             thresholds: {
                 [key: string]: components["schemas"]["ThresholdIn"];
             };
+            /** Alias Drift */
+            alias_drift: string | null;
+            kind: components["schemas"]["ModelKind"];
+            llm: components["schemas"]["LlmServingIn"] | null;
+            function?: components["schemas"]["FunctionServingIn"] | null;
+            champion: components["schemas"]["ModelVersionSummary"] | null;
             /** Versions */
             versions: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /**
          * ModelStatus
@@ -1826,17 +1853,25 @@ export interface components {
         /** ModelVersionOut */
         ModelVersionOut: {
             /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Evaluations */
-            evaluations: components["schemas"]["EvaluationOut"][];
-            /**
              * Id
              * Format: uuid
              */
             id: string;
+            /**
+             * Model Id
+             * Format: uuid
+             */
+            model_id: string;
+            /** Version */
+            version: number;
+            status: components["schemas"]["ModelStatus"];
+            /** Source Pipeline Run Id */
+            source_pipeline_run_id: string | null;
+            /**
+             * Source Uri
+             * @description hub source, for versions not in the registry
+             */
+            source_uri?: string | null;
             /**
              * Metrics
              * @description results it came with
@@ -1845,29 +1880,21 @@ export interface components {
                 [key: string]: number;
             };
             /**
-             * Model Id
-             * Format: uuid
+             * Created At
+             * Format: date-time
              */
-            model_id: string;
-            /** Model Name */
-            model_name: string;
-            /** Promotions */
-            promotions: components["schemas"]["PromotionOut"][];
-            /** Source Pipeline Run Id */
-            source_pipeline_run_id: string | null;
-            /**
-             * Source Uri
-             * @description hub source, for versions not in the registry
-             */
-            source_uri?: string | null;
-            status: components["schemas"]["ModelStatus"];
+            created_at: string;
             /**
              * Updated At
              * Format: date-time
              */
             updated_at: string;
-            /** Version */
-            version: number;
+            /** Model Name */
+            model_name: string;
+            /** Evaluations */
+            evaluations: components["schemas"]["EvaluationOut"][];
+            /** Promotions */
+            promotions: components["schemas"]["PromotionOut"][];
         };
         /**
          * ModelVersionSummary
@@ -1875,15 +1902,25 @@ export interface components {
          */
         ModelVersionSummary: {
             /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /**
              * Id
              * Format: uuid
              */
             id: string;
+            /**
+             * Model Id
+             * Format: uuid
+             */
+            model_id: string;
+            /** Version */
+            version: number;
+            status: components["schemas"]["ModelStatus"];
+            /** Source Pipeline Run Id */
+            source_pipeline_run_id: string | null;
+            /**
+             * Source Uri
+             * @description hub source, for versions not in the registry
+             */
+            source_uri?: string | null;
             /**
              * Metrics
              * @description results it came with
@@ -1892,80 +1929,70 @@ export interface components {
                 [key: string]: number;
             };
             /**
-             * Model Id
-             * Format: uuid
+             * Created At
+             * Format: date-time
              */
-            model_id: string;
-            /** Source Pipeline Run Id */
-            source_pipeline_run_id: string | null;
-            /**
-             * Source Uri
-             * @description hub source, for versions not in the registry
-             */
-            source_uri?: string | null;
-            status: components["schemas"]["ModelStatus"];
+            created_at: string;
             /**
              * Updated At
              * Format: date-time
              */
             updated_at: string;
-            /** Version */
-            version: number;
         };
         /** NotificationList */
         NotificationList: {
-            /** Attention Count */
-            attention_count: number;
             /** Items */
             items: components["schemas"]["NotificationOut"][];
-            /** Truncated */
-            truncated: boolean;
+            /** Attention Count */
+            attention_count: number;
             /** Unread Count */
             unread_count: number;
+            /** Truncated */
+            truncated: boolean;
         };
         /** NotificationOut */
         NotificationOut: {
-            /** Endpoint Name */
-            endpoint_name: string | null;
             /** Id */
             id: string;
             /** Kind */
             kind: string;
-            /** Needs Attention */
-            needs_attention: boolean;
+            /** Title */
+            title: string;
+            /** Project */
+            project: string;
+            /** Project Label */
+            project_label: string;
+            /** Resource Type */
+            resource_type: string;
+            /** Resource Id */
+            resource_id: string;
+            /** Resource Name */
+            resource_name: string;
+            /** Status */
+            status: string;
+            /** Reason */
+            reason: string | null;
             /**
              * Occurred At
              * Format: date-time
              */
             occurred_at: string;
-            /** Project */
-            project: string;
-            /** Project Label */
-            project_label: string;
+            /** Needs Attention */
+            needs_attention: boolean;
+            /** Endpoint Name */
+            endpoint_name: string | null;
             /** Read */
             read: boolean;
-            /** Reason */
-            reason: string | null;
-            /** Resource Id */
-            resource_id: string;
-            /** Resource Name */
-            resource_name: string;
-            /** Resource Type */
-            resource_type: string;
-            /** Status */
-            status: string;
-            /** Title */
-            title: string;
         };
         /** NotificationReadIn */
         NotificationReadIn: {
+            /** Ids */
+            ids?: string[];
             /**
              * All
              * @default false
              */
             all: boolean;
-            /** Ids */
-            ids?: string[];
         };
         /** NotificationReadOut */
         NotificationReadOut: {
@@ -1987,26 +2014,26 @@ export interface components {
         /** PipelineOut */
         PipelineOut: {
             /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /**
              * Id
              * Format: uuid
              */
             id: string;
-            /** Name */
-            name: string;
             /**
              * Project Id
              * Format: uuid
              */
             project_id: string;
-            /** Steps */
-            steps: components["schemas"]["StepDefOut"][];
+            /** Name */
+            name: string;
             /** Version */
             version: number;
+            /** Steps */
+            steps: components["schemas"]["StepDefOut"][];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /** PipelineRunCreate */
         PipelineRunCreate: {
@@ -2029,8 +2056,34 @@ export interface components {
         };
         /** PipelineRunOut */
         PipelineRunOut: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /**
+             * Pipeline Definition Id
+             * Format: uuid
+             */
+            pipeline_definition_id: string;
+            /** Pipeline */
+            pipeline: string;
+            /** Pipeline Version */
+            pipeline_version: number;
+            status: components["schemas"]["RunStatus"];
+            /** Status Reason */
+            status_reason: string | null;
             /** Cancel Requested */
             cancel_requested: boolean;
+            /** Timeout Seconds */
+            timeout_seconds: number;
+            /** Workflow Cleaned At */
+            workflow_cleaned_at: string | null;
             /** Commit Sha */
             commit_sha: string | null;
             /**
@@ -2038,48 +2091,48 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
-            /** Duration Seconds */
-            duration_seconds: number | null;
-            /** Finished At */
-            finished_at: string | null;
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Pipeline */
-            pipeline: string;
-            /**
-             * Pipeline Definition Id
-             * Format: uuid
-             */
-            pipeline_definition_id: string;
-            /** Pipeline Version */
-            pipeline_version: number;
-            /**
-             * Project Id
-             * Format: uuid
-             */
-            project_id: string;
             /** Started At */
             started_at: string | null;
-            status: components["schemas"]["RunStatus"];
-            /** Status Reason */
-            status_reason: string | null;
+            /** Finished At */
+            finished_at: string | null;
+            /** Duration Seconds */
+            duration_seconds: number | null;
             /** Steps */
             steps: components["schemas"]["StepRunOut"][];
-            /** Timeout Seconds */
-            timeout_seconds: number;
-            /** Workflow Cleaned At */
-            workflow_cleaned_at: string | null;
         };
         /**
          * PipelineRunSummary
          * @description Omits the workflow system's references: the platform id is the only identity.
          */
         PipelineRunSummary: {
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /**
+             * Pipeline Definition Id
+             * Format: uuid
+             */
+            pipeline_definition_id: string;
+            /** Pipeline */
+            pipeline?: string | null;
+            /** Pipeline Version */
+            pipeline_version?: number | null;
+            status: components["schemas"]["RunStatus"];
+            /** Status Reason */
+            status_reason: string | null;
             /** Cancel Requested */
             cancel_requested: boolean;
+            /** Timeout Seconds */
+            timeout_seconds: number;
+            /** Workflow Cleaned At */
+            workflow_cleaned_at: string | null;
             /** Commit Sha */
             commit_sha: string | null;
             /**
@@ -2087,70 +2140,44 @@ export interface components {
              * Format: date-time
              */
             created_at: string;
-            /** Duration Seconds */
-            duration_seconds: number | null;
-            /** Finished At */
-            finished_at: string | null;
-            /**
-             * Id
-             * Format: uuid
-             */
-            id: string;
-            /** Pipeline */
-            pipeline?: string | null;
-            /**
-             * Pipeline Definition Id
-             * Format: uuid
-             */
-            pipeline_definition_id: string;
-            /** Pipeline Version */
-            pipeline_version?: number | null;
-            /**
-             * Project Id
-             * Format: uuid
-             */
-            project_id: string;
             /** Started At */
             started_at: string | null;
-            status: components["schemas"]["RunStatus"];
-            /** Status Reason */
-            status_reason: string | null;
-            /** Timeout Seconds */
-            timeout_seconds: number;
-            /** Workflow Cleaned At */
-            workflow_cleaned_at: string | null;
+            /** Finished At */
+            finished_at: string | null;
+            /** Duration Seconds */
+            duration_seconds: number | null;
         };
         /** PlatformHealthOut */
         PlatformHealthOut: {
-            /**
-             * Available
-             * @description false when no platform metrics could be read
-             */
-            available: boolean;
-            /**
-             * End
-             * Format: date-time
-             */
-            end: string;
-            /** Error */
-            error: string | null;
             /**
              * Generated At
              * Format: date-time
              */
             generated_at: string;
-            inventory: components["schemas"]["InventoryOut"];
-            /** Signals */
-            signals: components["schemas"]["SignalHealthOut"][];
             /**
              * Start
              * Format: date-time
              */
             start: string;
-            /** @description the worst status among checks that have data */
-            status: components["schemas"]["Health"];
+            /**
+             * End
+             * Format: date-time
+             */
+            end: string;
             /** Step Seconds */
             step_seconds: number;
+            /**
+             * Available
+             * @description false when no platform metrics could be read
+             */
+            available: boolean;
+            /** Error */
+            error: string | null;
+            /** @description the worst status among checks that have data */
+            status: components["schemas"]["Health"];
+            /** Signals */
+            signals: components["schemas"]["SignalHealthOut"][];
+            inventory: components["schemas"]["InventoryOut"];
         };
         /**
          * PlatformSignal
@@ -2168,17 +2195,17 @@ export interface components {
         /** ProjectCreate */
         ProjectCreate: {
             /**
-             * Description
-             * @default
-             */
-            description: string;
-            /** Display Name */
-            display_name?: string | null;
-            /**
              * Name
              * @description Unique DNS-label slug; becomes the namespace name.
              */
             name: string;
+            /** Display Name */
+            display_name?: string | null;
+            /**
+             * Description
+             * @default
+             */
+            description: string;
         };
         /** ProjectList */
         ProjectList: {
@@ -2192,29 +2219,29 @@ export interface components {
         /** ProjectOut */
         ProjectOut: {
             /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Description */
-            description: string;
-            /** Display Name */
-            display_name: string;
-            /**
-             * Gpu Quota
-             * @default 0
-             */
-            gpu_quota: number;
-            /**
              * Id
              * Format: uuid
              */
             id: string;
             /** Name */
             name: string;
+            /** Display Name */
+            display_name: string;
+            /** Description */
+            description: string;
             status: components["schemas"]["ProjectStatus"];
             /** Status Reason */
             status_reason: string | null;
+            /**
+             * Gpu Quota
+             * @default 0
+             */
+            gpu_quota: number;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
             /**
              * Updated At
              * Format: date-time
@@ -2234,18 +2261,18 @@ export interface components {
         /** PromotionOut */
         PromotionOut: {
             /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /**
              * Id
              * Format: uuid
              */
             id: string;
+            status: components["schemas"]["PromotionStatus"];
             /** Previous Champion Id */
             previous_champion_id: string | null;
-            status: components["schemas"]["PromotionStatus"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /**
          * PromotionStatus
@@ -2267,58 +2294,46 @@ export interface components {
         };
         /** RevisionHistoryOut */
         RevisionHistoryOut: {
+            /** Revision */
+            revision: number;
             /** Model */
             model: string;
             /** Model Version */
             model_version: number;
-            /** Points */
-            points: components["schemas"]["MetricsPointOut"][];
-            /** Revision */
-            revision: number;
             /**
              * Role
              * @description stable, canary, or serving (no rollout)
              */
             role: string;
+            /** Points */
+            points: components["schemas"]["MetricsPointOut"][];
         };
         /** RevisionMetricsOut */
         RevisionMetricsOut: {
-            /** Error Rate */
-            error_rate: number | null;
+            /** Revision */
+            revision: number;
             /** Model */
             model: string;
             /** Model Version */
             model_version: number;
-            /** P95 Latency Ms */
-            p95_latency_ms: number | null;
-            /** Requests */
-            requests: number | null;
-            /** Requests Per Second */
-            requests_per_second: number | null;
-            /** Revision */
-            revision: number;
             /** Traffic Percent */
             traffic_percent: number;
+            /** P95 Latency Ms */
+            p95_latency_ms: number | null;
+            /** Error Rate */
+            error_rate: number | null;
+            /** Requests Per Second */
+            requests_per_second: number | null;
+            /** Requests */
+            requests: number | null;
         };
         /**
          * RevisionOut
          * @description Immutable. The artifact location is internal and not exposed.
          */
         RevisionOut: {
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Gpus */
-            gpus: number;
-            /** Max Scale */
-            max_scale?: number | null;
-            /**
-             * Min Scale
-             * @description functions: fewest replicas (0: to zero)
-             */
-            min_scale?: number | null;
+            /** Revision */
+            revision: number;
             /** Model */
             model: string;
             /** Model Version */
@@ -2328,9 +2343,21 @@ export interface components {
              * Format: uuid
              */
             model_version_id: string;
-            /** Revision */
-            revision: number;
             runtime: components["schemas"]["ServingRuntime"];
+            /** Gpus */
+            gpus: number;
+            /**
+             * Min Scale
+             * @description functions: fewest replicas (0: to zero)
+             */
+            min_scale?: number | null;
+            /** Max Scale */
+            max_scale?: number | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
         };
         /** RollbackRequest */
         RollbackRequest: {
@@ -2342,22 +2369,22 @@ export interface components {
         };
         /** RolloutCreate */
         RolloutCreate: {
-            gate?: components["schemas"]["GateIn"] | null;
             /**
              * Model
              * @description Name of a model in the same project
              */
             model: string;
             /**
-             * Steps
-             * @description Increasing canary percentages ending in 100; default 10,25,50,100
-             */
-            steps?: number[] | null;
-            /**
              * Version
              * @description Platform version number to roll out
              */
             version: number;
+            /**
+             * Steps
+             * @description Increasing canary percentages ending in 100; default 10,25,50,100
+             */
+            steps?: number[] | null;
+            gate?: components["schemas"]["GateIn"] | null;
         };
         /** RolloutList */
         RolloutList: {
@@ -2366,32 +2393,13 @@ export interface components {
         };
         /** RolloutOut */
         RolloutOut: {
-            /** Abort Requested */
-            abort_requested: boolean;
-            /** Canary Percent */
-            canary_percent: number;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Current Step */
-            current_step: number;
-            /** Deployment */
-            deployment: string;
-            /** Finished At */
-            finished_at: string | null;
-            /**
-             * From Revision
-             * @description Stable revision
-             */
-            from_revision: number;
-            gate: components["schemas"]["GateIn"];
             /**
              * Id
              * Format: uuid
              */
             id: string;
+            /** Deployment */
+            deployment: string;
             /** Model */
             model: string;
             /** Model Version */
@@ -2399,13 +2407,22 @@ export interface components {
             status: components["schemas"]["RolloutStatus"];
             /** Status Reason */
             status_reason: string | null;
-            /** Steps */
-            steps: number[];
+            /**
+             * From Revision
+             * @description Stable revision
+             */
+            from_revision: number;
             /**
              * To Revision
              * @description Canary revision
              */
             to_revision: number;
+            /** Steps */
+            steps: number[];
+            /** Current Step */
+            current_step: number;
+            /** Canary Percent */
+            canary_percent: number;
             /**
              * Traffic
              * @description Share of traffic per revision, right now
@@ -2413,11 +2430,21 @@ export interface components {
             traffic: {
                 [key: string]: number;
             };
+            gate: components["schemas"]["GateIn"];
+            /** Abort Requested */
+            abort_requested: boolean;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
             /**
              * Updated At
              * Format: date-time
              */
             updated_at: string;
+            /** Finished At */
+            finished_at: string | null;
         };
         /**
          * RolloutStatus
@@ -2444,43 +2471,43 @@ export interface components {
          *     name, namespace): the platform id is the only identity users deal with.
          */
         RunOut: {
-            /** Cancel Requested */
-            cancel_requested: boolean;
-            /**
-             * Created At
-             * Format: date-time
-             */
-            created_at: string;
-            /** Duration Seconds */
-            duration_seconds: number | null;
-            /** Exit Code */
-            exit_code: number | null;
-            /** Finished At */
-            finished_at: string | null;
             /**
              * Id
              * Format: uuid
              */
             id: string;
-            /** Job */
-            job?: string | null;
-            /**
-             * Job Id
-             * Format: uuid
-             */
-            job_id: string;
             /**
              * Project Id
              * Format: uuid
              */
             project_id: string;
-            /** Retry Of */
-            retry_of: string | null;
-            /** Started At */
-            started_at: string | null;
+            /**
+             * Job Id
+             * Format: uuid
+             */
+            job_id: string;
+            /** Job */
+            job?: string | null;
             status: components["schemas"]["RunStatus"];
             /** Status Reason */
             status_reason: string | null;
+            /** Exit Code */
+            exit_code: number | null;
+            /** Cancel Requested */
+            cancel_requested: boolean;
+            /** Retry Of */
+            retry_of: string | null;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Started At */
+            started_at: string | null;
+            /** Finished At */
+            finished_at: string | null;
+            /** Duration Seconds */
+            duration_seconds: number | null;
             /** Timeout Seconds */
             timeout_seconds: number;
             /** Workflow Cleaned At */
@@ -2514,10 +2541,10 @@ export interface components {
         };
         /** SecretKeyRefIn */
         SecretKeyRefIn: {
-            /** Key */
-            key: string;
             /** Name */
             name: string;
+            /** Key */
+            key: string;
         };
         /** SecretList */
         SecretList: {
@@ -2526,12 +2553,14 @@ export interface components {
         };
         /** SecretOut */
         SecretOut: {
+            /** Used By */
+            used_by?: components["schemas"]["SecretUseOut"][];
+            /** Name */
+            name: string;
             /** Keys */
             keys: string[];
             /** Kind */
             kind: string;
-            /** Name */
-            name: string;
             /** Version */
             version: string;
         };
@@ -2546,47 +2575,56 @@ export interface components {
         };
         /** SecretRotate */
         SecretRotate: {
-            /** Expected Version */
-            expected_version: string;
+            /** Values */
+            values: {
+                [key: string]: string;
+            };
             /**
              * Kind
              * @default Opaque
              * @enum {string}
              */
             kind: "Opaque" | "kubernetes.io/dockerconfigjson";
-            /** Values */
-            values: {
-                [key: string]: string;
-            };
+            /** Expected Version */
+            expected_version: string;
+        };
+        /** SecretUseOut */
+        SecretUseOut: {
+            /** Kind */
+            kind: string;
+            /** Name */
+            name: string;
+            /** Revision */
+            revision?: number | null;
         };
         /** SecretWrite */
         SecretWrite: {
+            /** Values */
+            values: {
+                [key: string]: string;
+            };
             /**
              * Kind
              * @default Opaque
              * @enum {string}
              */
             kind: "Opaque" | "kubernetes.io/dockerconfigjson";
-            /** Values */
-            values: {
-                [key: string]: string;
-            };
         };
         /** SeriesHealthOut */
         SeriesHealthOut: {
-            /**
-             * Current
-             * @description latest value, if recent; null means silent
-             */
-            current: number | null;
             /**
              * Name
              * @description the group (a reconciler, a system...), "" if ungrouped
              */
             name: string;
+            /**
+             * Current
+             * @description latest value, if recent; null means silent
+             */
+            current: number | null;
+            status: components["schemas"]["Health"];
             /** Points */
             points: components["schemas"]["SampleOut"][];
-            status: components["schemas"]["Health"];
         };
         /**
          * ServingRuntime
@@ -2595,71 +2633,71 @@ export interface components {
         ServingRuntime: "mlflow" | "huggingface" | "container";
         /** SignalHealthOut */
         SignalHealthOut: {
-            /** Critical */
-            critical: number | null;
-            /** Error */
-            error: string | null;
-            /**
-             * Group
-             * @description what one series stands for, if grouped
-             */
-            group: string | null;
-            /** Help */
-            help: string;
             key: components["schemas"]["PlatformSignal"];
-            /** Lower Is Worse */
-            lower_is_worse: boolean;
-            /** Series */
-            series: components["schemas"]["SeriesHealthOut"][];
-            status: components["schemas"]["Health"];
             /** Title */
             title: string;
+            /** Help */
+            help: string;
             /**
              * Unit
              * @description ratio (0..1), ms, req/s or /min
              */
             unit: string;
+            /**
+             * Group
+             * @description what one series stands for, if grouped
+             */
+            group: string | null;
             /** Warn */
             warn: number | null;
+            /** Critical */
+            critical: number | null;
+            /** Lower Is Worse */
+            lower_is_worse: boolean;
+            status: components["schemas"]["Health"];
+            /** Error */
+            error: string | null;
+            /** Series */
+            series: components["schemas"]["SeriesHealthOut"][];
         };
         /** StepDefOut */
         StepDefOut: {
-            /** Depends On */
-            depends_on: string[];
-            /** Job */
-            job: string;
             /** Name */
             name: string;
+            /** Job */
+            job: string;
+            /** Depends On */
+            depends_on: string[];
         };
         /** StepIn */
         StepIn: {
-            /** Depends On */
-            depends_on?: string[];
+            /** Name */
+            name: string;
             /**
              * Job
              * @description Name of a job definition in the same project
              */
             job: string;
-            /** Name */
-            name: string;
+            /** Depends On */
+            depends_on?: string[];
         };
         /** StepRunOut */
         StepRunOut: {
-            /** Depends On */
-            depends_on: string[];
-            /** Duration Seconds */
-            duration_seconds: number | null;
-            /** Exit Code */
-            exit_code: number | null;
-            /** Finished At */
-            finished_at: string | null;
-            /** Started At */
-            started_at: string | null;
+            /** Step */
+            step: string;
             status: components["schemas"]["StepStatus"];
             /** Status Reason */
             status_reason: string | null;
-            /** Step */
-            step: string;
+            /** Exit Code */
+            exit_code: number | null;
+            /** Depends On */
+            depends_on: string[];
+            /** Started At */
+            started_at: string | null;
+            /** Finished At */
+            finished_at: string | null;
+            /** Duration Seconds */
+            duration_seconds: number | null;
         };
         /**
          * StepStatus
@@ -2668,8 +2706,21 @@ export interface components {
         StepStatus: "PENDING" | "RUNNING" | "SUCCEEDED" | "FAILED" | "CANCELLED" | "SKIPPED";
         /** SummaryOut */
         SummaryOut: {
-            /** Active Rollouts */
-            active_rollouts: number;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Jobs */
+            jobs: number;
+            /** Pipelines */
+            pipelines: number;
+            /** Runs */
+            runs: number;
+            /** Pipeline Runs */
+            pipeline_runs: number;
+            /** Models */
+            models: number;
             /** Champions */
             champions: number;
             /** Deployments */
@@ -2678,6 +2729,8 @@ export interface components {
             deployments_ready: number;
             /** Endpoints */
             endpoints: number;
+            /** Active Rollouts */
+            active_rollouts: number;
             /**
              * Gpu Quota
              * @description GPUs the project may hold (set by platform admins)
@@ -2688,28 +2741,13 @@ export interface components {
              * @description held by serving revisions, canaries included
              */
             gpus_in_use: number;
-            /** Jobs */
-            jobs: number;
-            /** Models */
-            models: number;
-            /** Pipeline Runs */
-            pipeline_runs: number;
-            /** Pipelines */
-            pipelines: number;
-            /**
-             * Project Id
-             * Format: uuid
-             */
-            project_id: string;
-            /** Runs */
-            runs: number;
         };
         /** ThresholdIn */
         ThresholdIn: {
-            /** Max */
-            max?: number | null;
             /** Min */
             min?: number | null;
+            /** Max */
+            max?: number | null;
         };
         /** ThresholdsUpdate */
         ThresholdsUpdate: {
@@ -2720,22 +2758,22 @@ export interface components {
         };
         /** TrackedRunOut */
         TrackedRunOut: {
-            /** Artifact Uri */
-            artifact_uri: string | null;
-            /** Metrics */
-            metrics: {
-                [key: string]: number;
-            };
+            /** Step */
+            step: string | null;
             /** Params */
             params: {
                 [key: string]: string;
             };
-            /** Step */
-            step: string | null;
+            /** Metrics */
+            metrics: {
+                [key: string]: number;
+            };
             /** Tags */
             tags: {
                 [key: string]: string;
             };
+            /** Artifact Uri */
+            artifact_uri: string | null;
         };
         /** TrackingOut */
         TrackingOut: {
@@ -2755,33 +2793,33 @@ export interface components {
              */
             at: string;
             /**
-             * Errors
-             * @description per minute, failed upstream (5xx)
+             * Units
+             * @description per minute
              */
-            errors: number;
+            units: number;
             /**
              * Rejected
              * @description per minute, refused by the gateway (4xx)
              */
             rejected: number;
             /**
-             * Units
-             * @description per minute
+             * Errors
+             * @description per minute, failed upstream (5xx)
              */
-            units: number;
+            errors: number;
         };
         /** ValidationError */
         ValidationError: {
-            /** Context */
-            ctx?: Record<string, never>;
-            /** Input */
-            input?: unknown;
             /** Location */
             loc: (string | number)[];
             /** Message */
             msg: string;
             /** Error Type */
             type: string;
+            /** Input */
+            input?: unknown;
+            /** Context */
+            ctx?: Record<string, never>;
         };
         /** VersionList */
         VersionList: {
@@ -2797,566 +2835,6 @@ export interface components {
 }
 export type $defs = Record<string, never>;
 export interface operations {
-    healthz_healthz_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: string;
-                    };
-                };
-            };
-        };
-    };
-    me_me_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["MeOut"];
-                };
-            };
-            /** @description Unauthorized */
-            401: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Forbidden */
-            403: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-        };
-    };
-    list_notifications_me_notifications_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NotificationList"];
-                };
-            };
-        };
-    };
-    mark_read_me_notifications_read_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["NotificationReadIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["NotificationReadOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_version_model_versions__version_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                version_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ModelVersionOut"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-        };
-    };
-    evaluate_model_versions__version_id__evaluate_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                version_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ModelVersionOut"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Service Unavailable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-        };
-    };
-    promote_model_versions__version_id__promote_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                version_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ModelVersionOut"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-        };
-    };
-    get_run_pipeline_runs__run_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PipelineRunOut"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-        };
-    };
-    cancel_pipeline_runs__run_id__cancel_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PipelineRunOut"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-        };
-    };
-    step_logs_pipeline_runs__run_id__steps__step__logs_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                run_id: string;
-                step: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Gone */
-            410: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Service Unavailable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": components["schemas"]["ErrorOut"];
-                };
-            };
-        };
-    };
-    tracking_pipeline_runs__run_id__tracking_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["TrackingOut"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Gone */
-            410: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Service Unavailable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-        };
-    };
-    health_platform_health_get: {
-        parameters: {
-            query?: {
-                minutes?: number;
-            };
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PlatformHealthOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
     list_projects_projects_get: {
         parameters: {
             query?: {
@@ -3547,56 +3025,7 @@ export interface operations {
             };
         };
     };
-    list_keys_projects__project__api_keys_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ApiKeyList"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-        };
-    };
-    create_key_projects__project__api_keys_post: {
+    set_gpu_quota_projects__project__gpu_quota_put: {
         parameters: {
             query?: never;
             header?: never;
@@ -3607,17 +3036,17 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ApiKeyCreate"];
+                "application/json": components["schemas"]["GpuQuotaIn"];
             };
         };
         responses: {
             /** @description Successful Response */
-            201: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ApiKeyCreated"];
+                    "application/json": components["schemas"]["ProjectOut"];
                 };
             };
             /** @description Not Found */
@@ -3649,13 +3078,12 @@ export interface operations {
             };
         };
     };
-    revoke_key_projects__project__api_keys__key_id__delete: {
+    list_secrets_projects__project__secrets_get: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 project: string;
-                key_id: string;
             };
             cookie?: never;
         };
@@ -3667,68 +3095,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ApiKeyOut"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-        };
-    };
-    audit_projects__project__audit_get: {
-        parameters: {
-            query?: {
-                entity_id?: string | null;
-                limit?: number;
-            };
-            header?: never;
-            path: {
-                project: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["AuditOut"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
+                    "application/json": components["schemas"]["SecretList"];
                 };
             };
             /** @description Validation Error */
@@ -3738,6 +3105,1757 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rotate_secret_projects__project__secrets__name__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SecretRotate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecretOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_secret_projects__project__secrets__name__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SecretWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecretOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_secret_projects__project__secrets__name__delete: {
+        parameters: {
+            query: {
+                expected_version: string;
+                force?: boolean;
+            };
+            header?: never;
+            path: {
+                project: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reference_catalog_projects__project__secret_references_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecretList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_jobs_projects__project__jobs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobList"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    create_job_projects__project__jobs_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["JobCreate"];
+            };
+        };
+        responses: {
+            /** @description Identical job already exists */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobOut"];
+                };
+            };
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    get_job_projects__project__jobs__job__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+                job: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    start_run_projects__project__jobs__job__runs_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeating a request with the same key never creates a second workload. */
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                project: string;
+                job: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RunCreate"] | null;
+            };
+        };
+        responses: {
+            /** @description Replay of an earlier request */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunOut"];
+                };
+            };
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    list_runs_projects__project__runs_get: {
+        parameters: {
+            query?: {
+                job?: string | null;
+                limit?: number;
+                offset?: number;
+                /** @description Repeat to match any */
+                status?: components["schemas"]["RunStatus"][] | null;
+            };
+            header?: never;
+            path: {
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunList"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    get_run_runs__run_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    cancel_run_runs__run_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    retry_run_runs__run_id__retry_post: {
+        parameters: {
+            query?: never;
+            header?: {
+                /** @description Repeating a request with the same key never creates a second workload. */
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RunOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    run_logs_runs__run_id__logs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Gone */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    list_pipelines_projects__project__pipelines_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PipelineList"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    create_pipeline_projects__project__pipelines_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PipelineCreate"];
+            };
+        };
+        responses: {
+            /** @description Identical to the latest version */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PipelineOut"];
+                };
+            };
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PipelineOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    get_pipeline_projects__project__pipelines__name__get: {
+        parameters: {
+            query?: {
+                version?: number | null;
+            };
+            header?: never;
+            path: {
+                project: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PipelineOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    start_run_projects__project__pipelines__name__runs_post: {
+        parameters: {
+            query?: {
+                version?: number | null;
+            };
+            header?: {
+                /** @description Repeating a request with the same key never creates a second run. */
+                "Idempotency-Key"?: string | null;
+            };
+            path: {
+                project: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["PipelineRunCreate"] | null;
+            };
+        };
+        responses: {
+            /** @description Replay of an earlier request */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PipelineRunOut"];
+                };
+            };
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PipelineRunOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    list_runs_projects__project__pipeline_runs_get: {
+        parameters: {
+            query?: {
+                pipeline?: string | null;
+                limit?: number;
+                offset?: number;
+                /** @description Repeat to match any */
+                status?: components["schemas"]["RunStatus"][] | null;
+            };
+            header?: never;
+            path: {
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PipelineRunList"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    get_run_pipeline_runs__run_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PipelineRunOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    cancel_pipeline_runs__run_id__cancel_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PipelineRunOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    tracking_pipeline_runs__run_id__tracking_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TrackingOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Gone */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    step_logs_pipeline_runs__run_id__steps__step__logs_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+                step: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": string;
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Gone */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    list_models_projects__project__models_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelList"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    create_model_projects__project__models_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ModelCreate"];
+            };
+        };
+        responses: {
+            /** @description Identical model already exists */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelOut"];
+                };
+            };
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    get_model_projects__project__models__name__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    set_thresholds_projects__project__models__name__thresholds_put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ThresholdsUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    list_versions_projects__project__models__name__versions_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["VersionList"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    register_from_hub_projects__project__models__name__versions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["HubVersionCreate"];
+            };
+        };
+        responses: {
+            /** @description Already registered */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelVersionSummary"];
+                };
+            };
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelVersionSummary"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    register_image_projects__project__models__name__images_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ImageVersionCreate"];
+            };
+        };
+        responses: {
+            /** @description Already registered */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelVersionSummary"];
+                };
+            };
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelVersionSummary"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    discover_projects__project__models__name__discover_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DiscoveryOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    get_version_model_versions__version_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelVersionOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    evaluate_model_versions__version_id__evaluate_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelVersionOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Service Unavailable */
+            503: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    promote_model_versions__version_id__promote_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                version_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ModelVersionOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
                 };
             };
         };
@@ -4016,7 +5134,7 @@ export interface operations {
             };
         };
     };
-    rollback_projects__project__deployments__name__rollback_post: {
+    get_endpoint_projects__project__endpoints__name__get: {
         parameters: {
             query?: never;
             header?: never;
@@ -4026,19 +5144,15 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["RollbackRequest"] | null;
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
-            202: {
+            200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["DeploymentOut"];
+                    "application/json": components["schemas"]["EndpointOut"];
                 };
             };
             /** @description Not Found */
@@ -4061,6 +5175,190 @@ export interface operations {
             };
             /** @description Unprocessable Entity */
             422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    set_exposure_projects__project__endpoints__name__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EndpointExposure"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["EndpointOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    predict_projects__project__endpoints__name__predict_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["PredictRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    chat_projects__project__endpoints__name__chat_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ChatRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": {
+                        [key: string]: unknown;
+                    };
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Bad Gateway */
+            502: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4174,6 +5472,198 @@ export interface operations {
             };
         };
     };
+    get_rollout_rollouts__rollout_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rollout_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RolloutOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    abort_rollout_rollouts__rollout_id__abort_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                rollout_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RolloutOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    rollback_projects__project__deployments__name__rollback_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RollbackRequest"] | null;
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            202: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeploymentOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    summary_projects__project__summary_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SummaryOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     list_endpoints_projects__project__endpoints_get: {
         parameters: {
             query?: never;
@@ -4210,225 +5700,6 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_endpoint_projects__project__endpoints__name__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project: string;
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EndpointOut"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-        };
-    };
-    set_exposure_projects__project__endpoints__name__patch: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project: string;
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["EndpointExposure"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EndpointOut"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-        };
-    };
-    get_access_projects__project__endpoints__name__access_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project: string;
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["EndpointAccessOut"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-        };
-    };
-    chat_projects__project__endpoints__name__chat_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project: string;
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ChatRequest"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Bad Gateway */
-            502: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
                 };
             };
         };
@@ -4517,7 +5788,81 @@ export interface operations {
             };
         };
     };
-    predict_projects__project__endpoints__name__predict_post: {
+    audit_projects__project__audit_get: {
+        parameters: {
+            query?: {
+                entity_id?: string | null;
+                limit?: number;
+            };
+            header?: never;
+            path: {
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AuditOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    health_platform_health_get: {
+        parameters: {
+            query?: {
+                minutes?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PlatformHealthOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_access_projects__project__endpoints__name__access_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -4527,11 +5872,7 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PredictRequest"];
-            };
-        };
+        requestBody?: never;
         responses: {
             /** @description Successful Response */
             200: {
@@ -4539,9 +5880,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        [key: string]: unknown;
-                    };
+                    "application/json": components["schemas"]["EndpointAccessOut"];
                 };
             };
             /** @description Not Found */
@@ -4564,15 +5903,6 @@ export interface operations {
             };
             /** @description Unprocessable Entity */
             422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Bad Gateway */
-            502: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4634,60 +5964,7 @@ export interface operations {
             };
         };
     };
-    set_gpu_quota_projects__project__gpu_quota_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["GpuQuotaIn"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ProjectOut"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-        };
-    };
-    list_jobs_projects__project__jobs_get: {
+    list_keys_projects__project__api_keys_get: {
         parameters: {
             query?: never;
             header?: never;
@@ -4704,7 +5981,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["JobList"];
+                    "application/json": components["schemas"]["ApiKeyList"];
                 };
             };
             /** @description Not Found */
@@ -4736,7 +6013,7 @@ export interface operations {
             };
         };
     };
-    create_job_projects__project__jobs_post: {
+    create_key_projects__project__api_keys_post: {
         parameters: {
             query?: never;
             header?: never;
@@ -4747,26 +6024,17 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["JobCreate"];
+                "application/json": components["schemas"]["ApiKeyCreate"];
             };
         };
         responses: {
-            /** @description Identical job already exists */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["JobOut"];
-                };
-            };
             /** @description Successful Response */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["JobOut"];
+                    "application/json": components["schemas"]["ApiKeyCreated"];
                 };
             };
             /** @description Not Found */
@@ -4798,13 +6066,13 @@ export interface operations {
             };
         };
     };
-    get_job_projects__project__jobs__job__get: {
+    revoke_key_projects__project__api_keys__key_id__delete: {
         parameters: {
             query?: never;
             header?: never;
             path: {
                 project: string;
-                job: string;
+                key_id: string;
             };
             cookie?: never;
         };
@@ -4816,7 +6084,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["JobOut"];
+                    "application/json": components["schemas"]["ApiKeyOut"];
                 };
             };
             /** @description Not Found */
@@ -4848,41 +6116,40 @@ export interface operations {
             };
         };
     };
-    start_run_projects__project__jobs__job__runs_post: {
+    me_me_get: {
         parameters: {
             query?: never;
-            header?: {
-                /** @description Repeating a request with the same key never creates a second workload. */
-                "Idempotency-Key"?: string | null;
-            };
-            path: {
-                project: string;
-                job: string;
-            };
+            header?: never;
+            path?: never;
             cookie?: never;
         };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["RunCreate"] | null;
-            };
-        };
+        requestBody?: never;
         responses: {
-            /** @description Replay of an earlier request */
+            /** @description Successful Response */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RunOut"];
+                    "application/json": components["schemas"]["MeOut"];
                 };
             };
-            /** @description Successful Response */
-            202: {
+            /** @description Unauthorized */
+            401: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["RunOut"];
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Forbidden */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
                 };
             };
             /** @description Not Found */
@@ -5119,13 +6386,11 @@ export interface operations {
             };
         };
     };
-    list_models_projects__project__models_get: {
+    list_notifications_me_notifications_get: {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                project: string;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
@@ -5136,276 +6401,21 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ModelList"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
+                    "application/json": components["schemas"]["NotificationList"];
                 };
             };
         };
     };
-    create_model_projects__project__models_post: {
+    mark_read_me_notifications_read_post: {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                project: string;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["ModelCreate"];
-            };
-        };
-        responses: {
-            /** @description Identical model already exists */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ModelOut"];
-                };
-            };
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ModelOut"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-        };
-    };
-    get_model_projects__project__models__name__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project: string;
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ModelOut"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-        };
-    };
-    discover_projects__project__models__name__discover_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project: string;
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["DiscoveryOut"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-        };
-    };
-    register_image_projects__project__models__name__images_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project: string;
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ImageVersionCreate"];
-            };
-        };
-        responses: {
-            /** @description Already registered */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ModelVersionSummary"];
-                };
-            };
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ModelVersionSummary"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-        };
-    };
-    set_thresholds_projects__project__models__name__thresholds_put: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project: string;
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["ThresholdsUpdate"];
+                "application/json": components["schemas"]["NotificationReadIn"];
             };
         };
         responses: {
@@ -5415,510 +6425,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ModelOut"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-        };
-    };
-    list_versions_projects__project__models__name__versions_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project: string;
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["VersionList"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-        };
-    };
-    register_from_hub_projects__project__models__name__versions_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project: string;
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["HubVersionCreate"];
-            };
-        };
-        responses: {
-            /** @description Already registered */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ModelVersionSummary"];
-                };
-            };
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ModelVersionSummary"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-        };
-    };
-    list_runs_projects__project__pipeline_runs_get: {
-        parameters: {
-            query?: {
-                pipeline?: string | null;
-                limit?: number;
-                offset?: number;
-                /** @description Repeat to match any */
-                status?: components["schemas"]["RunStatus"][] | null;
-            };
-            header?: never;
-            path: {
-                project: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PipelineRunList"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-        };
-    };
-    list_pipelines_projects__project__pipelines_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PipelineList"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-        };
-    };
-    create_pipeline_projects__project__pipelines_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["PipelineCreate"];
-            };
-        };
-        responses: {
-            /** @description Identical to the latest version */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PipelineOut"];
-                };
-            };
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PipelineOut"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-        };
-    };
-    get_pipeline_projects__project__pipelines__name__get: {
-        parameters: {
-            query?: {
-                version?: number | null;
-            };
-            header?: never;
-            path: {
-                project: string;
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PipelineOut"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-        };
-    };
-    start_run_projects__project__pipelines__name__runs_post: {
-        parameters: {
-            query?: {
-                version?: number | null;
-            };
-            header?: {
-                /** @description Repeating a request with the same key never creates a second run. */
-                "Idempotency-Key"?: string | null;
-            };
-            path: {
-                project: string;
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: {
-            content: {
-                "application/json": components["schemas"]["PipelineRunCreate"] | null;
-            };
-        };
-        responses: {
-            /** @description Replay of an earlier request */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PipelineRunOut"];
-                };
-            };
-            /** @description Successful Response */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["PipelineRunOut"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-        };
-    };
-    list_runs_projects__project__runs_get: {
-        parameters: {
-            query?: {
-                job?: string | null;
-                limit?: number;
-                offset?: number;
-                /** @description Repeat to match any */
-                status?: components["schemas"]["RunStatus"][] | null;
-            };
-            header?: never;
-            path: {
-                project: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RunList"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-        };
-    };
-    list_secrets_projects__project__secrets_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SecretList"];
+                    "application/json": components["schemas"]["NotificationReadOut"];
                 };
             };
             /** @description Validation Error */
@@ -5932,118 +6439,11 @@ export interface operations {
             };
         };
     };
-    rotate_secret_projects__project__secrets__name__put: {
+    healthz_healthz_get: {
         parameters: {
             query?: never;
             header?: never;
-            path: {
-                project: string;
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SecretRotate"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SecretOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    create_secret_projects__project__secrets__name__post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project: string;
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["SecretWrite"];
-            };
-        };
-        responses: {
-            /** @description Successful Response */
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SecretOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    delete_secret_projects__project__secrets__name__delete: {
-        parameters: {
-            query: {
-                expected_version: string;
-                force?: boolean;
-            };
-            header?: never;
-            path: {
-                project: string;
-                name: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            204: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content?: never;
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    summary_projects__project__summary_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                project: string;
-            };
+            path?: never;
             cookie?: never;
         };
         requestBody?: never;
@@ -6054,340 +6454,9 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["SummaryOut"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Validation Error */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["HTTPValidationError"];
-                };
-            };
-        };
-    };
-    get_rollout_rollouts__rollout_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                rollout_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RolloutOut"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-        };
-    };
-    abort_rollout_rollouts__rollout_id__abort_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                rollout_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RolloutOut"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-        };
-    };
-    get_run_runs__run_id__get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RunOut"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-        };
-    };
-    cancel_run_runs__run_id__cancel_post: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RunOut"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-        };
-    };
-    run_logs_runs__run_id__logs_get: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path: {
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": string;
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Gone */
-            410: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Service Unavailable */
-            503: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "text/plain": components["schemas"]["ErrorOut"];
-                };
-            };
-        };
-    };
-    retry_run_runs__run_id__retry_post: {
-        parameters: {
-            query?: never;
-            header?: {
-                /** @description Repeating a request with the same key never creates a second workload. */
-                "Idempotency-Key"?: string | null;
-            };
-            path: {
-                run_id: string;
-            };
-            cookie?: never;
-        };
-        requestBody?: never;
-        responses: {
-            /** @description Successful Response */
-            202: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["RunOut"];
-                };
-            };
-            /** @description Not Found */
-            404: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Conflict */
-            409: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
-                };
-            };
-            /** @description Unprocessable Entity */
-            422: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ErrorOut"];
+                    "application/json": {
+                        [key: string]: string;
+                    };
                 };
             };
         };
