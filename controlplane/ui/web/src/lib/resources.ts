@@ -10,5 +10,5 @@ export function servingFor(model: S['ModelOut'], deployments: S['DeploymentOut']
 
 export function functionStatus(serving: ReturnType<typeof servingFor>, fallback: string) {
   const statuses = serving.map(({ deployment }) => deployment.status);
-  return ['FAILED', 'DEGRADED', 'DEPLOYING', 'PENDING', 'READY'].find((s) => statuses.includes(s as S['DeploymentStatus'])) ?? fallback;
+  return ['DELETING', 'DELETED', 'FAILED', 'DEGRADED', 'DEPLOYING', 'PENDING', 'READY'].find((s) => statuses.includes(s as S['DeploymentStatus'])) ?? fallback;
 }

@@ -1,0 +1,110 @@
+{{- $policy := .Values.networkPolicy }}
+{{- if or $policy.enabled $policy.projectEgressEnabled }}
+{{- if not $policy.apiCIDRs }}
+{{- fail "network isolation requires networkPolicy.apiCIDRs for the selected Kubernetes API topology" }}
+{{- end }}
+{{- end }}
+{{- if $policy.enabled }}
+{{- $name := include "controlplane.name" . }}
+{{- range $component := list "api" "gateway" "reconciler" "migrate" }}
+---
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: {{ $name }}-{{ $component }}
+  {{- if eq $component "migrate" }}
+  annotations:
+    helm.sh/hook: pre-install,pre-upgrade
+    helm.sh/hook-weight: "-10"
+    helm.sh/hook-delete-policy: before-hook-creation
+  {{- end }}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ $.Release.Name }}
+      app.kubernetes.io/name: mlp-controlplane-{{ $component }}
+  policyTypes: [Ingress, Egress]
+  {{- if or (eq $component "api") (eq $component "gateway") }}
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $policy.ingressNamespace }}
+      ports:
+        - port: {{ ternary 8081 8080 (eq $component "gateway") }}
+  {{- else }}
+  ingress: []
+  {{- end }}
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: kube-system}
+          podSelector:
+            matchLabels: {k8s-app: kube-dns}
+      ports:
+        - {port: 53, protocol: UDP}
+        - {port: 53, protocol: TCP}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $policy.platformNamespace }}
+          podSelector:
+            matchLabels: {app.kubernetes.io/name: postgres}
+      ports: [{port: 5432}]
+    {{- if ne $component "migrate" }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $policy.observabilityNamespace }}
+      ports: [{port: 4317}, {port: 4318}]
+    {{- if ne $component "reconciler" }}
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $policy.identityNamespace }}
+          podSelector:
+            matchLabels: {app.kubernetes.io/name: keycloak}
+      ports: [{port: 8080}, {port: 443}]
+    {{- end }}
+    {{- if ne $component "gateway" }}
+    - to:
+        {{- range $cidr := $policy.apiCIDRs }}
+        - ipBlock: {cidr: {{ $cidr | quote }}}
+        {{- end }}
+      ports: [{port: 443}, {port: 6443}]
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $policy.platformNamespace }}
+          podSelector:
+            matchLabels: {app.kubernetes.io/name: mlflow}
+      ports: [{port: 5000}]
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $policy.observabilityNamespace }}
+      ports: [{port: 9090}]
+    {{- end }}
+    {{- if ne $component "reconciler" }}
+    - to:
+        {{- range $ns := $policy.servingNamespaces }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ $ns }}
+        {{- end }}
+        - namespaceSelector:
+            matchLabels: {app.kubernetes.io/managed-by: mlp-controlplane}
+          podSelector:
+            matchExpressions:
+              - {key: serving.kserve.io/inferenceservice, operator: Exists}
+    {{- end }}
+    {{- if $policy.externalHTTPSCIDRs }}
+    - to:
+        {{- range $cidr := $policy.externalHTTPSCIDRs }}
+        - ipBlock: {cidr: {{ $cidr | quote }}}
+        {{- end }}
+      ports: [{port: 443}]
+    {{- end }}
+    {{- end }}
+{{- end }}
+{{- end }}

@@ -10,6 +10,7 @@ import re
 from collections.abc import Mapping
 from dataclasses import dataclass, field, replace
 from datetime import datetime
+from decimal import Decimal
 from enum import StrEnum
 from typing import Self
 from uuid import UUID
@@ -17,6 +18,7 @@ from uuid import UUID
 from controlplane.domain import states
 from controlplane.domain.errors import InvalidArgument
 from controlplane.domain.ids import new_id
+from controlplane.domain.secrets import SecretRefs
 from controlplane.domain.states import (
     DeploymentStatus,
     EndpointKind,
@@ -118,6 +120,12 @@ _QUANTITY = re.compile(r"^[0-9]+(\.[0-9]+)?(m|Ki|Mi|Gi|Ti|k|M|G|T)?$")
 _ENV_KEY = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 
 
+def validate_timeout(seconds: int) -> int:
+    if type(seconds) is not int or not 1 <= seconds <= 604800:
+        raise InvalidArgument("timeout_seconds must be 1-604800 seconds")
+    return seconds
+
+
 @dataclass(frozen=True, slots=True, kw_only=True)
 class JobDefinition:
     """What to run. Immutable: a different image or command is a different definition."""
@@ -129,6 +137,8 @@ class JobDefinition:
     command: tuple[str, ...] = ()
     resources: Mapping[str, str] = field(default_factory=dict)
     env: Mapping[str, str] = field(default_factory=dict)
+    timeout_seconds: int = 3600
+    secret_refs: SecretRefs = field(default_factory=SecretRefs)
     created_at: datetime
 
     @classmethod
@@ -142,6 +152,8 @@ class JobDefinition:
         resources: Mapping[str, str],
         env: Mapping[str, str],
         now: datetime,
+        timeout_seconds: int = 3600,
+        secret_refs: SecretRefs | None = None,
     ) -> Self:
         validate_slug(name, "job name")
         if not image.strip() or any(c.isspace() for c in image):
@@ -163,6 +175,8 @@ class JobDefinition:
             command=tuple(command),
             resources=dict(resources),
             env=dict(env),
+            timeout_seconds=validate_timeout(timeout_seconds),
+            secret_refs=secret_refs or SecretRefs(),
             created_at=now,
         )
 
@@ -260,11 +274,16 @@ class PipelineRun:
     cancel_requested: bool = False
     commit_sha: str | None = None
     idempotency_key: str | None = None
+    timeout_seconds: int = 3600
     traceparent: str | None = None
     created_at: datetime
     updated_at: datetime
     started_at: datetime | None = None
     finished_at: datetime | None = None
+    workflow_cleaned_at: datetime | None = None
+
+    def __post_init__(self) -> None:
+        validate_timeout(self.timeout_seconds)
 
     @property
     def is_terminal(self) -> bool:
@@ -314,11 +333,16 @@ class Run:
     cancel_requested: bool = False
     retry_of: UUID | None = None
     idempotency_key: str | None = None
+    timeout_seconds: int = 3600
     traceparent: str | None = None
     created_at: datetime
     updated_at: datetime
     started_at: datetime | None = None
     finished_at: datetime | None = None
+    workflow_cleaned_at: datetime | None = None
+
+    def __post_init__(self) -> None:
+        validate_timeout(self.timeout_seconds)
 
     @property
     def is_terminal(self) -> bool:
@@ -461,6 +485,11 @@ class FunctionServing:
     concurrency: int = 10
     port: int = 8080
     env: Mapping[str, str] = field(default_factory=dict)
+    requests: Mapping[str, str] = field(default_factory=lambda: {"cpu": "100m", "memory": "128Mi"})
+    limits: Mapping[str, str] = field(default_factory=lambda: {"cpu": "1", "memory": "512Mi"})
+    readiness_path: str | None = None  # None: TCP readiness on the function's port
+    readiness_timeout_seconds: int = 2
+    readiness_initial_delay_seconds: int = 0
 
     def __post_init__(self) -> None:
         if not 0 <= self.min_scale <= self.max_scale <= MAX_FUNCTION_REPLICAS:
@@ -477,6 +506,28 @@ class FunctionServing:
             if not _ENV_NAME.match(key):
                 raise InvalidArgument(f"environment variable names are LIKE_THIS: got {key!r}")
         object.__setattr__(self, "env", dict(self.env))
+        for values in (self.requests, self.limits):
+            if set(values) != {"cpu", "memory"}:
+                raise InvalidArgument("function resources require cpu and memory")
+            for key, value in values.items():
+                _function_quantity(key, value)
+        for key in ("cpu", "memory"):
+            if _function_quantity(key, self.requests[key]) > _function_quantity(
+                key, self.limits[key]
+            ):
+                raise InvalidArgument(f"function {key} request exceeds its limit")
+        object.__setattr__(self, "requests", dict(self.requests))
+        object.__setattr__(self, "limits", dict(self.limits))
+        if self.readiness_path is not None and (
+            not self.readiness_path.startswith("/")
+            or len(self.readiness_path) > 256
+            or any(c.isspace() for c in self.readiness_path)
+        ):
+            raise InvalidArgument("readiness_path must be an absolute HTTP path without whitespace")
+        if not 1 <= self.readiness_timeout_seconds <= 60:
+            raise InvalidArgument("readiness timeout must be 1-60 seconds")
+        if not 0 <= self.readiness_initial_delay_seconds <= 600:
+            raise InvalidArgument("readiness initial delay must be 0-600 seconds")
 
     def to_json(self) -> dict[str, object]:
         return {
@@ -485,37 +536,76 @@ class FunctionServing:
             "concurrency": self.concurrency,
             "port": self.port,
             "env": dict(self.env),
+            "requests": dict(self.requests),
+            "limits": dict(self.limits),
+            "readiness_path": self.readiness_path,
+            "readiness_timeout_seconds": self.readiness_timeout_seconds,
+            "readiness_initial_delay_seconds": self.readiness_initial_delay_seconds,
         }
 
     @classmethod
     def from_json(cls, raw: Mapping[str, object]) -> FunctionServing:
         env = raw.get("env") or {}
         assert isinstance(env, dict)
+        requests = raw.get("requests", {"cpu": "100m", "memory": "128Mi"})
+        limits = raw.get("limits", {"cpu": "1", "memory": "512Mi"})
+        assert isinstance(requests, dict) and isinstance(limits, dict)
         return cls(
             min_scale=int(str(raw.get("min_scale", 0))),
             max_scale=int(str(raw.get("max_scale", 3))),
             concurrency=int(str(raw.get("concurrency", 10))),
             port=int(str(raw.get("port", 8080))),
             env={str(k): str(v) for k, v in env.items()},
+            requests={str(k): str(v) for k, v in requests.items()},
+            limits={str(k): str(v) for k, v in limits.items()},
+            readiness_path=str(raw["readiness_path"])
+            if raw.get("readiness_path") is not None
+            else None,
+            readiness_timeout_seconds=int(str(raw.get("readiness_timeout_seconds", 2))),
+            readiness_initial_delay_seconds=int(str(raw.get("readiness_initial_delay_seconds", 0))),
         )
+
+
+def _function_quantity(key: str, value: str) -> Decimal:
+    match = re.fullmatch(r"([0-9]+(?:\.[0-9]+)?)(m|Ki|Mi|Gi|Ti|k|M|G|T)?", value)
+    if match is None:
+        raise InvalidArgument(f"invalid function {key} quantity {value!r}")
+    suffix = match[2] or ""
+    allowed = (
+        {"": Decimal(1), "m": Decimal("0.001")}
+        if key == "cpu"
+        else {
+            "": Decimal(1),
+            "Ki": Decimal(1024),
+            "Mi": Decimal(1024**2),
+            "Gi": Decimal(1024**3),
+            "Ti": Decimal(1024**4),
+            "k": Decimal(1000),
+            "M": Decimal(1000**2),
+            "G": Decimal(1000**3),
+            "T": Decimal(1000**4),
+        }
+    )
+    if suffix not in allowed or Decimal(match[1]) <= 0:
+        raise InvalidArgument(f"invalid function {key} quantity {value!r}")
+    return Decimal(match[1]) * allowed[suffix]
 
 
 MAX_FUNCTION_REPLICAS = 50
 _ENV_NAME = re.compile(r"^[A-Z_][A-Z0-9_]{0,63}$")
-# registry/path/name:tag or @sha256:digest; a tag or digest is required so a version is fixed
+# Function versions require immutable content identity; tags can be moved.
 _IMAGE = re.compile(
     r"^[a-z0-9]([a-z0-9.-]*[a-z0-9])?(:[0-9]+)?(/[a-z0-9]([a-z0-9._-]*[a-z0-9])?)+"
-    r"(:[\w][\w.-]{0,127}|@sha256:[a-f0-9]{64})$"
+    r"@sha256:[a-f0-9]{64}$"
 )
 
 
 def validate_image(image: str) -> str:
-    """A container image with its registry and a tag or digest, e.g.
-    ghcr.io/acme/enrich:1.4.2. Prefer a digest: a tag can be moved."""
-    if not _IMAGE.match(image) or image.endswith(":latest"):
+    """An immutable function image: registry/repository@sha256:<64 hex digits>."""
+    if not _IMAGE.fullmatch(image):
         raise InvalidArgument(
-            "an image is <registry>/<path>:<tag> or @sha256:<digest>, not :latest, "
-            f"e.g. ghcr.io/acme/enrich:1.4.2: got {image!r}"
+            "a function image requires <registry>/<path>@sha256:<64 lowercase hex digits>; "
+            f"tags are mutable: got {image!r}"
         )
     return image
 
@@ -548,6 +638,7 @@ class Model:
     kind: ModelKind = ModelKind.CLASSIC
     serving: LlmServing | None = None  # how an LLM is served; None for classic models
     function: FunctionServing | None = None  # how a function runs; None otherwise
+    secret_refs: SecretRefs = field(default_factory=SecretRefs)
     created_at: datetime
 
     @classmethod
@@ -561,6 +652,7 @@ class Model:
         kind: ModelKind = ModelKind.CLASSIC,
         serving: LlmServing | None = None,
         function: FunctionServing | None = None,
+        secret_refs: SecretRefs | None = None,
     ) -> Self:
         validate_slug(name, "model name")
         for metric in thresholds:
@@ -584,6 +676,7 @@ class Model:
             kind=kind,
             serving=serving,
             function=function,
+            secret_refs=secret_refs or SecretRefs(),
             created_at=now,
         )
 
@@ -725,6 +818,7 @@ class DeploymentRevision:
     gpus: int = 0
     context_length: int | None = None
     function: FunctionServing | None = None  # a function revision's scaling and environment
+    secret_refs: SecretRefs = field(default_factory=SecretRefs)
     created_at: datetime
 
 

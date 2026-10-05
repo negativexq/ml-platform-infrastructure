@@ -14,17 +14,22 @@ import urllib.error
 import urllib.request
 from collections.abc import Mapping
 from typing import Any
+from uuid import uuid4
 
 from kubernetes import client
 from kubernetes.client.exceptions import ApiException
+from kubernetes.utils.quantity import parse_quantity
 
 from controlplane.adapters.kubernetes import load_api_client
 from controlplane.application.context import current_traceparent
 from controlplane.application.providers import ServingSpec, ServingState, ServingStatus
+from controlplane.domain.entities import FunctionServing
 
 GROUP, VERSION, PLURAL = "serving.kserve.io", "v1beta1", "inferenceservices"
+KNATIVE_GROUP, KNATIVE_VERSION = "serving.knative.dev", "v1"
 ANNOTATION_REVISION = "mlp.io/revision"
 ANNOTATION_PREVIOUS = "mlp.io/previous-revision"
+ANNOTATION_APPLY = "mlp.io/apply-id"
 SERVICE_ACCOUNT = "mlp-workload"
 PREDICT_TIMEOUT_SECONDS = 10
 CHAT_TIMEOUT_SECONDS = 120
@@ -39,25 +44,46 @@ HF_TOKEN_SECRET = "mlp-hf-token"  # optional, per project namespace: gated hub m
 def _function_predictor(spec: ServingSpec) -> dict[str, Any]:
     """A function: the project's own container as a KServe custom predictor. In Serverless
     mode Knative scales it between min and max replicas, to zero when idle."""
-    f = dict(spec.function or {})
+    f = FunctionServing.from_json(dict(spec.function or {})).to_json()
     env = f.get("env") or {}
+    assert isinstance(env, dict)
+    port = int(str(f["port"]))
+    probe = (
+        {"httpGet": {"path": f["readiness_path"], "port": port}}
+        if f["readiness_path"]
+        else {"tcpSocket": {"port": port}}
+    )
     return {
-        "minReplicas": int(f.get("min_scale", 0)),
-        "maxReplicas": int(f.get("max_scale", 3)),
-        "containerConcurrency": int(f.get("concurrency", 10)),
+        "minReplicas": int(str(f["min_scale"])),
+        "maxReplicas": int(str(f["max_scale"])),
+        "containerConcurrency": int(str(f["concurrency"])),
         "containers": [
             {
                 "name": "kserve-container",
                 "image": spec.model_uri,
-                "ports": [{"containerPort": int(f.get("port", 8080)), "protocol": "TCP"}],
-                "env": [{"name": k, "value": str(v)} for k, v in sorted(env.items())],
+                "ports": [{"containerPort": port, "protocol": "TCP"}],
+                "env": [{"name": k, "value": str(v)} for k, v in sorted(env.items())]
+                + _secret_env(spec),
                 "resources": {
-                    "requests": {"cpu": "100m", "memory": "128Mi"},
-                    "limits": {"cpu": "1", "memory": "512Mi"},
+                    "requests": f["requests"],
+                    "limits": f["limits"],
+                },
+                "readinessProbe": {
+                    **probe,
+                    "timeoutSeconds": f["readiness_timeout_seconds"],
+                    "initialDelaySeconds": f["readiness_initial_delay_seconds"],
+                    "periodSeconds": 5,
                 },
             }
         ],
     }
+
+
+def _secret_env(spec: ServingSpec) -> list[dict[str, Any]]:
+    return [
+        {"name": k, "valueFrom": {"secretKeyRef": {"name": r.name, "key": r.key}}}
+        for k, r in sorted(spec.secret_refs.env.items())
+    ]
 
 
 def _predictor_model(spec: ServingSpec) -> dict[str, Any]:
@@ -66,6 +92,7 @@ def _predictor_model(spec: ServingSpec) -> dict[str, Any]:
             "modelFormat": {"name": "mlflow"},
             "protocolVersion": "v2",
             "storageUri": spec.model_uri,
+            **({"env": _secret_env(spec)} if spec.secret_refs.env else {}),
         }
     # KServe's Hugging Face server on its vLLM backend: OpenAI-compatible chat completions
     # at /openai/v1/chat/completions, the served model named after the deployment.
@@ -81,14 +108,19 @@ def _predictor_model(spec: ServingSpec) -> dict[str, Any]:
         "modelFormat": {"name": "huggingface"},
         "storageUri": spec.model_uri,
         "args": args,
-        "env": [
-            {
-                "name": "HF_TOKEN",
-                "valueFrom": {
-                    "secretKeyRef": {"name": HF_TOKEN_SECRET, "key": "token", "optional": True}
-                },
-            }
-        ],
+        "env": _secret_env(spec)
+        + (
+            [
+                {
+                    "name": "HF_TOKEN",
+                    "valueFrom": {
+                        "secretKeyRef": {"name": HF_TOKEN_SECRET, "key": "token", "optional": True}
+                    },
+                }
+            ]
+            if "HF_TOKEN" not in spec.secret_refs.env
+            else []
+        ),
         "resources": {
             "requests": {
                 "cpu": str(int(cpu_request) * spec.gpus),
@@ -124,6 +156,14 @@ def build_inference_service(spec: ServingSpec) -> dict[str, Any]:
             "predictor": {
                 "serviceAccountName": SERVICE_ACCOUNT,
                 **(
+                    {"imagePullSecrets": [{"name": n} for n in spec.secret_refs.image_pull_secrets]}
+                    if spec.secret_refs.image_pull_secrets
+                    else {}
+                ),
+                # KServe copies component annotations into the immutable Knative
+                # Revision template. Resource metadata alone describes intent.
+                "annotations": {ANNOTATION_REVISION: str(spec.revision)},
+                **(
                     _function_predictor(spec)
                     if spec.runtime == "container"
                     else {"model": _predictor_model(spec)}
@@ -132,6 +172,52 @@ def build_inference_service(spec: ServingSpec) -> dict[str, Any]:
             }
         },
     }
+
+
+def _owned_matches(actual: Any, desired: Any, key: str = "") -> bool:
+    if key in {"requests", "limits"}:
+        if not isinstance(actual, dict) or set(actual) != set(desired):
+            return False
+        try:
+            return all(parse_quantity(actual[k]) == parse_quantity(v) for k, v in desired.items())
+        except (ValueError, TypeError):
+            return False
+    if isinstance(desired, dict):
+        if not isinstance(actual, dict):
+            return False
+        # These fields affect execution. Extra defaults outside these owned fields
+        # are allowed, while injected command/env/resource overrides are drift.
+        owned = {
+            "model",
+            "containers",
+            "storageUri",
+            "runtime",
+            "env",
+            "envFrom",
+            "args",
+            "command",
+            "resources",
+            "imagePullSecrets",
+            "minReplicas",
+            "maxReplicas",
+            "containerConcurrency",
+            "volumeMounts",
+            "volumes",
+            "readinessProbe",
+        }
+        if any(k not in desired and actual.get(k) not in (None, [], {}) for k in owned):
+            return False
+        return all(_owned_matches(actual.get(k), v, k) for k, v in desired.items())
+    if isinstance(desired, list):
+        if not isinstance(actual, list) or len(actual) != len(desired):
+            return False
+        if key in {"env", "imagePullSecrets"}:
+            actual, desired = (
+                sorted(actual, key=lambda x: x["name"]),
+                sorted(desired, key=lambda x: x["name"]),
+            )
+        return all(_owned_matches(a, d) for a, d in zip(actual, desired, strict=True))
+    return bool(actual == desired)
 
 
 def _headers() -> dict[str, str]:
@@ -150,6 +236,13 @@ def _int(raw: str | None) -> int | None:
 def _split(ref: str) -> tuple[str, str]:
     namespace, _, name = ref.partition("/")
     return namespace, name
+
+
+def _ready(status: Mapping[str, Any]) -> bool:
+    return any(
+        c.get("type") == "Ready" and c.get("status") == "True"
+        for c in status.get("conditions") or []
+    )
 
 
 class KServeServingProvider:
@@ -172,12 +265,30 @@ class KServeServingProvider:
             raise
         return service
 
+    def matches(self, spec: ServingSpec) -> bool:
+        existing = self._read(f"{spec.namespace}/{spec.name}")
+        return existing is not None and self._matches(existing, spec)
+
+    @staticmethod
+    def _matches(existing: dict[str, Any], spec: ServingSpec) -> bool:
+        desired = build_inference_service(spec)
+        return (
+            _owned_matches(existing.get("spec", {}).get("predictor"), desired["spec"]["predictor"])
+            and all(
+                existing.get("metadata", {}).get("labels", {}).get(k) == v
+                for k, v in spec.labels.items()
+            )
+            and (existing.get("metadata", {}).get("annotations") or {}).get(ANNOTATION_REVISION)
+            == str(spec.revision)
+        )
+
     def deploy(self, spec: ServingSpec) -> str:
         """Create-or-update. Idempotent: applying the same spec twice changes nothing."""
         ref = f"{spec.namespace}/{spec.name}"
         body = build_inference_service(spec)
         existing = self._read(ref)
         if existing is None:
+            body["spec"]["predictor"]["annotations"][ANNOTATION_APPLY] = uuid4().hex
             if spec.canary_percent is None:
                 del body["spec"]["predictor"]["canaryTrafficPercent"]
             try:
@@ -189,6 +300,8 @@ class KServeServingProvider:
                 if exc.status != 409:  # 409: created concurrently, fall through to patch
                     raise
         else:
+            if self._matches(existing, spec):
+                return ref
             # Remember what was serving before, so a canary knows what receives the rest
             # of the traffic and which backend revision to label its metrics with.
             annotations = existing.get("metadata", {}).get("annotations") or {}
@@ -200,8 +313,39 @@ class KServeServingProvider:
             )
             if previous:
                 body["metadata"]["annotations"][ANNOTATION_PREVIOUS] = previous
+        # Replace the owned predictor rather than merge: removed env/args/resources
+        # must not survive the repair. Test resourceVersion to avoid lost updates.
+        current = existing if existing is not None else self._read(ref)
+        if current is None:
+            raise ConnectionError("serving resource disappeared during apply")
+        patches = []
+        version = current.get("metadata", {}).get("resourceVersion")
+        if version:
+            patches.append({"op": "test", "path": "/metadata/resourceVersion", "value": version})
+        annotations = {
+            **(current.get("metadata", {}).get("annotations") or {}),
+            **body["metadata"]["annotations"],
+        }
+        labels = {**(current.get("metadata", {}).get("labels") or {}), **spec.labels}
+        predictor = body["spec"]["predictor"]
+        predictor["annotations"][ANNOTATION_APPLY] = uuid4().hex
+        if spec.canary_percent is None:
+            predictor.pop("canaryTrafficPercent", None)
+        patches.extend(
+            [
+                {"op": "add", "path": "/metadata/annotations", "value": annotations},
+                {"op": "add", "path": "/metadata/labels", "value": labels},
+                {"op": "add", "path": "/spec/predictor", "value": predictor},
+            ]
+        )
         self._custom.patch_namespaced_custom_object(
-            GROUP, VERSION, spec.namespace, PLURAL, spec.name, body
+            GROUP,
+            VERSION,
+            spec.namespace,
+            PLURAL,
+            spec.name,
+            patches,
+            _content_type="application/json-patch+json",
         )
         return ref
 
@@ -215,30 +359,51 @@ class KServeServingProvider:
         status = service.get("status") or {}
         model_status = status.get("modelStatus") or {}
 
+        predictor = (status.get("components") or {}).get("predictor") or {}
+        namespace, name = _split(ref)
+        latest = predictor.get("latestCreatedRevision")
+        expected_apply = (
+            ((service.get("spec") or {}).get("predictor") or {})
+            .get("annotations", {})
+            .get(ANNOTATION_APPLY)
+        )
+        observed = self._read_revision(namespace, name, latest, expected_apply) if latest else None
+        if observed is None or observed[0] != deployed or deployed is None or latest is None:
+            return ServingStatus(ServingState.PENDING, deployed)
+
+        # Failure info can survive a successful load, or describe an old backend.
         failure = model_status.get("lastFailureInfo")
-        if failure:
+        if (
+            failure
+            and not observed[1]
+            and failure.get("modelRevisionName") == latest
+            and model_status.get("transitionStatus")
+            in {
+                "BlockedByFailedLoad",
+                "InvalidSpec",
+            }
+        ):
             return ServingStatus(
                 ServingState.FAILED,
                 deployed,
                 reason=failure.get("message") or failure.get("reason"),
             )
-        ready = any(
-            c.get("type") == "Ready" and c.get("status") == "True"
-            for c in status.get("conditions") or []
-        )
-        # `UpToDate` means the model the spec asks for is the one that loaded.
-        loaded = model_status.get("transitionStatus") == "UpToDate"
-        if not (ready and loaded and deployed is not None):
+        # Knative Revision readiness works for both model servers and custom
+        # containers, and remains true when the activator scales pods to zero.
+        # KServe may reset modelStatus to InProgress at zero pods; it is not a
+        # callability test. Nor is ISVC observedGeneration a safe revision ID:
+        # some versions copy a child's generation into that field.
+        if not (_ready(status) and observed[1] and latest == predictor.get("latestReadyRevision")):
             return ServingStatus(ServingState.PENDING, deployed)
 
-        predictor = (status.get("components") or {}).get("predictor") or {}
-        backend: dict[int, str] = {}
-        if predictor.get("latestCreatedRevision"):
-            backend[deployed] = predictor["latestCreatedRevision"]
+        backend: dict[int, str] = {deployed: latest}
         ready_revisions = [deployed]
-        if previous is not None and predictor.get("previousRolledoutRevision"):
-            backend[previous] = predictor["previousRolledoutRevision"]
-            ready_revisions.append(previous)  # still serving the rest of the traffic
+        previous_backend = predictor.get("previousRolledoutRevision")
+        if previous is not None and previous != deployed and previous_backend:
+            old = self._read_revision(namespace, name, previous_backend)
+            if old is not None and old == (previous, True):
+                backend[previous] = previous_backend
+                ready_revisions.append(previous)
         url = (status.get("address") or {}).get("url") or status.get("url")
         return ServingStatus(
             ServingState.READY,
@@ -247,6 +412,27 @@ class KServeServingProvider:
             backend_revisions=backend,
             url=url,
         )
+
+    def _read_revision(
+        self, namespace: str, name: str, backend: str, expected_apply: str | None = None
+    ) -> tuple[int | None, bool] | None:
+        """Read identity from the backend itself; never relabel a stale status."""
+        try:
+            revision = self._custom.get_namespaced_custom_object(
+                KNATIVE_GROUP, KNATIVE_VERSION, namespace, "revisions", backend
+            )
+        except ApiException as exc:
+            if exc.status == 404:
+                return None
+            raise
+        metadata = revision.get("metadata") or {}
+        labels = metadata.get("labels") or {}
+        if labels.get("serving.kserve.io/inferenceservice") != name:
+            return None
+        annotations = metadata.get("annotations") or {}
+        if expected_apply is not None and annotations.get(ANNOTATION_APPLY) != expected_apply:
+            return None
+        return _int(annotations.get(ANNOTATION_REVISION)), _ready(revision.get("status") or {})
 
     def set_traffic(self, ref: str, split: Mapping[int, int]) -> None:
         """KServe splits between the newest revision and the one before it, so a split

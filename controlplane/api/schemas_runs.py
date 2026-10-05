@@ -5,6 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from controlplane.api.secrets import SecretRefsIn
 from controlplane.domain.entities import JobDefinition, Run
 from controlplane.domain.states import RunStatus
 
@@ -12,6 +13,7 @@ from controlplane.domain.states import RunStatus
 class JobCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    secret_refs: SecretRefsIn = Field(default_factory=SecretRefsIn)
     name: str
     image: str
     command: list[str] = Field(default_factory=list)
@@ -19,17 +21,20 @@ class JobCreate(BaseModel):
         default_factory=dict, examples=[{"cpu": "2", "memory": "4Gi"}]
     )
     env: dict[str, str] = Field(default_factory=dict)
+    timeout_seconds: int = Field(3600, ge=1, le=604800)
 
 
 class JobOut(BaseModel):
     id: UUID
     project_id: UUID
+    secret_refs: SecretRefsIn = Field(default_factory=SecretRefsIn)
     name: str
     image: str
     command: list[str]
     resources: dict[str, str]
     env: dict[str, str]
     created_at: datetime
+    timeout_seconds: int
 
     @classmethod
     def from_domain(cls, job: JobDefinition) -> JobOut:
@@ -37,11 +42,13 @@ class JobOut(BaseModel):
             id=job.id,
             project_id=job.project_id,
             name=job.name,
+            secret_refs=SecretRefsIn.from_domain(job.secret_refs),
             image=job.image,
             command=list(job.command),
             resources=dict(job.resources),
             env=dict(job.env),
             created_at=job.created_at,
+            timeout_seconds=job.timeout_seconds,
         )
 
 
@@ -66,6 +73,8 @@ class RunOut(BaseModel):
     started_at: datetime | None
     finished_at: datetime | None
     duration_seconds: float | None
+    timeout_seconds: int
+    workflow_cleaned_at: datetime | None
 
     @classmethod
     def from_domain(cls, run: Run, job: str | None = None) -> RunOut:
@@ -83,6 +92,8 @@ class RunOut(BaseModel):
             started_at=run.started_at,
             finished_at=run.finished_at,
             duration_seconds=run.duration_seconds,
+            timeout_seconds=run.timeout_seconds,
+            workflow_cleaned_at=run.workflow_cleaned_at,
         )
 
 
@@ -90,3 +101,8 @@ class RunList(BaseModel):
     items: list[RunOut]
     limit: int
     offset: int
+
+
+class RunCreate(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    timeout_seconds: int | None = Field(None, ge=1, le=604800)

@@ -105,6 +105,34 @@ def env(uow_factory: Factory, clock: Callable[[], Any]) -> Env:
     return Env(uow_factory, clock)
 
 
+def test_provider_failure_does_not_starve_another_deployment(env: Env) -> None:
+    from unittest.mock import Mock, patch
+
+    from controlplane.reconciliation.batch import ReconcileBackoff
+
+    now = Mock(return_value=0)
+    env.reconciler._retry = ReconcileBackoff(now)
+
+    env.deploy(1)
+    env.service.create("credit-risk", "other-prod")
+    env.service.deploy("credit-risk", "other-prod", "scorer", 1)
+    original = env.serving.get_status
+
+    def status(ref: str) -> Any:
+        if ref == env.ref():
+            raise ConnectionError("one backend is unreachable")
+        return original(ref)
+
+    with patch.object(env.serving, "get_status", side_effect=status):
+        env.reconciler.reconcile_all()
+    assert env.view().deployment.status is not DeploymentStatus.READY
+    assert env.service.get("credit-risk", "other-prod").deployment.status is DeploymentStatus.READY
+    assert all(r.deployment_id != env.id() for r in env.reconciler.reconcile_all())
+    now.return_value = 5
+    env.reconciler.reconcile_all()
+    assert env.view().deployment.status is DeploymentStatus.READY
+
+
 # -- creation and the approval rule -------------------------------------------
 
 
@@ -372,3 +400,52 @@ def test_api_flow(uow_factory: Factory, clock: Callable[[], Any], env: Env) -> N
         client.get("/projects/credit-risk/deployments/credit-risk-prod").json()["status"] == "READY"
     )
     assert len(client.get("/projects/credit-risk/deployments").json()["items"]) == 2
+
+
+def test_deletion_closes_endpoint_then_confirms_backend_removal(env: Env) -> None:
+    from unittest.mock import patch
+
+    from controlplane.application.providers import ServingState, ServingStatus
+
+    env.deploy(1)
+    env.reconciler.reconcile(env.id())
+    deleted = env.service.request_delete("credit-risk", "credit-risk-prod")
+    assert deleted.deployment.status is DeploymentStatus.DELETING
+    assert deleted.endpoint.status is EndpointStatus.UNAVAILABLE
+    with pytest.raises(Conflict):
+        env.deploy(2)
+    # Asynchronous deletion must retain reservations until the backend is absent.
+    with (
+        patch.object(env.serving, "delete"),
+        patch.object(env.serving, "get_status", return_value=ServingStatus(ServingState.PENDING)),
+    ):
+        assert env.reconciler.reconcile(env.id()).after is DeploymentStatus.DELETING
+    assert env.view().deployment.desired_revision == 1
+    assert env.reconciler.reconcile(env.id()).after is DeploymentStatus.DELETED
+    assert env.view().deployment.active_revision is None
+    assert env.view().deployment.desired_revision is None
+    assert env.service.list("credit-risk") == []
+    assert (
+        env.service.request_delete("credit-risk", "credit-risk-prod").deployment.status
+        is DeploymentStatus.DELETED
+    )
+    assert env.reconciler.reconcile_all() == []
+    with pytest.raises(Conflict):
+        env.service.create("credit-risk", "credit-risk-prod")
+
+
+def test_pending_deployment_can_be_deleted_without_revision(env: Env) -> None:
+    env.service.request_delete("credit-risk", "credit-risk-prod")
+    assert env.reconciler.reconcile_all()[0].after is DeploymentStatus.DELETED
+
+
+def test_same_revision_configuration_drift_is_repaired_once(env: Env) -> None:
+    from dataclasses import replace
+
+    env.deploy(1)
+    env.reconciler.reconcile(env.id())
+    original = env.serving.specs[env.ref()]
+    env.serving.specs[env.ref()] = replace(original, model_uri="s3://wrong-artifact")
+    result = env.reconciler.reconcile(env.id())
+    assert result.applied and env.serving.specs[env.ref()] == original
+    assert not env.reconciler.reconcile(env.id()).applied

@@ -169,6 +169,7 @@ class DeploymentService:
             )
             existing = uow.deployments.get_by_name(project.id, deployment.name)
             if existing is not None:
+                self._ensure_live(existing)
                 return self._view(uow, existing), False
             if project.status is not ProjectStatus.READY:
                 raise Conflict(
@@ -209,7 +210,42 @@ class DeploymentService:
     def list(self, project_ref: str) -> Sequence[DeploymentView]:
         with self._uow_factory() as uow:
             project = resolve_project(uow, project_ref)
-            return [self._view(uow, d) for d in uow.deployments.list(project.id)]
+            return [
+                self._view(uow, d)
+                for d in uow.deployments.list(project.id)
+                if d.status is not DeploymentStatus.DELETED
+            ]
+
+    @staticmethod
+    def _ensure_live(deployment: Deployment) -> None:
+        if deployment.status in {DeploymentStatus.DELETING, DeploymentStatus.DELETED}:
+            raise Conflict("deployment is being deleted or has been deleted; use a new name")
+
+    def request_delete(self, project_ref: str, name: str) -> DeploymentView:
+        with self._uow_factory() as uow:
+            project = resolve_project(uow, project_ref)
+            deployment = uow.deployments.get_by_name(project.id, name)
+            if deployment is None:
+                raise NotFound("deployment", name)
+            deployment = uow.deployments.lock(deployment.id)
+            assert deployment is not None
+            if deployment.status in {DeploymentStatus.DELETING, DeploymentStatus.DELETED}:
+                return self._view(uow, deployment)
+            if uow.rollouts.get_active(deployment.id) is not None:
+                raise Conflict("a rollout is in progress; abort it before deleting")
+            now = self._clock()
+            endpoint = uow.endpoints.get_by_deployment(deployment.id)
+            assert endpoint is not None
+            # Close admission in the same transaction as the deletion intent.
+            down = replace(endpoint, status=EndpointStatus.UNAVAILABLE, updated_at=now)
+            uow.endpoints.update(down, expected_status=endpoint.status)
+            deleting = deployment.transition_to(DeploymentStatus.DELETING, now)
+            uow.deployments.update(deleting, expected_status=deployment.status)
+            uow.audit.record(
+                _audit(now, "deployment.delete_requested", "deployment", deployment.id, project.id)
+            )
+            uow.commit()
+            return self._view(uow, deleting)
 
     # -- revisions ------------------------------------------------------------
 
@@ -234,6 +270,7 @@ class DeploymentService:
             deployment = uow.deployments.get_by_name(project.id, name)
             if deployment is None:
                 raise NotFound("deployment", name)
+            self._ensure_live(deployment)
             model = uow.models.get_by_name(project.id, model_name)
             if model is None:
                 raise NotFound("model", model_name)
@@ -258,6 +295,9 @@ class DeploymentService:
             project = resolve_project(uow, project_ref)
             deployment = uow.deployments.get_by_name(project.id, name)
             assert deployment is not None
+            deployment = uow.deployments.lock(deployment.id)
+            assert deployment is not None
+            self._ensure_live(deployment)
             now = self._clock()
             revision = DeploymentRevision(
                 deployment_id=deployment.id,
@@ -268,6 +308,7 @@ class DeploymentService:
                 gpus=gpus,
                 context_length=context,
                 function=model.function,
+                secret_refs=model.secret_refs,
                 created_at=now,
             )
             uow.revisions.add(revision)
@@ -312,6 +353,7 @@ class DeploymentService:
             deployment = uow.deployments.get_by_name(project.id, name)
             if deployment is None:
                 raise NotFound("deployment", name)
+            self._ensure_live(deployment)
             model = uow.models.get_by_name(project.id, model_name)
             if model is None:
                 raise NotFound("model", model_name)
@@ -335,6 +377,9 @@ class DeploymentService:
             check_gpus(uow, project, deployment, gpus + (stable.gpus if stable else 0))
         model_uri = self._artifact(project, model, mv)
         with self._uow_factory() as uow:
+            current = uow.deployments.lock(deployment.id)
+            assert current is not None
+            self._ensure_live(current)
             now = self._clock()
             revision = DeploymentRevision(
                 deployment_id=deployment.id,
@@ -345,6 +390,7 @@ class DeploymentService:
                 gpus=gpus,
                 context_length=context,
                 function=model.function,
+                secret_refs=model.secret_refs,
                 created_at=now,
             )
             uow.revisions.add(revision)
@@ -426,6 +472,9 @@ class DeploymentService:
             deployment = uow.deployments.get_by_name(project.id, name)
             if deployment is None:
                 raise NotFound("deployment", name)
+            deployment = uow.deployments.lock(deployment.id)
+            assert deployment is not None
+            self._ensure_live(deployment)
             if uow.rollouts.get_active(deployment.id) is not None:
                 raise Conflict("a rollout is in progress; abort it instead of rolling back")
             active = deployment.active_revision

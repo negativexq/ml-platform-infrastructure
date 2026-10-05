@@ -18,6 +18,87 @@ ready for a shared cluster. Adding more product features would not address those
 This is a review of the current implementation, not a record of completed cluster gates.
 It complements [the roadmap](roadmap.md) and [the verification checklist](local-verification.md).
 
+## Remediation progress (2026-10-05)
+
+The findings below describe the reviewed commit, not necessarily the current code.
+
+- **Serving revision identity: code fix implemented.** Predictor templates carry the
+  platform revision into immutable Knative Revisions. Readiness and metric backend names
+  require reading and checking those Revisions, rather than trusting mutable ISVC
+  annotations. Missing/unmarked backends remain PENDING. Custom containers do not require
+  `modelStatus`, and ready Knative Revisions remain callable at zero pods even if KServe
+  reports `InProgress`. Historical failure info does not override a ready backend.
+  A terminal model failure requires a matching `lastFailureInfo.modelRevisionName`;
+  unattributed failures remain PENDING for inspection instead of failing another revision.
+- **Registry ownership: code fix implemented.** Alias reconciliation selects classic
+  models only, including when a non-registry model is reconciled directly.
+- **Function artifact identity: code fix implemented.** New registrations require a
+  SHA-256 digest reference. Mutable tags are rejected. API schema, UI, demo and tests
+  reflect this contract. A regression test deploys two digests and verifies rollback to
+  the original one. Existing tagged rows remain unchanged; register pinned replacements.
+- **Per-entity failure isolation: code fix implemented.** Project/run/pipeline/deployment/
+  rollout batches log errors and continue to later entities. Failed entities retry on
+  a process-local exponential schedule (5–300 seconds); leader election remains
+  separate work. The new chart enforces a single reconciler with `Recreate` upgrades.
+- **Packaging: prepared, not deployed.** See [installation.md](installation.md) for the
+  image, chart, migration hook, RBAC and remaining bootstrap/runtime work. DB/schema
+  readiness is now implemented separately from liveness.
+  The image has not been built; complete installation P0 is still open.
+- **Networking: configurable policies implemented, not exercised.** See [networking.md](networking.md)
+  for the connectivity matrix, corrected gateway PostgreSQL/OIDC egress and platform-local
+  ingress rules. Project predictor-only ingress, optional project egress and optional
+  per-component control-plane policies are generated from configured namespaces/CIDRs.
+- **Function resources/readiness: implemented.** CPU/RAM requests and limits plus HTTP/TCP
+  readiness settings are validated and snapshotted in immutable revisions.
+- **Owned serving drift: implemented.** The desired predictor is compared with the
+  actual owned configuration; removed/injected execution settings trigger a CAS repair.
+  A fresh apply ID prevents the old backend from satisfying same-revision repair
+  readiness. Real KServe defaulting/annotation propagation still needs a cluster gate.
+- **Project secrets: implemented.** Admin API/UI create, rotate and delete project-owned
+  Kubernetes Secrets; workloads use validated environment/registry references, snapshotted
+  into revisions. Responses and audit events contain metadata only. Referenced deletion
+  is protected and rotation uses resource-version checks. Migration `0016` and actual
+  private-image/credential rotation/recovery remain live gates. See [secrets.md](secrets.md).
+- **Deadlines and lifecycle: implemented.** Job/run/pipeline deadlines are configurable.
+  Admin deletion closes endpoints, waits for serving removal and releases reservations;
+  optional terminal-workflow cleanup preserves database history and lineage.
+- **LLM reservation: implemented within one process.** Prompt estimates plus bounded output
+  reserve both buckets atomically; missing usage and interrupted streams keep the reservation.
+  Actual tokenization, shared limits and replica-aware admission remain open.
+- **Control-plane recovery: tooling prepared, drill pending.** Snapshot-consistent dump,
+  checksum/count manifest and empty-target atomic restore checks are available; live recovery
+  and RPO/RTO have not been measured. See [recovery.md](recovery.md).
+- See [operations.md](operations.md) for defaults, API contracts and retained limitations.
+- **Cluster verification is still open.** Check annotation propagation on the installed
+  KServe version, grant the reconciler read access to `serving.knative.dev/revisions`, and
+  exercise delayed updates, canary metrics, custom containers and cold-start activation.
+  Existing resources without backend revision markers must be redeployed before they
+  can be verified. RawDeployment has no Knative revision proof and is not accepted by
+  this Serverless readiness path.
+
+Implementation references: [KServe adapter](../controlplane/adapters/serving/kserve.py),
+[adapter regression tests](../controlplane/tests/test_kserve_adapter.py), and
+[alias tests](../controlplane/tests/test_models.py).
+
+The revision-template approach follows KServe v0.15.0's
+[predictor annotation propagation](https://github.com/kserve/kserve/blob/v0.15.0/pkg/controller/v1beta1/inferenceservice/components/predictor.go)
+and [Knative template construction](https://github.com/kserve/kserve/blob/v0.15.0/pkg/controller/v1beta1/inferenceservice/reconcilers/knative/ksvc_reconciler.go).
+Its [status implementation](https://github.com/kserve/kserve/blob/v0.15.0/pkg/apis/serving/v1beta1/inference_service_status.go)
+can copy child generations and reset model transition state at zero pods, so neither is
+used alone as backend identity or callability evidence. This is source inspection and
+synthetic-response testing, not a supported-version or cluster acceptance claim.
+
+Local validation: 155 targeted tests passed with `-k 'not sql'`; 99 SQL variants were
+deselected to avoid starting PostgreSQL. The command covered KServe, models, functions,
+deployments, batch isolation, projects, runs, pipelines, rollouts, observability and
+architecture tests. Type checks on the changed adapter/reconciliation/domain/schema/tests
+passed, as did repository control-plane lint and `make ui-api ui-build`. Browser flows,
+SQL variants and actual image/cluster behavior were not rerun for this remediation.
+Helm lint passed for default and local values. The rendered control-plane/platform-local/
+standalone-gateway manifests validated as 34 resources, and the control-plane chart with
+optional Ingresses validated as 16 resources. The chart rejects a second reconciler replica.
+A control-plane-only wheel included process entrypoints, migrations and UI assets.
+
 ## Evidence and limits
 
 The review examined application services, Kubernetes/KServe adapters, reconciliation,

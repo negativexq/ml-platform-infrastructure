@@ -39,6 +39,7 @@ from controlplane.domain.entities import (
     Threshold,
 )
 from controlplane.domain.errors import AlreadyExists, Conflict, NotFound
+from controlplane.domain.secrets import SecretRefs
 from controlplane.domain.states import (
     DeploymentStatus,
     EndpointKind,
@@ -80,6 +81,10 @@ _UNIQUE_VIOLATION = "23505"
 
 
 def make_engine(url: str) -> Engine:
+    if url.startswith("postgresql"):
+        return create_engine(
+            url, pool_pre_ping=True, pool_timeout=3, connect_args={"connect_timeout": 3}
+        )
     return create_engine(url, pool_pre_ping=True)
 
 
@@ -142,6 +147,15 @@ class SqlProjects:
         row = self._s.get(ProjectRow, project_id)
         return _project(row) if row else None
 
+    def lock(self, project_id: UUID) -> Project | None:
+        row = self._s.scalars(
+            select(ProjectRow)
+            .where(ProjectRow.id == project_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        ).first()
+        return _project(row) if row else None
+
     def get_by_name(self, name: str) -> Project | None:
         row = self._s.scalars(select(ProjectRow).where(ProjectRow.name == name)).first()
         return _project(row) if row else None
@@ -187,6 +201,8 @@ def _job(row: JobDefinitionRow) -> JobDefinition:
         command=tuple(row.command),
         resources=dict(row.resources),
         env=dict(row.env),
+        timeout_seconds=row.timeout_seconds,
+        secret_refs=SecretRefs.from_json(row.secret_refs),
         created_at=row.created_at,
     )
 
@@ -204,10 +220,12 @@ def _run(row: RunRow) -> Run:
         retry_of=row.retry_of,
         idempotency_key=row.idempotency_key,
         traceparent=row.traceparent,
+        timeout_seconds=row.timeout_seconds,
         created_at=row.created_at,
         updated_at=row.updated_at,
         started_at=row.started_at,
         finished_at=row.finished_at,
+        workflow_cleaned_at=row.workflow_cleaned_at,
     )
 
 
@@ -234,6 +252,8 @@ class SqlJobs:
                 command=list(job.command),
                 resources=dict(job.resources),
                 env=dict(job.env),
+                timeout_seconds=job.timeout_seconds,
+                secret_refs=job.secret_refs.to_json(),
                 created_at=job.created_at,
             )
         )
@@ -278,10 +298,12 @@ class SqlRuns:
                 retry_of=run.retry_of,
                 idempotency_key=run.idempotency_key,
                 traceparent=run.traceparent,
+                timeout_seconds=run.timeout_seconds,
                 created_at=run.created_at,
                 updated_at=run.updated_at,
                 started_at=run.started_at,
                 finished_at=run.finished_at,
+                workflow_cleaned_at=run.workflow_cleaned_at,
             )
         )
         _flush_unique(self._s, "run", run.idempotency_key)
@@ -335,6 +357,22 @@ class SqlRuns:
         )
         return [_run(r) for r in rows]
 
+    def list_cleanup_candidates(self, before: datetime, limit: int) -> Sequence[Run]:
+        rows = self._s.scalars(
+            select(RunRow)
+            .where(
+                RunRow.status.in_(
+                    [s.value for s in (RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED)]
+                ),
+                RunRow.finished_at < before,
+                RunRow.external_ref.is_not(None),
+                RunRow.workflow_cleaned_at.is_(None),
+            )
+            .order_by(RunRow.finished_at, RunRow.id)
+            .limit(limit)
+        )
+        return [_run(r) for r in rows]
+
     def update(self, run: Run, *, expected_status: RunStatus) -> None:
         result = self._s.execute(
             update(RunRow)
@@ -348,6 +386,7 @@ class SqlRuns:
                 updated_at=run.updated_at,
                 started_at=run.started_at,
                 finished_at=run.finished_at,
+                workflow_cleaned_at=run.workflow_cleaned_at,
             )
         )
         if getattr(result, "rowcount", 0) == 1:
@@ -383,10 +422,12 @@ def _pipeline_run(row: PipelineRunRow) -> PipelineRun:
         commit_sha=row.commit_sha,
         idempotency_key=row.idempotency_key,
         traceparent=row.traceparent,
+        timeout_seconds=row.timeout_seconds,
         created_at=row.created_at,
         updated_at=row.updated_at,
         started_at=row.started_at,
         finished_at=row.finished_at,
+        workflow_cleaned_at=row.workflow_cleaned_at,
     )
 
 
@@ -469,10 +510,12 @@ class SqlPipelineRuns:
                 commit_sha=run.commit_sha,
                 idempotency_key=run.idempotency_key,
                 traceparent=run.traceparent,
+                timeout_seconds=run.timeout_seconds,
                 created_at=run.created_at,
                 updated_at=run.updated_at,
                 started_at=run.started_at,
                 finished_at=run.finished_at,
+                workflow_cleaned_at=run.workflow_cleaned_at,
             )
         )
         _flush_unique(self._s, "pipeline run", run.idempotency_key)
@@ -531,6 +574,22 @@ class SqlPipelineRuns:
         )
         return [_pipeline_run(r) for r in rows]
 
+    def list_cleanup_candidates(self, before: datetime, limit: int) -> Sequence[PipelineRun]:
+        rows = self._s.scalars(
+            select(PipelineRunRow)
+            .where(
+                PipelineRunRow.status.in_(
+                    [s.value for s in (RunStatus.SUCCEEDED, RunStatus.FAILED, RunStatus.CANCELLED)]
+                ),
+                PipelineRunRow.finished_at < before,
+                PipelineRunRow.external_ref.is_not(None),
+                PipelineRunRow.workflow_cleaned_at.is_(None),
+            )
+            .order_by(PipelineRunRow.finished_at, PipelineRunRow.id)
+            .limit(limit)
+        )
+        return [_pipeline_run(r) for r in rows]
+
     def update(self, run: PipelineRun, *, expected_status: RunStatus) -> None:
         result = self._s.execute(
             update(PipelineRunRow)
@@ -543,6 +602,7 @@ class SqlPipelineRuns:
                 updated_at=run.updated_at,
                 started_at=run.started_at,
                 finished_at=run.finished_at,
+                workflow_cleaned_at=run.workflow_cleaned_at,
             )
         )
         if getattr(result, "rowcount", 0) == 1:
@@ -622,6 +682,7 @@ def _model(row: ModelRow) -> Model:
         function=FunctionServing.from_json(row.function_settings)
         if row.function_settings
         else None,
+        secret_refs=SecretRefs.from_json(row.secret_refs),
         created_at=row.created_at,
     )
 
@@ -691,6 +752,7 @@ class SqlModels:
                 llm_gpus=model.serving.gpus if model.serving else None,
                 llm_context_length=model.serving.context_length if model.serving else None,
                 function_settings=model.function.to_json() if model.function else None,
+                secret_refs=model.secret_refs.to_json(),
                 created_at=model.created_at,
             )
         )
@@ -923,6 +985,7 @@ def _revision(row: DeploymentRevisionRow) -> DeploymentRevision:
         function=FunctionServing.from_json(row.function_settings)
         if row.function_settings
         else None,
+        secret_refs=SecretRefs.from_json(row.secret_refs),
         created_at=row.created_at,
     )
 
@@ -987,6 +1050,15 @@ class SqlDeployments:
         row = self._s.get(DeploymentRow, deployment_id)
         return _deployment(row) if row else None
 
+    def lock(self, deployment_id: UUID) -> Deployment | None:
+        row = self._s.scalars(
+            select(DeploymentRow)
+            .where(DeploymentRow.id == deployment_id)
+            .with_for_update()
+            .execution_options(populate_existing=True)
+        ).first()
+        return _deployment(row) if row else None
+
     def get_by_name(self, project_id: UUID, name: str) -> Deployment | None:
         row = self._s.scalars(
             select(DeploymentRow).where(
@@ -1006,7 +1078,13 @@ class SqlDeployments:
     def list_reconcilable(self) -> Sequence[Deployment]:
         rows = self._s.scalars(
             select(DeploymentRow)
-            .where(DeploymentRow.desired_revision.is_not(None))
+            .where(
+                (DeploymentRow.status == DeploymentStatus.DELETING.value)
+                | (
+                    (DeploymentRow.desired_revision.is_not(None))
+                    & (DeploymentRow.status != DeploymentStatus.DELETED.value)
+                )
+            )
             .order_by(DeploymentRow.created_at, DeploymentRow.id)
         )
         return [_deployment(r) for r in rows]
@@ -1047,6 +1125,7 @@ class SqlRevisions:
                 gpus=revision.gpus,
                 context_length=revision.context_length,
                 function_settings=revision.function.to_json() if revision.function else None,
+                secret_refs=revision.secret_refs.to_json(),
                 created_at=revision.created_at,
             )
         )

@@ -6,6 +6,8 @@ Revises: 0009
 
 from __future__ import annotations
 
+from typing import Any
+
 import sqlalchemy as sa
 from alembic import op
 from sqlalchemy.dialects import postgresql
@@ -15,7 +17,7 @@ down_revision = "0009"
 branch_labels = None
 depends_on = None
 
-_ENDPOINT_COLUMNS = (
+_ENDPOINT_COLUMNS: tuple[sa.Column[Any], ...] = (
     sa.Column("kind", sa.String(length=16), nullable=False, server_default="model"),
     sa.Column("protocol", sa.String(length=16), nullable=False, server_default="v2-infer"),
     sa.Column("exposure", sa.String(length=16), nullable=False, server_default="internal"),

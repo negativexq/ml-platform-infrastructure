@@ -89,20 +89,19 @@ for chunk in client.chat.completions.create(model="assistant-prod", stream=True,
 
 * **What counts.** For an LLM a unit is a **token**: prompt plus completion, read from the
   reply's `usage` (the last streamed event, or the JSON body).
-* **Limits are charged after the call.** The cost is known only once the model has answered,
-  so the gateway:
-  1. lets a call in while both buckets (endpoint and caller) still have room;
-  2. charges the tokens it actually used once the reply has ended.
-
-  The bucket can go into debt. The calls that follow get `429` with `Retry-After` until it
-  refills, so the last admitted call may overshoot the limit once.
+* **Limits reserve capacity before forwarding.** The gateway atomically reserves a
+  byte-based prompt estimate plus a bounded output cap in both endpoint and caller buckets.
+  The default output cap is at most 256; callers can supply positive `max_tokens` or
+  `max_completion_tokens`. Completed valid usage refunds unused units; an overrun is debt.
+  This is an estimate, not an exact tokenizer or a limit shared across replicas.
 * **Defaults.** A new LLM endpoint starts at 20,000 tokens per minute, a 512 KB body and a
   120-second timeout. An admin changes them like any limits; a key's own limit is in tokens
   too.
 * **Usage.** Usage by caller reports total, prompt and completion tokens
   (`GET …/usage`, and the UI's API access panel).
-* **Missing counts.** If the model server reports no `usage`, the call counts as 0 tokens.
-  vLLM always reports it.
+* **Missing counts or interrupted streams.** The full reservation remains charged. Invalid
+  usage never silently becomes zero. See [operations.md](operations.md) for admission errors,
+  conservative failure charging and concurrency behavior.
 
 ## Function endpoints: invoke
 
@@ -124,7 +123,9 @@ Authorization: Bearer mlp_live_...
   60-second timeout leaves room for that.
 * **Limits and usage** count requests, like a model. A new function endpoint starts at 600
   requests per minute, a 1 MB body and a 60-second timeout.
-* **Versions.** A version is a container image with a tag or digest (not `:latest`). There is
+* **Versions.** A new version is an immutable container image reference with
+  `@sha256:<64 lowercase hex digits>`. Tags are rejected because they can move. Existing
+  tagged versions should be replaced with new digest registrations. There is
   nothing to evaluate, so a version is deployable as soon as it is registered. A canary of it
   is still judged on error rate and latency in real traffic.
 

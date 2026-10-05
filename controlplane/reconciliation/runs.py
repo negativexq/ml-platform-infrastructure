@@ -18,8 +18,9 @@ from controlplane.application.providers import ExternalState, WorkflowProvider, 
 from controlplane.application.workflow_compiler import MAIN_STEP, compile_job_run
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import Run
-from controlplane.domain.errors import Conflict, NotFound
+from controlplane.domain.errors import NotFound
 from controlplane.domain.states import RunStatus
+from controlplane.reconciliation.batch import ReconcileBackoff, reconcile_batch
 
 SYSTEM = "reconciler"
 
@@ -45,17 +46,12 @@ class RunReconciler:
         self._uow_factory = uow_factory
         self._workflow = workflow
         self._clock = clock
+        self._retry = ReconcileBackoff()
 
     def reconcile_all(self) -> list[RunResult]:
         with self._uow_factory() as uow:
             ids = [r.id for r in uow.runs.list_active()]
-        results = []
-        for run_id in ids:
-            try:
-                results.append(self.reconcile(run_id))
-            except Conflict:
-                continue  # another writer moved it first; next pass picks it up
-        return results
+        return reconcile_batch(ids, self.reconcile, "runs", self._retry)
 
     def reconcile(self, run_id: UUID) -> RunResult:
         run = self._load(run_id)

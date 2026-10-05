@@ -35,6 +35,9 @@ export function ModelsPage({ project, functions = false }: { project: string; fu
       title: functions ? 'Register a function' : 'Register a model', submitLabel: 'Register',
       intro: functions ? 'Register a container workload, then add an image version and deploy it.' : 'Versions come from the registry (or, for an LLM, from the Hugging Face Hub); the acceptance thresholds decide which ones may become candidates.',
       fields: [
+        { name: 'secretRefs', label: 'Secret references (JSON)', type: 'textarea' as const,
+          placeholder: '{"env":{"AWS_ACCESS_KEY_ID":{"name":"training-credentials","key":"access-key"}},"image_pull_secrets":["registry-login"]}',
+          hint: 'Use project secret names and keys only. Project admins manage the values in Settings → Secrets.' },
         { name: 'name', label: 'Name', required: true, pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$', placeholder: 'scorer', hint: 'Lowercase letters, digits and dashes.' },
         { name: 'kind', label: 'Kind', required: true, value: functions ? 'function' : 'classic', options: [
           { value: 'classic', label: 'Classic model (predictive, from the registry)' }, { value: 'llm', label: 'LLM (served on GPUs, chat API)' },
@@ -43,10 +46,13 @@ export function ModelsPage({ project, functions = false }: { project: string; fu
         { visibleWhen: (v: Record<string, string>) => v.kind === 'llm', name: 'context', label: 'Context length (tokens)', pattern: '[0-9]{3,7}', placeholder: 'the model’s own', hint: 'LLMs only. Longer contexts need more GPU memory.' },
         { name: 'scale', label: 'Replicas (min-max)', value: '0-3', pattern: '[0-9]{1,2}-[0-9]{1,2}', hint: 'Functions only. A minimum of 0 scales to zero when idle; the first call then waits for a cold start.' },
         { name: 'concurrency', label: 'Requests per replica at once', value: '10', pattern: '[0-9]{1,4}', hint: 'Functions only. More replicas start when this is reached.' },
+        { name: 'requests', label: 'CPU and memory requests', type: 'textarea' as const, value: 'cpu=100m\nmemory=128Mi', hint: 'One resource=value per line. Reserved for each replica.' },
+        { name: 'limits', label: 'CPU and memory limits', type: 'textarea' as const, value: 'cpu=1\nmemory=512Mi', hint: 'Maximum per replica; must cover the requests.' },
+        { name: 'readiness', label: 'Readiness HTTP path', placeholder: '/ready', hint: 'Leave empty to check the TCP port. An HTTP path must begin with /.' },
         { name: 'env', label: 'Environment', type: 'textarea' as const, placeholder: 'QUEUE=tier1', hint: 'Functions only. One KEY=value per line. No secrets here: they are visible to project members.' },
         { name: 'thresholds', label: 'Acceptance thresholds', type: 'textarea' as const, placeholder: 'auc >= 0.9\nrmse <= 0.3',
           hint: 'One per line: metric >= number or metric <= number. A version that misses one is rejected.' },
-      ].filter((field) => functions ? !['gpus', 'context', 'thresholds'].includes(field.name) : !['scale', 'concurrency', 'env'].includes(field.name)),
+      ].filter((field) => functions ? !['gpus', 'context', 'thresholds'].includes(field.name) : !['scale', 'concurrency', 'env', 'requests', 'limits', 'readiness'].includes(field.name)),
       submit: (v) => {
         let thresholds;
         try { thresholds = parseThresholds(v.thresholds ?? ''); } catch (e) { throw new ApiError(422, 'invalid_argument', e instanceof Error ? e.message : 'invalid'); }
@@ -56,13 +62,15 @@ export function ModelsPage({ project, functions = false }: { project: string; fu
           const [min, max] = (v.scale || '0-3').split('-').map(Number);
           let env: Record<string, string>;
           try { env = parsePairs(v.env ?? ''); } catch (e) { throw new ApiError(422, 'invalid_argument', e instanceof Error ? e.message : 'invalid'); }
-          fn = { min_scale: min, max_scale: max, concurrency: Number(v.concurrency || 10), env };
+          fn = { min_scale: min, max_scale: max, concurrency: Number(v.concurrency || 10), env,
+            requests: parsePairs(v.requests || 'cpu=100m\nmemory=128Mi'),
+            limits: parsePairs(v.limits || 'cpu=1\nmemory=512Mi'), readiness_path: v.readiness || null };
           if (Object.keys(thresholds).length) throw new ApiError(422, 'invalid_argument', 'A function has no acceptance thresholds: leave them empty');
         }
         return api.post<S['ModelOut']>(`/projects/${p}/models`, {
           name: v.name, thresholds, kind: v.kind,
           llm: llm ? { gpus: Number(v.gpus || 1), context_length: v.context ? Number(v.context) : null } : null,
-          function: fn,
+          function: fn, secret_refs: JSON.parse(v.secretRefs || '{}'),
         });
       },
       preview: (v) => (v.kind === 'function'

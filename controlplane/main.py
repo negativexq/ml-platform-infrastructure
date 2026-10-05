@@ -9,6 +9,8 @@ from fastapi import FastAPI
 
 from controlplane import observability
 from controlplane.adapters.identity import OidcProvider
+from controlplane.adapters.kubernetes import load_api_client
+from controlplane.adapters.kubernetes.secrets import KubernetesSecretProvider
 from controlplane.adapters.metrics import (
     PrometheusMetricsProvider,
     PrometheusPlatformTelemetry,
@@ -21,6 +23,7 @@ from controlplane.api.app import create_app
 from controlplane.api.auth import AuthConfig
 from controlplane.api.session import Signer
 from controlplane.observability import observe, observed_uow_factory
+from controlplane.persistence.readiness import DatabaseReadiness
 from controlplane.persistence.sql import SqlUnitOfWork, make_engine, sql_uow_factory
 from controlplane.settings import Settings
 
@@ -87,6 +90,8 @@ def app_factory() -> FastAPI:
             else None
         ),
         gateway_url=settings.gateway_url,
+        readiness=DatabaseReadiness(engine),
+        secrets=KubernetesSecretProvider(load_api_client(settings.kubeconfig or None)),
     )
 
 

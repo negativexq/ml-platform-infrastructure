@@ -74,6 +74,8 @@ class RolloutService:
             project = resolve_project(uow, project_ref)
             deployment = uow.deployments.get_by_name(project.id, deployment_name)
             assert deployment is not None
+            deployment = uow.deployments.lock(deployment.id)
+            assert deployment is not None
             if (
                 deployment.status is not DeploymentStatus.READY
                 or deployment.active_revision is None

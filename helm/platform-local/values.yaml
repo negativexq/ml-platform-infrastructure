@@ -17,6 +17,7 @@ commonLabels: {}
 networkPolicy:
   enabled: true
   monitoringNamespace: observability
+  controlplaneNamespace: mlp-system
 
 # ---------------------------------------------------------------------------
 postgres:

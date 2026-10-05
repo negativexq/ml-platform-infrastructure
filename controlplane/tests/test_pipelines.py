@@ -366,3 +366,28 @@ def test_api_flow(uow_factory: Factory, clock: Callable[[], Any], env: Env) -> N
     assert len(client.get("/projects/credit-risk/pipeline-runs?pipeline=flow").json()["items"]) == 1
     assert client.post(f"/pipeline-runs/{run_id}/cancel").status_code == 202
     assert client.get(f"/pipeline-runs/{uuid4()}").status_code == 404
+
+
+def test_pipeline_timeout_and_retention_keep_steps_and_definition(env: Env, clock: Any) -> None:
+    from datetime import timedelta
+
+    from controlplane.adapters.workflow.argo import build_workflow
+    from controlplane.reconciliation.retention import WorkflowRetentionReconciler
+
+    definition, _ = env.pipeline("flow", step("a"), step("b", "a"))
+    run_id = env.run(timeout_seconds=90, idempotency_key="pipeline-deadline")
+    env.reconciler.reconcile(run_id)
+    ref = env.ref(run_id)
+    assert build_workflow(env.workflow.submitted[ref])["spec"]["activeDeadlineSeconds"] == 90
+    with pytest.raises(Conflict):
+        env.run(timeout_seconds=91, idempotency_key="pipeline-deadline")
+    env.workflow.set_steps(ref, {"a": S.SUCCEEDED, "b": S.SUCCEEDED}, S.SUCCEEDED)
+    env.reconciler.reconcile(run_id)
+    clock.advance(timedelta(seconds=120))
+    retention = WorkflowRetentionReconciler(env.factory, env.workflow, 60, clock)
+    assert retention.reconcile_all() == [run_id]
+    view = env.runs.view(run_id)
+    assert view.run.workflow_cleaned_at is not None
+    assert view.definition.id == definition.id
+    assert all(s.status is StepStatus.SUCCEEDED for s in view.steps)
+    assert retention.reconcile_all() == []

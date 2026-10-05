@@ -7,9 +7,11 @@ from uuid import UUID
 from controlplane.application.identity import current_actor
 from controlplane.application.ports import UnitOfWork
 from controlplane.application.projects import Clock, UnitOfWorkFactory, utc_now
+from controlplane.application.secrets import SecretProvider, validate_refs
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import JobDefinition, Project
 from controlplane.domain.errors import AlreadyExists, Conflict, NotFound
+from controlplane.domain.secrets import SecretRefs
 
 
 @dataclass(frozen=True, slots=True)
@@ -19,6 +21,8 @@ class CreateJob:
     command: tuple[str, ...] = ()
     resources: Mapping[str, str] = field(default_factory=dict)
     env: Mapping[str, str] = field(default_factory=dict)
+    secret_refs: SecretRefs = field(default_factory=SecretRefs)
+    timeout_seconds: int = 3600
 
 
 def resolve_project(uow: UnitOfWork, ref: str) -> Project:
@@ -33,9 +37,15 @@ def resolve_project(uow: UnitOfWork, ref: str) -> Project:
 
 
 class JobService:
-    def __init__(self, uow_factory: UnitOfWorkFactory, clock: Clock = utc_now) -> None:
+    def __init__(
+        self,
+        uow_factory: UnitOfWorkFactory,
+        clock: Clock = utc_now,
+        secrets: SecretProvider | None = None,
+    ) -> None:
         self._uow_factory = uow_factory
         self._clock = clock
+        self._secrets = secrets
 
     def create(self, project_ref: str, cmd: CreateJob) -> tuple[JobDefinition, bool]:
         """Create a job definition. Identical repeat -> existing, `created=False`;
@@ -43,6 +53,10 @@ class JobService:
         try:
             with self._uow_factory() as uow:
                 project = resolve_project(uow, project_ref)
+                locked_project = uow.projects.lock(project.id)
+                assert locked_project is not None
+                project = locked_project
+                validate_refs(self._secrets, project, cmd.secret_refs, cmd.env)
                 candidate = JobDefinition.create(
                     project_id=project.id,
                     name=cmd.name,
@@ -51,6 +65,8 @@ class JobService:
                     resources=cmd.resources,
                     env=cmd.env,
                     now=self._clock(),
+                    timeout_seconds=cmd.timeout_seconds,
+                    secret_refs=cmd.secret_refs,
                 )
                 existing = uow.jobs.get_by_name(project.id, candidate.name)
                 if existing is None:
@@ -85,6 +101,8 @@ class JobService:
             dict(candidate.resources),
             dict(candidate.env),
         )
+        same = same and existing.timeout_seconds == candidate.timeout_seconds
+        same = same and existing.secret_refs == candidate.secret_refs
         if not same:
             raise Conflict(
                 f"job {candidate.name!r} already exists with a different definition; "

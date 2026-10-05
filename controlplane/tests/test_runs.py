@@ -263,3 +263,80 @@ def test_argo_manifest_single_step_and_dag() -> None:
     )
     tasks = dag["spec"]["templates"][-1]["dag"]["tasks"]
     assert [(t["name"], t["dependencies"]) for t in tasks] == [("a", []), ("b", ["a"])]
+
+
+def test_run_deadline_survives_submission_retry_and_idempotency(env: Env) -> None:
+    from controlplane.adapters.workflow.argo import build_workflow
+
+    run, _ = env.runs.create(
+        "credit-risk", JOB.name, idempotency_key="deadline", timeout_seconds=45
+    )
+    env.reconciler.reconcile(run.id)
+    submitted = env.runs.get(run.id)
+    assert submitted.external_ref is not None
+    spec = env.workflow.submitted[submitted.external_ref]
+    assert build_workflow(spec)["spec"]["activeDeadlineSeconds"] == 45
+    with pytest.raises(Conflict):
+        env.runs.create("credit-risk", JOB.name, idempotency_key="deadline", timeout_seconds=46)
+    env.workflow.set_state(submitted.external_ref, ExternalState.FAILED)
+    env.reconciler.reconcile(run.id)
+    retried, _ = env.runs.retry(run.id)
+    assert retried.timeout_seconds == 45
+
+
+def test_workflow_retention_preserves_history_and_skips_active(env: Env, clock: Any) -> None:
+    from controlplane.reconciliation.retention import WorkflowRetentionReconciler
+
+    done, _ = env.runs.create("credit-risk", JOB.name)
+    active, _ = env.runs.create("credit-risk", JOB.name)
+    env.reconciler.reconcile(done.id)
+    env.reconciler.reconcile(active.id)
+    ref = env.runs.get(done.id).external_ref
+    assert ref is not None
+    env.workflow.set_state(ref, ExternalState.SUCCEEDED)
+    env.reconciler.reconcile(done.id)
+    retention = WorkflowRetentionReconciler(env.factory, env.workflow, 60, clock)
+    assert retention.reconcile_all() == []
+    from datetime import timedelta
+
+    clock.advance(timedelta(seconds=120))
+    assert retention.reconcile_all() == [done.id]
+    assert env.runs.get(done.id).status is RunStatus.SUCCEEDED
+    assert env.runs.get(done.id).workflow_cleaned_at is not None
+    assert env.runs.get(active.id).workflow_cleaned_at is None
+    assert ref not in env.workflow.submitted
+    assert retention.reconcile_all() == []
+    client = TestClient(create_app(env.factory, clock, workflow=env.workflow))
+    assert client.get(f"/runs/{done.id}/logs").status_code == 410
+
+
+def test_retention_provider_failure_does_not_block_other_completed_run(
+    env: Env, clock: Any
+) -> None:
+    from datetime import timedelta
+    from unittest.mock import patch
+
+    from controlplane.reconciliation.retention import WorkflowRetentionReconciler
+
+    runs = [env.runs.create("credit-risk", JOB.name)[0] for _ in range(2)]
+    refs = []
+    for run in runs:
+        env.reconciler.reconcile(run.id)
+        ref = env.runs.get(run.id).external_ref
+        assert ref is not None
+        refs.append(ref)
+        env.workflow.set_state(ref, ExternalState.SUCCEEDED)
+        env.reconciler.reconcile(run.id)
+    clock.advance(timedelta(seconds=120))
+    retention = WorkflowRetentionReconciler(env.factory, env.workflow, 60, clock)
+    original = env.workflow.delete
+
+    def delete(ref: str) -> None:
+        if ref == refs[0]:
+            raise ConnectionError("one workflow is inaccessible")
+        original(ref)
+
+    with patch.object(env.workflow, "delete", side_effect=delete):
+        assert retention.reconcile_all() == [runs[1].id]
+    assert env.runs.get(runs[0].id).workflow_cleaned_at is None
+    assert env.runs.get(runs[1].id).workflow_cleaned_at is not None

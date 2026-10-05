@@ -1,0 +1,78 @@
+image:
+  repository: mlp-controlplane
+  tag: dev
+  digest: ""
+  pullPolicy: IfNotPresent
+imagePullSecrets: []
+
+# Pre-create this Secret in the release namespace. Its url key is a SQLAlchemy
+# PostgreSQL URL for a dedicated control-plane database, not the MLflow schema.
+database:
+  existingSecret: mlp-controlplane-db
+  urlKey: url
+# Optional Secret with CP_OIDC_CLIENT_SECRET and CP_SESSION_SECRET for browser sign-in.
+identity:
+  existingSecret: ""
+
+config:
+  CP_AUTH_MODE: oidc
+  CP_OIDC_ISSUER: https://identity.example.com/realms/mlp
+  CP_OIDC_AUDIENCE: mlp
+  CP_OIDC_CLIENT_ID: ""
+  CP_PUBLIC_URL: ""
+  CP_GATEWAY_URL: ""
+  CP_PLATFORM_ADMINS: ""
+  CP_MLFLOW_TRACKING_URI: ""
+  CP_STEP_MLFLOW_TRACKING_URI: ""
+  CP_PROMETHEUS_URL: ""
+  CP_RECONCILE_INTERVAL_SECONDS: "10"
+  CP_WORKFLOW_RETENTION_SECONDS: "0" # opt in; e.g. 604800 keeps workflow/pod logs for 7 days
+
+api:
+  replicas: 1
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {cpu: "1", memory: 1Gi}
+  ingress:
+    enabled: false
+    className: nginx
+    host: platform.example.com
+    annotations: {}
+    tls: []
+gateway:
+  replicas: 1 # limits are per replica until a shared limiter is implemented
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {cpu: "1", memory: 1Gi}
+  ingress:
+    enabled: false
+    className: nginx
+    host: api.example.com
+    annotations:
+      nginx.ingress.kubernetes.io/proxy-buffering: "off"
+      nginx.ingress.kubernetes.io/proxy-read-timeout: "600"
+      nginx.ingress.kubernetes.io/proxy-body-size: 10m
+    tls: []
+reconciler:
+  replicas: 1 # enforced: no leader election; Recreate avoids rollout overlap
+  resources:
+    requests: {cpu: 100m, memory: 256Mi}
+    limits: {cpu: "1", memory: 1Gi}
+migrations:
+  backoffLimit: 1
+  activeDeadlineSeconds: 300
+  resources:
+    requests: {cpu: 100m, memory: 128Mi}
+    limits: {cpu: "1", memory: 512Mi}
+
+networkPolicy:
+  enabled: false # configure site endpoints first; no API address is guessed
+  projectEgressEnabled: false
+  apiCIDRs: [] # include API Service and actual backend IPs as required by the CNI
+  externalHTTPSCIDRs: [] # issuer, weights/artifact/code download destinations
+  platformNamespace: ml-platform
+  identityNamespace: identity
+  observabilityNamespace: observability
+  ingressNamespace: ingress-nginx
+  servingNamespaces: [knative-serving, kourier-system, istio-system]
+# No CNI, Argo, KServe/Knative, identity or database is installed by this chart.

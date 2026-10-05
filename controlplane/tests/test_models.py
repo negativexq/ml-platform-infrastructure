@@ -19,7 +19,7 @@ from controlplane.application.providers import ExperimentRun, RegisteredVersion
 from controlplane.application.workflow_compiler import TAG_PIPELINE_RUN_ID
 from controlplane.domain.entities import Threshold, run_checks
 from controlplane.domain.errors import Conflict, InvalidArgument
-from controlplane.domain.states import ModelStatus
+from controlplane.domain.states import ModelKind, ModelStatus
 from controlplane.reconciliation.model_aliases import ModelAliasReconciler
 
 Factory = Callable[[], UnitOfWork]
@@ -285,6 +285,25 @@ def test_promotion_is_atomic_with_its_audit_record(env: Env, clock: Callable[[],
 
 
 # -- registry alias sync -------------------------------------------------------
+
+
+@pytest.mark.parametrize("kind", [ModelKind.FUNCTION, ModelKind.LLM])
+def test_non_registry_models_never_call_mlflow_aliases(env: Env, kind: ModelKind) -> None:
+    from unittest.mock import Mock
+
+    view, _ = env.models.create("credit-risk", "non-registry", {}, kind=kind)
+    if kind is ModelKind.FUNCTION:
+        env.models.register_image(
+            "credit-risk", "non-registry", "ghcr.io/acme/image@sha256:" + "a" * 64
+        )
+    else:
+        env.models.register_from_hub("credit-risk", "non-registry", "hf://org/model@abc123", {})
+    experiments = Mock(spec=FakeExperimentProvider)
+    aliases = ModelAliasReconciler(env.factory, experiments)
+    assert aliases.reconcile(view.model.id).synced == ()
+    assert all(result.model_id != view.model.id for result in aliases.reconcile_all())
+    assert experiments.mock_calls == []
+    assert env.models.get("credit-risk", "non-registry").model.alias_drift is None
 
 
 def test_aliases_follow_platform_state(env: Env) -> None:

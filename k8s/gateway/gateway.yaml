@@ -5,8 +5,8 @@
 # never competes with management calls. It reads endpoints and keys from the platform
 # database (cached for 5 s) and forwards to KServe through Knative's in-cluster gateway.
 #
-# Needs: the control plane's image and database Secret (the control plane's own manifests
-# are still to be written, docs/local-verification.md §9), an ingress controller and
+# Needs: a built control plane image and database Secret (alternatively deploy the gateway
+# through helm/controlplane, docs/installation.md), an ingress controller and
 # cert-manager for TLS. Set the host below and CP_GATEWAY_URL on the control plane API.
 apiVersion: v1
 kind: Namespace
@@ -76,9 +76,10 @@ spec:
               value: http://otel-collector.observability:4318
           readinessProbe:
             httpGet:
-              path: /healthz
+              path: /readyz
               port: http
             periodSeconds: 5
+            timeoutSeconds: 8
           livenessProbe:
             httpGet:
               path: /healthz
@@ -181,11 +182,33 @@ spec:
         - port: 53
           protocol: TCP
     - to:
-        - podSelector:
+        - namespaceSelector:
             matchLabels:
-              app.kubernetes.io/name: postgresql
+              kubernetes.io/metadata.name: ml-platform
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: postgres
       ports:
         - port: 5432
+    # In-cluster identity: use an issuer URL valid for both callers and the gateway.
+    - to:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: identity
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: keycloak
+      ports:
+        - port: 8080
+    # Standard NetworkPolicy cannot select an external OIDC issuer by DNS name.
+    # Replace with known issuer CIDRs or a CNI FQDN policy in shared installations.
+    - to:
+        - ipBlock:
+            cidr: 0.0.0.0/0
+            except: [10.0.0.0/8, 172.16.0.0/12, 192.168.0.0/16, 127.0.0.0/8, 169.254.0.0/16]
+      ports:
+        - port: 443
+          protocol: TCP
     - to:
         - namespaceSelector:
             matchLabels:

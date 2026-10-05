@@ -12,3 +12,9 @@ docs
 artifacts
 *.md
 .env
+node_modules
+controlplane/ui/web
+controlplane/tests
+.agents
+.codex
+.aws

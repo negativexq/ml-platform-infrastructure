@@ -14,6 +14,7 @@ from uuid import UUID
 from kubernetes import client, config
 from kubernetes.client.exceptions import ApiException
 
+from controlplane.adapters.kubernetes.networking import NetworkTopology, project_policies
 from controlplane.application.namespaces import LABEL_MANAGED_BY, LABEL_PROJECT_ID, MANAGED_BY
 from controlplane.application.providers import NamespaceSpec, NamespaceState, Observation
 from controlplane.domain.errors import Conflict
@@ -53,7 +54,10 @@ def load_api_client(path: str | None = None) -> client.ApiClient:
 
 
 class KubernetesClusterProvider:
-    def __init__(self, api_client: client.ApiClient) -> None:
+    def __init__(
+        self, api_client: client.ApiClient, topology: NetworkTopology | None = None
+    ) -> None:
+        self._topology = topology or NetworkTopology()
         self._api = api_client
         self._core = client.CoreV1Api(api_client)
         self._net = client.NetworkingV1Api(api_client)
@@ -112,20 +116,13 @@ class KubernetesClusterProvider:
                     "name": WORKFLOW_ROLE,
                 },
             },
-            # Baseline isolation: pods accept traffic only from their own namespace.
-            "networkpolicy": {
-                "metadata": {"name": NETWORK_POLICY, **meta},
-                "spec": {
-                    "podSelector": {},
-                    "policyTypes": ["Ingress"],
-                    "ingress": [{"from": [{"podSelector": {}}]}],
-                },
-            },
+            **project_policies(spec.namespace, dict(spec.labels), self._topology),
         }
 
     # -- reads ------------------------------------------------------------
 
     def _read(self, kind: str, ns: str, name: str) -> Any | None:
+        kind = "networkpolicy" if kind.endswith("networkpolicy") else kind
         readers = {
             "serviceaccount": self._core.read_namespaced_service_account,
             "resourcequota": self._core.read_namespaced_resource_quota,
@@ -171,6 +168,14 @@ class KubernetesClusterProvider:
             actual: dict[str, Any] = self._api.sanitize_for_serialization(current)
             if not _covers(actual, desired):
                 drifted.append(kind)
+        if not self._topology.isolate_egress:
+            current = self._read("networkpolicy", spec.namespace, "mlp-workload-egress")
+            if current is not None:
+                labels = current.metadata.labels or {}
+                if labels.get(LABEL_MANAGED_BY) == MANAGED_BY and labels.get(
+                    LABEL_PROJECT_ID
+                ) == str(spec.project_id):
+                    drifted.append("obsolete-egress")
         return drifted
 
     # -- ClusterProvider --------------------------------------------------
@@ -207,7 +212,16 @@ class KubernetesClusterProvider:
 
         desired = self._desired(spec)
         for kind in self._drifted(spec):
-            self._upsert(kind, spec.namespace, desired[kind])
+            if kind == "obsolete-egress":
+                try:
+                    self._net.delete_namespaced_network_policy(
+                        "mlp-workload-egress", spec.namespace
+                    )
+                except ApiException as exc:
+                    if exc.status != 404:
+                        raise
+            else:
+                self._upsert(kind, spec.namespace, desired[kind])
             changed.append(kind)
         return tuple(changed)
 
@@ -223,6 +237,7 @@ class KubernetesClusterProvider:
     # -- writes -----------------------------------------------------------
 
     def _upsert(self, kind: str, ns: str, body: dict[str, Any]) -> None:
+        kind = "networkpolicy" if kind.endswith("networkpolicy") else kind
         create, replace = {
             "serviceaccount": (
                 self._core.create_namespaced_service_account,

@@ -52,6 +52,15 @@ class TokenBucketLimiter:
             for name, limit in buckets:
                 self._buckets[name] = (self._level(name, limit, now) - units, now)
 
+    def refund(self, buckets: Sequence[tuple[str, int]], units: int) -> None:
+        with self._lock:
+            now = self._now()
+            for name, limit in buckets:
+                self._buckets[name] = (
+                    min(float(limit), self._level(name, limit, now) + units),
+                    now,
+                )
+
     def _level(self, name: str, limit: int, now: float) -> float:
         tokens, at = self._buckets.get(name, (float(limit), now))
         return min(float(limit), tokens + (now - at) * limit / 60)

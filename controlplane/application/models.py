@@ -17,6 +17,7 @@ from controlplane.application.jobs import resolve_project
 from controlplane.application.ports import UnitOfWork
 from controlplane.application.projects import Clock, UnitOfWorkFactory, utc_now
 from controlplane.application.providers import ExperimentProvider
+from controlplane.application.secrets import SecretProvider, validate_refs
 from controlplane.application.workflow_compiler import TAG_PIPELINE_RUN_ID
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import (
@@ -33,6 +34,7 @@ from controlplane.domain.entities import (
     validate_image,
 )
 from controlplane.domain.errors import AlreadyExists, Conflict, InvalidArgument, NotFound
+from controlplane.domain.secrets import SecretRefs
 from controlplane.domain.states import EvaluationStatus, ModelKind, ModelStatus, PromotionStatus
 
 ALIAS_CHAMPION = "champion"
@@ -89,10 +91,12 @@ class ModelService:
         uow_factory: UnitOfWorkFactory,
         clock: Clock = utc_now,
         experiments: ExperimentProvider | None = None,
+        secrets: SecretProvider | None = None,
     ) -> None:
         self._uow_factory = uow_factory
         self._clock = clock
         self._experiments = experiments
+        self._secrets = secrets
 
     # -- models -------------------------------------------------------------
 
@@ -105,13 +109,14 @@ class ModelService:
         kind: ModelKind = ModelKind.CLASSIC,
         serving: LlmServing | None = None,
         function: FunctionServing | None = None,
+        secret_refs: SecretRefs | None = None,
     ) -> tuple[ModelView, bool]:
         """Identical repeat -> existing, `created=False`. Same name with different
         thresholds -> Conflict: change thresholds explicitly with `set_thresholds`."""
         try:
-            return self._create(project_ref, name, thresholds, kind, serving, function)
+            return self._create(project_ref, name, thresholds, kind, serving, function, secret_refs)
         except AlreadyExists:  # lost a race with an identical request
-            return self._create(project_ref, name, thresholds, kind, serving, function)
+            return self._create(project_ref, name, thresholds, kind, serving, function, secret_refs)
 
     def _create(
         self,
@@ -121,9 +126,19 @@ class ModelService:
         kind: ModelKind,
         serving: LlmServing | None,
         function: FunctionServing | None,
+        secret_refs: SecretRefs | None,
     ) -> tuple[ModelView, bool]:
         with self._uow_factory() as uow:
             project = resolve_project(uow, project_ref)
+            locked_project = uow.projects.lock(project.id)
+            assert locked_project is not None
+            project = locked_project
+            validate_refs(
+                self._secrets,
+                project,
+                secret_refs or SecretRefs(),
+                function.env if function else {},
+            )
             candidate = Model.create(
                 project_id=project.id,
                 name=name,
@@ -132,6 +147,7 @@ class ModelService:
                 kind=kind,
                 serving=serving,
                 function=function,
+                secret_refs=secret_refs,
             )
             existing = uow.models.get_by_name(project.id, candidate.name)
             if existing is not None:
@@ -140,8 +156,13 @@ class ModelService:
                         f"model {name!r} already exists with different thresholds; "
                         "use PUT .../thresholds to change them"
                     )
-                same = (existing.kind, existing.serving, existing.function)
-                if same != (candidate.kind, candidate.serving, candidate.function):
+                same = (existing.kind, existing.serving, existing.function, existing.secret_refs)
+                if same != (
+                    candidate.kind,
+                    candidate.serving,
+                    candidate.function,
+                    candidate.secret_refs,
+                ):
                     raise Conflict(f"model {name!r} already exists as a different kind of model")
                 return self._view(uow, project, existing), False
             uow.models.add(candidate)

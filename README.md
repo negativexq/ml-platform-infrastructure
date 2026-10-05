@@ -23,6 +23,7 @@ observability.
 | --- | --- |
 | **Projects and access** | Each project gets its own Kubernetes namespace and resource quota. Sign-in uses OpenID Connect, in the browser or with bearer tokens. Roles (`invoker`, `viewer`, `operator`, `admin`) are granted to users and groups; platform admins oversee everything. A fail-closed policy table decides who may call what. Every change is in an audit trail with the person's name |
 | **Training** | Jobs and multi-step pipelines (DAGs) on Argo Workflows. Runs can be started, cancelled and retried. Each run shows its logs, a step timeline and why it failed. Lineage links a run to the model versions it produced |
+| **Project secrets** | Admins create, rotate and delete project credentials in Settings. Values stay in Kubernetes Secrets; jobs and models use key and private-registry references. Read responses and audit records contain metadata only. See [project secrets](docs/secrets.md) |
 | **Models** | Versions come from the MLflow registry or, for LLMs, from the Hugging Face Hub. Acceptance thresholds decide each version: evaluation makes it a candidate or rejects it, and promotion makes it the champion. Registry aliases are kept in sync |
 | **Serving** | Immutable revisions. Canary rollouts shift traffic in steps and are gated on error rate, p95 latency and minimum traffic. A canary that fails its gates rolls back automatically, and any deployment can be rolled back by hand. Metrics and trends are kept per revision |
 | **LLMs** | Language models run on GPUs with KServe's Hugging Face runtime (vLLM). Platform admins set each project's GPU quota, and every deploy and canary is checked against it. The API is OpenAI-compatible chat completions, with streaming. The UI has a chat playground and shows token usage per caller |
@@ -82,6 +83,7 @@ observability.
 make cp-demo        # the whole platform on in-memory fakes: http://localhost:8080/ui
                     # (prints a ready-to-run curl for the public gateway)
 make cp-test        # unit, API, PostgreSQL and real-browser tests
+make cp-check-light # lint/types + memory tests; no PostgreSQL, browser or cluster startup
 make gateway-e2e    # real PostgreSQL + the real gateway process + a model server over HTTP
 make identity-up    # Keycloak with demo users (alice, bob, carol) for real sign-in
 ```
@@ -115,8 +117,8 @@ reply = client.chat.completions.create(model="assistant-prod",
 | --- | --- |
 | Local cluster | `make local-up`: kind, Argo CD (GitOps), MLflow, PostgreSQL, MinIO, Prometheus, Grafana |
 | Database | `make cp-migrate`: Alembic migrations |
-| Control plane | `uvicorn controlplane.main:app_factory --factory` and `python -m controlplane.reconciler_main` |
-| Gateway | `k8s/gateway/gateway.yaml`: Deployment, PDB, Service, Ingress with TLS, NetworkPolicy |
+| Control plane | `docker/controlplane/Dockerfile` and `helm/controlplane`: API, reconciler, gateway, migration Job and RBAC; prepared, runtime verification pending ([installation](docs/installation.md)) |
+| Gateway | Included in the control-plane chart; standalone example at `k8s/gateway/gateway.yaml` has Ingress/TLS and a topology-specific NetworkPolicy ([networking](docs/networking.md)) |
 | Identity | `k8s/identity/` (Keycloak), configured with `CP_OIDC_*` settings |
 | Observability | `make observability-up`: OpenTelemetry Collector, Tempo, dashboards, alerts |
 | AWS | Terraform for EKS, RDS and S3 in `infra/terraform` (designed, not yet applied) |
@@ -162,3 +164,6 @@ The full list of what is missing and what comes next: [`docs/roadmap.md`](docs/r
 ## License
 
 [MIT](LICENSE)
+
+Control-plane operational contracts: [readiness, lifecycle and budgets](docs/operations.md),
+[network topology](docs/networking.md), and [backup/restore](docs/recovery.md).

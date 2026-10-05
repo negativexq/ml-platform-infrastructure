@@ -122,6 +122,7 @@ def pipelines_router() -> APIRouter:
             name,
             version=version,
             commit_sha=body.commit_sha if body else None,
+            timeout_seconds=body.timeout_seconds if body else 3600,
             idempotency_key=idempotency_key,
         )
         if not created:
@@ -189,7 +190,7 @@ def pipeline_runs_router() -> APIRouter:
     @router.get(
         "/{run_id}/tracking",
         response_model=TrackingOut,
-        responses={503: {"model": ErrorOut}, **_ERRORS},
+        responses={410: {"model": ErrorOut}, 503: {"model": ErrorOut}, **_ERRORS},
         summary="Tracked experiment runs (params, metrics, artifacts) for this run, by platform id",
     )
     def tracking(run_id: UUID, request: Request) -> TrackingOut:
@@ -206,7 +207,7 @@ def pipeline_runs_router() -> APIRouter:
     @router.get(
         "/{run_id}/steps/{step}/logs",
         response_class=PlainTextResponse,
-        responses={503: {"model": ErrorOut}, **_ERRORS},
+        responses={410: {"model": ErrorOut}, 503: {"model": ErrorOut}, **_ERRORS},
         summary="Step logs, read through the platform",
     )
     def step_logs(run_id: UUID, step: str, request: Request) -> str:
@@ -220,6 +221,8 @@ def pipeline_runs_router() -> APIRouter:
             raise HTTPException(status.HTTP_404_NOT_FOUND, f"step {step!r} not in this run")
         if view.run.external_ref is None:
             return ""
+        if view.run.workflow_cleaned_at is not None:
+            raise HTTPException(410, "workflow logs expired under the retention policy")
         return workflow.get_logs(view.run.external_ref, step)
 
     return router

@@ -66,6 +66,8 @@ class JobDefinitionRow(Base):
     command: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
     resources: Mapped[dict[str, str]] = mapped_column(JSONB, nullable=False)
     env: Mapped[dict[str, str]] = mapped_column(JSONB, nullable=False)
+    timeout_seconds: Mapped[int] = mapped_column(Integer, nullable=False, server_default="3600")
+    secret_refs: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, server_default="{}")
     created_at: Mapped[datetime] = _ts()
 
 
@@ -74,6 +76,7 @@ class RunRow(Base):
     __table_args__ = (
         UniqueConstraint("project_id", "idempotency_key", name="uq_runs_idempotency_key"),
         Index("ix_runs_status", "status"),
+        Index("ix_runs_retention", "status", "workflow_cleaned_at", "finished_at"),
     )
 
     id: Mapped[UUID] = _pk()
@@ -89,10 +92,12 @@ class RunRow(Base):
     )
     idempotency_key: Mapped[str | None] = mapped_column(String(200))
     traceparent: Mapped[str | None] = mapped_column(String(128))
+    timeout_seconds: Mapped[int] = mapped_column(Integer, nullable=False, server_default="3600")
     created_at: Mapped[datetime] = _ts()
     updated_at: Mapped[datetime] = _ts()
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    workflow_cleaned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class PipelineDefinitionRow(Base):
@@ -114,6 +119,7 @@ class PipelineRunRow(Base):
     __table_args__ = (
         UniqueConstraint("project_id", "idempotency_key", name="uq_pipeline_runs_idempotency_key"),
         Index("ix_pipeline_runs_status", "status"),
+        Index("ix_pipeline_runs_retention", "status", "workflow_cleaned_at", "finished_at"),
     )
 
     id: Mapped[UUID] = _pk()
@@ -126,10 +132,12 @@ class PipelineRunRow(Base):
     commit_sha: Mapped[str | None] = mapped_column(String(64))
     idempotency_key: Mapped[str | None] = mapped_column(String(200))
     traceparent: Mapped[str | None] = mapped_column(String(128))
+    timeout_seconds: Mapped[int] = mapped_column(Integer, nullable=False, server_default="3600")
     created_at: Mapped[datetime] = _ts()
     updated_at: Mapped[datetime] = _ts()
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
     finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    workflow_cleaned_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
 
 
 class StepRunRow(Base):
@@ -161,6 +169,7 @@ class ModelRow(Base):
     llm_gpus: Mapped[int | None] = mapped_column(Integer)
     llm_context_length: Mapped[int | None] = mapped_column(Integer)
     function_settings: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    secret_refs: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, server_default="{}")
     created_at: Mapped[datetime] = _ts()
 
 
@@ -249,6 +258,7 @@ class DeploymentRevisionRow(Base):
     gpus: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     context_length: Mapped[int | None] = mapped_column(Integer)
     function_settings: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    secret_refs: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, server_default="{}")
     created_at: Mapped[datetime] = _ts()
 
 

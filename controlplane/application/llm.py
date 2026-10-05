@@ -35,6 +35,34 @@ def prepare_chat(body: bytes, served_name: str) -> bytes:
     return json.dumps(request).encode()
 
 
+def reserve_chat(body: bytes, limit: int) -> tuple[bytes, int]:
+    """Reserve byte-based prompt estimate plus bounded output before upstream work.
+
+    This estimate is deliberately conservative for text; it is not a model tokenizer.
+    Usage above the estimate becomes debt. Missing usage keeps the full reservation.
+    """
+    request = json.loads(body)
+    # Include tools, schemas and message framing in the prompt estimate.
+    prompt = {
+        k: v
+        for k, v in request.items()
+        if k not in {"max_tokens", "max_completion_tokens", "stream", "stream_options"}
+    }
+    estimated = len(json.dumps(prompt, ensure_ascii=False).encode()) + 64 * len(request["messages"])
+    caps = [request[k] for k in ("max_tokens", "max_completion_tokens") if k in request]
+    if any(type(cap) is not int or cap <= 0 for cap in caps):
+        raise InvalidChatRequest("max_tokens and max_completion_tokens must be positive integers")
+    if request.get("n", 1) != 1 or request.get("best_of", 1) != 1:
+        raise InvalidChatRequest("token reservations require n=1 and best_of=1")
+    cap = min(caps) if caps else min(256, limit - estimated)
+    if cap <= 0 or estimated + cap > limit:
+        raise InvalidChatRequest("prompt and requested output exceed the per-minute token budget")
+    request.pop("max_tokens", None)
+    request.pop("max_completion_tokens", None)
+    request["max_tokens"] = cap
+    return json.dumps(request).encode(), estimated + cap
+
+
 @dataclass
 class TokenMeter:
     """Reads `usage` from a reply as it streams past, without holding it: server-sent
@@ -43,6 +71,8 @@ class TokenMeter:
     streamed: bool
     prompt: int = 0
     completion: int = 0
+    usage_reported: bool = False
+    _overflow: bool = False
     _pending: bytes = b""
     _whole: bytearray | None = None
 
@@ -51,9 +81,20 @@ class TokenMeter:
             self._whole = bytearray()
 
     def feed(self, chunk: bytes) -> None:
+        if self._overflow:
+            return
         if self._whole is not None:
             if len(self._whole) + len(chunk) <= MAX_METERED_BYTES:
                 self._whole.extend(chunk)
+            else:
+                self._overflow = True
+                self._whole.clear()
+                self.usage_reported = False
+            return
+        if len(self._pending) + len(chunk) > MAX_METERED_BYTES:
+            self._overflow = True
+            self._pending = b""
+            self.usage_reported = False
             return
         lines = (self._pending + chunk).split(b"\n")
         self._pending = lines.pop()
@@ -61,6 +102,8 @@ class TokenMeter:
             self._event(line)
 
     def finish(self) -> None:
+        if self._overflow:
+            return
         if self._whole is not None:
             self._usage(bytes(self._whole))
         elif self._pending:
@@ -81,5 +124,8 @@ class TokenMeter:
         except (ValueError, AttributeError):
             return
         if isinstance(usage, dict):
-            self.prompt = int(usage.get("prompt_tokens") or 0)
-            self.completion = int(usage.get("completion_tokens") or 0)
+            prompt = usage.get("prompt_tokens")
+            completion = usage.get("completion_tokens")
+            if type(prompt) is int and type(completion) is int and prompt >= 0 and completion >= 0:
+                self.prompt, self.completion = prompt, completion
+                self.usage_reported = True

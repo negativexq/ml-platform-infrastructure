@@ -1,6 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { api, ApiError, enc, type S } from '../api/client';
 import { ApiKeys } from '../components/ApiAccess';
+import { ProjectSecrets } from '../components/ProjectSecrets';
 import { GpuQuota } from '../components/GpuQuota';
 import { Badge, Empty, Kv, Table, Time } from '../components/bits';
 import { useAccess, useMe } from '../lib/me';
@@ -49,6 +50,7 @@ export function SettingsPage({ project }: { project: string }) {
           <Members project={project} />
           <GpuQuota project={project} />
           <ApiKeys project={project} />
+          <ProjectSecrets project={project} />
           <div className="section card danger-zone" data-testid="danger-zone">
             <h2>Delete project</h2>
             <p className="muted">Removes the project's namespace and workloads. Deployments stop serving.</p>

@@ -66,6 +66,15 @@ def deployments_router() -> APIRouter:
     def get_deployment(project: str, name: str, request: Request) -> DeploymentOut:
         return DeploymentOut.from_view(svc(request).get(project, name))
 
+    @router.delete(
+        "/deployments/{name}",
+        response_model=DeploymentOut,
+        status_code=status.HTTP_202_ACCEPTED,
+        responses=_ERRORS,
+    )
+    def delete_deployment(project: str, name: str, request: Request) -> DeploymentOut:
+        return DeploymentOut.from_view(svc(request).request_delete(project, name))
+
     @router.post(
         "/deployments/{name}/revisions",
         response_model=DeploymentOut,

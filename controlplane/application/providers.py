@@ -13,6 +13,8 @@ from enum import StrEnum
 from typing import Any, Protocol, runtime_checkable
 from uuid import UUID
 
+from controlplane.domain.secrets import SecretRefs
+
 
 class ExternalState(StrEnum):
     """What a workflow system can tell us. Mapped to platform states by the caller."""
@@ -78,6 +80,7 @@ class StepSpec:
     env: Mapping[str, str] = field(default_factory=dict)
     resources: Mapping[str, str] = field(default_factory=dict)
     depends_on: tuple[str, ...] = ()
+    secret_refs: SecretRefs = field(default_factory=SecretRefs)
 
 
 @dataclass(frozen=True, slots=True)
@@ -86,6 +89,8 @@ class WorkflowSpec:
     namespace: str
     steps: tuple[StepSpec, ...]
     labels: Mapping[str, str] = field(default_factory=dict)
+    timeout_seconds: int = 3600
+    image_pull_secrets: tuple[str, ...] = ()
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,6 +112,9 @@ class WorkflowProvider(Protocol):
     def get_status(self, ref: str) -> WorkflowStatus: ...
 
     def cancel(self, ref: str) -> None: ...
+
+    def delete(self, ref: str) -> None:
+        """Idempotently delete a workflow and its owned pods after retention expires."""
 
     def get_logs(self, ref: str, step: str) -> str: ...
 
@@ -138,6 +146,7 @@ class ServingSpec:
     context_length: int | None = None
     # A function ("container" runtime): replicas, concurrency, port and environment.
     function: Mapping[str, Any] | None = None
+    secret_refs: SecretRefs = field(default_factory=SecretRefs)
 
 
 @dataclass(frozen=True, slots=True)
@@ -157,6 +166,9 @@ class ServingProvider(Protocol):
         """Create-or-update the serving resource and return its external reference."""
 
     def get_status(self, ref: str) -> ServingStatus: ...
+
+    def matches(self, spec: ServingSpec) -> bool:
+        """Whether the observed owned serving configuration matches the immutable intent."""
 
     def set_traffic(self, ref: str, split: Mapping[int, int]) -> None:
         """Weights by revision, summing to 100."""

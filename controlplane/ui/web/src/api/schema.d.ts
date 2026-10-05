@@ -325,7 +325,8 @@ export interface paths {
         get: operations["get_deployment_projects__project__deployments__name__get"];
         put?: never;
         post?: never;
-        delete?: never;
+        /** Delete Deployment */
+        delete: operations["delete_deployment_projects__project__deployments__name__delete"];
         options?: never;
         head?: never;
         patch?: never;
@@ -814,6 +815,42 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{project}/secrets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Secrets */
+        get: operations["list_secrets_projects__project__secrets_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/secrets/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Rotate Secret */
+        put: operations["rotate_secret_projects__project__secrets__name__put"];
+        /** Create Secret */
+        post: operations["create_secret_projects__project__secrets__name__post"];
+        /** Delete Secret */
+        delete: operations["delete_secret_projects__project__secrets__name__delete"];
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/projects/{project}/summary": {
         parameters: {
             query?: never;
@@ -1145,7 +1182,7 @@ export interface components {
          * DeploymentStatus
          * @enum {string}
          */
-        DeploymentStatus: "PENDING" | "DEPLOYING" | "READY" | "DEGRADED" | "FAILED";
+        DeploymentStatus: "PENDING" | "DEPLOYING" | "READY" | "DEGRADED" | "FAILED" | "DELETING" | "DELETED";
         /** DiscoveryOut */
         DiscoveryOut: {
             /** Already Known */
@@ -1392,6 +1429,10 @@ export interface components {
             env?: {
                 [key: string]: string;
             };
+            /** Limits */
+            limits?: {
+                [key: string]: string;
+            };
             /**
              * Max Scale
              * @default 3
@@ -1409,6 +1450,25 @@ export interface components {
              * @default 8080
              */
             port: number;
+            /**
+             * Readiness Initial Delay Seconds
+             * @default 0
+             */
+            readiness_initial_delay_seconds: number;
+            /**
+             * Readiness Path
+             * @description HTTP readiness path; null uses a TCP probe
+             */
+            readiness_path?: string | null;
+            /**
+             * Readiness Timeout Seconds
+             * @default 2
+             */
+            readiness_timeout_seconds: number;
+            /** Requests */
+            requests?: {
+                [key: string]: string;
+            };
         };
         /** GateIn */
         GateIn: {
@@ -1494,8 +1554,8 @@ export interface components {
         ImageVersionCreate: {
             /**
              * Image
-             * @description <registry>/<path>:<tag> or @sha256:<digest>
-             * @example ghcr.io/acme/ticket-router:1.4.2
+             * @description Immutable function image: <registry>/<path>@sha256:<64 lowercase hex digits>
+             * @example ghcr.io/acme/ticket-router@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
              */
             image: string;
         };
@@ -1547,6 +1607,12 @@ export interface components {
             resources?: {
                 [key: string]: string;
             };
+            secret_refs?: components["schemas"]["SecretRefsIn"];
+            /**
+             * Timeout Seconds
+             * @default 3600
+             */
+            timeout_seconds: number;
         };
         /** JobList */
         JobList: {
@@ -1584,6 +1650,9 @@ export interface components {
             resources: {
                 [key: string]: string;
             };
+            secret_refs?: components["schemas"]["SecretRefsIn"];
+            /** Timeout Seconds */
+            timeout_seconds: number;
         };
         /** LlmServingIn */
         LlmServingIn: {
@@ -1682,6 +1751,7 @@ export interface components {
             llm?: components["schemas"]["LlmServingIn"] | null;
             /** Name */
             name: string;
+            secret_refs?: components["schemas"]["SecretRefsIn"];
             /**
              * Thresholds
              * @example {
@@ -1740,6 +1810,7 @@ export interface components {
              * @description Name to register versions under in the model registry
              */
             registry_name: string;
+            secret_refs?: components["schemas"]["SecretRefsIn"];
             /** Thresholds */
             thresholds: {
                 [key: string]: components["schemas"]["ThresholdIn"];
@@ -1941,6 +2012,11 @@ export interface components {
         PipelineRunCreate: {
             /** Commit Sha */
             commit_sha?: string | null;
+            /**
+             * Timeout Seconds
+             * @default 3600
+             */
+            timeout_seconds: number;
         };
         /** PipelineRunList */
         PipelineRunList: {
@@ -1992,6 +2068,10 @@ export interface components {
             status_reason: string | null;
             /** Steps */
             steps: components["schemas"]["StepRunOut"][];
+            /** Timeout Seconds */
+            timeout_seconds: number;
+            /** Workflow Cleaned At */
+            workflow_cleaned_at: string | null;
         };
         /**
          * PipelineRunSummary
@@ -2035,6 +2115,10 @@ export interface components {
             status: components["schemas"]["RunStatus"];
             /** Status Reason */
             status_reason: string | null;
+            /** Timeout Seconds */
+            timeout_seconds: number;
+            /** Workflow Cleaned At */
+            workflow_cleaned_at: string | null;
         };
         /** PlatformHealthOut */
         PlatformHealthOut: {
@@ -2340,6 +2424,11 @@ export interface components {
          * @enum {string}
          */
         RolloutStatus: "PENDING" | "PROGRESSING" | "SUCCEEDED" | "ROLLED_BACK";
+        /** RunCreate */
+        RunCreate: {
+            /** Timeout Seconds */
+            timeout_seconds?: number | null;
+        };
         /** RunList */
         RunList: {
             /** Items */
@@ -2392,6 +2481,10 @@ export interface components {
             status: components["schemas"]["RunStatus"];
             /** Status Reason */
             status_reason: string | null;
+            /** Timeout Seconds */
+            timeout_seconds: number;
+            /** Workflow Cleaned At */
+            workflow_cleaned_at: string | null;
         };
         /**
          * RunStatus
@@ -2418,6 +2511,66 @@ export interface components {
             at: string;
             /** Value */
             value: number;
+        };
+        /** SecretKeyRefIn */
+        SecretKeyRefIn: {
+            /** Key */
+            key: string;
+            /** Name */
+            name: string;
+        };
+        /** SecretList */
+        SecretList: {
+            /** Items */
+            items: components["schemas"]["SecretOut"][];
+        };
+        /** SecretOut */
+        SecretOut: {
+            /** Keys */
+            keys: string[];
+            /** Kind */
+            kind: string;
+            /** Name */
+            name: string;
+            /** Version */
+            version: string;
+        };
+        /** SecretRefsIn */
+        SecretRefsIn: {
+            /** Env */
+            env?: {
+                [key: string]: components["schemas"]["SecretKeyRefIn"];
+            };
+            /** Image Pull Secrets */
+            image_pull_secrets?: string[];
+        };
+        /** SecretRotate */
+        SecretRotate: {
+            /** Expected Version */
+            expected_version: string;
+            /**
+             * Kind
+             * @default Opaque
+             * @enum {string}
+             */
+            kind: "Opaque" | "kubernetes.io/dockerconfigjson";
+            /** Values */
+            values: {
+                [key: string]: string;
+            };
+        };
+        /** SecretWrite */
+        SecretWrite: {
+            /**
+             * Kind
+             * @default Opaque
+             * @enum {string}
+             */
+            kind: "Opaque" | "kubernetes.io/dockerconfigjson";
+            /** Values */
+            values: {
+                [key: string]: string;
+            };
         };
         /** SeriesHealthOut */
         SeriesHealthOut: {
@@ -3077,6 +3230,15 @@ export interface operations {
                     "text/plain": components["schemas"]["ErrorOut"];
                 };
             };
+            /** @description Gone */
+            410: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ErrorOut"];
+                };
+            };
             /** @description Unprocessable Entity */
             422: {
                 headers: {
@@ -3128,6 +3290,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Gone */
+            410: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -3696,6 +3867,56 @@ export interface operations {
         responses: {
             /** @description Successful Response */
             200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DeploymentOut"];
+                };
+            };
+            /** @description Not Found */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Conflict */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Unprocessable Entity */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    delete_deployment_projects__project__deployments__name__delete: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            202: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -4640,7 +4861,11 @@ export interface operations {
             };
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RunCreate"] | null;
+            };
+        };
         responses: {
             /** @description Replay of an earlier request */
             200: {
@@ -5676,6 +5901,142 @@ export interface operations {
             };
         };
     };
+    list_secrets_projects__project__secrets_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecretList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    rotate_secret_projects__project__secrets__name__put: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SecretRotate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecretOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_secret_projects__project__secrets__name__post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SecretWrite"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["SecretOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    delete_secret_projects__project__secrets__name__delete: {
+        parameters: {
+            query: {
+                expected_version: string;
+                force?: boolean;
+            };
+            header?: never;
+            path: {
+                project: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            204: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     summary_projects__project__summary_get: {
         parameters: {
             query?: never;
@@ -5943,6 +6304,15 @@ export interface operations {
             };
             /** @description Conflict */
             409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "text/plain": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Gone */
+            410: {
                 headers: {
                     [name: string]: unknown;
                 };

@@ -1,0 +1,78 @@
+{{- $name := include "controlplane.name" . }}
+{{- range $component := list "api" "gateway" "reconciler" }}
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $name }}-{{ $component }}
+automountServiceAccountToken: {{ ne $component "gateway" }}
+{{- end }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Release.Namespace }}-{{ $name }}-api
+rules:
+  - apiGroups: [""]
+    resources: [namespaces]
+    verbs: [get]
+  - apiGroups: [""]
+    resources: [secrets]
+    verbs: [get, list, create, update, delete]
+  - apiGroups: [serving.kserve.io]
+    resources: [inferenceservices]
+    verbs: [get]
+  - apiGroups: [serving.knative.dev]
+    resources: [revisions]
+    verbs: [get]
+  - apiGroups: [argoproj.io]
+    resources: [workflows]
+    verbs: [get]
+  - apiGroups: [""]
+    resources: [pods, pods/log]
+    verbs: [get, list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Release.Namespace }}-{{ $name }}-reconciler
+rules:
+  - apiGroups: [""]
+    resources: [namespaces, serviceaccounts, resourcequotas, limitranges]
+    verbs: [get, list, create, patch, update, delete]
+  - apiGroups: [""]
+    resources: [pods, pods/log]
+    verbs: [get, list]
+  - apiGroups: [networking.k8s.io]
+    resources: [networkpolicies]
+    verbs: [get, list, create, patch, update, delete]
+  - apiGroups: [rbac.authorization.k8s.io]
+    resources: [roles, rolebindings]
+    verbs: [get, list, create, patch, update, delete]
+  - apiGroups: [argoproj.io]
+    resources: [workflowtaskresults]
+    verbs: [create, patch] # permits delegating these verbs to the workload Role
+  - apiGroups: [argoproj.io]
+    resources: [workflows]
+    verbs: [get, list, create, patch, update, delete]
+  - apiGroups: [serving.kserve.io]
+    resources: [inferenceservices]
+    verbs: [get, list, create, patch, update, delete]
+  - apiGroups: [serving.knative.dev]
+    resources: [revisions]
+    verbs: [get]
+{{- range $component := list "api" "reconciler" }}
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: {{ $.Release.Namespace }}-{{ $name }}-{{ $component }}
+subjects:
+  - kind: ServiceAccount
+    name: {{ $name }}-{{ $component }}
+    namespace: {{ $.Release.Namespace }}
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: {{ $.Release.Namespace }}-{{ $name }}-{{ $component }}
+{{- end }}

@@ -35,8 +35,9 @@ from controlplane.domain.entities import (
     Verdict,
     evaluate_gate,
 )
-from controlplane.domain.errors import Conflict, NotFound
+from controlplane.domain.errors import NotFound
 from controlplane.domain.states import ModelStatus, RolloutStatus
+from controlplane.reconciliation.batch import ReconcileBackoff, reconcile_batch
 
 SYSTEM = "reconciler"
 
@@ -74,17 +75,12 @@ class RolloutReconciler:
         self._serving = serving
         self._metrics = metrics
         self._clock = clock
+        self._retry = ReconcileBackoff()
 
     def reconcile_all(self) -> list[RolloutResult]:
         with self._uow_factory() as uow:
             ids = [r.id for r in uow.rollouts.list_active()]
-        results = []
-        for rollout_id in ids:
-            try:
-                results.append(self.reconcile(rollout_id))
-            except Conflict:
-                continue  # another writer moved it first; next pass picks it up
-        return results
+        return reconcile_batch(ids, self.reconcile, "rollouts", self._retry)
 
     def reconcile(self, rollout_id: UUID) -> RolloutResult:
         ctx = self._load(rollout_id)
@@ -248,6 +244,7 @@ class RolloutReconciler:
             gpus=revision.gpus,
             context_length=revision.context_length,
             function=revision.function.to_json() if revision.function else None,
+            secret_refs=revision.secret_refs,
             labels={
                 "mlp.io/project-id": str(ctx.project.id),
                 "mlp.io/deployment": ctx.deployment.name,

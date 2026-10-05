@@ -61,6 +61,7 @@ class PipelineRunCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     commit_sha: str | None = Field(default=None, max_length=64)
+    timeout_seconds: int = Field(3600, ge=1, le=604800)
 
 
 class StepRunOut(BaseModel):
@@ -98,6 +99,8 @@ class PipelineRunSummary(BaseModel):
     status: RunStatus
     status_reason: str | None
     cancel_requested: bool
+    timeout_seconds: int
+    workflow_cleaned_at: datetime | None
     commit_sha: str | None
     created_at: datetime
     started_at: datetime | None
@@ -117,6 +120,8 @@ class PipelineRunSummary(BaseModel):
             status=run.status,
             status_reason=run.status_reason,
             cancel_requested=run.cancel_requested,
+            timeout_seconds=run.timeout_seconds,
+            workflow_cleaned_at=run.workflow_cleaned_at,
             commit_sha=run.commit_sha,
             created_at=run.created_at,
             started_at=run.started_at,

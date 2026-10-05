@@ -29,7 +29,7 @@ export function Modal({
 export type ConfirmOptions = { title: string; body: ReactNode; confirmLabel?: string; danger?: boolean };
 
 export type Field = {
-  name: string; label: string; type?: 'text' | 'textarea'; required?: boolean; pattern?: string;
+  name: string; label: string; type?: 'text' | 'textarea' | 'password'; required?: boolean; pattern?: string;
   visibleWhen?: (values: Record<string, string>) => boolean;
   hint?: string; placeholder?: string; value?: string; options?: { value: string; label: string }[];
 };
@@ -184,8 +184,8 @@ function FormBody({ request }: { request: { options: FormOptions<unknown>; resol
             ) : f.type === 'textarea' ? (
               <textarea id={id} name={f.name} rows={3} placeholder={f.placeholder} defaultValue={values[f.name]} ref={setRef(f.name)} aria-describedby={hint} />
             ) : (
-              <input id={id} name={f.name} type="text" required={f.required} pattern={f.pattern} placeholder={f.placeholder}
-                defaultValue={values[f.name]} autoComplete="off" spellCheck={false} ref={setRef(f.name)} aria-describedby={hint} />
+              <input id={id} name={f.name} type={f.type === 'password' ? 'password' : 'text'} autoComplete={f.type === 'password' ? 'new-password' : undefined} required={f.required} pattern={f.pattern} placeholder={f.placeholder}
+                defaultValue={values[f.name]} spellCheck={false} ref={setRef(f.name)} aria-describedby={hint} />
             )}
             {f.hint && <small className="hint" id={hint}>{f.hint}</small>}
           </div>

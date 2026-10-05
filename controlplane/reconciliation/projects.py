@@ -20,6 +20,7 @@ from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import Project
 from controlplane.domain.errors import Conflict, DomainError, NotFound
 from controlplane.domain.states import ProjectStatus
+from controlplane.reconciliation.batch import ReconcileBackoff, reconcile_batch
 
 SYSTEM = "reconciler"
 
@@ -39,17 +40,12 @@ class ProjectReconciler:
         self._uow_factory = uow_factory
         self._cluster = cluster
         self._clock = clock
+        self._retry = ReconcileBackoff()
 
     def reconcile_all(self) -> list[ReconcileResult]:
         with self._uow_factory() as uow:
             ids = [p.id for p in uow.projects.list_reconcilable()]
-        results = []
-        for project_id in ids:
-            try:
-                results.append(self.reconcile(project_id))
-            except Conflict:
-                continue  # another reconciler moved it first; next pass picks it up
-        return results
+        return reconcile_batch(ids, self.reconcile, "projects", self._retry)
 
     def reconcile(self, project_id: UUID) -> ReconcileResult:
         project = self._load(project_id)

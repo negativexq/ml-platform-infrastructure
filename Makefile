@@ -6,7 +6,8 @@
         alert-rules-test alert-rules-apply loadtest drill-autoscale drill-drain \
         local-up local-test local-down \
         tf-fmt tf-validate tf-lint tf-check \
-        identity-up ui-install ui-build ui-api ui-dev cp-install cp-test cp-check cp-migrate cp-run cp-reconcile cp-gateway gateway-e2e cp-demo lock envtest-up envtest-down
+        identity-up ui-install ui-build ui-api ui-dev cp-install cp-test cp-check cp-check-light cp-migrate cp-run cp-reconcile cp-gateway gateway-e2e cp-demo lock envtest-up envtest-down \
+        cp-docker-build cp-helm-lint cp-helm-template
 
 IMAGE ?= ml-platform-inference:dev
 
@@ -183,6 +184,18 @@ clean:
 cp-install:
 	pip install -c constraints/controlplane.txt -e ".[dev,controlplane,controlplane-dev]"
 
+CP_IMAGE ?= mlp-controlplane:dev
+
+cp-docker-build:
+	docker build -t $(CP_IMAGE) -f docker/controlplane/Dockerfile .
+
+cp-helm-lint:
+	helm lint helm/controlplane
+	helm lint helm/controlplane --values helm/controlplane/values-local.yaml
+
+cp-helm-template:
+	helm template mlp helm/controlplane --namespace mlp-system
+
 cp-test:
 	pytest controlplane/tests -p no:warnings
 
@@ -190,6 +203,11 @@ cp-check:
 	ruff check controlplane
 	mypy controlplane
 	pytest controlplane/tests -p no:warnings
+
+cp-check-light:
+	ruff check controlplane scripts/controlplane_backup.py
+	mypy controlplane scripts/controlplane_backup.py
+	pytest controlplane/tests --ignore=controlplane/tests/test_ui.py --ignore=controlplane/tests/test_ui_auth.py --ignore=controlplane/tests/test_persistence_pg.py -k 'not sql' -p no:warnings
 
 cp-migrate:
 	python -m controlplane.persistence.migrate upgrade

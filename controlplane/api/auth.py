@@ -54,7 +54,7 @@ class AuthConfig:
 # -- authentication --------------------------------------------------------------------
 
 _OPEN_PREFIXES = ("/ui", "/auth/", "/docs", "/redoc")
-_OPEN_PATHS = {"/", "/healthz", "/openapi.json", "/docs/oauth2-redirect"}
+_OPEN_PATHS = {"/", "/healthz", "/readyz", "/openapi.json", "/docs/oauth2-redirect"}
 
 Scope = MutableMapping[str, Any]
 ASGIApp = Callable[
@@ -164,6 +164,7 @@ PLATFORM_ADMIN = "platform-admin"  # platform-wide decisions, e.g. how many GPUs
 # operator, in the project the route is about.
 POLICY: dict[tuple[str, str], str | ProjectRole] = {
     ("GET", "/healthz"): PUBLIC,
+    ("GET", "/readyz"): PUBLIC,
     ("GET", "/"): PUBLIC,  # redirects to the UI
     ("GET", "/auth/login"): PUBLIC,
     ("GET", "/auth/callback"): PUBLIC,
@@ -175,6 +176,11 @@ POLICY: dict[tuple[str, str], str | ProjectRole] = {
     ("POST", "/projects"): SIGNED_IN,  # the creator becomes the project's admin
     ("GET", "/platform/health"): SIGNED_IN,  # inventory counts only the caller's projects
     ("DELETE", "/projects/{project_id}"): ProjectRole.ADMIN,
+    ("GET", "/projects/{project}/secrets"): ProjectRole.ADMIN,
+    ("POST", "/projects/{project}/secrets/{name}"): ProjectRole.ADMIN,
+    ("PUT", "/projects/{project}/secrets/{name}"): ProjectRole.ADMIN,
+    ("DELETE", "/projects/{project}/secrets/{name}"): ProjectRole.ADMIN,
+    ("DELETE", "/projects/{project}/deployments/{name}"): ProjectRole.ADMIN,
     ("PUT", "/projects/{project}/models/{name}/thresholds"): ProjectRole.ADMIN,
     ("PUT", "/projects/{project}/members/{subject}"): ProjectRole.ADMIN,
     ("DELETE", "/projects/{project}/members/{subject}"): ProjectRole.ADMIN,

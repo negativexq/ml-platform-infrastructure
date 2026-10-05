@@ -16,7 +16,7 @@ from controlplane.adapters.serving.kserve import build_inference_service
 from controlplane.application.api_access import ApiAccessService
 from controlplane.application.deployments import DeploymentService
 from controlplane.application.gateway import GatewayService, UpstreamCall
-from controlplane.application.models import ModelService
+from controlplane.application.models import ModelService, PromotionService
 from controlplane.application.ports import UnitOfWork
 from controlplane.application.projects import CreateProject, ProjectService
 from controlplane.application.providers import ServingSpec
@@ -36,7 +36,7 @@ from controlplane.reconciliation.projects import ProjectReconciler
 from controlplane.tests.test_gateway import Monotonic, Recorder
 
 Factory = Callable[[], UnitOfWork]
-IMAGE = "ghcr.io/acme/ticket-router:1.4.2"
+IMAGE = "ghcr.io/acme/ticket-router@sha256:" + "a" * 64
 SETTINGS = FunctionServing(min_scale=0, max_scale=5, concurrency=20, env={"LOG_LEVEL": "info"})
 
 
@@ -69,7 +69,14 @@ def test_a_function_version_is_an_image_and_a_candidate_at_once(env: Env) -> Non
     assert created and version.status is ModelStatus.CANDIDATE and version.source_uri == IMAGE
     again, created = env.models.register_image("support", "ticket-router", IMAGE)
     assert not created and again.id == version.id
-    for bad in ("ticket-router", "ghcr.io/acme/ticket-router", "ghcr.io/acme/ticket-router:latest"):
+    for bad in (
+        "ticket-router",
+        "ghcr.io/acme/ticket-router",
+        "ghcr.io/acme/ticket-router:latest",
+        "ghcr.io/acme/ticket-router:1.4.2",
+        "ghcr.io/acme/ticket-router@sha256:abc",
+        "ghcr.io/acme/ticket-router@sha256:" + "A" * 64,
+    ):
         with pytest.raises(InvalidArgument):
             env.models.register_image("support", "ticket-router", bad)
     env.models.create("support", "scorer", {})
@@ -120,6 +127,67 @@ def test_kserve_runs_the_function_as_its_own_container() -> None:
     assert container["name"] == "kserve-container" and container["image"] == IMAGE
     assert container["ports"] == [{"containerPort": 8080, "protocol": "TCP"}]
     assert container["env"] == [{"name": "LOG_LEVEL", "value": "info"}]
+    assert container["readinessProbe"]["tcpSocket"] == {"port": 8080}
+
+
+def test_function_resources_and_probe_survive_serialization() -> None:
+    settings = FunctionServing(
+        requests={"cpu": "250m", "memory": "256Mi"},
+        limits={"cpu": "2", "memory": "1Gi"},
+        readiness_path="/health/ready",
+        readiness_timeout_seconds=4,
+    )
+    restored = FunctionServing.from_json(settings.to_json())
+    assert restored == settings
+    body = build_inference_service(
+        ServingSpec(
+            name="fn",
+            namespace="mlp-a",
+            model_uri=IMAGE,
+            revision=1,
+            runtime="container",
+            function=restored.to_json(),
+        )
+    )
+    container = body["spec"]["predictor"]["containers"][0]
+    assert container["resources"]["requests"] == dict(settings.requests)
+    assert container["readinessProbe"]["httpGet"] == {"path": "/health/ready", "port": 8080}
+    assert container["readinessProbe"]["timeoutSeconds"] == 4
+    assert FunctionServing.from_json({}).requests == {"cpu": "100m", "memory": "128Mi"}
+    with pytest.raises(InvalidArgument, match="request exceeds"):
+        FunctionServing(requests={"cpu": "2", "memory": "128Mi"})
+    with pytest.raises(InvalidArgument):
+        FunctionServing(readiness_path="relative")
+
+
+def test_function_rollback_restores_the_original_digest(env: Env) -> None:
+    env.serve()
+    promotions = PromotionService(env.factory, env.clock)
+    promotions.promote(env.models.get("support", "ticket-router").versions[0].id)
+    next_image = "ghcr.io/acme/ticket-router@sha256:" + "b" * 64
+    candidate, _ = env.models.register_image("support", "ticket-router", next_image)
+    promotions.promote(candidate.id)
+    env.deployments.deploy("support", "ticket-router", "ticket-router", 2)
+    reconciler = DeploymentReconciler(env.factory, env.serving, env.clock)
+    reconciler.reconcile_all()
+    env.deployments.rollback("support", "ticket-router", 1)
+    reconciler.reconcile_all()
+    view = env.deployments.get("support", "ticket-router")
+    assert view.deployment.active_revision == 1
+    original = next(r.revision for r in view.revisions if r.revision.revision == 1)
+    assert original.model_uri == IMAGE
+    assert (
+        build_inference_service(
+            ServingSpec(
+                name="ticket-router",
+                namespace="mlp-support",
+                model_uri=original.model_uri,
+                revision=1,
+                runtime="container",
+            )
+        )["spec"]["predictor"]["containers"][0]["image"]
+        == IMAGE
+    )
 
 
 def test_a_function_is_called_through_the_gateway_at_invoke(env: Env) -> None:

@@ -1,0 +1,16 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "controlplane.name" . }}
+{{- $config := deepCopy .Values.config }}
+{{- $_ := set $config "CP_SYSTEM_NAMESPACE" .Release.Namespace }}
+{{- $_ := set $config "CP_PLATFORM_NAMESPACE" .Values.networkPolicy.platformNamespace }}
+{{- $_ := set $config "CP_OBSERVABILITY_NAMESPACE" .Values.networkPolicy.observabilityNamespace }}
+{{- $_ := set $config "CP_SERVING_NAMESPACES" (join "," .Values.networkPolicy.servingNamespaces) }}
+{{- $_ := set $config "CP_CLUSTER_API_CIDRS" (join "," .Values.networkPolicy.apiCIDRs) }}
+{{- $_ := set $config "CP_EXTERNAL_HTTPS_CIDRS" (join "," .Values.networkPolicy.externalHTTPSCIDRs) }}
+{{- $_ := set $config "CP_PROJECT_EGRESS_ENABLED" (.Values.networkPolicy.projectEgressEnabled | toString) }}
+data:
+  {{- range $key, $value := $config }}
+  {{ $key }}: {{ $value | toString | quote }}
+  {{- end }}

@@ -11,12 +11,14 @@ from __future__ import annotations
 
 import re
 import uuid
+from collections.abc import Callable
 from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response, StreamingResponse
 
 from controlplane.application.gateway import GatewayError, GatewayService
+from controlplane.health import add_readiness
 
 MAX_BODY_BYTES = 10 * 1024 * 1024  # before any endpoint's own (smaller) limit applies
 _REQUEST_ID = re.compile(r"^[A-Za-z0-9._:-]{1,64}$")
@@ -68,13 +70,16 @@ async def _read(request: Request) -> bytes:
     return bytes(body)
 
 
-def create_gateway(service: GatewayService) -> FastAPI:
+def create_gateway(
+    service: GatewayService, *, readiness: Callable[[], None] | None = None
+) -> FastAPI:
     app = FastAPI(
         title="ML Platform Gateway",
         version="1",
         description="Call a project's public endpoints with an API key "
         "(`Authorization: Bearer mlp_live_...`).",
     )
+    add_readiness(app, readiness)
 
     @app.get("/healthz", include_in_schema=False)
     def healthz() -> dict[str, str]:

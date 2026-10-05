@@ -1,11 +1,13 @@
 from __future__ import annotations
 
-from collections.abc import MutableMapping
+from collections.abc import Callable, MutableMapping
 from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Depends, FastAPI, Query, Request, Response, status
-from fastapi.responses import RedirectResponse
+from fastapi.exception_handlers import request_validation_exception_handler
+from fastapi.exceptions import RequestValidationError
+from fastapi.responses import JSONResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from fastapi.telemetry import TelemetryConfig
 
@@ -28,6 +30,7 @@ from controlplane.api.schemas import (
     ProjectList,
     ProjectOut,
 )
+from controlplane.api.secrets import secrets_router
 from controlplane.application.api_access import ApiAccessService
 from controlplane.application.deployments import DeploymentService
 from controlplane.application.identity import visible_project_ids
@@ -56,9 +59,11 @@ from controlplane.application.providers import (
 )
 from controlplane.application.rollouts import RolloutService
 from controlplane.application.runs import RunService
+from controlplane.application.secrets import ProjectSecretService, SecretProvider
 from controlplane.domain.errors import (
     DomainError,
 )
+from controlplane.health import add_readiness
 from controlplane.ui import CONTENT_SECURITY_POLICY, STATIC_DIR
 
 
@@ -145,7 +150,7 @@ def _projects_router() -> APIRouter:
 def _skip_telemetry(scope: MutableMapping[str, Any]) -> bool:
     """Probes and static UI files are noise in a trace backend."""
     path = scope.get("path", "")
-    return bool(path == "/healthz" or path.startswith("/ui"))
+    return bool(path in {"/healthz", "/readyz"} or path.startswith("/ui"))
 
 
 def _telemetry_config(extra: TelemetryConfig | None) -> TelemetryConfig:
@@ -170,6 +175,8 @@ def create_app(
     platform: PlatformTelemetry | None = None,
     usage: UsageProvider | None = None,
     gateway_url: str = "",
+    readiness: Callable[[], None] | None = None,
+    secrets: SecretProvider | None = None,
 ) -> FastAPI:
     """`auth=None` runs without sign-in: every caller is an anonymous platform admin. That is
     for local development, the demo and tests; production passes an `AuthConfig`."""
@@ -183,14 +190,16 @@ def create_app(
     )
     app.state.uow_factory = uow_factory
     app.state.auth = auth
+    add_readiness(app, readiness)
     app.state.notifications = NotificationService(uow_factory, clock)
     app.state.members = MembershipService(uow_factory, clock)
     app.state.projects = ProjectService(uow_factory, clock)
-    app.state.jobs = JobService(uow_factory, clock)
+    app.state.secrets = ProjectSecretService(uow_factory, secrets, clock)
+    app.state.jobs = JobService(uow_factory, clock, secrets)
     app.state.runs = RunService(uow_factory, clock)
     app.state.pipelines = PipelineService(uow_factory, clock)
     app.state.pipeline_runs = PipelineRunService(uow_factory, clock, experiments)
-    app.state.models = ModelService(uow_factory, clock, experiments)
+    app.state.models = ModelService(uow_factory, clock, experiments, secrets)
     app.state.evaluations = EvaluationService(uow_factory, experiments, clock)
     app.state.promotions = PromotionService(uow_factory, clock)
     app.state.deployments = DeploymentService(uow_factory, clock, experiments, serving)
@@ -202,9 +211,22 @@ def create_app(
     app.state.clock = clock
     app.state.workflow = workflow
     app.state.experiments = experiments
+
+    @app.exception_handler(RequestValidationError)
+    async def safe_validation(request: Request, exc: RequestValidationError) -> Response:
+        if "/secrets" in request.url.path:
+            return JSONResponse(
+                status_code=422,
+                content={
+                    "error": {"code": "invalid_argument", "message": "invalid secret request"}
+                },
+            )
+        return await request_validation_exception_handler(request, exc)
+
     app.add_exception_handler(DomainError, handle_domain_error)
     app.add_exception_handler(DomainHttpError, handle_domain_error)
     app.include_router(_projects_router())
+    app.include_router(secrets_router())
     app.include_router(jobs_router())
     app.include_router(runs_router())
     app.include_router(pipelines_router())

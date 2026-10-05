@@ -186,28 +186,38 @@ class DeploymentStatus(StrEnum):
     READY = "READY"
     DEGRADED = "DEGRADED"
     FAILED = "FAILED"
+    DELETING = "DELETING"
+    DELETED = "DELETED"
 
 
 DEPLOYMENT = StateMachine(
     "Deployment",
     DeploymentStatus,
     {
-        DeploymentStatus.PENDING: {DeploymentStatus.DEPLOYING},
-        DeploymentStatus.DEPLOYING: {DeploymentStatus.READY, DeploymentStatus.FAILED},
+        DeploymentStatus.PENDING: {DeploymentStatus.DEPLOYING, DeploymentStatus.DELETING},
+        DeploymentStatus.DEPLOYING: {
+            DeploymentStatus.READY,
+            DeploymentStatus.FAILED,
+            DeploymentStatus.DELETING,
+        },
         # READY/DEGRADED -> DEPLOYING: a new revision rolls out, or a lost serving
         # resource is being recreated.
         DeploymentStatus.READY: {
+            DeploymentStatus.DELETING,
             DeploymentStatus.DEGRADED,
             DeploymentStatus.FAILED,
             DeploymentStatus.DEPLOYING,
         },
         DeploymentStatus.DEGRADED: {
+            DeploymentStatus.DELETING,
             DeploymentStatus.READY,
             DeploymentStatus.FAILED,
             DeploymentStatus.DEPLOYING,
         },
         # A failed deployment is retried by re-deploying, not by resurrecting READY.
-        DeploymentStatus.FAILED: {DeploymentStatus.DEPLOYING},
+        DeploymentStatus.FAILED: {DeploymentStatus.DEPLOYING, DeploymentStatus.DELETING},
+        DeploymentStatus.DELETING: {DeploymentStatus.DELETED},
+        DeploymentStatus.DELETED: set(),
     },
 )
 

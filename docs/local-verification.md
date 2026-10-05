@@ -2,8 +2,8 @@
 
 What the platform does that has only been tested against fakes, a real PostgreSQL or schema
 validation, and how to check each part on a real Kubernetes cluster. Run these on a
-machine with a working container runtime: the development sandbox cannot start pods, and
-Argo, KServe and GPUs are not available there.
+machine with a working container runtime. Earlier cloud-sandbox verification could not
+start pods; those results do not establish Argo, KServe, CNI or GPU behavior.
 
 **Already verified without a cluster:**
 * Lint, type checks, and the unit, API and browser tests. Every use-case test runs against
@@ -16,8 +16,9 @@ Argo, KServe and GPUs are not available there.
 
 **Not yet verified:** anything that runs a pod, Argo Workflows, KServe or a CNI.
 
-What is missing to install the platform at all (image, Helm chart, Argo in `local-up`) is in
-[roadmap.md](roadmap.md).
+The image and Helm chart source is now prepared; build/runtime checks and dependency
+bootstrap remain open. See [installation.md](installation.md), [networking.md](networking.md)
+and [roadmap.md](roadmap.md).
 
 ---
 
@@ -51,7 +52,7 @@ kubectl apply -n argo -f https://github.com/argoproj/argo-workflows/releases/dow
 # PostgreSQL for the control plane: reuse the platform one or any local instance
 export CP_DATABASE_URL=postgresql+psycopg://USER:PASS@localhost:5432/controlplane
 export CP_KUBECONFIG=$HOME/.kube/config      # context must be the kind cluster
-make cp-migrate                    # alembic upgrade head  (0001 → 0007)
+make cp-migrate                    # alembic upgrade head (currently 0013)
 
 make cp-run                        # API on :8080      (terminal 1)
 make cp-reconcile                  # reconcilers       (terminal 2)
@@ -377,7 +378,7 @@ looking at it with *real* data, and the browsers I did not have.
 
 ```bash
 make cp-demo            # http://localhost:8080 — seeded story, no infrastructure at all
-make cp-test            # includes 36 UI tests (static rules + real-browser flows)
+make cp-test            # includes static UI rules and real-browser flows
 CP_UI_SCREENSHOTS=/tmp/shots pytest controlplane/tests/test_ui.py   # writes screenshots
 ```
 
@@ -410,8 +411,8 @@ run listings now carry the pipeline / job name.
 - Real endpoint metrics from Prometheus (section 6): `5xx rate`, `p95`, `requests/s`
   per revision while a canary runs; and the "Metrics unavailable" banner when
   `CP_PROMETHEUS_URL` is unset or wrong.
-- Many projects / runs (the lists are capped at 8 recent runs per project; there is no
-  pagination UI yet).
+- Many projects / runs: verify filters and Show more against real data; the overview
+  displays recent runs rather than the entire run history.
 - Firefox and Safari. Only Chromium was exercised. The UI uses `<dialog>`,
   ES modules and CSS variables, all supported by current versions of both.
 - Behind a reverse proxy / ingress: the CSP and `/ui` prefix assume the UI and API share an
@@ -419,8 +420,9 @@ run listings now carry the pipeline / job name.
 
 Judgement calls to confirm:
 
-- **Actions in the UI:** promote, evaluate, discover versions, cancel run, abort rollout,
-  rollback. **Not** in the UI: starting a rollout, creating anything. They stay API-only.
+- **Actions in the UI:** project/model/job creation, pipeline/job starts, deploy and canary
+  forms, promote, evaluate, discover versions, cancel run, abort rollout and rollback.
+  The workflow table below describes the current React UI.
 - **Authentication:** sign-in and project roles now protect the UI and the API (section 11).
   With `CP_AUTH_MODE=none` (the demo, local runs) there is none, so never expose such a
   deployment beyond a trusted network.
@@ -442,7 +444,7 @@ The CSP is unchanged (`script-src 'self'; style-src 'self'; connect-src 'self'`)
 (only the API client calls the network, no subsystem names, no inline styles, no
 `dangerouslySetInnerHTML`) are checked on the TypeScript source.
 
-Verified in a real browser against the demo, like the rest of the UI (`make cp-test`, 59 UI tests):
+Verified in a real browser against the demo, like the rest of the UI (`make cp-test`):
 
 - Chrome: light / dark / system theme (remembered; the only thing the UI stores, guarded),
   Ctrl/⌘+K command palette (fuzzy jump to project, model, deployment), `/` focuses the page
@@ -470,14 +472,14 @@ Day-to-day workflows (each covered by a real-browser test):
 | Remove a project | **Settings** → *Delete project*, confirmed by typing its name |
 
 What is left for you: try it against real data and real browsers other than Chromium; the trace
-ids in *Activity* only appear when the control plane runs with OTEL export on. There is no
-authentication yet, so every action is recorded as `anonymous`; who-did-what needs the
-identity work planned for later.
+ids in *Activity* only appear when the control plane runs with OTEL export on. OIDC
+authentication and project roles are implemented (section 11); actions are anonymous only
+with `CP_AUTH_MODE=none`. Verify actor attribution using your configured identity provider.
 
 ## 8. Code that has never run against the real thing
 
-Written to the Argo API from knowledge of its schema; unit-tested only as
-manifests/dicts. Check each against a real Argo:
+Adapters have local manifest and synthetic-response tests. Check workflow behavior
+against real Argo, and serving behavior against real KServe/Knative:
 
 000. **Canary adapter and metrics** — `KServeServingProvider` canary support
      (`canaryTrafficPercent` set via merge patch, `null` to remove; the
@@ -487,10 +489,22 @@ manifests/dicts. Check each against a real Argo:
      `revision_name`, window `2m`, NaN handling). If gates never pass although traffic
      flows, run the four queries by hand in Prometheus first.
 00. **KServe adapter, all of it** — `adapters/serving/kserve.py` has only been
-    unit-tested as a manifest. Specifically check: (a) the status fields it reads —
-    condition `Ready`, `status.modelStatus.transitionStatus == "UpToDate"`,
-    `status.modelStatus.lastFailureInfo`, `status.address.url`; if a healthy service
-    never turns READY in the platform, print `kubectl get isvc -o yaml` and compare;
+    tested with local manifests and synthetic controller/backend responses. Specifically
+    check: (a) the status fields it reads —
+    condition `Ready`, `components.predictor.latestCreatedRevision` and
+    `latestReadyRevision`, `status.modelStatus.lastFailureInfo`, `status.address.url`;
+    the referenced Knative Revision must carry `mlp.io/revision`, belong to the ISVC
+    (`serving.kserve.io/inferenceservice` label), and report `Ready=True`.
+    The reconciler needs `get` on `serving.knative.dev/revisions`. Older unmarked
+    backends need redeployment. `modelStatus == UpToDate` is no longer a universal
+    readiness requirement: ready custom containers and zero-pod services remain callable.
+    Source inspection and synthetic regression tests passed; annotation propagation,
+    delayed status, actual metric labels and cold-start activation remain cluster gates.
+    Failure attribution requires `lastFailureInfo.modelRevisionName` to match the
+    verified backend; if the installed version omits it, failure stays PENDING rather
+    than marking a new revision FAILED from unbound historical information.
+    If a healthy service never turns READY in the platform, print `kubectl get isvc -o yaml`
+    and inspect the referenced Knative Revisions;
     (b) the v2 predict path `/v2/models/<name>/infer` and that the control plane can
     reach `status.address.url` (it is a cluster-internal URL: from your laptop use
     `kubectl port-forward` or run the API in-cluster); (c) `storageUri` for MLflow 3:
@@ -512,7 +526,8 @@ manifests/dicts. Check each against a real Argo:
    does not surface that on the node, read the pod's container status instead.
 3. **Cancel mapping** — `spec.shutdown: Terminate` → Argo reports phase `Failed`;
    the adapter maps that to `CANCELLED` only because `spec.shutdown` is set.
-4. **`activeDeadlineSeconds: 3600`** is hard-coded; no per-job timeout yet.
+4. **Deadlines** now compile from persisted job/run/pipeline `timeout_seconds` (default 3600);
+   real Argo timeout behavior remains a gate.
 5. **Idempotent submit** — relies on a 409 from creating a Workflow whose name
    already exists.
 6. **Executor permissions** — the project namespace gets Role/RoleBinding
@@ -528,22 +543,23 @@ manifests/dicts. Check each against a real Argo:
 
 - Argo Workflows install in `make local-up` / Helm / GitOps; the Argo
   controller's `workflowNamespaces`/RBAC must cover `mlp-*` namespaces.
-- A Helm chart / manifests to deploy the **control plane** itself (API +
-  reconciler Deployments, their ClusterRole: namespaces, serviceaccounts,
-  resourcequotas, limitranges, networkpolicies, roles, rolebindings,
-  `workflows.argoproj.io`, `pods/log`).
+- Build and exercise the prepared **control-plane image/chart**, including migration
+  hooks, process commands, RBAC and read-only filesystems. The chart includes Knative
+  Revision read permissions; complete topology policies and dependency bootstrap are
+  still open. See [installation.md](installation.md).
 - CI job running `scripts/envtest.sh` and an integration test for
   `KubernetesClusterProvider` (currently only a manual smoke).
 - `docs/evidence/m14/gate.md`, `docs/evidence/m15/gate.md` and README rows once
   the tables above pass.
-- Step pods need MLflow/S3 credentials and a reachable tracking URI; there is
-  no per-project secret/config mechanism yet (the original training Secret lives in `ml-platform`).
+- Step pods need MLflow/S3 credentials and a reachable tracking URI. Project secret
+  management and workload references are implemented ([secrets.md](secrets.md)); verify
+  actual credential use and connectivity in the cluster. The original training Secret
+  still lives in `ml-platform` and is not automatically copied or adopted.
 - No retry for pipeline runs, no pipeline-run history cleanup, no per-step
   resource defaults.
-- UI: no pagination, search or filtering; no create/edit forms; no per-user views; the
-  audit timeline is shown only on the deployment page; accessibility was checked for
-  keyboard operation of the DAG and dialogs and for non-colour status cues, but not with
-  a screen reader.
+- UI: forms, filters, run paging, activity and role-based access are implemented. Remaining
+  checks include large real datasets, Firefox/Safari and screen-reader accessibility;
+  keyboard operation and non-colour status cues have local browser coverage.
 - No `DELETE` for deployments, no per-revision serving state in the database (the
   rollout row is the only record of the split).
 - Rollouts need Serverless KServe + Prometheus; there is no RawDeployment/own-gateway
@@ -559,7 +575,7 @@ manifests/dicts. Check each against a real Argo:
   no rollback-to-previous-champion endpoint.
 - Run ids are plain UUIDs; the plan's `run_01J…` display form is not done.
 - Workflow pods are never garbage-collected; logs depend on pods surviving.
-- No log streaming (single read), no per-run timeout, no resource defaults for
+- No log streaming (single read); deadlines are now configurable. No resource defaults for
   jobs that omit `resources`.
 - Blocker in cloud development sandboxes: nested `runc`.
   Options: run the gates on your machine, or find a sandbox with a working
@@ -620,7 +636,7 @@ kubectl apply -f k8s/gateway/gateway.yaml   # after setting the host, the issuer
 
 | # | Gate | Status |
 | --- | --- | --- |
-| 1 | Gateway pods Ready (`/healthz`), PDB holds one during a drain | **you** |
+| 1 | Gateway pods Ready (`/readyz`; `/healthz` is liveness), PDB holds one during a drain | **you** |
 | 2 | Through the ingress with TLS: `curl https://<host>/v1/<project>/<endpoint>/predict -H 'Authorization: Bearer <key>'` gives the model's answer | **you**: needs the ingress controller and cert-manager |
 | 3 | The gateway reaches KServe at the endpoint's in-cluster URL (`/v2/models/<name>/infer`) through Knative's local gateway | **you**: KServe Serverless; the NetworkPolicy allows `kourier-system`, `istio-system`, `knative-serving` and the project namespaces |
 | 4 | A long answer is streamed, not buffered | **you**: `proxy-buffering: off` on the ingress; matters for LLM endpoints later |
@@ -674,4 +690,63 @@ All of it ran against fakes; no function container has run in a cluster yet. Lef
 | 2 | With `min_scale: 0`: after a few idle minutes the pod is gone; the next call through the gateway succeeds within the 60 s timeout (cold start) | **you** |
 | 3 | Under load it scales up to `max_scale` and no further | **you** |
 | 4 | A canary between two images splits traffic and rolls back when the new image returns 5xx | **you** |
-| 5 | The image is pulled from a private registry with the project's pull secret | **you**: no per-project pull secret mechanism yet (`docs/roadmap.md`) |
+| 5 | The image is pulled from a private registry with the project's pull secret | **you**: management API/UI and references implemented; live pull pending ([secrets.md](secrets.md)) |
+
+## Further local remediation verification — 2026-10-05
+
+No container runtime, PostgreSQL server, browser or cluster was started for this batch.
+Cluster resources were not applied or removed. See [operations.md](operations.md) and
+[recovery.md](recovery.md) for the new behavior and defaults.
+
+- `pytest controlplane/tests --ignore=controlplane/tests/test_ui.py
+  --ignore=controlplane/tests/test_ui_auth.py
+  --ignore=controlplane/tests/test_persistence_pg.py -k 'not sql'`: **317 passed,
+  5 skipped, 172 deselected**. The skips are optional Prometheus tests; PostgreSQL and
+  browser cases were excluded to keep memory use low.
+- Later targeted checks after adding backup-inventory, empty-serving-topology and retention
+  failure-isolation regressions: **22 passed / 8 deselected** for backup/network/token/LLM,
+  and **21 passed / 21 deselected** for run/notification memory cases. These overlap the
+  broad suite and must not be added to its count as unique tests.
+- `ruff check controlplane scripts/controlplane_backup.py`: passed.
+- `mypy controlplane scripts/controlplane_backup.py`: all **152 files** passed. Two existing
+  SQLAlchemy typing issues were corrected without changing migration SQL behavior.
+- OpenAPI TypeScript schema regenerated; `npm run build` passed. The existing bundle-size
+  advisory remains; browser interaction was not exercised for the new form/button.
+- `helm lint helm/controlplane`: passed. Default chart: **14 schema-valid resources**;
+  both isolation toggles enabled with explicit API/external CIDRs: **18 schema-valid
+  resources**. Missing API CIDRs correctly refuse isolation rendering.
+- PostgreSQL offline upgrade DDL generated through `0015`; the three deadline columns,
+  two cleanup markers and retention indexes render. This does not verify applying or
+  downgrading the migrations against a live database.
+- Backup safeguard tests cover corrupt archives, preview mode, nonempty-target refusal,
+  atomic restore flags, schema/count verification and inventory coverage. No actual
+  snapshot dump/restore was performed; the recovery acceptance drill remains open.
+
+Pending runtime gates: DB outage/schema mismatch and recovery; real function probes and
+resource scheduling; selected CNI ingress/egress; Argo deadline/cancellation/foreground
+cleanup; asynchronous KServe removal and GPU reservation release; real LLM streaming and
+usage settlement; compatible PostgreSQL snapshot backup/restore with measured RPO/RTO.
+
+## Project secrets and serving drift verification — 2026-10-05
+
+No PostgreSQL server, browser, Docker runtime or cluster was started for this batch.
+
+- `make cp-check-light` contains the low-memory lint/type/memory-test commands. The
+  equivalent commands run locally passed: **337 passed, 5 skipped, 179 deselected**.
+  Optional Prometheus cases skipped; SQL/browser cases were deliberately excluded.
+- Ruff passed; mypy checked **158 files**, including backup tooling, without errors.
+- OpenAPI schema validation and UI TypeScript/production build passed. The existing
+  bundle-size advisory remains; the new Settings form has not been tested in a browser.
+- Helm lint passed; default chart rendered **14 valid resources** with kubeconform.
+  API secret/namespace RBAC is prepared and has not been applied to a cluster.
+- PostgreSQL offline DDL through head `0016` passed and matches the three new reference
+  columns in ORM metadata. No live migration/row-lock concurrency gate was run.
+- Regression coverage includes secret admin isolation, cross-project isolation,
+  write-only responses/audits, version preconditions for rotation/deletion, redacted
+  backend/validation errors, protected/forced deletion, private registry type checks,
+  environment conflicts, Argo/KServe references and immutable deployment snapshots.
+- Serving regressions verify same-revision repair, complete predictor replacement,
+  resource-version preconditions, preservation of unowned metadata, idempotent reapply
+  and waiting for the backend with the new apply ID.
+
+Live checks and rotation/recovery limitations are recorded in [secrets.md](secrets.md).

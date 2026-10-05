@@ -1,0 +1,31 @@
+{{- $name := include "controlplane.name" . }}
+{{- range $component := list "api" "gateway" }}
+{{- $ingress := (index $.Values $component).ingress }}
+{{- if $ingress.enabled }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ $name }}-{{ $component }}
+  {{- with $ingress.annotations }}
+  annotations:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+spec:
+  ingressClassName: {{ $ingress.className | quote }}
+  {{- with $ingress.tls }}
+  tls:
+    {{- toYaml . | nindent 4 }}
+  {{- end }}
+  rules:
+    - host: {{ $ingress.host | quote }}
+      http:
+        paths:
+          - path: {{ ternary "/v1/" "/" (eq $component "gateway") }}
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ $name }}-{{ $component }}
+                port: {name: http}
+{{- end }}
+{{- end }}

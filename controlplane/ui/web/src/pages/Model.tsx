@@ -54,8 +54,8 @@ export function ModelPage({ project, name, functions = false }: { project: strin
     const done = await form<S['ModelVersionSummary']>({
       title: 'Register an image', submitLabel: 'Register',
       intro: 'A function version is a container image. It listens on its port and answers POST / with JSON. There is nothing to evaluate, so it can be deployed at once; a canary of it still has to pass its gates.',
-      fields: [{ name: 'image', label: 'Image', required: true, placeholder: 'ghcr.io/acme/ticket-router:1.4.2',
-        hint: 'With its registry and a tag or @sha256 digest (not :latest), so the version always means the same code.' }],
+      fields: [{ name: 'image', label: 'Image', required: true, placeholder: 'ghcr.io/acme/ticket-router@sha256:…',
+        hint: 'Use a registry image with @sha256: and its 64-character digest. Tags can move; the digest keeps deploys and rollbacks on the same code.' }],
       submit: (v) => api.post<S['ModelVersionSummary']>(`${base}/images`, { image: v.image }),
     });
     if (done) { toast(`Registered v${done.version}; deploy it from its row`); await query.refetch(); }
@@ -119,7 +119,7 @@ export function ModelPage({ project, name, functions = false }: { project: strin
             </div>
             <p className="sub">
               {model.kind === 'function' && model.function && (
-                <span className="chip" data-testid="function-serving">{`Function · ${model.function.min_scale}–${model.function.max_scale} replicas · ${model.function.concurrency} at once · port ${model.function.port}`}</span>)}
+                <span className="chip" data-testid="function-serving">{`Function · ${model.function.min_scale}–${model.function.max_scale} replicas · ${model.function.concurrency} at once · port ${model.function.port} · ${model.function.requests?.cpu ?? '100m'}/${model.function.requests?.memory ?? '128Mi'} requested · ${model.function.limits?.cpu ?? '1'}/${model.function.limits?.memory ?? '512Mi'} limit`}</span>)}
               {model.kind === 'llm' && model.llm && (
                 <span className="chip" data-testid="llm-serving">{`LLM · ${model.llm.gpus} GPU${model.llm.gpus === 1 ? '' : 's'} per replica · context ${model.llm.context_length ?? 'model default'}`}</span>)}
               {model.kind !== 'function' && <>

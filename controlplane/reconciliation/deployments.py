@@ -13,7 +13,7 @@ revision, and returns to READY only once it is observed serving again.
 
 from __future__ import annotations
 
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import datetime
 from uuid import UUID
 
@@ -27,8 +27,9 @@ from controlplane.application.providers import (
 )
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import Deployment, Endpoint
-from controlplane.domain.errors import Conflict, NotFound
+from controlplane.domain.errors import NotFound
 from controlplane.domain.states import DeploymentStatus, EndpointStatus
+from controlplane.reconciliation.batch import ReconcileBackoff, reconcile_batch
 
 SYSTEM = "reconciler"
 
@@ -48,17 +49,12 @@ class DeploymentReconciler:
         self._uow_factory = uow_factory
         self._serving = serving
         self._clock = clock
+        self._retry = ReconcileBackoff()
 
     def reconcile_all(self) -> list[DeploymentResult]:
         with self._uow_factory() as uow:
             ids = [d.id for d in uow.deployments.list_reconcilable()]
-        results = []
-        for deployment_id in ids:
-            try:
-                results.append(self.reconcile(deployment_id))
-            except Conflict:
-                continue  # another writer moved it first; next pass picks it up
-        return results
+        return reconcile_batch(ids, self.reconcile, "deployments", self._retry)
 
     def reconcile(self, deployment_id: UUID) -> DeploymentResult:
         with self._uow_factory() as uow:
@@ -74,6 +70,26 @@ class DeploymentReconciler:
                 else None
             )
         before = deployment.status
+        if before is DeploymentStatus.DELETED:
+            return DeploymentResult(deployment_id, before, before)
+        if before is DeploymentStatus.DELETING and project is not None:
+            ref = serving_ref(project, deployment)
+            self._serving.delete(ref)
+            if self._serving.get_status(ref).state is not ServingState.ABSENT:
+                return DeploymentResult(deployment_id, before, before)
+            now = self._clock()
+            done = replace(
+                deployment.transition_to(DeploymentStatus.DELETED, now),
+                active_revision=None,
+                desired_revision=None,
+            )
+            with self._uow_factory() as uow:
+                uow.deployments.update(done, expected_status=before)
+                uow.audit.record(
+                    self._event(now, "deployment.deleted", "deployment", deployment_id, deployment)
+                )
+                uow.commit()
+            return DeploymentResult(deployment_id, before, done.status)
         if rolling_out:
             # The rollout reconciler owns the serving resource (a canary split looks like
             # drift to this one). It resumes the moment the rollout ends.
@@ -87,11 +103,30 @@ class DeploymentReconciler:
         desired = revision.revision
         status = self._serving.get_status(ref)
 
+        spec = ServingSpec(
+            name=deployment.name,
+            namespace=project.namespace,
+            model_uri=revision.model_uri,
+            revision=desired,
+            runtime=revision.runtime.value,
+            gpus=revision.gpus,
+            context_length=revision.context_length,
+            function=revision.function.to_json() if revision.function else None,
+            secret_refs=revision.secret_refs,
+            labels={
+                "mlp.io/project-id": str(project.id),
+                "mlp.io/deployment": deployment.name,
+                "mlp.io/revision": str(desired),
+            },
+        )
+        drifted = status.state is not ServingState.ABSENT and not self._serving.matches(spec)
         if deployment.status is DeploymentStatus.READY:
-            if self._serving_it(status, desired):
+            if self._serving_it(status, desired) and not drifted:
                 return DeploymentResult(deployment_id, before, before)  # converged: no writes
             reason = (
-                "serving resource is missing"
+                "owned serving configuration differs"
+                if drifted
+                else "serving resource is missing"
                 if status.state is ServingState.ABSENT
                 else f"serving resource is not ready ({status.state.value})"
             )
@@ -103,24 +138,8 @@ class DeploymentReconciler:
             )
 
         applied = False
-        if status.state is ServingState.ABSENT or status.deployed_revision != desired:
-            self._serving.deploy(
-                ServingSpec(
-                    name=deployment.name,
-                    namespace=project.namespace,
-                    model_uri=revision.model_uri,
-                    revision=desired,
-                    runtime=revision.runtime.value,
-                    gpus=revision.gpus,
-                    context_length=revision.context_length,
-                    function=revision.function.to_json() if revision.function else None,
-                    labels={
-                        "mlp.io/project-id": str(project.id),
-                        "mlp.io/deployment": deployment.name,
-                        "mlp.io/revision": str(desired),
-                    },
-                )
-            )
+        if status.state is ServingState.ABSENT or status.deployed_revision != desired or drifted:
+            self._serving.deploy(spec)
             applied = True
             status = self._serving.get_status(ref)
 

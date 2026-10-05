@@ -39,6 +39,7 @@ from controlplane.adapters.fakes import (
     FakeExperimentProvider,
     FakeMetricsProvider,
     FakePlatformTelemetry,
+    FakeSecretProvider,
     FakeServingProvider,
     FakeUsage,
     FakeWorkflowProvider,
@@ -199,6 +200,7 @@ def build_demo(observed: bool = False, auth: AuthConfig | None = None) -> Demo:
     app = create_app(
         factory,
         clock,
+        secrets=FakeSecretProvider(),
         workflow=fakes["workflow"],
         experiments=fakes["experiments"],
         serving=fakes["serving"],
@@ -762,9 +764,10 @@ def _seed(
         kind=ModelKind.FUNCTION,
         function=FunctionServing(min_scale=0, max_scale=5, concurrency=20, env={"QUEUE": "tier1"}),
     )
-    for tag in ("1.3.0", "1.4.2"):
+    # Illustrative content digests for the fake serving provider, not published images.
+    for digest in ("a" * 64, "b" * 64):
         models.register_image(
-            "customer-support", "ticket-router", f"ghcr.io/acme/ticket-router:{tag}"
+            "customer-support", "ticket-router", f"ghcr.io/acme/ticket-router@sha256:{digest}"
         )
         clock.advance(300)
     deployments.create("customer-support", "ticket-router")

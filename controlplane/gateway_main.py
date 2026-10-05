@@ -17,6 +17,7 @@ from controlplane.application.gateway import GatewayService
 from controlplane.gateway import create_gateway
 from controlplane.main import auth_config
 from controlplane.observability.metrics import GatewayUsageMetrics
+from controlplane.persistence.readiness import DatabaseReadiness
 from controlplane.persistence.sql import SqlUnitOfWork, make_engine, sql_uow_factory
 from controlplane.settings import Settings
 
@@ -41,4 +42,4 @@ def app_factory() -> FastAPI:
         recorders=[GatewayUsageMetrics()],
         authenticator=auth.authenticator if auth is not None else None,
     )
-    return create_gateway(service)
+    return create_gateway(service, readiness=DatabaseReadiness(engine))

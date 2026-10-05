@@ -29,12 +29,15 @@ def compile_job_run(project: Project, job: JobDefinition, run: Run) -> WorkflowS
     return WorkflowSpec(
         name=workflow_name(run),
         namespace=project.namespace,
+        timeout_seconds=run.timeout_seconds,
+        image_pull_secrets=job.secret_refs.image_pull_secrets,
         steps=(
             StepSpec(
                 name=MAIN_STEP,
                 image=job.image,
                 command=job.command,
                 env=dict(job.env),
+                secret_refs=job.secret_refs,
                 resources=dict(job.resources),
             ),
         ),
@@ -101,12 +104,17 @@ def compile_pipeline_run(
                 command=job.command,
                 env={**job.env, **base, "MLP_STEP": name, "MLP_IMAGE": job.image},
                 resources=dict(job.resources),
+                secret_refs=job.secret_refs,
                 depends_on=spec.depends_on,
             )
         )
     return WorkflowSpec(
         name=pipeline_workflow_name(run),
         namespace=project.namespace,
+        timeout_seconds=run.timeout_seconds,
+        image_pull_secrets=tuple(
+            sorted({name for job in jobs.values() for name in job.secret_refs.image_pull_secrets})
+        ),
         steps=tuple(steps),
         labels={
             LABEL_MANAGED_BY: MANAGED_BY,

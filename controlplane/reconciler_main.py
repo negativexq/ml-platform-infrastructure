@@ -17,6 +17,7 @@ import structlog
 
 from controlplane import observability
 from controlplane.adapters.kubernetes import KubernetesClusterProvider, load_api_client
+from controlplane.adapters.kubernetes.networking import NetworkTopology
 from controlplane.adapters.metrics import PrometheusMetricsProvider
 from controlplane.adapters.mlflow import MlflowExperimentProvider
 from controlplane.adapters.serving import KServeServingProvider
@@ -28,6 +29,7 @@ from controlplane.reconciliation.deployments import DeploymentReconciler
 from controlplane.reconciliation.model_aliases import ModelAliasReconciler
 from controlplane.reconciliation.pipeline_runs import PipelineRunReconciler
 from controlplane.reconciliation.projects import ProjectReconciler
+from controlplane.reconciliation.retention import WorkflowRetentionReconciler
 from controlplane.reconciliation.rollouts import RolloutReconciler
 from controlplane.reconciliation.runs import RunReconciler
 from controlplane.settings import Settings
@@ -67,7 +69,22 @@ def main() -> None:
     uow = observed_uow_factory(lambda: SqlUnitOfWork(sessions))
     api = load_api_client(settings.kubeconfig or None)
 
-    cluster = observe(KubernetesClusterProvider(api), "cluster", observability.CLUSTER_MUTATIONS)
+    topology = NetworkTopology(
+        system_namespace=settings.system_namespace,
+        platform_namespace=settings.platform_namespace,
+        observability_namespace=settings.observability_namespace,
+        serving_namespaces=tuple(
+            s.strip() for s in settings.serving_namespaces.split(",") if s.strip()
+        ),
+        api_cidrs=tuple(s.strip() for s in settings.cluster_api_cidrs.split(",") if s.strip()),
+        external_https_cidrs=tuple(
+            s.strip() for s in settings.external_https_cidrs.split(",") if s.strip()
+        ),
+        isolate_egress=settings.project_egress_enabled,
+    )
+    cluster = observe(
+        KubernetesClusterProvider(api, topology), "cluster", observability.CLUSTER_MUTATIONS
+    )
     workflow = observe(ArgoWorkflowProvider(api), "workflow", observability.WORKFLOW_MUTATIONS)
     serving = observe(KServeServingProvider(api), "serving", observability.SERVING_MUTATIONS)
     experiments = (
@@ -122,6 +139,8 @@ def main() -> None:
         else None
     )
 
+    retention = WorkflowRetentionReconciler(uow, workflow, settings.workflow_retention_seconds)
+
     log.info("reconciler started", telemetry=telemetry.enabled)
     try:
         while True:
@@ -153,6 +172,8 @@ def main() -> None:
                     "model_aliases",
                     lambda: [r for r in aliases.reconcile_all() if r.synced or r.drift],
                 )
+            if settings.workflow_retention_seconds:
+                _pass("workflow_retention", retention.reconcile_all)
             time.sleep(settings.reconcile_interval_seconds)
     finally:
         telemetry.shutdown()

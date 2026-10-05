@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from typing import Literal
 
+from pydantic import Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -11,6 +12,14 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://platform:platform@localhost:5432/controlplane"
     # Empty: in-cluster config, then ~/.kube/config.
     kubeconfig: str = ""
+    system_namespace: str = "mlp-system"
+    platform_namespace: str = "ml-platform"
+    observability_namespace: str = "observability"
+    serving_namespaces: str = "knative-serving,kourier-system,istio-system"
+    cluster_api_cidrs: str = ""
+    external_https_cidrs: str = ""
+    workflow_retention_seconds: int = Field(default=0, ge=0, le=31536000)
+    project_egress_enabled: bool = False
     reconcile_interval_seconds: float = 10.0
     # MLflow tracking server the control plane queries. Empty: tracking is not configured.
     mlflow_tracking_uri: str = ""

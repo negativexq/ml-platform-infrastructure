@@ -19,7 +19,7 @@ from controlplane.application.projects import Clock, UnitOfWorkFactory, utc_now
 from controlplane.application.providers import ExperimentProvider
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import Model, ModelVersion
-from controlplane.domain.states import ModelStatus
+from controlplane.domain.states import ModelKind, ModelStatus
 
 SYSTEM = "reconciler"
 
@@ -55,7 +55,7 @@ class ModelAliasReconciler:
 
     def reconcile_all(self) -> list[AliasResult]:
         with self._uow_factory() as uow:
-            ids = [m.id for m in uow.models.list_all()]
+            ids = [m.id for m in uow.models.list_all() if m.kind is ModelKind.CLASSIC]
         results = []
         for model_id in ids:
             try:
@@ -67,7 +67,7 @@ class ModelAliasReconciler:
     def reconcile(self, model_id: UUID) -> AliasResult:
         with self._uow_factory() as uow:
             model = uow.models.get(model_id)
-            if model is None:
+            if model is None or model.kind is not ModelKind.CLASSIC:
                 return AliasResult(model_id)
             project = uow.projects.get(model.project_id)
             versions = list(uow.model_versions.list(model.id))

@@ -137,6 +137,9 @@ class _Projects:
     def get(self, project_id: UUID) -> Project | None:
         return self._data.get(project_id)
 
+    def lock(self, project_id: UUID) -> Project | None:
+        return self.get(project_id)
+
     def get_by_name(self, name: str) -> Project | None:
         return next((p for p in self._data.values() if p.name == name), None)
 
@@ -236,6 +239,18 @@ class _Runs:
             key=lambda r: (r.created_at, r.id),
         )
 
+    def list_cleanup_candidates(self, before: datetime, limit: int) -> Sequence[Run]:
+        rows = (
+            r
+            for r in self._data.values()
+            if r.is_terminal
+            and r.finished_at is not None
+            and r.finished_at < before
+            and r.external_ref is not None
+            and r.workflow_cleaned_at is None
+        )
+        return sorted(rows, key=lambda r: (r.finished_at, r.id))[:limit]
+
     def update(self, run: Run, *, expected_status: RunStatus) -> None:
         current = self._data.get(run.id)
         if current is None:
@@ -330,6 +345,18 @@ class _PipelineRuns:
             (r for r in self._data.values() if not r.is_terminal),
             key=lambda r: (r.created_at, r.id),
         )
+
+    def list_cleanup_candidates(self, before: datetime, limit: int) -> Sequence[PipelineRun]:
+        rows = (
+            r
+            for r in self._data.values()
+            if r.is_terminal
+            and r.finished_at is not None
+            and r.finished_at < before
+            and r.external_ref is not None
+            and r.workflow_cleaned_at is None
+        )
+        return sorted(rows, key=lambda r: (r.finished_at, r.id))[:limit]
 
     def update(self, run: PipelineRun, *, expected_status: RunStatus) -> None:
         current = self._data.get(run.id)
@@ -518,6 +545,9 @@ class _Deployments:
     def get(self, deployment_id: UUID) -> Deployment | None:
         return self._data.get(deployment_id)
 
+    def lock(self, deployment_id: UUID) -> Deployment | None:
+        return self.get(deployment_id)
+
     def get_by_name(self, project_id: UUID, name: str) -> Deployment | None:
         return next(
             (d for d in self._data.values() if d.project_id == project_id and d.name == name), None
@@ -531,7 +561,12 @@ class _Deployments:
 
     def list_reconcilable(self) -> Sequence[Deployment]:
         return sorted(
-            (d for d in self._data.values() if d.desired_revision is not None),
+            (
+                d
+                for d in self._data.values()
+                if d.status is DeploymentStatus.DELETING
+                or (d.desired_revision is not None and d.status is not DeploymentStatus.DELETED)
+            ),
             key=lambda d: (d.created_at, d.id),
         )
 

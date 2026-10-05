@@ -5,6 +5,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from controlplane.api.secrets import SecretRefsIn
 from controlplane.application.models import DiscoveryResult, ModelView, VersionView
 from controlplane.domain.entities import (
     Check,
@@ -45,6 +46,13 @@ class FunctionServingIn(BaseModel):
     concurrency: int = Field(10, ge=1, le=1000, description="requests one replica takes at once")
     port: int = Field(8080, ge=1024, le=65535, description="where the container listens")
     env: dict[str, str] = Field(default_factory=dict)
+    requests: dict[str, str] = Field(default_factory=lambda: {"cpu": "100m", "memory": "128Mi"})
+    limits: dict[str, str] = Field(default_factory=lambda: {"cpu": "1", "memory": "512Mi"})
+    readiness_path: str | None = Field(
+        None, description="HTTP readiness path; null uses a TCP probe"
+    )
+    readiness_timeout_seconds: int = Field(2, ge=1, le=60)
+    readiness_initial_delay_seconds: int = Field(0, ge=0, le=600)
 
     def to_domain(self) -> FunctionServing:
         return FunctionServing(
@@ -53,6 +61,11 @@ class FunctionServingIn(BaseModel):
             concurrency=self.concurrency,
             port=self.port,
             env=self.env,
+            requests=self.requests,
+            limits=self.limits,
+            readiness_path=self.readiness_path,
+            readiness_timeout_seconds=self.readiness_timeout_seconds,
+            readiness_initial_delay_seconds=self.readiness_initial_delay_seconds,
         )
 
     @classmethod
@@ -63,6 +76,11 @@ class FunctionServingIn(BaseModel):
             concurrency=f.concurrency,
             port=f.port,
             env=dict(f.env),
+            requests=dict(f.requests),
+            limits=dict(f.limits),
+            readiness_path=f.readiness_path,
+            readiness_timeout_seconds=f.readiness_timeout_seconds,
+            readiness_initial_delay_seconds=f.readiness_initial_delay_seconds,
         )
 
 
@@ -70,14 +88,15 @@ class ImageVersionCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     image: str = Field(
-        description="<registry>/<path>:<tag> or @sha256:<digest>",
-        examples=["ghcr.io/acme/ticket-router:1.4.2"],
+        description="Immutable function image: <registry>/<path>@sha256:<64 lowercase hex digits>",
+        examples=["ghcr.io/acme/ticket-router@sha256:" + "a" * 64],
     )
 
 
 class ModelCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+    secret_refs: SecretRefsIn = Field(default_factory=SecretRefsIn)
     name: str
     kind: ModelKind = Field(ModelKind.CLASSIC, description="classic, llm or function")
     llm: LlmServingIn | None = Field(None, description="how an LLM is served (kind llm only)")
@@ -147,6 +166,7 @@ class ModelVersionSummary(BaseModel):
 class ModelOut(BaseModel):
     id: UUID
     project_id: UUID
+    secret_refs: SecretRefsIn = Field(default_factory=SecretRefsIn)
     name: str
     registry_name: str = Field(description="Name to register versions under in the model registry")
     thresholds: dict[str, ThresholdIn]
@@ -165,6 +185,7 @@ class ModelOut(BaseModel):
             id=view.model.id,
             project_id=view.model.project_id,
             name=view.model.name,
+            secret_refs=SecretRefsIn.from_domain(view.model.secret_refs),
             registry_name=view.registry_name,
             thresholds={
                 k: ThresholdIn(min=t.min, max=t.max) for k, t in view.model.thresholds.items()

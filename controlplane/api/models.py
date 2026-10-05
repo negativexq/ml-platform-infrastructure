@@ -63,6 +63,7 @@ def models_router() -> APIRouter:
             body.name,
             {k: t.to_domain() for k, t in body.thresholds.items()},
             kind=body.kind,
+            secret_refs=body.secret_refs.to_domain(),
             serving=body.serving(),
             function=(
                 (body.function or FunctionServingIn()).to_domain()

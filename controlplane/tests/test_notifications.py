@@ -217,7 +217,7 @@ def test_sql_receipts_are_idempotent_durable_and_transactional() -> None:
     # This port only needs portable scalar columns. Exercise real SQL even when the
     # optional PostgreSQL integration fixture is not installed.
     engine = create_engine("sqlite://")
-    NotificationReadRow.__table__.create(engine)
+    NotificationReadRow.metadata.tables["notification_reads"].create(engine)
     sessions = sessionmaker(engine)
     at = FakeClock()()
     with sessions.begin() as session:

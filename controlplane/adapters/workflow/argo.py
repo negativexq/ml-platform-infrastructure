@@ -65,7 +65,11 @@ def _split(ref: str) -> tuple[str, str]:
 def _container(step: StepSpec) -> dict[str, Any]:
     container: dict[str, Any] = {
         "image": step.image,
-        "env": [{"name": k, "value": v} for k, v in step.env.items()],
+        "env": [{"name": k, "value": v} for k, v in step.env.items()]
+        + [
+            {"name": k, "valueFrom": {"secretKeyRef": {"name": r.name, "key": r.key}}}
+            for k, r in sorted(step.secret_refs.env.items())
+        ],
     }
     if step.command:
         container["command"] = list(step.command)
@@ -108,7 +112,12 @@ def build_workflow(spec: WorkflowSpec) -> dict[str, Any]:
         "spec": {
             "entrypoint": entrypoint,
             "serviceAccountName": SERVICE_ACCOUNT,
-            "activeDeadlineSeconds": DEFAULT_DEADLINE_SECONDS,
+            "activeDeadlineSeconds": spec.timeout_seconds,
+            **(
+                {"imagePullSecrets": [{"name": n} for n in spec.image_pull_secrets]}
+                if spec.image_pull_secrets
+                else {}
+            ),
             "templates": templates,
         },
     }
@@ -146,6 +155,21 @@ class ArgoWorkflowProvider:
                 raise NotFound("workflow", ref) from None
             raise
         return workflow
+
+    def delete(self, ref: str) -> None:
+        namespace, name = _split(ref)
+        try:
+            self._custom.delete_namespaced_custom_object(
+                GROUP,
+                VERSION,
+                namespace,
+                PLURAL,
+                name,
+                body=client.V1DeleteOptions(propagation_policy="Foreground"),
+            )
+        except ApiException as exc:
+            if exc.status != 404:
+                raise
 
     def get_status(self, ref: str) -> WorkflowStatus:
         workflow = self._get(ref)

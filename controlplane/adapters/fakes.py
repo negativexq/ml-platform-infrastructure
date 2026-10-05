@@ -104,6 +104,11 @@ class FakeWorkflowProvider:
         self.get_status(ref)
         return self._logs.get((ref, step), "")
 
+    def delete(self, ref: str) -> None:
+        self.submitted.pop(ref, None)
+        self._status.pop(ref, None)
+        self._logs = {k: v for k, v in self._logs.items() if k[0] != ref}
+
     # test controls
     def set_state(
         self,
@@ -166,6 +171,9 @@ class FakeServingProvider:
             if self.auto_ready:
                 self._ready.add(ref)
         return ref
+
+    def matches(self, spec: ServingSpec) -> bool:
+        return self.specs.get(f"{spec.namespace}/{spec.name}") == spec
 
     def split(self, ref: str) -> dict[int, int]:
         """Who gets what share of traffic right now."""
@@ -486,3 +494,52 @@ class FakeClusterProvider:
 
     def remove_resource(self, namespace: str, resource: str) -> None:
         self.namespaces[namespace].discard(resource)
+
+
+class FakeSecretProvider:
+    """Test/demo backend; production always explicitly configures Kubernetes storage."""
+
+    def __init__(self) -> None:
+        self._data: dict[tuple[UUID, str], tuple[Any, dict[str, str]]] = {}
+        self._version = 0
+
+    def list(self, project: Any) -> list[Any]:
+        return sorted(
+            [v[0] for (pid, _), v in self._data.items() if pid == project.id], key=lambda i: i.name
+        )
+
+    def get(self, project: Any, name: str) -> Any:
+        entry = self._data.get((project.id, name))
+        if entry is None:
+            raise NotFound("project secret", name)
+        return entry[0]
+
+    def put(
+        self,
+        project: Any,
+        name: str,
+        values: Mapping[str, str],
+        kind: str,
+        expected_version: str | None,
+    ) -> Any:
+        from controlplane.application.secrets import SecretInfo
+        from controlplane.domain.errors import AlreadyExists, Conflict
+
+        existing = self._data.get((project.id, name))
+        if expected_version is None and existing is not None:
+            raise AlreadyExists("project secret", name)
+        if expected_version is not None and (
+            existing is None or existing[0].version != expected_version
+        ):
+            raise Conflict("secret changed")
+        self._version += 1
+        info = SecretInfo(name, tuple(sorted(values)), kind, str(self._version))
+        self._data[(project.id, name)] = (info, dict(values))
+        return info
+
+    def delete(self, project: Any, name: str, expected_version: str) -> None:
+        from controlplane.domain.errors import Conflict
+
+        if self.get(project, name).version != expected_version:
+            raise Conflict("secret changed")
+        del self._data[(project.id, name)]

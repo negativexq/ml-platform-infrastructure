@@ -40,6 +40,9 @@ export function JobsPage({ project }: { project: string }) {
       title: 'New job', submitLabel: 'Create job',
       intro: 'A job is a container image and a command. Run it on its own or as a step of a pipeline.',
       fields: [
+        { name: 'secretRefs', label: 'Secret references (JSON)', type: 'textarea' as const,
+          placeholder: '{"env":{"AWS_ACCESS_KEY_ID":{"name":"training-credentials","key":"access-key"}},"image_pull_secrets":["registry-login"]}',
+          hint: 'Use project secret names and keys only. Project admins manage the values in Settings → Secrets.' },
         { name: 'name', label: 'Name', required: true, pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$', placeholder: 'train-model',
           hint: 'Lowercase letters, digits and dashes; pipelines refer to the job by this name.' },
         { name: 'image', label: 'Image', required: true, placeholder: 'registry.example.com/team/train:sha-a83d2c1', hint: 'Pin a tag or digest, so a rerun runs the same code.' },
@@ -55,7 +58,7 @@ export function JobsPage({ project }: { project: string }) {
         const resources: Record<string, string> = {};
         if (v.cpu) resources.cpu = v.cpu;
         if (v.memory) resources.memory = v.memory;
-        return api.post<S['JobOut']>(`/projects/${p}/jobs`, { name: v.name, image: v.image, command, resources, env });
+        return api.post<S['JobOut']>(`/projects/${p}/jobs`, { secret_refs: JSON.parse(v.secretRefs || '{}'), name: v.name, image: v.image, command, resources, env });
       },
     });
     if (job) { toast(`Job ${job.name} created`); go(`${routes.project(project)}/jobs/${enc(job.name)}`); }

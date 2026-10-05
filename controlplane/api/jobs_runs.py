@@ -8,7 +8,7 @@ from fastapi.responses import PlainTextResponse
 
 from controlplane.api.errors import PlatformRoute
 from controlplane.api.schemas import ErrorOut
-from controlplane.api.schemas_runs import JobCreate, JobList, JobOut, RunList, RunOut
+from controlplane.api.schemas_runs import JobCreate, JobList, JobOut, RunCreate, RunList, RunOut
 from controlplane.application.jobs import CreateJob, JobService
 from controlplane.application.providers import WorkflowProvider
 from controlplane.application.runs import RunService
@@ -56,6 +56,8 @@ def jobs_router() -> APIRouter:
                 command=tuple(body.command),
                 resources=body.resources,
                 env=body.env,
+                timeout_seconds=body.timeout_seconds,
+                secret_refs=body.secret_refs.to_domain(),
             ),
         )
         if not created:
@@ -87,9 +89,15 @@ def jobs_router() -> APIRouter:
         request: Request,
         response: Response,
         idempotency_key: IdempotencyKey = None,
+        body: RunCreate | None = None,
     ) -> RunOut:
         runs: RunService = request.app.state.runs
-        run, created = runs.create(project, job, idempotency_key=idempotency_key)
+        run, created = runs.create(
+            project,
+            job,
+            idempotency_key=idempotency_key,
+            timeout_seconds=body.timeout_seconds if body else None,
+        )
         if not created:
             response.status_code = status.HTTP_200_OK
         return RunOut.from_domain(run)
@@ -157,7 +165,7 @@ def runs_router() -> APIRouter:
     @router.get(
         "/runs/{run_id}/logs",
         response_class=PlainTextResponse,
-        responses={503: {"model": ErrorOut}, **_ERRORS},
+        responses={410: {"model": ErrorOut}, 503: {"model": ErrorOut}, **_ERRORS},
         summary="Run logs, read through the platform",
     )
     def run_logs(run_id: UUID, request: Request) -> str:
@@ -169,6 +177,8 @@ def runs_router() -> APIRouter:
         run = svc(request).get(run_id)
         if run.external_ref is None:
             return ""  # not submitted yet: nothing has run
+        if run.workflow_cleaned_at is not None:
+            raise HTTPException(410, "workflow logs expired under the retention policy")
         return workflow.get_logs(run.external_ref, MAIN_STEP)
 
     return router

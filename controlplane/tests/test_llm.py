@@ -282,7 +282,7 @@ def test_a_streamed_reply_passes_through_and_is_still_counted(env: Env) -> None:
     assert call.units > 0 and call.prompt_tokens > 0 and call.completion_tokens > 0
 
 
-def test_token_limits_let_a_call_in_then_charge_what_it_used(env: Env) -> None:
+def test_token_limits_reserve_before_forwarding_and_refund_reported_usage(env: Env) -> None:
     gw = Gateway(env)  # 200 tokens per minute
     used = 0
     codes = []
@@ -292,7 +292,7 @@ def test_token_limits_let_a_call_in_then_charge_what_it_used(env: Env) -> None:
         if reply.status_code == 200:
             used += reply.json()["usage"]["total_tokens"]
     assert 429 in codes and codes[0] == 200
-    assert used >= 200  # the last admitted call can overshoot: it is charged afterwards
+    assert 0 < used < 200  # admission reserves prompt estimate and bounded output
     refused = gw.chat()
     assert refused.status_code == 429 and int(refused.headers["retry-after"]) >= 1
     gw.time.t += 60 + CACHE_SECONDS

@@ -1,0 +1,16 @@
+{{- $name := include "controlplane.name" . }}
+{{- range $component := list "api" "gateway" }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}-{{ $component }}
+spec:
+  selector:
+    app.kubernetes.io/instance: {{ $.Release.Name }}
+    app.kubernetes.io/name: mlp-controlplane-{{ $component }}
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
+{{- end }}

@@ -1,0 +1,82 @@
+{{- if ne (int .Values.reconciler.replicas) 1 }}
+{{- fail "reconciler.replicas must be 1 until leader election is implemented" }}
+{{- end }}
+{{- $name := include "controlplane.name" . }}
+{{- range $component := list "api" "gateway" "reconciler" }}
+{{- $settings := index $.Values $component }}
+{{- $port := ternary 8081 8080 (eq $component "gateway") }}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}-{{ $component }}
+spec:
+  replicas: {{ $settings.replicas }}
+  {{- if eq $component "reconciler" }}
+  strategy:
+    type: Recreate
+  {{- end }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ $.Release.Name }}
+      app.kubernetes.io/name: mlp-controlplane-{{ $component }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: {{ $.Release.Name }}
+        app.kubernetes.io/name: mlp-controlplane-{{ $component }}
+        app.kubernetes.io/part-of: ml-platform
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") $ | sha256sum }}
+    spec:
+      serviceAccountName: {{ $name }}-{{ $component }}
+      securityContext:
+        {{- include "controlplane.podSecurity" $ | nindent 8 }}
+      {{- with $.Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      containers:
+        - name: {{ $component }}
+          image: {{ include "controlplane.image" $ | quote }}
+          imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          {{- if eq $component "reconciler" }}
+          command: [python, -m, controlplane.reconciler_main]
+          {{- else }}
+          command:
+            - uvicorn
+            - {{ ternary "controlplane.gateway_main:app_factory" "controlplane.main:app_factory" (eq $component "gateway") }}
+            - --factory
+            - --host=0.0.0.0
+            - --port={{ $port }}
+            - --no-access-log
+          ports:
+            - {name: http, containerPort: {{ $port }}}
+          startupProbe:
+            httpGet: {path: /healthz, port: http}
+            failureThreshold: 30
+            periodSeconds: 5
+          readinessProbe:
+            httpGet: {path: /readyz, port: http}
+            periodSeconds: 5
+            timeoutSeconds: 8
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 10
+          {{- end }}
+          envFrom:
+            - configMapRef:
+                name: {{ $name }}
+            {{- if $.Values.identity.existingSecret }}
+            - secretRef:
+                name: {{ $.Values.identity.existingSecret }}
+            {{- end }}
+          env:
+            {{- include "controlplane.databaseEnv" $ | nindent 12 }}
+            - name: OTEL_SERVICE_NAME
+              value: {{ ternary "mlp-gateway" (printf "mlp-controlplane-%s" $component) (eq $component "gateway") }}
+          resources:
+            {{- toYaml $settings.resources | nindent 12 }}
+          securityContext:
+            {{- include "controlplane.containerSecurity" $ | nindent 12 }}
+{{- end }}

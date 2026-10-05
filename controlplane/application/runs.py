@@ -9,7 +9,7 @@ from controlplane.application.jobs import resolve_project
 from controlplane.application.ports import UnitOfWork
 from controlplane.application.projects import Clock, UnitOfWorkFactory, utc_now
 from controlplane.domain.audit import AuditEvent
-from controlplane.domain.entities import Run
+from controlplane.domain.entities import Run, validate_timeout
 from controlplane.domain.errors import AlreadyExists, Conflict, NotFound
 from controlplane.domain.states import ProjectStatus, RunStatus
 
@@ -41,11 +41,12 @@ class RunService:
         *,
         idempotency_key: str | None = None,
         retry_of: UUID | None = None,
+        timeout_seconds: int | None = None,
     ) -> tuple[Run, bool]:
         """Returns `(run, created)`. The same `idempotency_key` for the same job
         returns the original run instead of creating a second workload."""
         try:
-            return self._create(project_ref, job_name, idempotency_key, retry_of)
+            return self._create(project_ref, job_name, idempotency_key, retry_of, timeout_seconds)
         except AlreadyExists:  # lost a race on the idempotency key: replay the winner
             with self._uow_factory() as uow:
                 project = resolve_project(uow, project_ref)
@@ -54,21 +55,37 @@ class RunService:
                 job = uow.jobs.get_by_name(project.id, job_name)
             if existing is None or job is None or existing.job_definition_id != job.id:
                 raise
+            if existing.timeout_seconds != (
+                job.timeout_seconds if timeout_seconds is None else timeout_seconds
+            ):
+                raise Conflict("idempotency key was used with a different timeout") from None
             return existing, False
 
     def _create(
-        self, project_ref: str, job_name: str, key: str | None, retry_of: UUID | None
+        self,
+        project_ref: str,
+        job_name: str,
+        key: str | None,
+        retry_of: UUID | None,
+        timeout_seconds: int | None,
     ) -> tuple[Run, bool]:
         with self._uow_factory() as uow:
             project = resolve_project(uow, project_ref)
             job = uow.jobs.get_by_name(project.id, job_name)
             if job is None:
                 raise NotFound("job", job_name)
+            timeout = validate_timeout(
+                job.timeout_seconds if timeout_seconds is None else timeout_seconds
+            )
             if key is not None:
                 existing = uow.runs.get_by_idempotency_key(project.id, key)
                 if existing is not None:
                     if existing.job_definition_id != job.id:
                         raise Conflict(f"idempotency key {key!r} was used for a different job")
+                    if existing.timeout_seconds != timeout:
+                        raise Conflict(
+                            "idempotency key was used with a different timeout"
+                        ) from None
                     return existing, False
             if project.status is not ProjectStatus.READY:
                 raise Conflict(
@@ -79,6 +96,7 @@ class RunService:
                 project_id=project.id,
                 job_definition_id=job.id,
                 retry_of=retry_of,
+                timeout_seconds=timeout,
                 idempotency_key=key,
                 traceparent=current_traceparent(),
                 created_at=now,
@@ -138,7 +156,11 @@ class RunService:
             project = uow.projects.get(original.project_id)
         assert job is not None and project is not None
         return self.create(
-            str(project.id), job.name, idempotency_key=idempotency_key, retry_of=original.id
+            str(project.id),
+            job.name,
+            idempotency_key=idempotency_key,
+            retry_of=original.id,
+            timeout_seconds=original.timeout_seconds,
         )
 
     def request_cancel(self, run_id: UUID) -> Run:

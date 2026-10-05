@@ -11,6 +11,7 @@ into `invoke()` calls and `GatewayReply` / `GatewayError` back into responses.
 
 from __future__ import annotations
 
+import asyncio
 import time
 from collections.abc import AsyncIterator, Callable, Sequence
 from dataclasses import dataclass, field
@@ -19,7 +20,7 @@ from uuid import UUID
 
 from controlplane.application.deployments import serving_ref
 from controlplane.application.identity import Authenticator, role_in
-from controlplane.application.llm import InvalidChatRequest, TokenMeter, prepare_chat
+from controlplane.application.llm import InvalidChatRequest, TokenMeter, prepare_chat, reserve_chat
 from controlplane.application.projects import Clock, UnitOfWorkFactory, utc_now
 from controlplane.domain.access import Principal, ProjectRole
 from controlplane.domain.api_keys import ApiKey, parse_token
@@ -97,6 +98,8 @@ class RateLimiter(Protocol):
     def take(self, buckets: Sequence[tuple[str, int]], units: int) -> Allowance:
         """Take `units` from every (bucket, per-minute limit) at once, or from none."""
         ...
+
+    def refund(self, buckets: Sequence[tuple[str, int]], units: int) -> None: ...
 
     def admit(self, buckets: Sequence[tuple[str, int]]) -> Allowance:
         """Allowed while every bucket has something left; takes nothing. For calls whose
@@ -198,6 +201,8 @@ class GatewayService:
         started = self._monotonic()
         caller: Caller | None = None
         route: Route | None = None
+        reserved = 0
+        admitted = False
         try:
             caller = self._authenticate(token)
             route = self._route(project, endpoint)
@@ -222,12 +227,19 @@ class GatewayService:
             if route.protocol is EndpointProtocol.OPENAI:
                 try:
                     body = prepare_chat(body, route.endpoint)
+                    body, reserved = reserve_chat(
+                        body, min(limit for _, limit in self._buckets(caller, route))
+                    )
                 except InvalidChatRequest as exc:
                     raise GatewayError(400, "invalid_request", str(exc)) from exc
-            allowance = self._limit(caller, route)
+            allowance = self._limit(caller, route, reserved)
+            admitted = True
             reply = await self._forward(route, body, request_id)
         except GatewayError as error:
-            self._record(caller, route, error.status, 0, started)
+            self._record(caller, route, error.status, reserved if admitted else 0, started)
+            raise
+        except asyncio.CancelledError:
+            self._record(caller, route, 499, reserved if admitted else 0, started)
             raise
         headers = {
             "RateLimit-Limit": str(allowance.limit),
@@ -239,7 +251,7 @@ class GatewayService:
         return GatewayReply(
             reply.status,
             reply.content_type,
-            self._counted(reply, caller, route, started),
+            self._counted(reply, caller, route, started, reserved),
             headers,
         )
 
@@ -288,14 +300,9 @@ class GatewayService:
             ),
         ]
 
-    def _limit(self, caller: Caller, route: Route) -> Allowance:
+    def _limit(self, caller: Caller, route: Route, reserved: int = 0) -> Allowance:
         buckets = self._buckets(caller, route)
-        if route.kind is EndpointKind.LLM:
-            # Tokens are known only once the model has answered: let the call in while there
-            # is room, charge what it used afterwards.
-            allowance = self._limiter.admit(buckets)
-        else:
-            allowance = self._limiter.take(buckets, 1)
+        allowance = self._limiter.take(buckets, reserved if route.kind is EndpointKind.LLM else 1)
         if not allowance.allowed:
             raise GatewayError(
                 429,
@@ -324,11 +331,12 @@ class GatewayService:
             raise GatewayError(502, "upstream_unavailable", "the model did not answer") from exc
 
     async def _counted(
-        self, reply: UpstreamReply, caller: Caller, route: Route, started: float
+        self, reply: UpstreamReply, caller: Caller, route: Route, started: float, reserved: int = 0
     ) -> AsyncIterator[bytes]:
         """Pass the reply through as it arrives, then count the call once it has ended: one
         request for a model, the tokens it used for an LLM."""
         status = reply.status
+        complete = False
         meter = None
         if route.kind is EndpointKind.LLM:
             meter = TokenMeter(streamed="text/event-stream" in reply.content_type)
@@ -337,7 +345,8 @@ class GatewayService:
                 if meter is not None:
                     meter.feed(chunk)
                 yield chunk
-        except Exception:
+            complete = True
+        except BaseException:
             status = 502
             raise
         finally:
@@ -345,10 +354,16 @@ class GatewayService:
                 self._record(caller, route, status, 1 if status < 500 else 0, started)
             else:
                 meter.finish()
-                if meter.total:
-                    self._limiter.charge(self._buckets(caller, route), meter.total)
+                measured = (
+                    meter.total if complete and meter.usage_reported else max(reserved, meter.total)
+                )
+                buckets = self._buckets(caller, route)
+                if measured < reserved:
+                    self._limiter.refund(buckets, reserved - measured)
+                elif measured > reserved:
+                    self._limiter.charge(buckets, measured - reserved)
                 self._record(
-                    caller, route, status, meter.total, started, meter.prompt, meter.completion
+                    caller, route, status, measured, started, meter.prompt, meter.completion
                 )
 
     def _record(

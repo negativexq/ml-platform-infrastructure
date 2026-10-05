@@ -4,10 +4,10 @@
   in docs/evidence/m7/gate.md), so these are real, not decorative.
 
   default-deny-ingress   : nothing reaches any pod unless a policy allows it
-  postgres               : only MLflow may connect (5432)
-  minio                  : MLflow, inference, training, the backup shell (9000/9001)
-  mlflow                 : inference, training, the monitoring namespace, and
-                           node-port traffic (5000)
+  postgres               : MLflow and labelled control-plane processes (5432)
+  minio                  : MLflow, inference, training, backup, managed projects (9000/9001)
+  mlflow                 : inference, training, monitoring, control plane, managed
+                           projects and node-port traffic (5000)
 
   The inference pod is deliberately absent from the postgres allow-list: the
   application has no business talking to the metadata database directly, and
@@ -41,6 +41,17 @@ spec:
               app.kubernetes.io/name: mlflow
       ports:
         - { protocol: TCP, port: 5432 }
+    - from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.controlplaneNamespace }}
+          podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values: [mlp-controlplane-api, mlp-controlplane-reconciler, mlp-controlplane-gateway, mlp-controlplane-migrate, mlp-gateway]
+      ports:
+        - { protocol: TCP, port: 5432 }
 ---
 apiVersion: networking.k8s.io/v1
 kind: NetworkPolicy
@@ -70,6 +81,9 @@ spec:
         - podSelector:
             matchLabels:
               app.kubernetes.io/name: minio-createbucket
+        - namespaceSelector:
+            matchLabels:
+              app.kubernetes.io/managed-by: mlp-controlplane
       ports:
         - { protocol: TCP, port: 9000 }
         - { protocol: TCP, port: 9001 }
@@ -96,6 +110,17 @@ spec:
         - namespaceSelector:
             matchLabels:
               kubernetes.io/metadata.name: {{ .Values.networkPolicy.monitoringNamespace }}
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: {{ .Values.networkPolicy.controlplaneNamespace }}
+          podSelector:
+            matchExpressions:
+              - key: app.kubernetes.io/name
+                operator: In
+                values: [mlp-controlplane-api, mlp-controlplane-reconciler]
+        - namespaceSelector:
+            matchLabels:
+              app.kubernetes.io/managed-by: mlp-controlplane
       ports:
         - { protocol: TCP, port: 5000 }
     # Node-port / kube-proxy traffic arrives with the node IP as source, which

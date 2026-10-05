@@ -21,6 +21,7 @@ const LABELS: Record<string, string> = {
   'deployment.drift_detected': 'Serving drift detected', 'deployment.redeploying': 'Recreating serving resource',
   'deployment.failed': 'Failed', 'deployment.rolled_back': 'Rolled back', 'endpoint.ready': 'Endpoint ready',
   'endpoint.exposure_changed': 'Exposure changed',
+  'deployment.delete_requested': 'Deletion requested', 'deployment.deleted': 'Serving removed',
 };
 
 export function DeploymentPage({ project, name }: { project: string; name: string }) {
@@ -46,13 +47,14 @@ export function DeploymentPage({ project, name }: { project: string; name: strin
     <QueryView query={query}>
       {({ deployment: d, rollouts, metrics, audit }) => {
         const live = rollouts.find((r) => ROLLING.has(r.status));
-        const noRollback = Boolean(live) || d.revisions.length < 2 || d.active_revision == null;
+        const deleting = d.status === 'DELETING' || d.status === 'DELETED';
+        const noRollback = deleting || Boolean(live) || d.revisions.length < 2 || d.active_revision == null;
         return (
           <>
             <div className="page-head">
               <h1>{d.name}</h1><Badge status={d.status} />
               <div className="actions">
-                <button className="btn primary" type="button" data-testid="deploy" disabled={Boolean(live) || !access.may('operator')}
+                <button className="btn primary" type="button" data-testid="deploy" disabled={deleting || Boolean(live) || !access.may('operator')}
                   title={access.why('operator') ?? (live ? 'A rollout is in progress' : 'Deploy a model version here')} onClick={() => deploy({ deployment: d.name })}>Deploy a version</button>
                 <button className="btn danger" data-testid="rollback" disabled={noRollback || !access.may('operator')}
                   title={access.why('operator') ?? (live ? 'A rollout is in progress; abort it instead' : d.revisions.length < 2 ? 'There is no earlier revision' : 'Serve the previous revision again')}
@@ -62,6 +64,13 @@ export function DeploymentPage({ project, name }: { project: string; name: strin
                       body: `Revision r${d.active_revision} is replaced by r${prev}. The model served by r${prev} becomes the champion again and the current champion is archived.` }))
                       await act(() => api.post(`${base}/deployments/${enc(name)}/rollback`), `Rolling back to r${prev}`);
                   }}>Roll back</button>
+                <button className="btn danger" data-testid="delete-deployment" disabled={deleting || Boolean(live) || !access.may('admin')}
+                  title={access.why('admin') ?? (live ? 'Abort the rollout first' : 'Remove the serving workload')}
+                  onClick={async () => {
+                    if (await confirm({ title: 'Delete this deployment?', confirmLabel: 'Delete', danger: true,
+                      body: 'New calls will be refused and the serving workload will be removed. Revision and audit history are kept; the name cannot be reused.' }))
+                      await act(() => api.del(`${base}/deployments/${enc(name)}`), 'Deletion requested');
+                  }}>Delete deployment</button>
               </div>
             </div>
             <p className="sub">
