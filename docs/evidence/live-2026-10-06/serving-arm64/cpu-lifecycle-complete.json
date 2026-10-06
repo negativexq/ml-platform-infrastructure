@@ -1,0 +1,79 @@
+{
+  "project": "acceptance-ab12d8859a",
+  "context": "kind-mlp-acceptance",
+  "passed": true,
+  "phases": [
+    {
+      "phase": "project/RBAC",
+      "elapsed_seconds": 4.39544729096815,
+      "admission_checked": true
+    },
+    {
+      "phase": "training/MLflow/discovery",
+      "elapsed_seconds": 36.809059207793325,
+      "version_id": "748a588b-c1f4-49da-b95c-9d37fc73f9b9"
+    },
+    {
+      "phase": "CPU serving/gateway",
+      "elapsed_seconds": 55.14269395777956
+    },
+    {
+      "phase": "canary/metrics",
+      "elapsed_seconds": 231.6998652908951,
+      "rollout_id": "4ed94542-3a48-4601-ab4f-fe21ce347bba",
+      "backend_revisions": [
+        "scorer-predictor-00001",
+        "scorer-predictor-00002",
+        "scorer-predictor-00003"
+      ],
+      "metrics": {
+        "scorer-predictor-00001": {
+          "platform_revision": 1,
+          "observed_at": "2026-10-06T16:29:55.074130+00:00",
+          "p95_latency_ms": 4.805882352941176,
+          "error_rate": 0.0,
+          "requests_per_second": 2.2444736361342854,
+          "requests": 269.3368363361143
+        },
+        "scorer-predictor-00002": {
+          "platform_revision": 2,
+          "observed_at": "2026-10-06T16:29:55.084283+00:00",
+          "p95_latency_ms": 7.7499999999999964,
+          "error_rate": 0.0,
+          "requests_per_second": 0.487172572184186,
+          "requests": 58.46070866210232
+        },
+        "scorer-predictor-00003": {
+          "platform_revision": 2,
+          "observed_at": "2026-10-06T16:29:55.064293+00:00",
+          "p95_latency_ms": 4.813035267343449,
+          "error_rate": 0.0,
+          "requests_per_second": 2.7067973915680925,
+          "requests": 324.7890263876251
+        }
+      },
+      "limitation": "Healthy gate only; adversarial metric-label test remains separate"
+    },
+    {
+      "phase": "function/credential rotation",
+      "elapsed_seconds": 239.07805170770735
+    },
+    {
+      "phase": "same-revision drift repair",
+      "elapsed_seconds": 285.47921641590074,
+      "previous_backend": "function-predictor-00001",
+      "repaired_backend": "function-predictor-00003"
+    },
+    {
+      "phase": "scale-to-zero/reactivation",
+      "elapsed_seconds": 647.6486762906425,
+      "activation_request_seconds": 1.2477934588678181
+    }
+  ],
+  "source_revision": "27799ac7b60c2025634f63de9d49932c30e3d54d",
+  "source_clean": false,
+  "project_id": "d1eb7a28-59a4-484e-8a42-82cacf22e540",
+  "elapsed_seconds": 647.6487220828421,
+  "controlplane_image": "localhost:5201/mlp-controlplane@sha256:98ed667723bbbe27a0a0d6879b99dc6f1f1781ee3b5a042162fc98094e4eccdf",
+  "scope": "Single-node ARM64 lab, local auth none. Dirty acceptance artifacts; not production release, OIDC, GPU or multi-node proof."
+}

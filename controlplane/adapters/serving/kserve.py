@@ -236,8 +236,22 @@ def _owned_matches(actual: Any, desired: Any, key: str = "") -> bool:
         }
         if any(k not in desired and actual.get(k) not in (None, [], {}) for k in owned):
             return False
-        return all(_owned_matches(actual.get(k), v, k) for k, v in desired.items())
+        # KServe's Go probe serialization omits a zero initial delay. It is the
+        # Kubernetes default, not predictor drift; nonzero delays remain owned.
+        return all(
+            _owned_matches(
+                actual.get(k, 0)
+                if key == "readinessProbe" and k == "initialDelaySeconds"
+                else actual.get(k),
+                v,
+                k,
+            )
+            for k, v in desired.items()
+        )
     if isinstance(desired, list):
+        # KServe omits empty Go slices, notably a function's env list.
+        if actual is None and not desired:
+            return True
         if not isinstance(actual, list) or len(actual) != len(desired):
             return False
         if key in {"env", "imagePullSecrets"}:

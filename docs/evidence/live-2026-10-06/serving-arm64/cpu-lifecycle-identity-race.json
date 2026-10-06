@@ -1,0 +1,64 @@
+{
+  "project": "acceptance-6241ad5cf1",
+  "context": "kind-mlp-acceptance",
+  "passed": false,
+  "phases": [
+    {
+      "phase": "project/RBAC",
+      "elapsed_seconds": 4.3718589576892555,
+      "admission_checked": true
+    },
+    {
+      "phase": "training/MLflow/discovery",
+      "elapsed_seconds": 44.91626437474042,
+      "version_id": "c3a058a3-09c4-4324-b477-cb30c79493d3"
+    },
+    {
+      "phase": "CPU serving/gateway",
+      "elapsed_seconds": 53.10357716679573
+    },
+    {
+      "phase": "canary/metrics",
+      "elapsed_seconds": 244.78756574960425,
+      "rollout_id": "4dcfa5f3-f6cb-42aa-a109-b0ea8317f461",
+      "backend_revisions": [
+        "scorer-predictor-00001",
+        "scorer-predictor-00002",
+        "scorer-predictor-00003"
+      ],
+      "metrics": {
+        "scorer-predictor-00002": {
+          "platform_revision": 2,
+          "p95_latency_ms": 4.9110169491525415,
+          "error_rate": 0.0,
+          "requests_per_second": 0.5303056647077232,
+          "requests": 63.63667976492681
+        },
+        "scorer-predictor-00003": {
+          "platform_revision": 2,
+          "p95_latency_ms": 4.779181983115493,
+          "error_rate": 0.0,
+          "requests_per_second": 2.7693840579710147,
+          "requests": 332.2995169082125
+        },
+        "scorer-predictor-00001": {
+          "platform_revision": 1,
+          "p95_latency_ms": 4.831545064377682,
+          "error_rate": 0.0,
+          "requests_per_second": 2.0603679104218107,
+          "requests": 247.24414925061723
+        }
+      },
+      "limitation": "Healthy gate only; adversarial metric-label test remains separate"
+    },
+    {
+      "phase": "function/credential rotation",
+      "elapsed_seconds": 268.5545169576071
+    }
+  ],
+  "source_revision": "27799ac7b60c2025634f63de9d49932c30e3d54d",
+  "source_clean": false,
+  "project_id": "a0e1af50-f4e8-483a-ab0d-c13fc3ff0aa7",
+  "elapsed_seconds": 270.8379302499816,
+  "interruption_reason": "Transient repair status: latestReadyRevision still referred to the injected intermediate backend after a new desired apply-id. Poll now waits for matching immutable backend apply-id."
+}

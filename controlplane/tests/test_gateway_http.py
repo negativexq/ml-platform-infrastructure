@@ -197,3 +197,28 @@ def test_real_http_function_and_llm_streaming_admission() -> None:
             assert forwarded["stream_options"] == {"include_usage": True}
             assert any(call.units == 13 for call in usage.calls)
             assert usage.calls[-2].units > 100  # no usage retains prompt/output reservation
+
+
+def test_database_cache_miss_returns_redacted_unavailable() -> None:
+    from unittest.mock import AsyncMock
+
+    from fastapi.testclient import TestClient
+    from sqlalchemy.exc import OperationalError
+
+    service = AsyncMock(spec=GatewayService)
+    service.invoke.side_effect = OperationalError(
+        "SELECT sensitive_query", {}, Exception("private database connection details")
+    )
+    with TestClient(create_gateway(service)) as client:
+        response = client.post(
+            "/v1/project/function/invoke", json={}, headers={"x-request-id": "outage-check"}
+        )
+    assert response.status_code == 503
+    assert response.json() == {
+        "error": {
+            "code": "data_store_unavailable",
+            "message": "gateway data store unavailable",
+            "request_id": "outage-check",
+        }
+    }
+    service.invoke.assert_awaited_once()

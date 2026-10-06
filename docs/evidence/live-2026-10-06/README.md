@@ -20,8 +20,7 @@ is `none`; this batch does not prove OIDC authentication. CI remains manual.
 
 The image gate's source/image digest is authoritative for that gate. Cluster checks were
 run during incremental upgrades; individual reports retain their own image IDs. The
-rolling-drain image uses source `13c863c` with the new chart drain; the latest deployed
-control-plane image is `b7a3420` at
+rolling-drain image uses source `13c863c` with the new chart drain; that clean control-plane artifact uses `b7a3420` at
 `sha256:6defe9e96badf9c5976aa080fddfe6c90ae29e86f07491a758bdc3633d241ec6`.
 
 The pinned base was updated to Python 3.12.15 slim Bookworm after the previous digest
@@ -47,7 +46,7 @@ passing evidence. Limiter load/outage, restore, GPU/HF and multi-node checks als
 open. Private fixture credentials and debug logs are deliberately excluded from this
 public evidence directory.
 
-## CPU progress and fixes still requiring an image rollout
+## Original CPU failures and later follow-up
 
 [CPU partial report](cpu-lifecycle-ready-storage.json) passes project/RBAC and real
 Argo training → MLflow registration → automatic discovery → threshold evaluation in
@@ -76,3 +75,56 @@ inference also passes. See [ARM64 follow-up](serving-arm64/README.md) for the re
 partial lifecycle failures and five HIGH findings blocking production release.
 The MinIO chart image defaults remain unavailable upstream; only the explicit acceptance
 values override them with the recorded locally built images.
+
+## Completed serving follow-up
+
+The [ARM64 follow-up](serving-arm64/README.md) now includes a passing seven-phase CPU
+lifecycle, real candidate-only error attribution/rollback and scoped storage-account
+cleanup. Earlier pending statements above describe the original attempts. Later images
+are dirty acceptance artifacts and do not replace the clean release gate's source scope;
+five serving/initializer HIGH findings still block production release.
+
+## Shared PostgreSQL limiter load follow-up
+
+[Measured 1/2/4 replica matrix](limiter-load.json) used four distinct gateway pod
+port-forwards, 10s of offered traffic per sample, and endpoint/caller budgets of 600
+units/minute. Only the two dedicated fixture buckets were reset between completed
+samples. All nine measurements stayed within the shared token-bucket upper bound.
+At 50 RPS all 500 requests succeeded; at 100 RPS each sample admitted 699 and denied
+301 with 429. These levels had no transport errors or observed bucket lock waiters.
+
+The 500 RPS availability gate **failed**: completed throughput was approximately
+113/201/186 RPS for 1/2/4 replicas, transport errors 1/2/7, and sampled peak lock waiters
+10/23/41. HTTP p95 was approximately 33.9/14.7/16.5s and includes client semaphore
+queueing and port-forward latency. An isolated limiter histogram is unavailable;
+these numbers do not prove a production ceiling or justify claiming an exact limiter
+latency. Investigate transaction round trips/hot-row contention and rerun with limiter
+histograms and an in-cluster load generator before choosing a storage replacement.
+
+## PostgreSQL outage and recovery follow-up
+
+[Final PVC-backed drill](limiter-outage.json) passed: 32/32 pre-cut requests returned
+200, warm-cache outage requests returned `503 limit_store_unavailable`, expired-cache
+requests returned `503 data_store_unavailable`, and 32/32 recovered requests returned
+200. Four distinct gateway pods were used; no outage requests reached successful
+inference. The final dirty control-plane image is recorded in the report and
+[installed gateway source](gateway-outage-source.json) matches the regression-tested
+workspace. HTTP p99 during the outage was approximately 3.4s (warm) / 3.2s (expired).
+This does not establish independent limiter latency or per-statement lock bounds.
+Sustained outage load and thread/pool growth still require separate measurements.
+
+The baseline [expired-cache failure](limiter-outage-cache-miss-failure.json) returned
+500 because DB errors in authentication/route lookup escaped the HTTP handler. These
+SQL errors now return a redacted 503; a public-response regression test covers this.
+The gateway suites passed 29 tests; the drift/CPU/metric suites passed 42 tests, with
+Ruff and mypy passing for the changed source files.
+
+The first [ephemeral fixture attempt](limiter-outage-ephemeral-failure.json) erased its
+acceptance DB on pod deletion: its volume was `emptyDir`. That test database's old rows
+were not restored. [Persistence correction](postgres-persistence.json) uses a Bound
+2Gi PVC and Recreate strategy; migrations/grants and a new project were created, then
+the successful stop/start drill retained that new fixture. Historical evidence remains
+valid for its recorded runs, but the old fixture DB cannot be queried now. This is
+not backup/restore or platform disaster-recovery proof. Three known orphaned serving
+fixtures were stopped directly in their recorded acceptance namespaces to release RAM.
+The unrelated lab remains stopped; only the acceptance node and registry are running.

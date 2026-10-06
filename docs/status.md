@@ -62,17 +62,31 @@ See [live evidence](evidence/live-2026-10-06/README.md).
 3. Extend the passing admission/PSA, ingress isolation, election/PDB and rolling-restart
    checks to serving sidecars, strict egress, workload secret/token boundaries, hung-leader
    and multi-node drain/loss drills.
-4. CPU project → Argo training → MLflow registration/discovery → evaluation passed.
-   The logged-model URI fix is deployed; native ARM64 serving reaches READY and the
-   real gateway prediction returns 200 with the expected result. Complete canary/rollback
-   → cold-start, secret rotation/private pulls and broader initializer checks.
-   Knative feature flags and MLflow PostgreSQL driver selection also required live fixes;
-   the upstream MLServer and initializer are AMD64. Native ARM64 replacements now
-   load the model and reach KServe READY with project storage credentials. The gateway
-   JSON-route correction is deployed and verified with real inference traffic. The replacements
-   have five fixable HIGH scan findings, so their production image gate is blocked.
+4. The full seven-phase CPU lifecycle passed on the single-node ARM64 lab: project/RBAC,
+   training/discovery/evaluation, serving/gateway, healthy canary, credential rotation,
+   same-revision drift repair and zero-pod reactivation (1.25s request). Candidate-only
+   503s separately triggered rollback; stable metrics remained healthy, candidate was
+   rejected and 30 restored requests returned 200. Storage accounts were retained across
+   canary and scoped cleanup preserved foreign/other-deployment accounts. These are dirty
+   acceptance artifacts with local auth none, not production/OIDC/multi-node proof.
+   KServe zero-delay/empty-list defaulting fixes are deployed; harness fixes retain
+   metric samples during traffic and wait for matching backend apply identity.
+   Serving/initializer still have five fixable HIGH findings blocking their production
+   gate. Shared-time Prometheus queries passed the deployed-image rollback rerun (candidate
+   error rate exactly 1.0). Forced Secret deletion also passed in an isolated project:
+   running value retained, future startup blocked, restored Secret recovered with a new
+   boot/value. Private registry, cleanup conflict/outage retry and broader private
+   initializer provider paths remain separate gates.
    See [ARM64 evidence](evidence/live-2026-10-06/serving-arm64/README.md).
-5. Measure shared-limiter load/outage recovery and backup/restore with roles/triggers,
+5. Shared-limiter load measured 1/2/4 distinct gateway replicas: 50/100 RPS preserved
+   shared budgets without availability errors; 500 offered RPS stayed within budget but
+   failed availability (transport timeouts, 10/23/41 observed lock waiters). Isolated
+   limiter latency telemetry and an in-cluster generator are needed for diagnosis.
+   Basic real PostgreSQL outage/recovery passed across four gateways, including expired
+   auth/route caches; those SQL failures now return redacted 503 rather than 500. The lab
+   DB now has a Bound PVC; the initial emptyDir fixture lost its historical rows and was
+   rebuilt, not restored from backup. Sustained outage/thread-growth remains open.
+   Run backup/restore with roles/triggers,
    recovered services and RPO/RTO. GPU/immutable HF, ingress/TLS and AWS isolation remain
    separate resource-dependent gates. Commands are in [acceptance.md](acceptance.md).
 

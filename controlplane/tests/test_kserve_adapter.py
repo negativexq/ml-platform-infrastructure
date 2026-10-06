@@ -241,6 +241,44 @@ def test_owned_spec_detects_removed_or_injected_env_but_allows_defaults() -> Non
     assert not _owned_matches(actual, desired)
 
 
+@pytest.mark.parametrize("delay", [0, 3])
+def test_function_probe_omitted_zero_delay_is_not_drift(delay: int) -> None:
+    from copy import deepcopy
+
+    from controlplane.adapters.serving.kserve import _owned_matches
+
+    spec = ServingSpec(
+        "function",
+        "mlp-test",
+        "image:1",
+        2,
+        runtime="container",
+        function={"readiness_initial_delay_seconds": delay},
+    )
+    desired = build_inference_service(spec)["spec"]["predictor"]
+    actual = deepcopy(desired)
+    del actual["containers"][0]["readinessProbe"]["initialDelaySeconds"]
+    assert _owned_matches(actual, desired) is (delay == 0)
+    actual["containers"][0]["readinessProbe"]["initialDelaySeconds"] = delay + 1
+    assert not _owned_matches(actual, desired)
+
+
+def test_function_omitted_empty_env_matches_but_removed_reference_is_drift() -> None:
+    from copy import deepcopy
+
+    from controlplane.adapters.serving.kserve import _owned_matches
+
+    spec = ServingSpec("function", "mlp-test", "image:1", 2, runtime="container")
+    desired = build_inference_service(spec)["spec"]["predictor"]
+    actual = deepcopy(desired)
+    del actual["containers"][0]["env"]
+    assert _owned_matches(actual, desired)
+    desired["containers"][0]["env"] = [
+        {"name": "TOKEN", "valueFrom": {"secretKeyRef": {"name": "credential", "key": "token"}}}
+    ]
+    assert not _owned_matches(actual, desired)
+
+
 def test_drift_repair_replaces_predictor_with_cas_and_then_is_idempotent() -> None:
     from copy import deepcopy
 

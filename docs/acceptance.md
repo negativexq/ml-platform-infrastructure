@@ -80,6 +80,11 @@ check load-generator resources before blaming the server. Reservations persist/r
 between matrix cells. The upper bound accounts for initial capacity plus elapsed refill;
 it is not an exact per-window or LLM token correctness proof.
 
+Before a pod-stop drill, verify the isolated database data mount uses a Bound PVC
+and that the existing schema/fixture identity survives one restart. `emptyDir` erases
+the test database on pod deletion and cannot prove recovery. Keep the original replica
+count and restore it in a `finally` block. Probe both warmed and expired route/key caches.
+
 On the **isolated** database, start normal traffic, interrupt DB access while traffic is
 active, then repeat with `--scenario outage` and a fresh output path. Inspect 503/error
 codes, limiter error latency, pool/thread growth and health/readiness. Restore DB access
@@ -87,7 +92,9 @@ and repeat `--scenario recovery`; retain the pre-cut/in-cut/post-cut reports. Th
 not stop databases or change firewall rules. The outage scenario rejects any successful
 forwarding; automatic cutover timing, thread-growth measurements and exact
 `limit_store_unavailable` checks still need operator observation. A DB outage may also
-fail route/auth lookup before limiter admission. Compare measured lock/statement waits
+fail route/auth lookup before limiter admission; SQL-backed cache misses return
+`503 data_store_unavailable`, while admission failures return `503 limit_store_unavailable`.
+Compare measured lock/statement waits
 with their per-statement bounds (2/3 seconds); pool/connect waits are separate bounds.
 
 ## Full CPU lifecycle

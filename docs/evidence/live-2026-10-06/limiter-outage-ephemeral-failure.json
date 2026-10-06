@@ -1,0 +1,49 @@
+{
+  "context": "kind-mlp-acceptance",
+  "project": "acceptance-metric-ade603",
+  "passed": false,
+  "scope": "Actual dedicated control-plane PostgreSQL deployment scaled to zero and restored. Thirty-two requests across four distinct gateway pods, bounded client deadline 15s.",
+  "samples": [
+    {
+      "phase": "before",
+      "statuses": {
+        "200": 32
+      },
+      "error_codes": {},
+      "http_latency_ms": {
+        "p50": 92.90558286011219,
+        "p95": 123.05016722530127,
+        "p99": 123.5008342191577
+      }
+    },
+    {
+      "phase": "outage",
+      "statuses": {
+        "503": 32
+      },
+      "error_codes": {
+        "limit_store_unavailable": 32
+      },
+      "http_latency_ms": {
+        "p50": 32.361541874706745,
+        "p95": 2088.3704591542482,
+        "p99": 2089.896459132433
+      }
+    },
+    {
+      "phase": "recovery",
+      "statuses": {
+        "500": 32
+      },
+      "error_codes": {
+        "non_platform_error": 32
+      },
+      "http_latency_ms": {
+        "p50": 74.09116718918085,
+        "p95": 91.25741710886359,
+        "p99": 93.93362468108535
+      }
+    }
+  ],
+  "diagnosis": "Fixture used emptyDir: scaling PostgreSQL to zero erased its test database. Outage returned expected 503 limit_store_unavailable, but recovery was 500 UndefinedTable. A new PVC-backed fixture is required; this is not a passing recovery gate and no historical database rows were restored."
+}

@@ -207,7 +207,23 @@ See [operations.md](operations.md#reconciler-provisioning-trust-boundary).
 
 Native classic serving and S3 initializer images load real artifacts and reach KServe
 READY. Gateway route normalization is deployed and a real prediction returns HTTP 200
-with the expected result. The full canary/rollback/cold-start lifecycle remains pending.
+with the expected result. The seven-phase CPU gate now passed, including healthy
+canary, credential rotation, same-revision drift repair and zero-pod activation.
+Candidate-only error attribution/rollback, scoped storage account cleanup and isolated
+forced Secret deletion/startup/recovery also passed. The deployed metric snapshot uses
+one observation time for all revision queries and measured candidate error rate 1.0.
 Resolve the five fixable HIGH serving/initializer dependency findings before using
 these artifacts for a production release. The original clean control-plane scan pass
 does not cover them. See [ARM64 evidence](evidence/live-2026-10-06/serving-arm64/README.md).
+
+
+## 2026-10-06 limiter follow-up
+
+Live 1/2/4-replica measurements preserved shared budgets. 50/100 offered RPS had no
+availability errors; 500 RPS failed availability with transport timeouts and growing
+bucket lock waiters. Add isolated limiter latency telemetry and repeat from an
+in-cluster generator before selecting a throughput fix. Basic PVC-backed PostgreSQL
+outage/recovery passed, including expired auth/route caches after a redacted 503 fix.
+Sustained outage/thread growth and backup/restore remain open. The initial ephemeral
+acceptance DB was lost during the first pod-stop test; historical rows were not restored.
+See [live evidence](evidence/live-2026-10-06/README.md).

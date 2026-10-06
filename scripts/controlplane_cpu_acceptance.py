@@ -14,6 +14,7 @@ import sys
 import time
 from collections.abc import Callable
 from dataclasses import asdict
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -21,6 +22,7 @@ from uuid import uuid4
 import httpx
 
 from controlplane.adapters.metrics import PrometheusMetricsProvider
+from controlplane.application.providers import RevisionMetrics
 
 PHASES = [
     "project/RBAC",
@@ -31,6 +33,52 @@ PHASES = [
     "same-revision drift repair",
     "scale-to-zero/reactivation",
 ]
+
+
+def _poll(
+    read: Callable[[], Any], ready: Callable[[Any], bool], label: str, *, timeout: float
+) -> Any:
+    deadline = time.monotonic() + timeout
+    while time.monotonic() < deadline:
+        value = read()
+        if ready(value):
+            return value
+        status = value.get("status") if isinstance(value, dict) else None
+        if isinstance(status, str) and status in {"FAILED", "REJECTED"}:
+            raise RuntimeError(label + " failed")
+        time.sleep(2)
+    raise RuntimeError(label + " deadline exceeded")
+
+
+def _repaired_backend_matches(
+    service: dict[str, Any],
+    read_revision: Callable[[str], dict[str, Any]],
+    old_apply: str,
+    old_backend: str,
+) -> bool:
+    apply_id = service["spec"]["predictor"]["annotations"]["mlp.io/apply-id"]
+    backend = (
+        service.get("status", {})
+        .get("components", {})
+        .get("predictor", {})
+        .get("latestReadyRevision")
+    )
+    if apply_id == old_apply or backend in {None, old_backend}:
+        return False
+    revision = read_revision(backend)
+    return bool(revision["metadata"].get("annotations", {}).get("mlp.io/apply-id") == apply_id)
+
+
+def _retain_metric_evidence(
+    measured: dict[str, Any], backend: str, revision: int, sample: RevisionMetrics
+) -> None:
+    if not sample.requests or sample.p95_latency_ms is None or sample.error_rate is None:
+        return
+    measured[backend] = {
+        "platform_revision": revision,
+        "observed_at": datetime.now(UTC).isoformat(),
+        **asdict(sample),
+    }
 
 
 def execute(args: argparse.Namespace) -> None:
@@ -76,15 +124,7 @@ def execute(args: argparse.Namespace) -> None:
             return result.stdout
 
         def poll(read: Callable[[], Any], ready: Callable[[Any], bool], label: str) -> Any:
-            deadline = time.monotonic() + args.timeout
-            while time.monotonic() < deadline:
-                value = read()
-                if ready(value):
-                    return value
-                if isinstance(value, dict) and value.get("status") in {"FAILED", "REJECTED"}:
-                    raise RuntimeError(label + " failed")
-                time.sleep(2)
-            raise RuntimeError(label + " deadline exceeded")
+            return _poll(read, ready, label, timeout=args.timeout)
 
         def record(phase: str, **evidence: Any) -> None:
             report["phases"].append(
@@ -298,6 +338,10 @@ def execute(args: argparse.Namespace) -> None:
                 },
             )
             seen_backends: set[str] = set()
+            metrics = PrometheusMetricsProvider(args.prometheus)
+            measured: dict[str, Any] = {}
+            backend_numbers: dict[str, int] = {}
+            next_metrics_at = 0.0
             deadline = time.monotonic() + args.timeout
             while time.monotonic() < deadline:
                 invoke("scorer", model_key, {"instances": [[1, 2, 3]]}, "predict")
@@ -307,6 +351,25 @@ def execute(args: argparse.Namespace) -> None:
                     if component.get(field):
                         seen_backends.add(component[field])
                 current = call("GET", "/rollouts/" + rollout["id"])
+                if time.monotonic() >= next_metrics_at or current["status"] == "SUCCEEDED":
+                    for backend_name in seen_backends:
+                        if backend_name not in backend_numbers:
+                            backend = json.loads(
+                                kubectl(
+                                    "-n", namespace, "get", "revision/" + backend_name, "-o", "json"
+                                )
+                            )
+                            backend_numbers[backend_name] = int(
+                                backend["metadata"]["annotations"]["mlp.io/revision"]
+                            )
+                        number = backend_numbers[backend_name]
+                        _retain_metric_evidence(
+                            measured,
+                            backend_name,
+                            number,
+                            metrics.revision_metrics(namespace + "/scorer", number, backend_name),
+                        )
+                    next_metrics_at = time.monotonic() + 5
                 if current["status"] in {"SUCCEEDED", "ROLLED_BACK"}:
                     if current["status"] != "SUCCEEDED":
                         raise RuntimeError(
@@ -318,21 +381,8 @@ def execute(args: argparse.Namespace) -> None:
                 raise RuntimeError("canary deadline exceeded")
             if len(seen_backends) < 2:
                 raise RuntimeError("stable/candidate backend evidence missing")
-            metrics = PrometheusMetricsProvider(args.prometheus)
-            measured = {}
-            for backend_name in seen_backends:
-                backend = json.loads(
-                    kubectl("-n", namespace, "get", "revision/" + backend_name, "-o", "json")
-                )
-                number = int(backend["metadata"]["annotations"]["mlp.io/revision"])
-                sample = metrics.revision_metrics(namespace + "/scorer", number, backend_name)
-                if (
-                    not sample.requests
-                    or sample.p95_latency_ms is None
-                    or sample.error_rate is None
-                ):
-                    raise RuntimeError("backend-scoped metric evidence is missing")
-                measured[backend_name] = {"platform_revision": number, **asdict(sample)}
+            if seen_backends - measured.keys():
+                raise RuntimeError("backend-scoped metric evidence is missing")
             if len({m["platform_revision"] for m in measured.values()}) < 2:
                 raise RuntimeError("stable/candidate metric identity was not distinct")
             record(
@@ -392,7 +442,7 @@ def execute(args: argparse.Namespace) -> None:
                 "pods",
                 "-l",
                 "serving.kserve.io/inferenceservice=function",
-                "--wait=true",
+                "--wait=false",
             )
             poll(
                 lambda: gateway.post(
@@ -436,13 +486,13 @@ def execute(args: argparse.Namespace) -> None:
             )
             repaired = poll(
                 lambda: json.loads(kubectl("-n", namespace, "get", "isvc/function", "-o", "json")),
-                lambda s: (
-                    s["spec"]["predictor"]["annotations"]["mlp.io/apply-id"] != old_apply
-                    and s.get("status", {})
-                    .get("components", {})
-                    .get("predictor", {})
-                    .get("latestReadyRevision")
-                    not in {None, old_backend}
+                lambda s: _repaired_backend_matches(
+                    s,
+                    lambda name: json.loads(
+                        kubectl("-n", namespace, "get", "revision/" + name, "-o", "json")
+                    ),
+                    old_apply,
+                    old_backend,
                 ),
                 "drift repair",
             )

@@ -1,0 +1,10 @@
+{
+  "image": "localhost:5201/mlp-controlplane@sha256:b146392f850017547a387e5c87499dce4214bc6e27cddb69f013ebc921ce86c0",
+  "source_revision": "27799ac-working-tree",
+  "source_clean": false,
+  "adapter_sha256": "628a66a42f6d276d85504bd12d705759b781c9331be177b0b1274277e0848421",
+  "matches_tested_source": true,
+  "adapter_tests_passed": 32,
+  "ruff_passed": true,
+  "mypy_source_files": 1
+}

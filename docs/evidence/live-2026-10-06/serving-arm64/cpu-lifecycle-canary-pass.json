@@ -1,0 +1,60 @@
+{
+  "project": "acceptance-02d530ed9e",
+  "context": "kind-mlp-acceptance",
+  "passed": false,
+  "phases": [
+    {
+      "phase": "project/RBAC",
+      "elapsed_seconds": 6.097168208099902,
+      "admission_checked": true
+    },
+    {
+      "phase": "training/MLflow/discovery",
+      "elapsed_seconds": 40.468648249749094,
+      "version_id": "818e204d-5316-4c26-a19f-d3c5b501ee6f"
+    },
+    {
+      "phase": "CPU serving/gateway",
+      "elapsed_seconds": 60.801762791816145
+    },
+    {
+      "phase": "canary/metrics",
+      "elapsed_seconds": 236.46291279187426,
+      "rollout_id": "5365c045-7f40-4138-b8dd-38c45544ec45",
+      "backend_revisions": [
+        "scorer-predictor-00001",
+        "scorer-predictor-00002",
+        "scorer-predictor-00003"
+      ],
+      "metrics": {
+        "scorer-predictor-00002": {
+          "platform_revision": 2,
+          "p95_latency_ms": 4.913793103448276,
+          "error_rate": 0.0,
+          "requests_per_second": 0.5217391304347826,
+          "requests": 62.608695652173914
+        },
+        "scorer-predictor-00001": {
+          "platform_revision": 1,
+          "p95_latency_ms": 4.834070796460177,
+          "error_rate": 0.0,
+          "requests_per_second": 2.0,
+          "requests": 240.0
+        },
+        "scorer-predictor-00003": {
+          "platform_revision": 2,
+          "p95_latency_ms": 4.7826460481099655,
+          "error_rate": 0.0,
+          "requests_per_second": 2.7233812935272397,
+          "requests": 326.7791203124458
+        }
+      },
+      "limitation": "Healthy gate only; adversarial metric-label test remains separate"
+    }
+  ],
+  "source_revision": "27799ac7b60c2025634f63de9d49932c30e3d54d",
+  "source_clean": true,
+  "project_id": "78b97807-7f72-426b-8589-ba0f7a642692",
+  "elapsed_seconds": 334.5740195000544,
+  "interruption_reason": "Stopped during function readiness: KServe omitted zero probe initialDelaySeconds, causing repeated false drift repairs."
+}

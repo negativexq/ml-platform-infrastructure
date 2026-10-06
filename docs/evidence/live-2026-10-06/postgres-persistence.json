@@ -1,0 +1,16 @@
+{
+  "context": "kind-mlp-acceptance",
+  "claim": "acceptance-postgres-data",
+  "phase": "Bound",
+  "capacity": {
+    "storage": "2Gi"
+  },
+  "strategy": "Recreate",
+  "data_volume": {
+    "name": "data",
+    "persistentVolumeClaim": {
+      "claimName": "acceptance-postgres-data"
+    }
+  },
+  "scope": "Dedicated acceptance control-plane database, not MLflow or another lab. Initial emptyDir test database was lost; migrations/grants and a new fixture were created. Historical rows were not restored. PVC-backed subsequent stop/start preserved the new fixture as proven by successful authenticated inference after recovery."
+}

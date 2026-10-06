@@ -1,0 +1,61 @@
+{
+  "context": "kind-mlp-acceptance",
+  "project": "acceptance-force-1a5412",
+  "passed": false,
+  "scope": "Actual dedicated control-plane PostgreSQL deployment scaled to zero and restored. Thirty-two requests across four distinct gateway pods, bounded client deadline 15s.",
+  "samples": [
+    {
+      "phase": "before",
+      "statuses": {
+        "200": 32
+      },
+      "error_codes": {},
+      "http_latency_ms": {
+        "p50": 171.86925001442432,
+        "p95": 203.575958032161,
+        "p99": 205.99324954673648
+      }
+    },
+    {
+      "phase": "outage",
+      "statuses": {
+        "503": 32
+      },
+      "error_codes": {
+        "limit_store_unavailable": 32
+      },
+      "http_latency_ms": {
+        "p50": 33.083874732255936,
+        "p95": 2116.671417374164,
+        "p99": 3033.848624676466
+      }
+    },
+    {
+      "phase": "outage_expired_cache",
+      "statuses": {
+        "500": 32
+      },
+      "error_codes": {
+        "non_platform_error": 32
+      },
+      "http_latency_ms": {
+        "p50": 54.11454103887081,
+        "p95": 3171.1307503283024,
+        "p99": 4122.6652497425675
+      }
+    },
+    {
+      "phase": "recovery",
+      "statuses": {
+        "200": 32
+      },
+      "error_codes": {},
+      "http_latency_ms": {
+        "p50": 153.58841698616743,
+        "p95": 176.33120901882648,
+        "p99": 181.48000026121736
+      }
+    }
+  ],
+  "diagnosis": "PVC-backed database recovered, but expired authentication/route caches raised unhandled SQL errors and returned 500 during outage. Warm caches returned 503 limit_store_unavailable. Retained baseline before the HTTP SQL error mapping fix."
+}

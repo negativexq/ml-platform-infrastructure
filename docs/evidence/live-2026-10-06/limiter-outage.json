@@ -1,0 +1,62 @@
+{
+  "context": "kind-mlp-acceptance",
+  "project": "acceptance-force-1a5412",
+  "passed": true,
+  "controlplane_image": "localhost:5201/mlp-controlplane@sha256:e71c4490aede839b49b1aac2308276e5eacfa561d3e282d51a97c6d22dd58c5e",
+  "scope": "Actual dedicated control-plane PostgreSQL deployment scaled to zero and restored. Thirty-two requests across four distinct gateway pods, bounded client deadline 15s.",
+  "samples": [
+    {
+      "phase": "before",
+      "statuses": {
+        "200": 32
+      },
+      "error_codes": {},
+      "http_latency_ms": {
+        "p50": 369.76633314043283,
+        "p95": 444.03970800340176,
+        "p99": 446.237541269511
+      }
+    },
+    {
+      "phase": "outage",
+      "statuses": {
+        "503": 32
+      },
+      "error_codes": {
+        "limit_store_unavailable": 32
+      },
+      "http_latency_ms": {
+        "p50": 404.2587918229401,
+        "p95": 3401.2250839732587,
+        "p99": 3405.0914170220494
+      }
+    },
+    {
+      "phase": "outage_expired_cache",
+      "statuses": {
+        "503": 32
+      },
+      "error_codes": {
+        "data_store_unavailable": 32
+      },
+      "http_latency_ms": {
+        "p50": 76.40591729432344,
+        "p95": 3169.522207695991,
+        "p99": 3171.0693328641355
+      }
+    },
+    {
+      "phase": "recovery",
+      "statuses": {
+        "200": 32
+      },
+      "error_codes": {},
+      "http_latency_ms": {
+        "p50": 168.03445806726813,
+        "p95": 206.5805410966277,
+        "p99": 208.72720796614885
+      }
+    }
+  ],
+  "limitation": "Basic 32-concurrent-request outage/recovery gate only. Sustained high-concurrency outage, thread/pool growth, independent limiter latency and lock/statement-timeout fault injections remain separate."
+}

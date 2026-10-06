@@ -3,7 +3,7 @@
 Judging a canary needs the canary's own numbers, so every query is scoped to one
 backend revision (`revision_name`), never the whole service.
 
-Not exercised against a real Prometheus/KServe yet: see docs/local-verification.md.
+Live healthy/error-only canary evidence is recorded in docs/evidence/live-2026-10-06.
 """
 
 from __future__ import annotations
@@ -46,13 +46,17 @@ class PrometheusMetricsProvider:
                 raise ValueError(f"unsafe label value {value!r}")
         sel = f'namespace_name="{namespace}",revision_name="{backend_revision}"'
         w = self._window
-        requests = self._scalar(f"sum(increase(revision_request_count{{{sel}}}[{w}]))")
+        # Use one observation instant: moving counters queried at different times
+        # can otherwise produce an error ratio above 100% or cross a gate boundary.
+        at = datetime.now(UTC).timestamp()
+        requests = self._scalar(f"sum(increase(revision_request_count{{{sel}}}[{w}]))", at=at)
         errors = self._scalar(
-            f'sum(increase(revision_request_count{{{sel},response_code_class="5xx"}}[{w}]))'
+            f'sum(increase(revision_request_count{{{sel},response_code_class="5xx"}}[{w}]))',
+            at=at,
         )
-        rps = self._scalar(f"sum(rate(revision_request_count{{{sel}}}[{w}]))")
+        rps = self._scalar(f"sum(rate(revision_request_count{{{sel}}}[{w}]))", at=at)
         buckets = f"sum(rate(revision_request_latencies_bucket{{{sel}}}[{w}])) by (le)"
-        p95 = self._scalar(f"histogram_quantile(0.95, {buckets})")
+        p95 = self._scalar(f"histogram_quantile(0.95, {buckets})", at=at)
         error_rate = (errors or 0.0) / requests if requests else None
         return RevisionMetrics(
             p95_latency_ms=p95, error_rate=error_rate, requests_per_second=rps, requests=requests
@@ -115,8 +119,8 @@ class PrometheusMetricsProvider:
     def _get(self, url: str) -> dict[str, Any]:
         return _get(url)
 
-    def _scalar(self, query: str) -> float | None:
-        url = f"{self._base}/api/v1/query?{urllib.parse.urlencode({'query': query})}"
+    def _scalar(self, query: str, *, at: float) -> float | None:
+        url = f"{self._base}/api/v1/query?{urllib.parse.urlencode({'query': query, 'time': at})}"
         try:
             with urllib.request.urlopen(url, timeout=TIMEOUT_SECONDS) as response:  # noqa: S310
                 body: dict[str, Any] = json.load(response)

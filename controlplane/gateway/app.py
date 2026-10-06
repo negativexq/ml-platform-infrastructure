@@ -16,6 +16,7 @@ from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response, StreamingResponse
+from sqlalchemy.exc import SQLAlchemyError
 
 from controlplane.application.gateway import GatewayError, GatewayService
 from controlplane.health import add_readiness
@@ -105,6 +106,13 @@ def create_gateway(
             )
         except GatewayError as error:
             return _error(error, request_id)
+        except SQLAlchemyError:
+            # Authentication/route cache misses also require the shared database.
+            # Never expose query text or connection details on this public surface.
+            return _error(
+                GatewayError(503, "data_store_unavailable", "gateway data store unavailable"),
+                request_id,
+            )
         return StreamingResponse(
             reply.chunks,
             status_code=reply.status,

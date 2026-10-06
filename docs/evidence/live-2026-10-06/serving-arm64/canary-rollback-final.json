@@ -1,0 +1,40 @@
+{
+  "controlplane_image": "localhost:5201/mlp-controlplane@sha256:69371adc5443b40803cbba3b567ad17d751c1d2e6129b39c32aae5fb5c76f167",
+  "project": "acceptance-metric-ade603",
+  "context": "kind-mlp-acceptance",
+  "passed": true,
+  "stable_image": "localhost:5201/function@sha256:5a412236a8a760fb059b88930842e7abe596b979380e56c72aca052ac4cb5688",
+  "candidate_image": "localhost:5201/function@sha256:361eb2a987e6ae5c015fefb1ffc56558ea1dadf70d1877064589bf334812e20e",
+  "failure_injection": "Candidate readiness is 200; every POST returns 503. Stable image returns 200.",
+  "rollout_id": "d3db4e32-b6c1-4c7f-ae04-ce13ad260992",
+  "stable_backend": "rollback-predictor-00001",
+  "rollout_status": "ROLLED_BACK",
+  "reason": "error rate 100.00% exceeds 5.00%",
+  "traffic_status_counts": {
+    "200": 59,
+    "503": 3
+  },
+  "candidate_backend": "rollback-predictor-00002",
+  "metrics": {
+    "rollback-predictor-00001": {
+      "platform_revision": 1,
+      "p95_latency_ms": 4.75,
+      "error_rate": 0.0,
+      "requests_per_second": 0.83272,
+      "requests": 99.92640000000002
+    },
+    "rollback-predictor-00002": {
+      "platform_revision": 2,
+      "p95_latency_ms": 4.75,
+      "error_rate": 1.0,
+      "requests_per_second": 0.2995333333333333,
+      "requests": 35.943999999999996
+    }
+  },
+  "post_rollback_200_requests": 30,
+  "post_rollback_original_stable_boot": false,
+  "restored_platform_revision": "1",
+  "restored_image": "localhost:5201/function@sha256:5a412236a8a760fb059b88930842e7abe596b979380e56c72aca052ac4cb5688",
+  "candidate_version_status": "REJECTED",
+  "elapsed_seconds": 31.465313875116408
+}

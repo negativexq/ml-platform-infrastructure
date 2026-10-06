@@ -1,0 +1,26 @@
+{
+  "project": "acceptance-968a0acad7",
+  "context": "kind-mlp-acceptance",
+  "passed": false,
+  "phases": [
+    {
+      "phase": "project/RBAC",
+      "elapsed_seconds": 4.102355584036559,
+      "admission_checked": true
+    },
+    {
+      "phase": "training/MLflow/discovery",
+      "elapsed_seconds": 40.643365875352174,
+      "version_id": "ab34f0ae-819e-461c-904c-be866afef181"
+    },
+    {
+      "phase": "CPU serving/gateway",
+      "elapsed_seconds": 58.95086108427495
+    }
+  ],
+  "source_revision": "27799ac7b60c2025634f63de9d49932c30e3d54d",
+  "source_clean": false,
+  "project_id": "99ae00a7-c88f-4257-9d96-61a50f8d3ac2",
+  "elapsed_seconds": 345.1129610002972,
+  "interruption_reason": "Healthy rollout succeeded after a scheduling delay; end-only metrics missed stable traffic outside the 2m window. Harness now retains timestamped samples during traffic."
+}

@@ -1,0 +1,13 @@
+{
+  "scope": "Updated local adapter against real lab Prometheus; not yet deployed in the reconciler image.",
+  "window": "15m",
+  "candidate_backend": "rollback-predictor-00002",
+  "before_separate_instants_error_rate": 1.001588646473205,
+  "after_shared_instant": {
+    "p95_latency_ms": 4.749999999999999,
+    "error_rate": 1.0,
+    "requests_per_second": 0.033918128654970764,
+    "requests": 30.52631578947368
+  },
+  "passed": true
+}

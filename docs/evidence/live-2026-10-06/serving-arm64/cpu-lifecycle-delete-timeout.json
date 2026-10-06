@@ -1,0 +1,60 @@
+{
+  "project": "acceptance-9618704781",
+  "context": "kind-mlp-acceptance",
+  "passed": false,
+  "phases": [
+    {
+      "phase": "project/RBAC",
+      "elapsed_seconds": 4.0206390409730375,
+      "admission_checked": true
+    },
+    {
+      "phase": "training/MLflow/discovery",
+      "elapsed_seconds": 48.61422525020316,
+      "version_id": "5401cfb0-c65d-4175-b10a-2c5b6eae0542"
+    },
+    {
+      "phase": "CPU serving/gateway",
+      "elapsed_seconds": 71.11014708317816
+    },
+    {
+      "phase": "canary/metrics",
+      "elapsed_seconds": 252.74121108325198,
+      "rollout_id": "06d0428f-9432-45eb-94f2-8860b4a372b0",
+      "backend_revisions": [
+        "scorer-predictor-00001",
+        "scorer-predictor-00002",
+        "scorer-predictor-00003"
+      ],
+      "metrics": {
+        "scorer-predictor-00001": {
+          "platform_revision": 1,
+          "p95_latency_ms": 4.810638297872341,
+          "error_rate": 0.0,
+          "requests_per_second": 2.069583213767076,
+          "requests": 248.34998565204918
+        },
+        "scorer-predictor-00003": {
+          "platform_revision": 2,
+          "p95_latency_ms": 4.8330419580419575,
+          "error_rate": 0.0,
+          "requests_per_second": 2.7006122727272723,
+          "requests": 324.04701818181815
+        },
+        "scorer-predictor-00002": {
+          "platform_revision": 2,
+          "p95_latency_ms": 6.916666666666665,
+          "error_rate": 0.0,
+          "requests_per_second": 0.4956521739130435,
+          "requests": 59.47826086956522
+        }
+      },
+      "limitation": "Healthy gate only; adversarial metric-label test remains separate"
+    }
+  ],
+  "source_revision": "27799ac7b60c2025634f63de9d49932c30e3d54d",
+  "source_clean": false,
+  "project_id": "dad72063-b02a-4f87-9362-e5e9932c693c",
+  "elapsed_seconds": 288.9816404161975,
+  "interruption_reason": "Function READY with default-aware comparison; kubectl pod deletion exceeded the harness 30s subprocess timeout during graceful termination. Harness now deletes asynchronously and polls the new credential."
+}

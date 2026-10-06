@@ -1,0 +1,208 @@
+{
+  "context": "kind-mlp-acceptance",
+  "project": "acceptance-metric-ade603",
+  "passed": false,
+  "scope": "Single ARM64 node; distinct pod port-forwards. HTTP latency includes port-forward, auth, limiter and backend. No isolated limiter histogram is configured.",
+  "replica_pods": [
+    "mlp-controlplane-gateway-5fbdbc547f-5gsgh",
+    "mlp-controlplane-gateway-5fbdbc547f-7fhhg",
+    "mlp-controlplane-gateway-5fbdbc547f-ktp6l",
+    "mlp-controlplane-gateway-5fbdbc547f-zkq56"
+  ],
+  "seconds_per_sample": 10,
+  "limit_units_per_minute": 600,
+  "bucket_setup": "Only the two dedicated endpoint/caller buckets are reset between completed samples; no traffic overlaps resets.",
+  "results": [
+    {
+      "replicas": 1,
+      "offered_rps": 50,
+      "elapsed_seconds": 10.054957958403975,
+      "statuses": {
+        "200": 500
+      },
+      "completed_rps": 49.72671214225197,
+      "limiter_latency_ms": null,
+      "limiter_metric_window_seconds": 60,
+      "http_latency_ms": {
+        "p50": 7.586041931062937,
+        "p95": 14.35662480071187,
+        "p99": 117.21674958243966
+      },
+      "max_observed_bucket_lock_waiters": 0,
+      "allowed": 500,
+      "shared_budget_upper_bound": 701,
+      "shared_budget_upper_bound_holds": true
+    },
+    {
+      "replicas": 1,
+      "offered_rps": 100,
+      "elapsed_seconds": 10.030158166773617,
+      "statuses": {
+        "200": 699,
+        "429": 301
+      },
+      "completed_rps": 99.6993251126037,
+      "limiter_latency_ms": null,
+      "limiter_metric_window_seconds": 60,
+      "http_latency_ms": {
+        "p50": 5.4005831480026245,
+        "p95": 8.153208065778017,
+        "p99": 13.247292023152113
+      },
+      "max_observed_bucket_lock_waiters": 0,
+      "allowed": 699,
+      "shared_budget_upper_bound": 701,
+      "shared_budget_upper_bound_holds": true
+    },
+    {
+      "replicas": 1,
+      "offered_rps": 500,
+      "elapsed_seconds": 44.400325874798,
+      "statuses": {
+        "200": 1042,
+        "429": 3957,
+        "transport_error": 1
+      },
+      "completed_rps": 112.61178609587733,
+      "limiter_latency_ms": null,
+      "limiter_metric_window_seconds": 60,
+      "http_latency_ms": {
+        "p50": 22843.63037534058,
+        "p95": 33874.558249954134,
+        "p99": 34715.639625210315
+      },
+      "max_observed_bucket_lock_waiters": 10,
+      "allowed": 1042,
+      "shared_budget_upper_bound": 1045,
+      "shared_budget_upper_bound_holds": true
+    },
+    {
+      "replicas": 2,
+      "offered_rps": 50,
+      "elapsed_seconds": 10.032337083015591,
+      "statuses": {
+        "200": 500
+      },
+      "completed_rps": 49.83883574311744,
+      "limiter_latency_ms": null,
+      "limiter_metric_window_seconds": 60,
+      "http_latency_ms": {
+        "p50": 7.4516660533845425,
+        "p95": 10.460250079631805,
+        "p99": 14.610125217586756
+      },
+      "max_observed_bucket_lock_waiters": 0,
+      "allowed": 500,
+      "shared_budget_upper_bound": 701,
+      "shared_budget_upper_bound_holds": true
+    },
+    {
+      "replicas": 2,
+      "offered_rps": 100,
+      "elapsed_seconds": 10.24769595824182,
+      "statuses": {
+        "200": 699,
+        "429": 301
+      },
+      "completed_rps": 97.58291074158375,
+      "limiter_latency_ms": null,
+      "limiter_metric_window_seconds": 60,
+      "http_latency_ms": {
+        "p50": 6.519834045320749,
+        "p95": 9.784167166799307,
+        "p99": 15.15554217621684
+      },
+      "max_observed_bucket_lock_waiters": 0,
+      "allowed": 699,
+      "shared_budget_upper_bound": 703,
+      "shared_budget_upper_bound_holds": true
+    },
+    {
+      "replicas": 2,
+      "offered_rps": 500,
+      "elapsed_seconds": 24.928094000089914,
+      "statuses": {
+        "200": 848,
+        "transport_error": 2,
+        "429": 4150
+      },
+      "completed_rps": 200.5769073231979,
+      "limiter_latency_ms": null,
+      "limiter_metric_window_seconds": 60,
+      "http_latency_ms": {
+        "p50": 11634.41533409059,
+        "p95": 14739.586374722421,
+        "p99": 15405.379582662135
+      },
+      "max_observed_bucket_lock_waiters": 23,
+      "allowed": 848,
+      "shared_budget_upper_bound": 850,
+      "shared_budget_upper_bound_holds": true
+    },
+    {
+      "replicas": 4,
+      "offered_rps": 50,
+      "elapsed_seconds": 10.00555650005117,
+      "statuses": {
+        "200": 500
+      },
+      "completed_rps": 49.972232928517556,
+      "limiter_latency_ms": null,
+      "limiter_metric_window_seconds": 60,
+      "http_latency_ms": {
+        "p50": 7.711458019912243,
+        "p95": 10.049708187580109,
+        "p99": 21.899458020925522
+      },
+      "max_observed_bucket_lock_waiters": 0,
+      "allowed": 500,
+      "shared_budget_upper_bound": 701,
+      "shared_budget_upper_bound_holds": true
+    },
+    {
+      "replicas": 4,
+      "offered_rps": 100,
+      "elapsed_seconds": 10.077549791429192,
+      "statuses": {
+        "200": 699,
+        "429": 301
+      },
+      "completed_rps": 99.23046977654086,
+      "limiter_latency_ms": null,
+      "limiter_metric_window_seconds": 60,
+      "http_latency_ms": {
+        "p50": 6.888125091791153,
+        "p95": 10.906874667853117,
+        "p99": 39.92662485688925
+      },
+      "max_observed_bucket_lock_waiters": 0,
+      "allowed": 699,
+      "shared_budget_upper_bound": 701,
+      "shared_budget_upper_bound_holds": true
+    },
+    {
+      "replicas": 4,
+      "offered_rps": 500,
+      "elapsed_seconds": 26.86993558285758,
+      "statuses": {
+        "200": 867,
+        "transport_error": 7,
+        "429": 4126
+      },
+      "completed_rps": 186.08157747835796,
+      "limiter_latency_ms": null,
+      "limiter_metric_window_seconds": 60,
+      "http_latency_ms": {
+        "p50": 11200.267666950822,
+        "p95": 16520.800624974072,
+        "p99": 17132.23583297804
+      },
+      "max_observed_bucket_lock_waiters": 41,
+      "allowed": 867,
+      "shared_budget_upper_bound": 869,
+      "shared_budget_upper_bound_holds": true
+    }
+  ],
+  "controlplane_image": "localhost:5201/mlp-controlplane@sha256:69371adc5443b40803cbba3b567ad17d751c1d2e6129b39c32aae5fb5c76f167",
+  "limitation": "No isolated limiter latency histogram; HTTP latency includes client semaphore queueing, port-forward and backend. This single-node lab does not establish a production capacity ceiling. Lock waiter counts were sampled through the gateway database role."
+}

@@ -1,0 +1,8 @@
+{
+  "image": "localhost:5201/mlp-controlplane@sha256:e71c4490aede839b49b1aac2308276e5eacfa561d3e282d51a97c6d22dd58c5e",
+  "source_revision": "27799ac-working-tree",
+  "file": "controlplane/gateway/app.py",
+  "workspace_sha256": "8f4eb9b6dace5c408eb17b7d68298f62aefc0524cdf25efc2e2ebaa953db6190",
+  "installed_sha256": "8f4eb9b6dace5c408eb17b7d68298f62aefc0524cdf25efc2e2ebaa953db6190",
+  "matches": true
+}

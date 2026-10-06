@@ -1,0 +1,22 @@
+{
+  "project": "acceptance-6241ad5cf1",
+  "owned_revision_accounts_before_delete": [
+    "mlp-storage-c528cab03ad4-1",
+    "mlp-storage-c528cab03ad4-2"
+  ],
+  "preserve_accounts": [
+    "foreign-storage-keep",
+    "other-deployment-storage-keep"
+  ],
+  "passed": true,
+  "scope": "Retention across healthy canary and deletion ownership; conflict/outage retry remains separate.",
+  "deployment_status": "DELETED",
+  "serviceaccounts_after_delete": [
+    "default",
+    "foreign-storage-keep",
+    "mlp-serving",
+    "mlp-training",
+    "mlp-workload",
+    "other-deployment-storage-keep"
+  ]
+}

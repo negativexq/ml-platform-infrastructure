@@ -8,6 +8,8 @@ from uuid import uuid4
 
 BOOT = uuid4().hex
 VALUE = hashlib.sha256(os.environ.get("TEST_CREDENTIAL", "").encode()).hexdigest()
+# Keep readiness healthy while injecting candidate-only request failures.
+RESPONSE_STATUS = int(os.environ.get("TEST_RESPONSE_STATUS", "200"))
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -23,7 +25,7 @@ class Handler(BaseHTTPRequestHandler):
             return
         self.rfile.read(length)
         result = json.dumps({"boot_id": BOOT, "credential_sha256": VALUE}).encode()
-        self.send_response(200)
+        self.send_response(RESPONSE_STATUS)
         self.send_header("content-type", "application/json")
         self.send_header("content-length", str(len(result)))
         self.end_headers()

@@ -1,0 +1,10 @@
+{
+  "project": "acceptance-62762eb14d",
+  "context": "kind-mlp-acceptance",
+  "passed": false,
+  "stable_image": "localhost:5201/function@sha256:5a412236a8a760fb059b88930842e7abe596b979380e56c72aca052ac4cb5688",
+  "candidate_image": "localhost:5201/function@sha256:361eb2a987e6ae5c015fefb1ffc56558ea1dadf70d1877064589bf334812e20e",
+  "failure_injection": "Candidate readiness is 200; every POST returns 503. Stable image returns 200.",
+  "elapsed_seconds": 99.5571276252158,
+  "interruption_reason": "Stopped before rollout: KServe omitted empty env list, causing false drift and repeated revisions in the no-secret function fixture."
+}

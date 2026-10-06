@@ -1,0 +1,64 @@
+{
+  "project": "acceptance-62762eb14d",
+  "context": "kind-mlp-acceptance",
+  "passed": false,
+  "phases": [
+    {
+      "phase": "project/RBAC",
+      "elapsed_seconds": 4.302158334292471,
+      "admission_checked": true
+    },
+    {
+      "phase": "training/MLflow/discovery",
+      "elapsed_seconds": 44.894169750157744,
+      "version_id": "ab785734-3164-4be3-82c9-7f5ef37d5df0"
+    },
+    {
+      "phase": "CPU serving/gateway",
+      "elapsed_seconds": 63.15711337514222
+    },
+    {
+      "phase": "canary/metrics",
+      "elapsed_seconds": 246.30108741717413,
+      "rollout_id": "0d867ca4-b3a5-4416-aaad-c11878e811cc",
+      "backend_revisions": [
+        "scorer-predictor-00001",
+        "scorer-predictor-00002",
+        "scorer-predictor-00003"
+      ],
+      "metrics": {
+        "scorer-predictor-00002": {
+          "platform_revision": 2,
+          "p95_latency_ms": 7.791666666666664,
+          "error_rate": 0.0,
+          "requests_per_second": 0.4608775804796605,
+          "requests": 55.305309657559256
+        },
+        "scorer-predictor-00001": {
+          "platform_revision": 1,
+          "p95_latency_ms": 4.788617886178861,
+          "error_rate": 0.0,
+          "requests_per_second": 2.1565217391304348,
+          "requests": 258.7826086956522
+        },
+        "scorer-predictor-00003": {
+          "platform_revision": 2,
+          "p95_latency_ms": 4.783481214124547,
+          "error_rate": 0.0,
+          "requests_per_second": 2.780133372593247,
+          "requests": 333.58400417784736
+        }
+      },
+      "limitation": "Healthy gate only; adversarial metric-label test remains separate"
+    },
+    {
+      "phase": "function/credential rotation",
+      "elapsed_seconds": 254.02072858437896
+    }
+  ],
+  "source_revision": "27799ac7b60c2025634f63de9d49932c30e3d54d",
+  "source_clean": false,
+  "project_id": "c7f0b053-2983-4aea-aa88-92a4b03d7408",
+  "elapsed_seconds": 254.1788352499716,
+  "interruption_reason": "Credential rotation/restart/protected deletion passed. Harness status check attempted set membership on Kubernetes dictionary status during drift polling; now checks only string statuses."
+}
