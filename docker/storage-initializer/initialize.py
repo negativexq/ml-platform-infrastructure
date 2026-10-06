@@ -1,8 +1,8 @@
-"""KServe SDK download entrypoint for the platform's classic S3 model artifacts."""
+"""Standalone KServe storage entrypoint for classic S3 model artifacts."""
 
 import sys
 
-from kserve.storage import Storage
+from kserve_storage import Storage
 
 if __name__ == "__main__":
     if len(sys.argv) != 3 or not sys.argv[1].startswith("s3://"):

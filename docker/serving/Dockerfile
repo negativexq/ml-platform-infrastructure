@@ -7,7 +7,9 @@ ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1 \
     MLSERVER_MODELS_DIR=/mnt/models MLSERVER_HTTP_PORT=8080 MLSERVER_GRPC_PORT=9000 \
     MLSERVER_PARALLEL_WORKERS=0 GIT_PYTHON_REFRESH=quiet
 COPY constraints/serving.txt /tmp/requirements.txt
-RUN python -m pip install --only-binary=:all: --no-deps -r /tmp/requirements.txt \
+COPY docker/serving/patch_mlserver.py /tmp/patch_mlserver.py
+RUN python /tmp/patch_mlserver.py --out /tmp/mlp-wheels \
+    && python -m pip install --find-links=/tmp/mlp-wheels --only-binary=:all: --no-deps -r /tmp/requirements.txt \
     && python -m pip check \
     && useradd --uid 1000 --create-home server
 WORKDIR /mnt/models

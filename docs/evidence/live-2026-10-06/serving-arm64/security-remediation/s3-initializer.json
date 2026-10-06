@@ -1,0 +1,42 @@
+{
+  "apiVersion": "serving.kserve.io/v1alpha1",
+  "kind": "ClusterStorageContainer",
+  "metadata": {
+    "name": "mlp-s3"
+  },
+  "spec": {
+    "workloadType": "initContainer",
+    "supportedUriFormats": [
+      {
+        "prefix": "s3://"
+      }
+    ],
+    "container": {
+      "name": "storage-initializer",
+      "image": "localhost:5201/storage-initializer@sha256:995e9e7134b9675d13ec7a4981ed5db4d07ac9608716e05bc510a03a3cf322fa",
+      "securityContext": {
+        "runAsUser": 1000,
+        "runAsNonRoot": true,
+        "allowPrivilegeEscalation": false,
+        "capabilities": {
+          "drop": [
+            "ALL"
+          ]
+        },
+        "seccompProfile": {
+          "type": "RuntimeDefault"
+        }
+      },
+      "resources": {
+        "requests": {
+          "cpu": "100m",
+          "memory": "256Mi"
+        },
+        "limits": {
+          "cpu": "1",
+          "memory": "1Gi"
+        }
+      }
+    }
+  }
+}

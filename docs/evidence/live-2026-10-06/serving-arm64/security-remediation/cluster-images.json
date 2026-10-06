@@ -1,0 +1,40 @@
+{
+  "context": "kind-mlp-acceptance",
+  "namespace": "mlp-acceptance-ca9287f7c0",
+  "pods": [
+    {
+      "pod": "scorer-predictor-00003-deployment-6d944b8b97-fc7pg",
+      "containers": [
+        {
+          "name": "kserve-container",
+          "image": "localhost:5201/mlflow-serving@sha256:a015a61e186a483e95b48f899a96d7d9823c4f830fd22f74e6d44de3d2b2a575"
+        },
+        {
+          "name": "queue-proxy",
+          "image": "gcr.io/knative-releases/knative.dev/serving/cmd/queue@sha256:56142833a9f87213e055045f0ea59c3f00f024d095c052f7669f7b9d77c55e54"
+        }
+      ],
+      "init_containers": [
+        {
+          "name": "storage-initializer",
+          "image": "localhost:5201/storage-initializer@sha256:995e9e7134b9675d13ec7a4981ed5db4d07ac9608716e05bc510a03a3cf322fa"
+        }
+      ],
+      "init_status": [
+        {
+          "name": "storage-initializer",
+          "imageID": "localhost:5201/storage-initializer@sha256:995e9e7134b9675d13ec7a4981ed5db4d07ac9608716e05bc510a03a3cf322fa",
+          "state": {
+            "terminated": {
+              "containerID": "containerd://000d279576de15d78f53743f11643f809627a0cd4a97880cb8530d0b64bc7bb1",
+              "exitCode": 0,
+              "finishedAt": "2026-10-06T20:30:43Z",
+              "reason": "Completed",
+              "startedAt": "2026-10-06T20:30:41Z"
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

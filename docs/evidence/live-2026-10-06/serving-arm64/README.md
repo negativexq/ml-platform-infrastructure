@@ -25,10 +25,10 @@ This is an isolated ARM64 acceptance fixture, built from a dirty working tree wi
   removed from the upstream default's URI list so selection is unambiguous. Other
   providers still use upstream containers and have no ARM64 acceptance proof.
 
-Security release gate is **blocked**: [serving scan](trivy-serving.json) reports four
+The **original artifact** security gate failed: [serving scan](trivy-serving.json) reports four
 fixable HIGH findings (cryptography plus Starlette); [initializer scan](trivy-initializer-current.json)
 reports one protobuf finding. No CVE exclusions were added. Upstream dependency bounds
-prevent a simple lock update: MLServer caps FastAPI and full MLflow caps cryptography;
+prevented a simple lock update at that snapshot: MLServer capped FastAPI and full MLflow capped cryptography;
 KServe 0.15's Python SDK caps protobuf below the fixed version. These images prove lab
 architecture/runtime behavior and must not be presented as production-ready.
 [Serving SBOM](sbom-serving.spdx.json) is retained. AMD64 dependency resolution matches
@@ -122,3 +122,37 @@ The Docker disk-full incident was recovered by removing only task-owned temporar
 caches, restarting Docker, rolling back the interrupted Helm release and deploying
 revision 12. The old unrelated lab node was stopped again after Docker auto-started it.
 This recovery is not a database backup/restore drill.
+
+## Dependency security remediation
+
+[New artifact report](security-remediation/report.json) resolves the five original HIGH
+findings: both new ARM64 image scans report zero fixable HIGH/CRITICAL and zero
+HIGH/CRITICAL Secret findings, with no CVE exclusions. Each image passed `pip check`
+and has an SPDX SBOM. The original scan reports above describe the superseded artifacts.
+
+- [Serving scan](security-remediation/serving-trivy.json) and
+  [SBOM](security-remediation/serving-sbom.spdx.json): MLflow 3.16.1, cryptography 50.0.2,
+  FastAPI 0.142.2, Starlette 1.7.0 and explicit MLServer `1.7.1+mlp.1` compatibility fork.
+- [Initializer scan](security-remediation/initializer-trivy.json) and
+  [SBOM](security-remediation/initializer-sbom.spdx.json): standalone upstream
+  `kserve-storage==0.21.0`, protobuf 6.33.6 and cryptography 50.0.2; no full serving SDK
+  or psutil/compiler build. Image size decreased from 771MB to 430MB.
+- [Fork integrity evidence](security-remediation/mlserver-patch.json): verified upstream
+  wheel, deterministic fork and RECORD hashes, all inference source bytes unchanged;
+  four regression tests passed. Only dependency/version metadata changed.
+- [Native HTTP runtime](security-remediation/runtime.json): actual retained Argo-trained
+  artifact loaded; readiness/metadata, MLflow `/invocations`, native V2 prediction and
+  invalid-request rejection passed. Prediction matches the old result exactly.
+- [Seven-phase CPU lifecycle](security-remediation/cpu-lifecycle.json): all phases passed
+  on the new images in 641 seconds, including private S3 serving, healthy canary,
+  credential rotation, drift repair and natural scale-to-zero/reactivation. The first
+  request after zero pods took 1.19 seconds in this run. Adversarial rollback retains
+  its earlier separate evidence; this rerun exercises the healthy canary gate.
+- [Actual cluster images](security-remediation/cluster-images.json): digest-pinned
+  serving and initializer, successful private S3 init containers, real gateway inference.
+
+The patch and regeneration procedure are in
+[serving-image-security.md](../../../serving-image-security.md). ARM64 and AMD64 locks
+resolve identically when the committed lock is used as a constraint; AMD64 image/runtime
+and final clean release-artifact reruns remain separate. These scans apply to the two
+new recorded artifacts, not every platform image or other initializer provider.

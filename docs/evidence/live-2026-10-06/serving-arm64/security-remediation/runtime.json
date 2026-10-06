@@ -1,0 +1,25 @@
+{
+  "passed": true,
+  "scope": "Native ARM64 HTTP runtime; actual retained Argo-trained MLflow 3.15 artifact loaded by updated MLflow/MLServer dependencies. Cluster validation separate.",
+  "architecture": "aarch64",
+  "packages": {
+    "mlserver": "1.7.1+mlp.1",
+    "mlserver-mlflow": "1.7.1",
+    "mlflow": "3.16.1",
+    "fastapi": "0.142.2",
+    "starlette": "1.7.0",
+    "cryptography": "50.0.2",
+    "protobuf": "6.33.6"
+  },
+  "image": [
+    "localhost:5201/mlflow-serving@sha256:a015a61e186a483e95b48f899a96d7d9823c4f830fd22f74e6d44de3d2b2a575"
+  ],
+  "health_ready": 200,
+  "health_live": 200,
+  "metadata": 200,
+  "mlflow_invocations_status": 200,
+  "native_v2_status": 200,
+  "invalid_request_status": 400,
+  "prediction": -0.9069787623077955,
+  "model_sha256": "520f751fa54843e02ef74f2bec0d028678c28b6f5236ef42f8e88d97f46ae481"
+}

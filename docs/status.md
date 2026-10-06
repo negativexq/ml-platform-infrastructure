@@ -72,8 +72,11 @@ See [live evidence](evidence/live-2026-10-06/README.md).
    acceptance artifacts with local auth none, not production/OIDC/multi-node proof.
    KServe zero-delay/empty-list defaulting fixes are deployed; harness fixes retain
    metric samples during traffic and wait for matching backend apply identity.
-   Serving/initializer still have five fixable HIGH findings blocking their production
-   gate. Shared-time Prometheus queries passed the deployed-image rollback rerun (candidate
+   The five serving/initializer HIGH findings are resolved in new ARM64 acceptance
+   images: zero fixable HIGH/CRITICAL, SBOMs and native inference passed; real private S3
+   loading/gateway also passed. Final clean release/target-architecture reruns remain open.
+   See [dependency remediation](serving-image-security.md).
+   Shared-time Prometheus queries passed the deployed-image rollback rerun (candidate
    error rate exactly 1.0). Forced Secret deletion also passed in an isolated project:
    running value retained, future startup blocked, restored Secret recovered with a new
    boot/value. Private registry, cleanup conflict/outage retry and broader private

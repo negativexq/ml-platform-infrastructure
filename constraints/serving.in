@@ -1,7 +1,8 @@
 # Match the training model's serialization dependencies.
-mlserver==1.7.1
+mlserver==1.7.1+mlp.1
 mlserver-mlflow==1.7.1
-mlflow==3.15.0
+mlflow==3.16.1
+cryptography>=50.0.0
 scikit-learn==1.9.1
 numpy==2.5.3
 cloudpickle==3.1.2

@@ -131,7 +131,9 @@ Already verified for real here:
 ## Next, in order
 
 1. **Close release-image gates:** repeat the clean control-plane gate for the final
-   artifact/architecture and resolve the five serving/initializer HIGH findings. Lab
+   artifact/architecture, including the remediated serving/initializer images. Their
+   new ARM64 scans passed with zero fixable HIGH/CRITICAL; the prior five HIGH findings
+   are resolved. Lab
    migration through `0021`, admission/PSA and ingress isolation already passed; repeat
    the required checks for the production topology and verified OIDC identities.
 2. **Resolve limiter overload and extend HA/isolation evidence:** add isolated limiter
@@ -235,9 +237,12 @@ canary, credential rotation, same-revision drift repair and zero-pod activation.
 Candidate-only error attribution/rollback, scoped storage account cleanup and isolated
 forced Secret deletion/startup/recovery also passed. The deployed metric snapshot uses
 one observation time for all revision queries and measured candidate error rate 1.0.
-Resolve the five fixable HIGH serving/initializer dependency findings before using
-these artifacts for a production release. The original clean control-plane scan pass
-does not cover them. See [ARM64 evidence](evidence/live-2026-10-06/serving-arm64/README.md).
+The original five HIGH findings are retained in baseline scans. New serving/initializer
+images passed their own scans with zero fixable HIGH/CRITICAL, SBOM generation, native
+MLflow/V2 inference and cluster private S3 loading/gateway checks. Repeat for a final clean
+release artifact; the earlier clean control-plane scan does not certify these images.
+See [dependency remediation](serving-image-security.md) and
+[ARM64 evidence](evidence/live-2026-10-06/serving-arm64/README.md).
 
 
 ## 2026-10-06 limiter follow-up

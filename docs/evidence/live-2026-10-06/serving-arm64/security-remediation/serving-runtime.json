@@ -1,0 +1,75 @@
+{
+  "apiVersion": "serving.kserve.io/v1alpha1",
+  "kind": "ClusterServingRuntime",
+  "metadata": {
+    "name": "mlp-mlflow"
+  },
+  "spec": {
+    "protocolVersions": [
+      "v2"
+    ],
+    "supportedModelFormats": [
+      {
+        "name": "mlflow",
+        "version": "1",
+        "autoSelect": true,
+        "priority": 10
+      },
+      {
+        "name": "mlflow",
+        "version": "2",
+        "autoSelect": true,
+        "priority": 10
+      },
+      {
+        "name": "mlflow",
+        "version": "3",
+        "autoSelect": true,
+        "priority": 10
+      }
+    ],
+    "containers": [
+      {
+        "name": "kserve-container",
+        "image": "localhost:5201/mlflow-serving@sha256:a015a61e186a483e95b48f899a96d7d9823c4f830fd22f74e6d44de3d2b2a575",
+        "env": [
+          {
+            "name": "MLSERVER_MODEL_NAME",
+            "value": "{{.Name}}"
+          },
+          {
+            "name": "MLSERVER_MODEL_URI",
+            "value": "/mnt/models"
+          },
+          {
+            "name": "MLSERVER_MODEL_IMPLEMENTATION",
+            "value": "mlserver_mlflow.MLflowRuntime"
+          }
+        ],
+        "resources": {
+          "requests": {
+            "cpu": "100m",
+            "memory": "256Mi"
+          },
+          "limits": {
+            "cpu": "1",
+            "memory": "1Gi"
+          }
+        },
+        "securityContext": {
+          "runAsUser": 1000,
+          "runAsNonRoot": true,
+          "allowPrivilegeEscalation": false,
+          "capabilities": {
+            "drop": [
+              "ALL"
+            ]
+          },
+          "seccompProfile": {
+            "type": "RuntimeDefault"
+          }
+        }
+      }
+    ]
+  }
+}

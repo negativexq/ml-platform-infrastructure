@@ -1,0 +1,16 @@
+{
+  "upstream_package": "mlserver",
+  "upstream_version": "1.7.1",
+  "upstream_sha256": "d2ac7502915bb5311343a878aa1fb614f9b0f2436ee550a6137c1872a4dca193",
+  "fork_version": "1.7.1+mlp.1",
+  "fork_wheel_sha256": "80aecee6928ed4f0f276721294f4100e67129bcf76618e92e77687636a0963e9",
+  "changes": "Dependency metadata only: FastAPI >=0.142.2,<1 and Starlette >=1.3.1,<2. Dist-info version/name and RECORD regenerated.",
+  "verification": {
+    "inference_source_bytes_unchanged": true,
+    "deterministic_rebuild": true,
+    "tampered_source_rejected": true,
+    "record_hashes_verified": true,
+    "unit_tests_passed": 4
+  },
+  "architecture_resolution": "ARM64 locks resolve identically on AMD64 with the committed lock used as constraints; no AMD64 image runtime claim."
+}

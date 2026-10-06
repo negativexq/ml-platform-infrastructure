@@ -238,7 +238,9 @@ The pinned upstream MLServer and storage-initializer tags are AMD64-only. Native
 Dockerfiles are available under `docker/serving/` and `docker/storage-initializer/`.
 Their locks preserve the training model's serialization versions; regenerate with
 `scripts/lock.sh serving` and `scripts/lock.sh storage-initializer`. The S3 image uses
-the official KServe Python storage SDK with a restricted, S3-only entrypoint.
+the official standalone `kserve-storage` package with a restricted, S3-only entrypoint.
+The serving lock uses an explicit MLServer dependency-metadata compatibility fork;
+see [dependency remediation and regeneration](serving-image-security.md).
 
 After building/pushing for the target architecture, bootstrap can render digest-pinned
 resources with `--mlflow-serving-image` and `--s3-storage-initializer-image`. The MLflow
@@ -246,6 +248,8 @@ runtime has higher auto-selection priority. The S3 container has its own URI mat
 the installer removes S3 from the pinned upstream default to avoid ambiguous selection.
 Other storage provider images are unchanged by these options.
 
-These images are currently acceptance fixtures: native model loading and KServe
-readiness work, but their production vulnerability gates have not passed. See
+The new ARM64 acceptance images passed native inference, the full seven-phase CPU
+lifecycle, `pip check`, SPDX SBOM generation and Trivy scans with zero fixable
+HIGH/CRITICAL findings. Final clean release-artifact and AMD64 runtime reruns remain
+separate gates. See
 [ARM64 evidence and exact limitations](evidence/live-2026-10-06/serving-arm64/README.md).

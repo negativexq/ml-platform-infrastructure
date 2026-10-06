@@ -126,9 +126,16 @@ use the supported declared dependency graph: `cryptography==49.0.0`, `pandas==2.
 MLflow 3.15.0. This avoids silently ignoring dependency metadata. It is **not evidence of
 CVE clearance**, nor a reason to bypass the security scanner. If the supported dependency
 version fails the scan policy, upgrade/test MLflow as a compatible set before releasing.
-The inference/controlplane locks were not upgraded in this batch; cross-image model
+The inference/controlplane locks were not upgraded in that historical batch; cross-image model
 serialization compatibility must be tested. Linux amd64 was the resolver target; other
 architectures and CUDA/GPU image compatibility have not been verified.
+
+**Recorded serving remediation (2026-10-06):** the classic serving image now uses MLflow
+3.16.1/cryptography 50.0.2 and the explicit MLServer metadata fork with fixed Starlette.
+The S3 initializer uses standalone `kserve-storage` with fixed protobuf. Their new ARM64
+scans and native inference/private S3 gateway checks passed; the old five HIGH findings
+are resolved for these two artifacts. Training and tracking-server locks above retain
+their separate scope. See [serving-image-security.md](serving-image-security.md).
 
 ## Verification completed locally
 

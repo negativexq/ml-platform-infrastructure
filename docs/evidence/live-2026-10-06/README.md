@@ -11,8 +11,10 @@ PostgreSQL budgets held at 1/2/4 gateway replicas; 50/100 RPS passed availabilit
 500 RPS failed with transport timeouts and lock waiters. Basic PVC-backed DB outage and
 recovery passed, including expired auth/route caches. These are single-node ARM64 lab
 results; multi-node, hung-leader, strict-egress, private-registry, GPU/HF, OIDC/TLS and
-backup/restore gates remain open. Five serving/initializer HIGH findings still block
-production release. Original failed attempts below are retained as history.
+backup/restore gates remain open. The original five serving/initializer HIGH findings
+are resolved in [new ARM64 acceptance images](serving-arm64/security-remediation/report.json);
+the final clean release-artifact rerun remains open. Original failed attempts below are
+retained as history.
 
 | Evidence | Result and scope |
 | --- | --- |
@@ -90,7 +92,7 @@ initializer loading passed in the [ARM64 follow-up](serving-arm64/README.md).
 The pinned default MLServer 1.5.0 image is AMD64, while this fixture node is ARM64. A
 native runtime and S3 initializer now load the artifact and reach READY; real gateway
 inference also passes. See [ARM64 follow-up](serving-arm64/README.md) for the retained
-partial lifecycle failures and five HIGH findings blocking production release.
+partial lifecycle failures and baseline HIGH findings, followed by the remediated scans.
 The MinIO chart image defaults remain unavailable upstream; only the explicit acceptance
 values override them with the recorded locally built images.
 
@@ -101,7 +103,8 @@ lifecycle, real candidate-only error attribution/rollback and scoped storage-acc
 cleanup, plus forced Secret deletion/startup/recovery. Original failed reports above
 retain their attempt-specific scope. Later images
 are dirty acceptance artifacts and do not replace the clean release gate's source scope;
-five serving/initializer HIGH findings still block production release.
+the original five serving/initializer HIGH findings are resolved by separately scanned
+new artifacts. Final clean release/target-architecture reruns remain open.
 
 ## Shared PostgreSQL limiter load follow-up
 

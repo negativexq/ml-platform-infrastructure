@@ -1,0 +1,53 @@
+{
+  "source_revision": "89267750b5854a643313a5181a421dfe2c10105d",
+  "source_clean": false,
+  "source_label": "8926775-working-tree",
+  "architecture": "linux/arm64",
+  "serving_image": "localhost:5201/mlflow-serving@sha256:a015a61e186a483e95b48f899a96d7d9823c4f830fd22f74e6d44de3d2b2a575",
+  "initializer_image": "localhost:5201/storage-initializer@sha256:995e9e7134b9675d13ec7a4981ed5db4d07ac9608716e05bc510a03a3cf322fa",
+  "checks": {
+    "serving": {
+      "fixable_high_critical": 0,
+      "high_critical_secrets": 0,
+      "scan_exit_code": 0,
+      "pip_check_exit_code": 0,
+      "sbom_sha256": "67437d851263ea07fd6c866c451c62ac568b578c82c466a340db86f3675102f1"
+    },
+    "initializer": {
+      "fixable_high_critical": 0,
+      "high_critical_secrets": 0,
+      "scan_exit_code": 0,
+      "pip_check_exit_code": 0,
+      "sbom_sha256": "91a3f7739bad462122bc1b866eaba619a1f10e219d036bccb598eb0515fc3e24"
+    }
+  },
+  "former_findings": [
+    "CVE-2026-69247",
+    "CVE-2025-62727",
+    "CVE-2026-48818",
+    "CVE-2026-54283",
+    "CVE-2026-0994"
+  ],
+  "file_sha256": {
+    "constraints/serving.in": "36fc757fdb989fd9661d5dc0342cf7c6a815c8c2a139e63abf1e2ea199a05547",
+    "constraints/serving.txt": "1c2a8f8f48c62ff839104432ca2a12c7612f07529dd6c32ca580d01eec2c3426",
+    "constraints/storage-initializer.in": "2e50a5f4c06b77f371f29e41bfb94de28bfe03772185ae67244b298922cb1bd8",
+    "constraints/storage-initializer.txt": "02e45981787b2c2bcb51b21b635f805395f44bf46fae7149b4326e3987f8297c",
+    "docker/serving/Dockerfile": "171cf8afdcfed8508c7279bbb8cb171ce89c8464438f7422817a36a4cdba0501",
+    "docker/serving/patch_mlserver.py": "1c1cbd38b731267c32588a5bfd199d0447c5fdbdd68a92ad4145b28796d585bb",
+    "docker/storage-initializer/Dockerfile": "7ddf12b0849d7c7ab8719ae84eb2bdefb2a441f3f6533e973b3289ac6b691da6",
+    "docker/storage-initializer/initialize.py": "e93ca1592c77859c4c2ea9432d938d40d9ac1ac61e363d69e2ae2933afaccaee"
+  },
+  "runtime_passed": true,
+  "cluster_lifecycle_passed": true,
+  "scope": "Working-tree ARM64 acceptance images: native runtime and all seven CPU lifecycle phases passed. Healthy canary attribution passed; adversarial rollback retains its earlier separate evidence. Final clean release/AMD64 runtime remains separate. Zero fixable HIGH/CRITICAL, not zero total vulnerabilities.",
+  "cve_exclusions": [],
+  "passed": true,
+  "validation": {
+    "regression_tests_passed": 18,
+    "ruff": "passed",
+    "patcher_mypy": "passed",
+    "lock_regeneration": "both supported scripts/lock.sh paths reproduce tested package pins on Linux/amd64; tested lock bytes retained"
+  },
+  "regeneration_script_sha256": "577afa146b5432306d2d8b825d3df8183f0c860e8e3e2b6266fc7def7e33c350"
+}

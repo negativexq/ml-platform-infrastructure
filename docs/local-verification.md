@@ -34,7 +34,12 @@ cleanup passed. Shared budgets held across 1/2/4 gateway replicas; 50/100 RPS pa
 availability. Basic PVC-backed DB outage/recovery passed with warm and expired caches.
 See [live evidence](evidence/live-2026-10-06/README.md).
 
-**Open scopes:** five serving/initializer HIGH findings, 500 RPS limiter availability
+**Recorded image remediation:** the five serving/initializer HIGH findings are resolved
+in new ARM64 images. Their own scans reported zero fixable HIGH/CRITICAL; native MLflow/V2
+inference and real private S3 loading/gateway passed. See
+[dependency remediation](serving-image-security.md).
+
+**Open scopes:** 500 RPS limiter availability
 (failed), isolated limiter latency and sustained outage/thread growth, final clean
 release-artifact rerun, strict egress, hung-leader, multi-node loss/drain, private
 registry, backup/restore, GPU/vLLM/HF, in-cluster OIDC, real ingress/TLS and AWS.
@@ -842,7 +847,7 @@ commands, pinned dependency installation, admission/namespace RBAC/ingress isola
 full CPU serving lifecycle, healthy canary and candidate-only rollback, Secret
 rotation/restart/forced recovery, shared-budget concurrency and basic DB outage passed.
 
-Remaining scopes: final clean release rerun and serving/initializer HIGH fixes,
+Remaining scopes: final clean release rerun for control-plane and remediated serving/initializer,
 500 RPS availability, isolated limiter latency, sustained outage and targeted timeout
 faults, strict egress, hung-leader/multi-node, GPU/HF/TLS/OIDC, private pulls, broader
 UI browser acceptance and backup/restore. See [roadmap.md](roadmap.md).

@@ -138,6 +138,7 @@ isolation drills:
 - ✓ Scale-to-zero → reactivation
 - ✓ Secret rotation / forced-delete startup failure and recovery
 - ✓ Scoped storage-account cleanup, preserving foreign accounts
+- ✓ Updated serving/S3 initializer: zero fixable HIGH/CRITICAL findings and SPDX SBOMs
 - ✓ Same-revision serving drift repair with a new matching immutable backend
 - ✓ Project RBAC / restricted PSA / installed admission policies (server dry runs)
 - ✓ Cross-project ingress isolation on an enforcing network-policy engine
@@ -149,12 +150,13 @@ isolation drills:
 [Live reports and artifact scopes](docs/evidence/live-2026-10-06/README.md) record both
 passes and failed attempts. Lab auth was `none`; later acceptance images were built
 from working trees and do not inherit the earlier clean control-plane release scan.
+The [serving image remediation](docs/serving-image-security.md) records the explicit
+MLServer compatibility fork and standalone storage library.
 Separate local evidence covers PostgreSQL tests, Chromium, Prometheus queries,
 Keycloak sign-in, promtool and kubeconform; it does not establish in-cluster OIDC.
 
 **Still open:**
 
-- Five fixable HIGH findings: four in serving, one in the initializer image
 - 500 RPS limiter availability/performance (failed), isolated limiter latency and sustained outage/thread growth
 - Final clean release artifact/target-architecture rerun
 - OIDC in-cluster acceptance

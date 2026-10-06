@@ -1,0 +1,77 @@
+{
+  "project": "acceptance-ca9287f7c0",
+  "context": "kind-mlp-acceptance",
+  "passed": true,
+  "phases": [
+    {
+      "phase": "project/RBAC",
+      "elapsed_seconds": 6.043935916852206,
+      "admission_checked": true
+    },
+    {
+      "phase": "training/MLflow/discovery",
+      "elapsed_seconds": 38.475556541699916,
+      "version_id": "af1fa321-9df8-425e-a5cd-323cb77c120c"
+    },
+    {
+      "phase": "CPU serving/gateway",
+      "elapsed_seconds": 54.756988166831434
+    },
+    {
+      "phase": "canary/metrics",
+      "elapsed_seconds": 225.53691504197195,
+      "rollout_id": "62f6ea61-eec0-4e1d-8f3c-4867b7a84ee0",
+      "backend_revisions": [
+        "scorer-predictor-00001",
+        "scorer-predictor-00002",
+        "scorer-predictor-00003"
+      ],
+      "metrics": {
+        "scorer-predictor-00001": {
+          "platform_revision": 1,
+          "observed_at": "2026-10-06T20:31:49.286183+00:00",
+          "p95_latency_ms": 4.770212765957446,
+          "error_rate": 0.0,
+          "requests_per_second": 2.052156068208102,
+          "requests": 246.25872818497228
+        },
+        "scorer-predictor-00002": {
+          "platform_revision": 2,
+          "observed_at": "2026-10-06T20:31:49.266803+00:00",
+          "p95_latency_ms": 4.97983870967742,
+          "error_rate": 0.0,
+          "requests_per_second": 0.5652223062809242,
+          "requests": 67.8266767537109
+        },
+        "scorer-predictor-00003": {
+          "platform_revision": 2,
+          "observed_at": "2026-10-06T20:31:49.276751+00:00",
+          "p95_latency_ms": 4.779851010262507,
+          "error_rate": 0.0,
+          "requests_per_second": 2.714228333333333,
+          "requests": 325.70739999999995
+        }
+      },
+      "limitation": "Healthy gate only; adversarial metric-label test remains separate"
+    },
+    {
+      "phase": "function/credential rotation",
+      "elapsed_seconds": 233.85291920788586
+    },
+    {
+      "phase": "same-revision drift repair",
+      "elapsed_seconds": 278.08671837486327,
+      "previous_backend": "function-predictor-00001",
+      "repaired_backend": "function-predictor-00003"
+    },
+    {
+      "phase": "scale-to-zero/reactivation",
+      "elapsed_seconds": 641.1257104165852,
+      "activation_request_seconds": 1.1936990832909942
+    }
+  ],
+  "source_revision": "89267750b5854a643313a5181a421dfe2c10105d",
+  "source_clean": false,
+  "project_id": "52c3d76d-b229-442f-8579-72ae6a00a4d9",
+  "elapsed_seconds": 641.1260059997439
+}

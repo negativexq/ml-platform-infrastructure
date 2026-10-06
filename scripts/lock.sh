@@ -16,6 +16,10 @@ lock() {
   local input=pyproject.toml
   [[ "$name" == training || "$name" == mlflow || "$name" == serving || "$name" == storage-initializer ]] && input="constraints/$name.in"
   [[ "$name" == controlplane ]] && options+=(--extra controlplane)
+  if [[ "$name" == serving ]]; then
+    python3 docker/serving/patch_mlserver.py --out "$MLP_LOCK_TEMP/mlserver"
+    options+=(--find-links "$MLP_LOCK_TEMP/mlserver")
+  fi
   if [[ -f "constraints/$name.txt" && "${MLP_LOCK_UPGRADE:-0}" != 1 ]]; then
     cp "constraints/$name.txt" "$MLP_LOCK_TEMP/$name.previous"
     options+=(--constraint "$MLP_LOCK_TEMP/$name.previous")
