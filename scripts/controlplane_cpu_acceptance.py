@@ -91,8 +91,13 @@ def execute(args: argparse.Namespace) -> None:
 
         base = "/projects/" + project
         try:
-            call("POST", "/projects", {"name": project})
-            poll(lambda: call("GET", base), lambda p: p["status"] == "READY", "project")
+            created_project = call("POST", "/projects", {"name": project})
+            report["project_id"] = created_project["id"]
+            poll(
+                lambda: call("GET", "/projects/" + created_project["id"]),
+                lambda p: p["status"] == "READY",
+                "project",
+            )
             for resource in (
                 "resourcequota/mlp-quota",
                 "role/mlp-workflow-executor",

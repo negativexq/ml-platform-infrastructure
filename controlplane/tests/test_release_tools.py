@@ -97,7 +97,9 @@ def test_release_reads_reconciler_stderr_without_changing_other_command_output()
         "run",
         return_value=subprocess.CompletedProcess([], 0, stdout="", stderr="reconciler started"),
     ):
-        assert release.run(["docker", "logs", "fixture"], include_stderr=True) == "reconciler started"
+        assert (
+            release.run(["docker", "logs", "fixture"], include_stderr=True) == "reconciler started"
+        )
         assert release.run(["docker", "inspect", "fixture"]) == ""
 
 
