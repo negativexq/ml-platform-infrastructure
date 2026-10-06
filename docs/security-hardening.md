@@ -1,5 +1,7 @@
 # Security hardening and remaining verification
 
+Current consolidated status (2026-10-06): [status.md](status.md). Dated findings and test records below retain their original scope.
+
 Date: 2026-10-05. Starting HEAD: `20bb0a7` (the supplied audit reviewed `e6f2981`).
 This document records the repository changes from the security remediation task, their
 local evidence, deployment prerequisites, and work that remains. Changes have not been
@@ -89,7 +91,7 @@ The following are **future operator steps, not commands run against your platfor
 1. Provision a dedicated migration/schema owner and three unprivileged LOGIN accounts
    through the organisation's DBA/secret-management mechanism. Keep credentials out of Git.
 2. With the migration-owner connection in `CP_DATABASE_URL`, run
-   `python -m controlplane.persistence.migrate upgrade` to apply head `0020`.
+   `python -m controlplane.persistence.migrate upgrade` to apply current head `0021` (including audit protection from `0020`).
 3. With an appropriate DBA connection in `CP_DATABASE_ADMIN_URL`, run:
 
    ```bash

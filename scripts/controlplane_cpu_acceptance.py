@@ -45,6 +45,9 @@ def execute(args: argparse.Namespace) -> None:
         "passed": False,
         "phases": [],
         "source_revision": subprocess.check_output(["git", "rev-parse", "HEAD"], text=True).strip(),
+        "source_clean": not subprocess.check_output(
+            ["git", "status", "--porcelain"], text=True
+        ).strip(),
     }
     started = time.monotonic()
     with (
@@ -190,7 +193,13 @@ def execute(args: argparse.Namespace) -> None:
                     )
                     training_env["MLFLOW_S3_ENDPOINT_URL"] = protocol + "://" + endpoint
             model = call(
-                "POST", base + "/models", {"name": "scorer", "thresholds": {"r2": {"min": 0.9}}}
+                "POST",
+                base + "/models",
+                {
+                    "name": "scorer",
+                    "thresholds": {"r2": {"min": 0.9}},
+                    "secret_refs": {"storage_secret": "artifact-storage"} if storage else {},
+                },
             )
             call(
                 "POST",

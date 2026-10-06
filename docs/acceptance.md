@@ -1,6 +1,9 @@
 # Manual release and acceptance gates
 
-Prepared without starting Docker, PostgreSQL, a browser or a cluster. The commands below
+The original command-preparation batch did not start Docker, PostgreSQL, a browser or a cluster.
+Subsequent isolated SQL evidence is in [security-hardening.md](security-hardening.md) and
+[concurrency-identity-audit.md](concurrency-identity-audit.md); current release status is
+[status.md](status.md). The commands below
 produce evidence only when actually run. Local orchestration/schema tests are separate
 from live acceptance. CI is unchanged.
 
@@ -15,7 +18,7 @@ make cp-release-check CP_IMAGE=mlp-controlplane:release-check \
 
 The output directory must be new. The gate builds the control-plane Dockerfile with its
 full source SHA label; every runtime uses the resulting immutable image ID. It tests clean
-PostgreSQL migrations to the current image head (`0020`), API/gateway liveness/readiness,
+PostgreSQL migrations to the current image head (`0021`), API/gateway liveness/readiness,
 reconciler configuration/empty-state passes and database restart recovery. The fixture
 kubeconfig is deliberately not connected to Kubernetes; election/RBAC are live gates.
 The disposable owner-credential fixture explicitly disables runtime-role enforcement; it does not prove DB privilege separation. An isolated Docker network/database is removed afterwards, including labelled temporary
@@ -191,7 +194,7 @@ fixtures reject foreign namespaces/provider writes, ownership adoption/removal/c
 wrong binding name/roleRef/subject and extra subjects. These are CEL expression and chart
 contracts, not Kubernetes structural-schema type checking or live admission evidence.
 
-On a deployed 0.2.0 chart, with a preexisting owned project:
+On the deployed 0.3.1 chart, with a preexisting owned project:
 
 ```bash
 python scripts/controlplane_admission_check.py --context <context> \
@@ -204,6 +207,6 @@ It checks allowed owned binding repair and denial of alternate subjects/names, e
 subjects, foreign bindings/provider writes, ownership changes and foreign label forgery.
 Dry runs persist nothing. Denied operations must report the expected release's policy;
 RBAC denial, network failure, bad fixtures and unrelated policies are gate failures.
-CPU acceptance invokes this gate during its project/RBAC phase. Live admission enforcement
-has not been run in this RAM-constrained batch; record context, Kubernetes version,
-source SHA, command output and policy status when executing it.
+CPU acceptance invokes this gate during its project/RBAC phase. On 2026-10-06, the
+installed gate passed on Kubernetes 1.32.0 with four policies/bindings, zero type warnings
+and nine server dry runs. See [live evidence](evidence/live-2026-10-06/README.md).

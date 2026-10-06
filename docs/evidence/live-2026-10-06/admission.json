@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "context": "kind-mlp-acceptance",
+  "kubernetes": "1.32.0",
+  "chart_source_revision": "b7a3420a3057bede403f92fc5fee8af01a195f02",
+  "project_namespace": "mlp-acceptance-lifecycle",
+  "policies": 4,
+  "bindings": 4,
+  "type_warnings": 0,
+  "server_dry_run_checks": 9,
+  "command": "scripts/controlplane_admission_check.py --context kind-mlp-acceptance --project-namespace mlp-acceptance-lifecycle"
+}

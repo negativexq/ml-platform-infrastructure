@@ -10,6 +10,7 @@ from typing import Any
 import anyio.to_thread
 import httpx
 
+from controlplane.adapters.prediction_http import prediction_path
 from controlplane.application.gateway import UpstreamCall, UpstreamReply
 from controlplane.application.providers import ServingProvider
 from controlplane.domain.states import EndpointProtocol
@@ -17,7 +18,7 @@ from controlplane.domain.states import EndpointProtocol
 
 class HttpUpstream:
     """Streams the reply through as it arrives, so long answers (LLM tokens, later) are not
-    buffered. Model endpoints speak KServe's v2 protocol at `/v2/models/<name>/infer`."""
+    buffered. MLflow JSON and native V2 requests use their matching backend handlers."""
 
     def __init__(self, client: httpx.AsyncClient | None = None) -> None:
         self._client = client or httpx.AsyncClient(
@@ -29,7 +30,11 @@ class HttpUpstream:
             raise ConnectionError(f"{call.ref} has no address yet")
         _, _, name = call.ref.partition("/")
         if call.protocol is EndpointProtocol.V2_INFER:
-            path = f"/v2/models/{name}/infer"
+            try:
+                payload = json.loads(call.body)
+            except ValueError:
+                payload = None  # Let the backend return its JSON validation error.
+            path = prediction_path(name, payload)
         elif call.protocol is EndpointProtocol.OPENAI:
             path = "/openai/v1/chat/completions"  # KServe's Hugging Face server (vLLM)
         else:

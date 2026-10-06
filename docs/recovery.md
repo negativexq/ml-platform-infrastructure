@@ -75,7 +75,7 @@ across those systems. Existing [MLflow backup](../scripts/backup.sh) remains sep
 The restore verifier also accepts complete legacy 18-table manifests at heads
 `0014`–`0016`. Use the backup script from the installed release before upgrading an old
 schema; this version queries the shared-bucket table added in `0017`. Restore legacy
-archives first, then migrate the isolated recovery database through `0019` for this image.
+archives first, then migrate the isolated recovery database through `0021` for this image.
 
 ## Platform disaster recovery scope
 

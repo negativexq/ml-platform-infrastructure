@@ -1,5 +1,12 @@
 # Verifying on a real cluster
 
+Current consolidated status (2026-10-06): [status.md](status.md). Dated findings and test records below retain their original scope.
+
+Latest recorded suite: **419 passed, 5 skipped, 217 deselected**, plus targeted native
+PostgreSQL promotion/concurrency checks. See [concurrency-identity-audit.md](concurrency-identity-audit.md)
+and [security-hardening.md](security-hardening.md) for the complete scope. This document
+review did not rerun those tests; the older dated counts below are historical snapshots.
+
 What the platform does that has only been tested against fakes, a real PostgreSQL or schema
 validation, and how to check each part on a real Kubernetes cluster. Run these on a
 machine with a working container runtime. Earlier cloud-sandbox verification could not
@@ -14,10 +21,13 @@ start pods; those results do not establish Argo, KServe, CNI or GPU behavior.
   `kube-controller-manager` (`scripts/envtest.sh`): resources created, a second apply
   changed nothing, drift was repaired, and the namespace was deleted.
 
-**Not yet verified:** anything that runs a pod, Argo Workflows, KServe or a CNI.
+**Verified on 2026-10-06:** control-plane image runtime/scan/SBOM, separated-runtime-role
+readiness, real project provisioning, admission/PSA, scoped API RBAC, Lease failover,
+reconciler PDB, API/gateway rolling restarts and enforcing ingress isolation.
+Pinned Argo/KServe/Knative dependencies are installed; full CPU inference acceptance
+remains in progress. See [live evidence](evidence/live-2026-10-06/README.md).
 
-The image/chart and pinned offline bootstrap source are prepared; actual image builds,
-cluster installation and runtime checks remain open. See [installation.md](installation.md), [networking.md](networking.md)
+Strict egress, full serving lifecycle, GPU and multi-node fault checks remain open. See [installation.md](installation.md), [networking.md](networking.md)
 and [roadmap.md](roadmap.md).
 
 ---
@@ -75,9 +85,9 @@ Drive everything through the API (`curl`/`/docs`), inspect with `kubectl`.
 | 2 | Reconciler creates the namespace | `kubectl get ns mlp-credit-risk` |
 | 3 | Deterministic name `mlp-<name>` | same |
 | 4 | `project_id` label on every resource | `kubectl get ns,sa,quota,limitrange,netpol,role,rolebinding -n mlp-credit-risk --show-labels` → `mlp.io/project-id` |
-| 5 | ServiceAccount `mlp-workload` | `kubectl -n mlp-credit-risk get sa` |
+| 5 | Separate `mlp-training` and token-disabled `mlp-serving` accounts | Inspect service accounts and executor RoleBinding; legacy `mlp-workload` has no executor grant |
 | 6 | ResourceQuota `mlp-quota` applied | `kubectl -n mlp-credit-risk describe quota` |
-| 7 | Baseline NetworkPolicy `mlp-baseline` | `kubectl -n mlp-credit-risk get netpol` **and prove enforcement**: a pod in another namespace must not reach a pod in `mlp-credit-risk` (kindnet enforces; see the NetworkPolicy drill in `docs/history/failure-engineering.md` for the shape) |
+| 7 | Baseline NetworkPolicy `mlp-baseline` | `kubectl -n mlp-credit-risk get netpol` **and prove enforcement**: a pod in another namespace must not reach a pod in `mlp-credit-risk` (use an enforcing CNI; manifest rendering or an arbitrary kind network alone is not proof) |
 | 8 | 10× reconcile changes nothing | record `resourceVersion` of every resource, wait ≥10 reconcile passes, compare; also `select count(*) from audit_events` must not grow |
 | 9 | Manual namespace delete is repaired | `kubectl delete ns mlp-credit-risk`; status goes `READY → DRIFTED → PROVISIONING → READY` (`select action,payload from audit_events order by occurred_at`) |
 | 10 | Failed provisioning never yields READY | e.g. pre-create `kubectl create ns mlp-other` *without* labels, then `POST /projects {"name":"other"}` → status `FAILED`, `status_reason` says the namespace is not owned |
@@ -240,23 +250,14 @@ Extra setup: KServe must be installed, with the MLflow runtime available (the
 `InferenceService` uses `modelFormat: mlflow`, protocol v2), and the serving pods
 need credentials for the artifact store.
 
-```bash
-# KServe. NOTE: plain deployments work in RawDeployment mode (shown below), but canary
-# splitting needs KServe *Serverless* mode (Knative Serving + a gateway); see section 6.
-kubectl apply -f https://github.com/kserve/kserve/releases/download/v0.14.1/kserve.yaml
-kubectl apply -f https://github.com/kserve/kserve/releases/download/v0.14.1/kserve-cluster-resources.yaml
-kubectl patch cm -n kserve inferenceservice-config --type merge \
-  -p '{"data":{"deploy":"{\"defaultDeploymentMode\":\"RawDeployment\"}"}}'
-
-# MinIO credentials for the storage initializer, attached to the SA the project namespace
-# already has (mlp-workload). Adjust endpoint/keys to your platform-local values.
-kubectl -n mlp-credit-risk create secret generic mlp-s3 \
-  --from-literal=AWS_ACCESS_KEY_ID=... --from-literal=AWS_SECRET_ACCESS_KEY=...
-kubectl -n mlp-credit-risk annotate secret mlp-s3 \
-  serving.kserve.io/s3-endpoint=platform-minio.ml-platform.svc:9000 \
-  serving.kserve.io/s3-usehttps=0
-kubectl -n mlp-credit-risk patch sa mlp-workload -p '{"secrets":[{"name":"mlp-s3"}]}'
-```
+Install the pinned **Serverless** KServe/Knative path from
+[installation.md](installation.md); the old RawDeployment example cannot establish the
+immutable Knative readiness/canary contract. For classic private S3/MinIO artifacts, use
+project Secret management with AWS keys and allowlisted S3 annotations, then configure
+`secret_refs.storage_secret` at model registration. The platform creates revision-specific
+`mlp-storage-*` accounts for the initializer. See [secrets.md](secrets.md). Do not attach
+storage credentials to the deprecated shared workload account. Actual download and PSA
+compatibility remain live gates.
 
 ```bash
 curl -XPOST localhost:8080/projects/credit-risk/deployments -H 'content-type: application/json' \
@@ -532,7 +533,7 @@ against real Argo, and serving behavior against real KServe/Knative:
    already exists.
 6. **Executor permissions** — the project namespace gets Role/RoleBinding
    `mlp-workflow-executor` (`workflowtaskresults` create/patch for SA
-   `mlp-workload`). If steps run but the workflow never completes, check the
+   `mlp-training`). If steps run but the workflow never completes, check the
    Argo version's required RBAC and the pod's `wait` container log.
 7. **Provisioner on kind vs. envtest** — only exercised on envtest. Re-run the
    projects table (section 1) on kind (the NetworkPolicy and namespace-deletion rows especially).
@@ -545,8 +546,8 @@ against real Argo, and serving behavior against real KServe/Knative:
   controller's `workflowNamespaces`/RBAC must cover `mlp-*` namespaces.
 - Build and exercise the prepared **control-plane image/chart**, including migration
   hooks, process commands, RBAC and read-only filesystems. The chart includes Knative
-  Revision read permissions; complete topology policies and dependency bootstrap are
-  still open. See [installation.md](installation.md).
+  Revision read permissions, native admission, separated runtime credentials, topology
+  policies and pinned bootstrap sources; their installed runtime behavior is still open. See [installation.md](installation.md).
 - CI job running `scripts/envtest.sh` and an integration test for
   `KubernetesClusterProvider` (currently only a manual smoke).
 - `docs/evidence/m14/gate.md`, `docs/evidence/m15/gate.md` and README rows once
@@ -555,28 +556,30 @@ against real Argo, and serving behavior against real KServe/Knative:
   management and workload references are implemented ([secrets.md](secrets.md)); verify
   actual credential use and connectivity in the cluster. The original training Secret
   still lives in `ml-platform` and is not automatically copied or adopted.
-- No retry for pipeline runs, no pipeline-run history cleanup, no per-step
-  resource defaults.
+- No pipeline-run retry endpoint or physical history purge. Steps inherit job resources
+  and namespace LimitRange defaults; per-step resource overrides remain separate work.
 - UI: forms, filters, run paging, activity and role-based access are implemented. Remaining
   checks include large real datasets, Firefox/Safari and screen-reader accessibility;
   keyboard operation and non-colour status cues have local browser coverage.
-- No `DELETE` for deployments, no per-revision serving state in the database (the
-  rollout row is the only record of the split).
+- Deployment deletion is implemented: endpoint closes, serving disappearance is confirmed,
+  storage accounts are cleaned and history is retained. Physical history purging and
+  richer per-backend historical observations remain separate work.
 - Rollouts need Serverless KServe + Prometheus; there is no RawDeployment/own-gateway
   fallback, no pause/resume, no manual "promote now" or step skip, and no automatic
   retry of a rollout.
 - The Prometheus window is fixed (`2m`) and independent of `step_seconds`.
 - The platform's own predict route is a thin pass-through for trying a model; outside
   callers use the gateway (`docs/gateway.md`, §12).
-- Per-project serving credentials are manual (see section 5); the control plane
-  does not create them.
-- No automatic discovery after a pipeline run succeeds (discovery is an explicit
-  call); no comparison against the champion beyond recording its id as `baseline`;
-  no rollback-to-previous-champion endpoint.
+- Classic S3 serving credentials use project Secrets and revision-specific storage
+  accounts. Gated/private provider paths beyond that contract still need work.
+- Successful pipelines trigger delayed lineage-scoped discovery with durable checkpoints;
+  discovered versions are not automatically evaluated/promoted. A built-in comparison
+  harness and rollback-to-previous-champion endpoint remain separate work.
 - Run ids are plain UUIDs; the plan's `run_01J…` display form is not done.
-- Workflow pods are never garbage-collected; logs depend on pods surviving.
-- No log streaming (single read); deadlines are now configurable. No resource defaults for
-  jobs that omit `resources`.
+- Optional terminal-workflow retention deletes workflows/pods while preserving DB history;
+  logs are lost after cleanup without a durable archive. It is disabled by default.
+- No log streaming (single read); deadlines are configurable. Project LimitRanges supply
+  CPU/RAM/ephemeral defaults for omitted resources; actual admission/accounting is a live gate.
 - Blocker in cloud development sandboxes: nested `runc`.
   Options: run the gates on your machine, or find a sandbox with a working
   container runtime (e.g. rootless `kind` with a userns-capable kernel).
@@ -852,8 +855,9 @@ Ruff and mypy (**180 source files**) passed. No cluster was started or changed.
 
 Chart inspection plus upstream RBAC documentation confirm the indirect privilege path:
 cluster-wide RoleBinding mutation plus named project-role bind grants can grant access
-in foreign namespaces. Admission enforcement is absent. Ownership selector labels are
-also editable by the reconciler. The remaining trust boundary and proposed enforcement
+in foreign namespaces without admission. At that audit snapshot (`5a9c362`), admission
+enforcement was absent; the subsequent section records its implementation. The current
+chart also protects PSA/ownership updates. The remaining trust boundary and proposed enforcement
 contract are documented in [operations.md](operations.md#reconciler-provisioning-trust-boundary);
 no live attack/denial test was performed.
 

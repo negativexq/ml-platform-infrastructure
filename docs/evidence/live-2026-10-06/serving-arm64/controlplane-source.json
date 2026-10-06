@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "scope": "deployed module bytes match working-tree fixes",
+  "source_clean": false,
+  "image": "sha256:983283a36743c5515d3e34189e9f086dca7434c370fa38618879b6f4c0436f38",
+  "modules_sha256": {
+    "controlplane.adapters.mlflow.tracking": "c035d771394b2cf8357ec11049c81836276c995e5e0e7d54a0566aa47433deb6",
+    "controlplane.adapters.serving.kserve": "1d1c85c4f64c42cdfcb45de5895115864b4c4e12a983cb3c5da34b0b13938324"
+  }
+}

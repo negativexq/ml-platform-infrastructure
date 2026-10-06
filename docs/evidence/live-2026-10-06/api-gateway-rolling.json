@@ -1,0 +1,7 @@
+{
+  "passed": false,
+  "readiness_probes": 200,
+  "successful": 196,
+  "scenario": "simultaneous rolling restarts, service requests from cluster pod",
+  "limitation": "one-node cluster; no node-loss proof"
+}

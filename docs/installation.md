@@ -39,14 +39,18 @@ Before installation:
 
 1. Create a **dedicated control-plane database**, migration/schema owner and three runtime LOGIN users. Reusing the existing
    PostgreSQL server is fine; pointing migrations at MLflow's database/schema is not.
-2. Apply migration `0020` and configure the dedicated runtime grant manifest. Create
+2. Before migration `0021`, inspect/resolve duplicate active rollout versions and old
+   inconsistent manual promotions as described in [concurrency-identity-audit.md](concurrency-identity-audit.md).
+   Apply migrations through `0021` and configure the dedicated runtime grant manifest. Create
    four existing Secrets: `mlp-controlplane-db-api`, `mlp-controlplane-db-gateway`,
    `mlp-controlplane-db-reconciler`, `mlp-controlplane-db-migration`. Each has key `url`
    containing its own `postgresql+psycopg://…/controlplane` connection URL. Use the
    organisation's secret provisioning mechanism; credentials are not stored in values.
 3. Install Argo Workflows, KServe in Serverless mode and Knative with a functioning ingress
    implementation. The Argo controller must watch the generated `mlp-*` namespaces.
-4. Set the OIDC issuer, audience, platform admins, public URL and gateway URL. Browser
+4. Set the OIDC issuer, audience, platform admins, public URL and gateway URL. Re-grant
+   verified stable OIDC subjects; old username-only grants/cookies fail closed. See
+   [identity.md](identity.md#upgrading-from-username-grants). Browser
    sign-in additionally needs the client ID and an existing Secret containing
    `CP_OIDC_CLIENT_SECRET` and `CP_SESSION_SECRET`, selected by `identity.existingSecret`.
 5. Select and validate the [network topology](networking.md), including PostgreSQL ingress,
@@ -103,7 +107,7 @@ read-only filesystem compatibility and actual memory consumption still need clus
 ## Readiness and lifecycle configuration
 
 Readiness probes use `/readyz` (database and matching schema heads); `/healthz` remains
-liveness. Apply migrations through `0020` and configure separated runtime roles before starting this image. Set
+liveness. Apply migrations through `0021` and configure separated runtime roles before starting this image. Set
 `config.CP_WORKFLOW_RETENTION_SECONDS` only after choosing a log retention window; its
 default `0` disables workflow cleanup. Network isolation is separately configurable
 through `networkPolicy`; configure API CIDRs and required external destinations first.
@@ -115,7 +119,12 @@ See [operations.md](operations.md), [networking.md](networking.md) and
 `scripts/controlplane-dependencies.json` records versions, artifact SHA-256s and KServe
 OCI digests. The baseline follows [KServe 0.15 quick install](https://github.com/kserve/kserve/blob/v0.15.0/hack/quick_install.sh):
 Gateway API 1.2.1, Istio 1.23.2, cert-manager 1.16.1, Knative operator 1.15.7 / Serving
-1.15.2, KServe 0.15.0 and Argo Workflows 3.6.2. No live compatibility check was run.
+1.15.2, KServe 0.15.0 and Argo Workflows 3.6.2. These dependencies were installed on
+Kubernetes 1.32.0 in the [2026-10-06 live batch](evidence/live-2026-10-06/README.md); full
+CPU lifecycle remains a separate gate. The generated installer requires Helm 3.17.x
+(3.17.3 verified): newer Helm rejects the pinned Istio schema. For kind without a
+LoadBalancer controller, pass `--gateway-service-type ClusterIP`; the default remains
+LoadBalancer for environments that provide one.
 
 Prepare locally with Helm and the Python control-plane environment:
 
@@ -177,8 +186,11 @@ vulnerabilities plus secrets. The report records image/source/DB identities and 
 Fixtures are removed; failures retain a failed report. The smoke config does not prove
 live Kubernetes access or Lease/RBAC behavior.
 
-This command was prepared/tested with mocked orchestration, not executed with Docker.
-No image build, Trivy result or actual SBOM is claimed. See [acceptance.md](acceptance.md)
+The clean `b7a3420` control-plane image passed this Docker gate on the ARM64 lab,
+including all nine checks, Trivy scans and an actual SPDX SBOM. See
+[release evidence](evidence/live-2026-10-06/image-release/report.json). Repeat it for
+the final release artifact; newer working-tree serving fixes are separate acceptance
+artifacts and have not repeated that clean-release gate. See [acceptance.md](acceptance.md)
 for load, outage, CPU and recovery commands and remaining live evidence.
 
 ### Workload reader RBAC upgrade
@@ -190,11 +202,11 @@ During upgrade, reads can briefly return Forbidden until the reconciler repairs 
 verify them before accepting traffic. Do not restore cluster-wide workload read access.
 The only cluster-bound API permission left is namespace `get` for ownership checks.
 
-### Admission requirements (chart 0.2.0)
+### Admission requirements (current chart 0.3.1)
 
 Kubernetes **1.30+** and an enabled ValidatingAdmissionPolicy admission controller are
 required; unsupported versions fail Helm compatibility checks. The chart always installs
-four native policies and Deny bindings. No optional switch silently disables enforcement.
+four native policies and Deny bindings, including restricted PSA/version requirements. No optional switch silently disables enforcement.
 The Helm installer needs cluster permissions to manage admission policies/bindings,
 separate from the reconciler runtime identity. Controllers/admins are exempt from these
 SA-specific policies. See
@@ -217,3 +229,21 @@ them. Chart rollback/uninstall can remove enforcement; retain/review policies wh
 rolling back to a pre-0.2.0 release and rerun the gate.
 
 Security upgrade prerequisites, DB grants and remaining live gates: [security-hardening.md](security-hardening.md).
+
+## ARM64 classic serving images
+
+The pinned upstream MLServer and storage-initializer tags are AMD64-only. Native
+Dockerfiles are available under `docker/serving/` and `docker/storage-initializer/`.
+Their locks preserve the training model's serialization versions; regenerate with
+`scripts/lock.sh serving` and `scripts/lock.sh storage-initializer`. The S3 image uses
+the official KServe Python storage SDK with a restricted, S3-only entrypoint.
+
+After building/pushing for the target architecture, bootstrap can render digest-pinned
+resources with `--mlflow-serving-image` and `--s3-storage-initializer-image`. The MLflow
+runtime has higher auto-selection priority. The S3 container has its own URI matcher;
+the installer removes S3 from the pinned upstream default to avoid ambiguous selection.
+Other storage provider images are unchanged by these options.
+
+These images are currently acceptance fixtures: native model loading and KServe
+readiness work, but their production vulnerability gates have not passed. See
+[ARM64 evidence and exact limitations](evidence/live-2026-10-06/serving-arm64/README.md).

@@ -1,0 +1,20 @@
+{
+  "project": "acceptance-0e4dc88eab",
+  "context": "kind-mlp-acceptance",
+  "passed": false,
+  "phases": [
+    {
+      "phase": "project/RBAC",
+      "elapsed_seconds": 3.9897334589622915,
+      "admission_checked": true
+    },
+    {
+      "phase": "training/MLflow/discovery",
+      "elapsed_seconds": 38.394291166681796,
+      "version_id": "a41236c1-5682-4f43-8e10-266050004f3b"
+    }
+  ],
+  "source_revision": "b7a3420a3057bede403f92fc5fee8af01a195f02",
+  "project_id": "d29bb3a1-91d2-4ed3-bd99-38b922d907ee",
+  "elapsed_seconds": 304.07018416700885
+}

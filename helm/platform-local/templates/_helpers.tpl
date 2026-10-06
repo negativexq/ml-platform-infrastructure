@@ -11,5 +11,5 @@ ml-platform.io/tier: platform
 
 {{/* Postgres connection string used by MLflow. */}}
 {{- define "platform-local.postgresUri" -}}
-postgresql://{{ .Values.postgres.auth.username }}:{{ .Values.postgres.auth.password }}@platform-postgres:5432/{{ .Values.postgres.auth.database }}
+postgresql+psycopg2://{{ .Values.postgres.auth.username }}:{{ .Values.postgres.auth.password }}@platform-postgres:5432/{{ .Values.postgres.auth.database }}
 {{- end }}

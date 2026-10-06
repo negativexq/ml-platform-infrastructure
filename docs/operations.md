@@ -6,7 +6,7 @@ Implemented on 2026-10-05 using local tests; no cluster resources were changed.
 
 API and gateway expose unauthenticated `/healthz` (process liveness) and `/readyz`.
 Production readiness checks a database connection and `SELECT 1`, then requires the
-installed Alembic head set to equal the image's migration heads (currently `0019`).
+installed Alembic head set to equal the image's migration heads (currently `0021`).
 Failures return 503 without connection details. PostgreSQL connection/pool waits are
 bounded to three seconds and readiness statements to two seconds. Chart readiness probes
 allow eight seconds; startup/liveness continue to use `/healthz` so a DB outage does not
@@ -121,7 +121,7 @@ pipeline success; empty outputs are revisited. Migration `0019` persists check/c
 timestamps. After at least one matching output, the run is checkpointed; later registry publications
 need manual discovery. Completed discoveries survive restart and do not auto-evaluate/promote models.
 Retention updates preserve discovery checkpoints. Migration `0017` stores gateway buckets;
-apply all migrations through `0019` before starting this image.
+apply all migrations through `0021` before starting this image.
 
 ## Availability and leadership
 
@@ -181,7 +181,7 @@ both image versions before release; offline DDL alone does not prove this contra
 
 ## Reconciler provisioning trust boundary
 
-Chart 0.2.0 installs four always-on native `admissionregistration.k8s.io/v1`
+Chart 0.3.1 installs four always-on native `admissionregistration.k8s.io/v1`
 ValidatingAdmissionPolicies with `failurePolicy: Fail` and `validationActions: [Deny]`.
 They require Kubernetes 1.30+ with the ValidatingAdmissionPolicy admission controller
 active. Policies match the exact Helm reconciler ServiceAccount username, across all
@@ -190,6 +190,8 @@ namespaces, without editable namespace/object selectors:
 - `namespace-owner`: namespace create/update/delete requires `mlp-<project>`, platform
   managed-by, a UUID project ID and matching project name. Existing ownership labels
   must be preserved; an unowned namespace cannot be adopted or relabelled by this SA.
+  Create/update also requires restricted PSA, enforce-version `v1.30` and warn/audit
+  versions `latest`. See [security-hardening.md](security-hardening.md).
 - `project-writes`: all namespaced reconciler mutations, including subresources and
   workflow/serving/ServiceAccount writes, require a consistently owned project namespace.
   The only foreign-namespace exception is create/update of its exact leader Lease in
@@ -197,7 +199,7 @@ namespaces, without editable namespace/object selectors:
 - `project-rbac`: API Secret/workload-reader RoleBindings require their exact names,
   ClusterRole references, matching ownership labels and a single configured API SA
   subject in the control-plane namespace. The workflow executor binding instead names
-  only the project-local workload SA and exact executor Role. Arbitrary subjects, extra
+  only the project-local training SA (`mlp-training`) and exact executor Role. Arbitrary subjects, extra
   subjects and alternate binding names are rejected. Updates can repair a drifted
   subject; deletion validates oldObject.
 - `workflow-role`: reconciler Role writes permit only the exact workflowtaskresults
@@ -232,3 +234,18 @@ policy errors fail the gate rather than being mistaken for a successful denial. 
 Model alias passes heartbeat between classic models, including after a failed MLflow
 operation, while retaining per-model drift reporting. Slow single-model operations remain
 subject to the configured watchdog deadline.
+
+## Current schema and identity/concurrency upgrades
+
+Current schema head is `0021`. Migration `0020` protects append-only audit records;
+`0021` enforces one active rollout reservation per model version. Before migrating,
+inspect/resolve duplicate reservations and historically inconsistent CHAMPION canaries.
+The migration deliberately fails on duplicates rather than deleting traffic-bearing state.
+Reapply runtime grants after migrations; migration ownership is separate from runtime users.
+
+Stable issuer/subject identities replace username authorization. Old browser cookies and
+username grants do not authorize new OIDC sessions; re-grant with trusted identity mapping.
+Manual promotion of an actively reserved candidate returns 409 until its rollout completes.
+Display audit actors remain usernames: stable actor_subject persistence is still pending.
+See [concurrency-identity-audit.md](concurrency-identity-audit.md) for migration, lock-order
+contracts and retained local PostgreSQL evidence.

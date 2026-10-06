@@ -62,19 +62,50 @@ def test_offline_bundle_pins_git_image_and_checks_before_mutation(tmp_path: Path
         patch.object(bootstrap, "LOCK", lock),
         patch.object(bootstrap, "command", fake_command),
     ):
-        script = bootstrap.prepare(out, site, IMAGE, REVISION, "chosen-context")
+        script = bootstrap.prepare(
+            out,
+            site,
+            IMAGE,
+            REVISION,
+            "chosen-context",
+            mlflow_serving_image=IMAGE,
+            s3_storage_initializer_image=IMAGE,
+        )
     assert all(c[0] in {"helm", "git"} for c in calls)
     app = yaml.safe_load((out / "application.yaml").read_text())
     assert app["spec"]["source"]["targetRevision"] == REVISION
     assert "automated" not in app["spec"]["syncPolicy"]
     values = yaml.safe_load((out / "values.yaml").read_text())
     assert values["image"]["digest"] == "sha256:" + "a" * 64
+    serving = yaml.safe_load((out / "knative-serving.yaml").read_text())
+    assert serving["spec"]["config"]["features"]["kubernetes.podspec-securitycontext"] == "enabled"
     plan = json.loads((out / "plan.json").read_text())
     assert plan["source_verified"] and not plan["artifacts_cached"]
     text = script.read_text()
     assert text.index("dependency checksum mismatch") < text.index("create namespace")
     assert text.index("helm version --short") < text.index("create namespace")
     assert "--context chosen-context" in text and "controlplane-0.1.0.tgz" in text
+    runtime = yaml.safe_load((out / "mlflow-runtime.yaml").read_text())
+    assert runtime["spec"]["containers"][0]["image"] == IMAGE
+    assert runtime["spec"]["containers"][0]["securityContext"]["runAsUser"] == 1000
+    assert all(f["priority"] > 1 for f in runtime["spec"]["supportedModelFormats"])
+    assert text.index("mlflow-runtime.yaml") < text.index("upgrade --install mlp ")
+    initializer = yaml.safe_load((out / "s3-storage-initializer.yaml").read_text())
+    assert initializer["spec"]["supportedUriFormats"] == [{"prefix": "s3://"}]
+    assert initializer["spec"]["container"]["image"] == IMAGE
+    default_formats = json.loads((out / "default-storage-formats.json").read_text())
+    assert {"prefix": "s3://"} not in default_formats["spec"]["supportedUriFormats"]
+    assert {"prefix": "hf://"} in default_formats["spec"]["supportedUriFormats"]
+
+
+def test_mutable_serving_image_is_rejected_before_commands(tmp_path: Path) -> None:
+    site, _, _ = files(tmp_path)
+    with patch.object(bootstrap, "command") as external:
+        with pytest.raises(ValueError, match="MLflow serving image"):
+            bootstrap.prepare(
+                tmp_path / "out", site, IMAGE, REVISION, "ctx", mlflow_serving_image="server:latest"
+            )
+        external.assert_not_called()
 
 
 @pytest.mark.parametrize("image,revision", [("platform:latest", REVISION), (IMAGE, "main")])

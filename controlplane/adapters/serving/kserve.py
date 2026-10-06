@@ -27,6 +27,7 @@ from controlplane.adapters.kubernetes.security import (
     container_security,
     pod_security,
 )
+from controlplane.adapters.prediction_http import prediction_path
 from controlplane.application.context import current_traceparent
 from controlplane.application.namespaces import LABEL_MANAGED_BY, LABEL_PROJECT_ID, MANAGED_BY
 from controlplane.application.providers import ServingSpec, ServingState, ServingStatus
@@ -538,8 +539,9 @@ class KServeServingProvider:
         if status.state is not ServingState.READY or not status.url:
             raise ConnectionError(f"{ref} is not serving")
         _, name = _split(ref)
+        path = prediction_path(name, payload)
         request = urllib.request.Request(
-            f"{status.url.rstrip('/')}/v2/models/{name}/infer",
+            status.url.rstrip("/") + path,
             data=json.dumps(dict(payload)).encode(),
             headers=_headers(),
             method="POST",

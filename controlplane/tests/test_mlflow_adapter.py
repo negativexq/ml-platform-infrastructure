@@ -96,3 +96,21 @@ def test_registry_versions_and_aliases(uri: str, tmp_path: Path) -> None:
     provider.delete_model_alias("credit-risk-scorer", "champion")
     assert provider.get_model_alias("credit-risk-scorer", "champion") is None
     provider.delete_model_alias("credit-risk-scorer", "champion")  # already gone: no error
+
+
+@pytest.mark.parametrize("include_model_id", [False, True])
+def test_logged_model_source_resolves_without_registry_model_id(
+    uri: str, include_model_id: bool, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("MLFLOW_TRACKING_URI", uri)
+    provider = MlflowExperimentProvider(uri)
+    client = MlflowClient(tracking_uri=uri)
+    experiment = provider.ensure_experiment(uuid4(), "logged-model")
+    logged = client.create_logged_model(experiment, name="scorer")
+    client.create_registered_model("scorer")
+    version = client.create_model_version(
+        "scorer",
+        source=f"models:/{logged.model_id}",
+        model_id=logged.model_id if include_model_id else None,
+    )
+    assert provider.model_artifact_uri("scorer", version.version) == logged.artifact_location

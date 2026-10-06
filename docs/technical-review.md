@@ -1,5 +1,7 @@
 # Technical review: platform readiness
 
+Current consolidated status (2026-10-06): [status.md](status.md). Dated findings and test records below retain their original scope.
+
 Review date: 2026-10-03  
 Reviewed branch: `v2`  
 Reviewed commit: `05c754c`
@@ -15,10 +17,11 @@ The main gap is making that workflow installable and proving it against real inf
 Several adapter and networking issues should be resolved before treating the platform as
 ready for a shared cluster. Adding more product features would not address those issues.
 
-This is a review of the current implementation, not a record of completed cluster gates.
+This original review describes the reviewed commit; the remediation summary and
+[status.md](status.md) describe current code. It is not a record of completed cluster gates.
 It complements [the roadmap](roadmap.md) and [the verification checklist](local-verification.md).
 
-## Remediation progress (2026-10-05)
+## Remediation progress (updated 2026-10-06)
 
 The findings below describe the reviewed commit, not necessarily the current code.
 
@@ -38,8 +41,9 @@ The findings below describe the reviewed commit, not necessarily the current cod
   the original one. Existing tagged rows remain unchanged; register pinned replacements.
 - **Per-entity failure isolation: code fix implemented.** Project/run/pipeline/deployment/
   rollout batches log errors and continue to later entities. Failed entities retry on
-  a process-local exponential schedule (5–300 seconds); leader election remains
-  separate work. The new chart enforces a single reconciler with `Recreate` upgrades.
+  a process-local exponential schedule (5–300 seconds). The default chart runs two
+  Lease-elected reconcilers with rolling updates, PDB and a progress watchdog. Explicit
+  local/no-election mode keeps one replica with `Recreate`. Alias models also heartbeat.
 - **Packaging: prepared, not deployed.** See [installation.md](installation.md) for the
   image, chart, migration hook, RBAC and remaining bootstrap/runtime work. DB/schema
   readiness is now implemented separately from liveness.
@@ -57,8 +61,9 @@ The findings below describe the reviewed commit, not necessarily the current cod
 - **Project secrets: implemented.** Admin API/UI create, rotate and delete project-owned
   Kubernetes Secrets; workloads use validated environment/registry references, snapshotted
   into revisions. Responses and audit events contain metadata only. Referenced deletion
-  is protected and rotation uses resource-version checks. Migration `0016` and actual
-  private-image/credential rotation/recovery remain live gates. See [secrets.md](secrets.md).
+  is protected and rotation uses resource-version checks. Live upgrades through current
+  head `0021` (including references from `0016`) and actual private-image/credential
+  rotation/recovery remain gates. See [secrets.md](secrets.md).
 - **Deadlines and lifecycle: implemented.** Job/run/pipeline deadlines are configurable.
   Admin deletion closes endpoints, waits for serving removal and releases reservations;
   optional terminal-workflow cleanup preserves database history and lineage.
@@ -77,7 +82,8 @@ The findings below describe the reviewed commit, not necessarily the current cod
   Settings reports usage. Base/dependency pins, checksum-verified offline bundles and
   manual-sync GitOps manifests are prepared; image/runtime installation remains pending.
 - **Scoped Secret RBAC and HA: implemented, live gates pending.** API Secret verbs moved
-  to project RoleBindings; the provisioner can bind only the named Secret role. API/gateway
+  to project RoleBindings, as do workload/log reads. Reconciler admission constrains
+  namespace ownership and exact Secret/workload/executor bindings. API/gateway
   have two replicas/PDB/spread, reconcilers use Lease election, and migration ownership
   uses PostgreSQL advisory locking. First upgrade must stop the old Lease-unaware reconciler.
 - **Storage auth and manual evidence tooling: prepared.** Classic private S3/MinIO serving
@@ -85,7 +91,7 @@ The findings below describe the reviewed commit, not necessarily the current cod
   No Docker/cluster execution or scan/drill result is claimed; see [acceptance.md](acceptance.md).
 - See [operations.md](operations.md) for defaults, API contracts and retained limitations.
 - **Cluster verification is still open.** Check annotation propagation on the installed
-  KServe version, grant the reconciler read access to `serving.knative.dev/revisions`, and
+  KServe version, verify the chart-granted reconciler access to Knative Revisions, and
   exercise delayed updates, canary metrics, custom containers and cold-start activation.
   Existing resources without backend revision markers must be redeployed before they
   can be verified. RawDeployment has no Knative revision proof and is not accepted by
@@ -421,7 +427,8 @@ ModelAliasReconciler now heartbeats between classic models, preserving drift rec
 on registry failures; its progressing-pass watchdog regression is covered. Reconciler
 RoleBinding creation and named ClusterRole bind permissions remain cluster-wide, so a
 compromised provisioner can grant either project role inside a foreign namespace.
-Admission enforcement is still open. Namespace-label-only protection would be bypassable
+At the preceding audit snapshot, admission enforcement was still open (implemented in
+the next section). Namespace-label-only protection would have been bypassable
 with existing namespace patch permissions; cluster-wide workflow/serving creation also
 remains privileged. See the explicit
 [trust-boundary contract](operations.md#reconciler-provisioning-trust-boundary).

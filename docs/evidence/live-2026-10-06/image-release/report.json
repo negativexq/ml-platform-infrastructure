@@ -1,0 +1,20 @@
+{
+  "started_at": 1791297032.8602529,
+  "passed": true,
+  "checks": [
+    "migration clean database to 0021",
+    "api health/readiness",
+    "gateway health/readiness",
+    "reconciler configuration and empty-database passes (no live Kubernetes)",
+    "DB outage keeps liveness, removes readiness",
+    "readiness recovers after DB restart",
+    "SPDX SBOM",
+    "Trivy fixable HIGH/CRITICAL gate",
+    "Trivy secrets gate (all severities)"
+  ],
+  "source_revision": "b7a3420a3057bede403f92fc5fee8af01a195f02",
+  "source_clean": true,
+  "image_id": "sha256:6defe9e96badf9c5976aa080fddfe6c90ae29e86f07491a758bdc3633d241ec6",
+  "postgres_image_id": "sha256:3645570cccdfa447589da9f57dd740faa29b30938e861289a5574b6ca6b03826",
+  "finished_at": 1791297317.222788
+}

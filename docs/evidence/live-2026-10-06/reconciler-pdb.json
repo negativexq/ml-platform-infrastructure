@@ -1,0 +1,13 @@
+{
+  "passed": true,
+  "checks": [
+    {
+      "pod": "mlp-controlplane-reconciler-646497d56-8xspf",
+      "eviction_allowed": true
+    },
+    {
+      "pod": "mlp-controlplane-reconciler-646497d56-rh82j",
+      "eviction_allowed": false
+    }
+  ]
+}

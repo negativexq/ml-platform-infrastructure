@@ -1,0 +1,15 @@
+{
+  "project": "acceptance-7a10575f3d",
+  "context": "kind-mlp-acceptance",
+  "passed": false,
+  "phases": [
+    {
+      "phase": "project/RBAC",
+      "elapsed_seconds": 8.21635683439672,
+      "admission_checked": true
+    }
+  ],
+  "source_revision": "b7a3420a3057bede403f92fc5fee8af01a195f02",
+  "project_id": "0249a89b-b5c8-43df-8bc3-d86e5e6367ae",
+  "elapsed_seconds": 232.79858266701922
+}

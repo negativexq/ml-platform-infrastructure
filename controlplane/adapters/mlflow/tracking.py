@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import Mapping, Sequence
 from uuid import UUID
 
@@ -89,8 +90,13 @@ class MlflowExperimentProvider:
             raise
         # In MLflow 3 a version created from a logged model has a `models:/m-...` source
         # that a serving runtime cannot read; the logged model knows the real location.
-        if version.model_id:
-            location = self._client.get_logged_model(version.model_id).artifact_location
+        model_id = version.model_id
+        if not model_id and version.source:
+            logged_source = re.fullmatch(r"models:/(m-[0-9a-f]{32})", version.source)
+            if logged_source:
+                model_id = logged_source.group(1)
+        if model_id:
+            location = self._client.get_logged_model(model_id).artifact_location
             if location:
                 return str(location)
         return version.source or None

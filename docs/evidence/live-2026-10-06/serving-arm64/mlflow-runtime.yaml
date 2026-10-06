@@ -1,0 +1,46 @@
+apiVersion: serving.kserve.io/v1alpha1
+kind: ClusterServingRuntime
+metadata:
+  name: mlp-mlflow
+spec:
+  containers:
+  - env:
+    - name: MLSERVER_MODEL_NAME
+      value: '{{.Name}}'
+    - name: MLSERVER_MODEL_URI
+      value: /mnt/models
+    - name: MLSERVER_MODEL_IMPLEMENTATION
+      value: mlserver_mlflow.MLflowRuntime
+    image: localhost:5201/mlflow-serving@sha256:bb1a8c2f7a47f67a1e51e39337a2807ee413f1939185bd0d32c9d08090cdf465
+    name: kserve-container
+    resources:
+      limits:
+        cpu: '1'
+        memory: 1Gi
+      requests:
+        cpu: 100m
+        memory: 256Mi
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - ALL
+      runAsNonRoot: true
+      runAsUser: 1000
+      seccompProfile:
+        type: RuntimeDefault
+  protocolVersions:
+  - v2
+  supportedModelFormats:
+  - autoSelect: true
+    name: mlflow
+    priority: 10
+    version: '1'
+  - autoSelect: true
+    name: mlflow
+    priority: 10
+    version: '2'
+  - autoSelect: true
+    name: mlflow
+    priority: 10
+    version: '3'

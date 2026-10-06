@@ -1,0 +1,16 @@
+{
+  "passed": true,
+  "scope": "native ARM64 image loads the actual Argo-training artifact; local HTTP proof, not cluster acceptance",
+  "image": "sha256:bb1a8c2f7a47f67a1e51e39337a2807ee413f1939185bd0d32c9d08090cdf465",
+  "source_clean": false,
+  "source_label": "b7a3420-working-tree",
+  "architecture": "aarch64",
+  "health_ready": 200,
+  "prediction": -0.9069787623077955,
+  "native_v2_status": 200,
+  "files_sha256": {
+    "docker/serving/Dockerfile": "d6fd48142f16a0b91fc68ae83e4c1231b7c49f0c30bee1d1a75444333a7b79b0",
+    "constraints/serving.in": "ca75b337a88f204b0da43c9707d13618fc9823f7c69de8d4804a859556e1aeee",
+    "constraints/serving.txt": "1d0d5711f80b0b105dfd07bf3185352a1898aa74c07e4bff4d478273b39d069c"
+  }
+}

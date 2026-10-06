@@ -1,5 +1,7 @@
 # Architecture
 
+Current release, security boundaries and verification status: [status.md](status.md).
+
 How the platform is built: its parts, how a request becomes running infrastructure, how a
 prediction reaches a model, and the rules the code follows. The original infrastructure
 layer (the first inference service, GitOps, drills) is described in

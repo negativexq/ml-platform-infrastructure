@@ -1,0 +1,27 @@
+apiVersion: serving.kserve.io/v1alpha1
+kind: ClusterStorageContainer
+metadata:
+  name: mlp-s3
+spec:
+  container:
+    image: localhost:5201/storage-initializer@sha256:258f972fd15e820140340eb4231ac7835b401945953f193193bad00fbd79d6c5
+    name: storage-initializer
+    resources:
+      limits:
+        cpu: '1'
+        memory: 1Gi
+      requests:
+        cpu: 100m
+        memory: 256Mi
+    securityContext:
+      allowPrivilegeEscalation: false
+      capabilities:
+        drop:
+        - ALL
+      runAsNonRoot: true
+      runAsUser: 1000
+      seccompProfile:
+        type: RuntimeDefault
+  supportedUriFormats:
+  - prefix: s3://
+  workloadType: initContainer

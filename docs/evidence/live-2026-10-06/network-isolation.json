@@ -1,0 +1,46 @@
+{
+  "passed": true,
+  "engine": "kube-network-policies:v1.1.0 with kindnet, NRI enabled",
+  "checks": [
+    {
+      "source_namespace": "mlp-acceptance-security",
+      "source_pod": "net-client",
+      "target_ip": "10.244.0.20",
+      "allowed": true,
+      "attempts": 3
+    },
+    {
+      "source_namespace": "mlp-acceptance-isolation",
+      "source_pod": "net-client",
+      "target_ip": "10.244.0.21",
+      "allowed": true,
+      "attempts": 3
+    },
+    {
+      "source_namespace": "mlp-system",
+      "source_pod": "net-gateway",
+      "target_ip": "10.244.0.20",
+      "allowed": true,
+      "attempts": 3
+    },
+    {
+      "source_namespace": "mlp-acceptance-security",
+      "source_pod": "net-client",
+      "target_ip": "10.244.0.21",
+      "allowed": false,
+      "attempts": 3
+    },
+    {
+      "source_namespace": "mlp-acceptance-isolation",
+      "source_pod": "net-client",
+      "target_ip": "10.244.0.20",
+      "allowed": false,
+      "attempts": 3
+    },
+    {
+      "check": "project pod DNS lookup",
+      "passed": true
+    }
+  ],
+  "limitation": "ingress isolation only; strict egress and real MLflow/MinIO/OTEL paths still pending"
+}

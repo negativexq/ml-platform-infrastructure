@@ -3,10 +3,12 @@ ARG PYTHON_IMAGE=python:3.12.15-slim-bookworm@sha256:34386ef0cb081344d7ec1c103ba
 FROM ${PYTHON_IMAGE} AS builder
 ENV PIP_NO_CACHE_DIR=1 PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1
 WORKDIR /build
-COPY pyproject.toml ./
 COPY constraints/controlplane.txt ./constraints/controlplane.txt
+RUN python -m pip install --prefix=/install --no-deps -r constraints/controlplane.txt
+COPY pyproject.toml ./
 COPY controlplane ./controlplane
-RUN python -m pip install --prefix=/install -c constraints/controlplane.txt '.[controlplane]'
+RUN python -m pip install --prefix=/install --no-deps '.[controlplane]' \
+    && PYTHONPATH=/install/lib/python3.12/site-packages python -m pip check
 
 FROM ${PYTHON_IMAGE} AS runtime
 ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 \

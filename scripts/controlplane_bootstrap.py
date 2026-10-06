@@ -28,6 +28,70 @@ def sha256(path: Path) -> str:
     return hashlib.sha256(path.read_bytes()).hexdigest()
 
 
+def mlflow_runtime(image: str) -> dict[str, Any]:
+    if not re.fullmatch(r"[A-Za-z0-9._:/-]+@sha256:[0-9a-f]{64}", image):
+        raise ValueError("MLflow serving image must be pinned with @sha256:<64 lowercase digits>")
+    return {
+        "apiVersion": "serving.kserve.io/v1alpha1",
+        "kind": "ClusterServingRuntime",
+        "metadata": {"name": "mlp-mlflow"},
+        "spec": {
+            "protocolVersions": ["v2"],
+            "supportedModelFormats": [
+                {"name": "mlflow", "version": version, "autoSelect": True, "priority": 10}
+                for version in ("1", "2", "3")
+            ],
+            "containers": [
+                {
+                    "name": "kserve-container",
+                    "image": image,
+                    "env": [
+                        {"name": "MLSERVER_MODEL_NAME", "value": "{{.Name}}"},
+                        {"name": "MLSERVER_MODEL_URI", "value": "/mnt/models"},
+                        {
+                            "name": "MLSERVER_MODEL_IMPLEMENTATION",
+                            "value": "mlserver_mlflow.MLflowRuntime",
+                        },
+                    ],
+                    "resources": {
+                        "requests": {"cpu": "100m", "memory": "256Mi"},
+                        "limits": {"cpu": "1", "memory": "1Gi"},
+                    },
+                    "securityContext": {
+                        "runAsUser": 1000,
+                        "runAsNonRoot": True,
+                        "allowPrivilegeEscalation": False,
+                        "capabilities": {"drop": ["ALL"]},
+                        "seccompProfile": {"type": "RuntimeDefault"},
+                    },
+                }
+            ],
+        },
+    }
+
+
+def s3_storage_initializer(image: str) -> dict[str, Any]:
+    if not re.fullmatch(r"[A-Za-z0-9._:/-]+@sha256:[0-9a-f]{64}", image):
+        raise ValueError("S3 initializer image must be digest-pinned")
+    runtime = mlflow_runtime(image)
+    container = runtime["spec"]["containers"][0]
+    return {
+        "apiVersion": "serving.kserve.io/v1alpha1",
+        "kind": "ClusterStorageContainer",
+        "metadata": {"name": "mlp-s3"},
+        "spec": {
+            "workloadType": "initContainer",
+            "supportedUriFormats": [{"prefix": "s3://"}],
+            "container": {
+                "name": "storage-initializer",
+                "image": image,
+                "securityContext": container["securityContext"],
+                "resources": container["resources"],
+            },
+        },
+    }
+
+
 def dependencies(destination: Path, fetch: bool) -> None:
     destination.mkdir(parents=True, exist_ok=True)
     for artifact in json.loads(LOCK.read_text())["artifacts"]:
@@ -64,7 +128,15 @@ def prepare(
     fetch: bool = False,
     cache: Path | None = None,
     gateway_service_type: str = "LoadBalancer",
+    mlflow_serving_image: str | None = None,
+    s3_storage_initializer_image: str | None = None,
 ) -> Path:
+    runtime = mlflow_runtime(mlflow_serving_image) if mlflow_serving_image else None
+    initializer = (
+        s3_storage_initializer(s3_storage_initializer_image)
+        if s3_storage_initializer_image
+        else None
+    )
     if gateway_service_type not in {"LoadBalancer", "ClusterIP"}:
         raise ValueError("gateway service type must be LoadBalancer or ClusterIP")
     if not re.fullmatch(r"[0-9a-f]{40}", revision):
@@ -136,10 +208,46 @@ def prepare(
         "apiVersion": "operator.knative.dev/v1beta1",
         "kind": "KnativeServing",
         "metadata": {"name": "knative-serving", "namespace": "knative-serving"},
-        "spec": {"version": json.loads(LOCK.read_text())["knative_serving_version"]},
+        "spec": {
+            "version": json.loads(LOCK.read_text())["knative_serving_version"],
+            "config": {
+                "features": {
+                    "kubernetes.podspec-securitycontext": "enabled",
+                    "kubernetes.podspec-init-containers": "enabled",
+                    "secure-pod-defaults": "enabled",
+                }
+            },
+        },
     }
     serving_path = output / "knative-serving.yaml"
     serving_path.write_text(yaml.safe_dump(serving, sort_keys=False))
+    runtime_path = output / "mlflow-runtime.yaml"
+    if runtime:
+        runtime_path.write_text(yaml.safe_dump(runtime, sort_keys=False))
+    initializer_path = output / "s3-storage-initializer.yaml"
+    initializer_patch_path = output / "default-storage-formats.json"
+    if initializer:
+        initializer_path.write_text(yaml.safe_dump(initializer, sort_keys=False))
+        # Keep the pinned KServe default for other providers; each S3 URI must match
+        # only our container, regardless of Kubernetes list ordering.
+        initializer_patch_path.write_text(
+            json.dumps(
+                {
+                    "spec": {
+                        "supportedUriFormats": [
+                            {"prefix": prefix}
+                            for prefix in ("gs://", "hdfs://", "hf://", "webhdfs://")
+                        ]
+                        + [
+                            {"regex": r"https://(.+?).blob.core.windows.net/(.+)"},
+                            {"regex": r"https://(.+?).file.core.windows.net/(.+)"},
+                            {"regex": r"https?://(.+)/(.+)"},
+                        ]
+                    }
+                }
+            )
+            + "\n"
+        )
     q = shlex.quote
     kubectl = "kubectl --context " + q(context)
     helm = "helm --kube-context " + q(context)
@@ -188,8 +296,10 @@ def prepare(
         f"{kubectl} create namespace argo --dry-run=client -o yaml | {kubectl} apply -f -",
     ]
     for component in ("api", "gateway", "reconciler", "migration"):
-        secret = values.get("database", {}).get(component, {}).get(
-            "existingSecret", f"mlp-controlplane-db-{component}"
+        secret = (
+            values.get("database", {})
+            .get(component, {})
+            .get("existingSecret", f"mlp-controlplane-db-{component}")
         )
         steps.insert(-1, f"{kubectl} -n mlp-system get secret " + q(secret) + " >/dev/null")
     for artifact in artifacts:
@@ -234,6 +344,14 @@ def prepare(
                     f"{kubectl} -n knative-serving wait knativeserving/knative-serving "
                     "--for=condition=Ready --timeout=600s"
                 )
+    if runtime:
+        steps.append(f"{kubectl} apply -f {q(str(runtime_path.resolve()))}")
+    if initializer:
+        steps.append(f"{kubectl} apply -f {q(str(initializer_path.resolve()))}")
+        steps.append(
+            f"{kubectl} patch clusterstoragecontainer default --type merge "
+            f"--patch-file {q(str(initializer_patch_path.resolve()))}"
+        )
     steps.append(
         f"{helm} upgrade --install mlp {q(str(chart_archive))} "
         f"--namespace mlp-system --values {q(str(values_path.resolve()))} --wait --timeout 10m"
@@ -248,6 +366,8 @@ def prepare(
                 "source_revision": revision,
                 "context": context,
                 "gateway_service_type": gateway_service_type,
+                "mlflow_serving_image": mlflow_serving_image,
+                "s3_storage_initializer_image": s3_storage_initializer_image,
                 "dependency_lock_sha256": sha256(lock_copy),
                 "controlplane_chart_sha256": sha256(chart_archive),
                 "source_verified": source_verified,
@@ -268,6 +388,13 @@ def main() -> None:
     parser.add_argument("--source-revision", required=True)
     parser.add_argument("--context", default="REPLACE_WITH_CLUSTER_CONTEXT")
     parser.add_argument("--cache", type=Path)
+    parser.add_argument(
+        "--mlflow-serving-image",
+        help="digest-pinned MLflow runtime image built for the target node architecture",
+    )
+    parser.add_argument(
+        "--s3-storage-initializer-image", help="digest-pinned classic S3 download image"
+    )
     parser.add_argument(
         "--gateway-service-type",
         choices=("LoadBalancer", "ClusterIP"),
@@ -292,6 +419,8 @@ def main() -> None:
         args.fetch,
         args.cache,
         args.gateway_service_type,
+        args.mlflow_serving_image,
+        args.s3_storage_initializer_image,
     )
     print("Prepared installation bundle:", args.out)
     if args.apply:

@@ -1,0 +1,25 @@
+{
+  "timestamp": "2026-10-06T15:28:02.704189+00:00",
+  "project": "acceptance-32faeadb0e",
+  "endpoint": "scorer",
+  "image": "localhost:5201/mlp-controlplane@sha256:fca0a5d1904cda1d1e8ce8b5caa1ab135c4df185d54090befda1ccf58c8cf4de",
+  "source_revision": "b7a3420-working-tree",
+  "source_clean": false,
+  "baseline_status": 422,
+  "status": 200,
+  "request": {
+    "instances": [
+      [
+        1,
+        2,
+        3
+      ]
+    ]
+  },
+  "response": {
+    "predictions": [
+      -0.9069787623077955
+    ]
+  },
+  "passed": true
+}

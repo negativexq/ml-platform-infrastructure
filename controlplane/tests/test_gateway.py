@@ -300,7 +300,15 @@ async def _body(reply: UpstreamReply) -> bytes:
 
 
 @pytest.mark.anyio
-async def test_http_upstream_streams_from_the_v2_route() -> None:
+@pytest.mark.parametrize(
+    "body,path",
+    [
+        (b'{"instances": [[1]]}', "/invocations"),
+        (b'{"inputs": []}', "/v2/models/credit-risk-prod/infer"),
+        (b"not JSON", "/v2/models/credit-risk-prod/infer"),
+    ],
+)
+async def test_http_upstream_streams_from_the_matching_model_route(body: bytes, path: str) -> None:
     seen: list[httpx.Request] = []
 
     def handler(request: httpx.Request) -> httpx.Response:
@@ -310,10 +318,11 @@ async def test_http_upstream_streams_from_the_v2_route() -> None:
         )
 
     upstream = HttpUpstream(httpx.AsyncClient(transport=httpx.MockTransport(handler)))
-    reply = await upstream.call(_call())
+    reply = await upstream.call(_call(body=body))
     assert reply.status == 200 and await _body(reply) == b'{"predictions": [1]}'
     (request,) = seen
-    assert str(request.url).endswith("/v2/models/credit-risk-prod/infer")
+    assert str(request.url).endswith(path)
+    assert request.content == body
     assert request.headers["x-request-id"] == "req_1"
 
 

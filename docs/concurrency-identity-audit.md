@@ -1,5 +1,7 @@
 # Concurrency and identity audit review
 
+Current consolidated status (2026-10-06): [status.md](status.md). Dated findings and test records below retain their original scope.
+
 Reviewed on 2026-10-05 against `17d18b2`, following the external audit of `9f984db`.
 The UID/PSA follow-up does not change these paths. The findings below describe the original reviewed behavior. The subsequent fix implements
 all nine corrections; implementation and validation are recorded below.

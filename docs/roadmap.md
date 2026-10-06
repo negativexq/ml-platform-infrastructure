@@ -1,5 +1,7 @@
 # Roadmap
 
+Current consolidated status (2026-10-06): [status.md](status.md). Dated findings and test records below retain their original scope.
+
 Current security remediation, local evidence and outstanding deployment/test work: [security-hardening.md](security-hardening.md).
 
 Where the platform stands, what is missing, and what comes next. Kept up to date with the
@@ -21,10 +23,12 @@ Code fixes do not close the real-cluster gates below.
   then continue. Failed entities use process-local exponential backoff (5–300 seconds).
 - [Control-plane image and chart](installation.md) are prepared: API, gateway, Lease-elected
   reconcilers, RBAC, migration hook, Services and optional Ingresses. Image runtime checks,
-  pinned dependency/bootstrap bundles are prepared; live installation and readiness/policy validation remain open.
+  pinned dependency/bootstrap bundles and live runtime/readiness/admission checks have
+  passed in the [2026-10-06 evidence batch](evidence/live-2026-10-06/README.md). Full CPU
+  lifecycle and multi-node failures remain open.
 - [Connectivity matrix](networking.md) and database/OIDC policy corrections are prepared;
   configurable serving ingress and workload egress policies are implemented; actual CNI
-  tests remain open.
+  ingress allow/deny tests passed on an enforcing engine; strict-egress checks remain open.
 - Pending deployment checks: annotation propagation, reconciler permission to read
   Knative Revisions, real canary metric attribution and scale-to-zero/reactivation.
 
@@ -58,8 +62,9 @@ Code fixes do not close the real-cluster gates below.
 
 - **Build and verify the prepared control-plane image and chart.**
   `make cp-docker-build` builds `mlp-controlplane:dev`; `helm/controlplane` packages
-  API/reconciler/gateway, RBAC and migrations. Helm lint/schema checks pass, but no image
-  has been built or deployed for this work. See [installation.md](installation.md).
+  API/reconciler/gateway, RBAC and migrations. The ARM64 lab has a passing clean
+  control-plane image gate and a live deployment; repeat the gate for the final release
+  artifact and resolve the serving/initializer scan findings. See [installation.md](installation.md).
 - **Verify networking and readiness in the target topology.** The [matrix](networking.md)
   records required paths. `/readyz` checks DB/schema; `/healthz` provides process liveness.
   Policies and probes still need real runtime acceptance.
@@ -69,8 +74,9 @@ Code fixes do not close the real-cluster gates below.
   - MLflow and S3 credentials for training steps.
   - The Hugging Face token (`mlp-hf-token`) for gated models.
 
-  Manage these with the project Secrets API/UI. Storage-initializer authentication still
-  needs its service-account/provider configuration; see [secrets.md](secrets.md).
+  Manage these with the project Secrets API/UI. Classic S3/MinIO storage-initializer authentication is implemented through revision
+  accounts and storage_secret references; validate it with real private artifacts. Other
+  private/gated provider paths still need configuration/contracts; see [secrets.md](secrets.md).
 
 ## Not yet run against the real thing
 
@@ -114,10 +120,10 @@ Already verified for real here:
 
 ## Next, in order
 
-1. **Close the review's remaining P0 work:** serving-path/workload policies, pinned
-   dependencies and control-plane bootstrap. Image/chart source and readiness/revision
-   fixes, DB/schema readiness and configurable policies are prepared; build/runtime checks
-   and real topology verification remain open.
+1. **Close deployment and evidence gates:** prepare migration `0021`, verified stable
+   identity grants and separated runtime database users; build/scan the pinned images,
+   deploy chart 0.3.1 and prove admission/PSA/CNI enforcement. Source implementations
+   are present; real controller, image and topology behavior still needs evidence.
 2. **Prove the CPU lifecycle:** project → training → model version → serving → gateway →
    canary/rollback → function scale-to-zero/reactivation, following `local-verification.md`.
 3. **Finish LLM verification:** run GPU serving, real ingress/TLS streaming and
@@ -126,7 +132,8 @@ Already verified for real here:
    - shared PostgreSQL limiter concurrency/outage acceptance;
    - live acceptance checks for [project secrets](secrets.md), including rotation/restart and private-image pulls;
    - live deletion/retention and control-plane restore acceptance drills;
-   - log streaming.
+   - stable audit actor_subject persistence and safe rate-bucket GC;
+   - durable logs/streaming and cold-start observability.
 5. **AWS:** EKS, RDS and S3 from the existing Terraform.
 
 ## Further remediation (2026-10-05)
@@ -168,7 +175,7 @@ forms select secret names and keys; Settings shows referencing definitions/revis
 
 Base-image/dependency pins, checksum-verified bootstrap bundles and manual-sync GitOps
 manifests are prepared. See [installation.md](installation.md). These code changes are
-locally verified; image builds, live migrations through `0019`, PostgreSQL concurrency,
+locally verified; image builds, live migrations through current head `0021`, PostgreSQL concurrency,
 cluster installation, real GPU/TLS workloads and recovery drills remain pending.
 
 ### Security, HA and manual acceptance tooling
@@ -190,8 +197,17 @@ canary attribution, CNI isolation and GPU/Hub/private-registry failure drills re
 
 ### Reconciler admission boundary
 
-Chart 0.2.0 adds always-on fail-closed native policies for namespace ownership,
+The current chart 0.3.1 retains always-on fail-closed native policies for namespace ownership,
 namespace-scoped provider writes, exact project RoleBindings/subjects and the workflow
 executor Role. Kubernetes 1.30+ is required. Rendered CEL tests and a server dry-run live
 gate are available; live cluster enforcement remains unverified until that gate runs.
 See [operations.md](operations.md#reconciler-provisioning-trust-boundary).
+
+## 2026-10-06 ARM64 runtime follow-up
+
+Native classic serving and S3 initializer images load real artifacts and reach KServe
+READY. Gateway route normalization is deployed and a real prediction returns HTTP 200
+with the expected result. The full canary/rollback/cold-start lifecycle remains pending.
+Resolve the five fixable HIGH serving/initializer dependency findings before using
+these artifacts for a production release. The original clean control-plane scan pass
+does not cover them. See [ARM64 evidence](evidence/live-2026-10-06/serving-arm64/README.md).

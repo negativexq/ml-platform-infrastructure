@@ -1,0 +1,7 @@
+{
+  "passed": true,
+  "old_leader": "mlp-controlplane-reconciler-6556dcbd9b-bcjdv-52f8e0cf-8eb5-4b07-9a8d-a335cd897876",
+  "new_leader": "mlp-controlplane-reconciler-6556dcbd9b-242tl-f52b073d-e230-4e15-b6bd-b9f712f53514",
+  "takeover_seconds": 31.44,
+  "scenario": "delete leader pod; standby acquires real Lease"
+}

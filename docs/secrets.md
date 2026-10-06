@@ -55,7 +55,7 @@ role retains only namespace `get` for ownership checks. The reconciler can bind 
 two named project roles and receives no Secret CRUD verbs; it remains a privileged
 namespace/RBAC provisioner. Application ownership checks still constrain API operations. The reconciler's cluster-wide
 RoleBinding writes plus named `bind` grants would indirectly grant Secret access outside
-project namespaces without admission enforcement. Chart 0.2.0 now installs fail-closed
+project namespaces without admission enforcement. The current chart (0.3.1) installs fail-closed
 policies enforcing owned namespaces and exact bindings/subjects, and preventing foreign
 namespace adoption. Apply the chart and pass its live admission gate before claiming the
 cluster is protected; see [the provisioning trust boundary](operations.md#reconciler-provisioning-trust-boundary).

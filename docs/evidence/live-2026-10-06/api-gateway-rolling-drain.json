@@ -1,0 +1,9 @@
+{
+  "passed": true,
+  "probes": 200,
+  "successful": 200,
+  "failures": [],
+  "scenario": "simultaneous rolling restarts after 10s preStop drain",
+  "image": "sha256:52211a84aa79e0b450750a8a837b352e913d42537c9562f610a5d63804e5bc9d",
+  "limitation": "single-node; no node-loss or long inference drain proof"
+}

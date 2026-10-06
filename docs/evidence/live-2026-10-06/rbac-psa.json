@@ -1,0 +1,133 @@
+{
+  "passed": true,
+  "checks": [
+    {
+      "namespace": "mlp-acceptance-security",
+      "resource": "secrets",
+      "allowed": true
+    },
+    {
+      "namespace": "mlp-acceptance-security",
+      "resource": "pods",
+      "allowed": true
+    },
+    {
+      "namespace": "mlp-acceptance-security",
+      "resource": "pods/log",
+      "allowed": true
+    },
+    {
+      "namespace": "mlp-acceptance-security",
+      "resource": "workflows.argoproj.io",
+      "allowed": true
+    },
+    {
+      "namespace": "mlp-acceptance-security",
+      "resource": "inferenceservices.serving.kserve.io",
+      "allowed": true
+    },
+    {
+      "namespace": "kube-system",
+      "resource": "secrets",
+      "allowed": false
+    },
+    {
+      "namespace": "kube-system",
+      "resource": "pods",
+      "allowed": false
+    },
+    {
+      "namespace": "kube-system",
+      "resource": "pods/log",
+      "allowed": false
+    },
+    {
+      "namespace": "kube-system",
+      "resource": "workflows.argoproj.io",
+      "allowed": false
+    },
+    {
+      "namespace": "kube-system",
+      "resource": "inferenceservices.serving.kserve.io",
+      "allowed": false
+    },
+    {
+      "namespace": "default",
+      "resource": "secrets",
+      "allowed": false
+    },
+    {
+      "namespace": "default",
+      "resource": "pods",
+      "allowed": false
+    },
+    {
+      "namespace": "default",
+      "resource": "pods/log",
+      "allowed": false
+    },
+    {
+      "namespace": "default",
+      "resource": "workflows.argoproj.io",
+      "allowed": false
+    },
+    {
+      "namespace": "default",
+      "resource": "inferenceservices.serving.kserve.io",
+      "allowed": false
+    },
+    {
+      "namespace": "mlp-system",
+      "resource": "secrets",
+      "allowed": false
+    },
+    {
+      "namespace": "mlp-system",
+      "resource": "pods",
+      "allowed": false
+    },
+    {
+      "namespace": "mlp-system",
+      "resource": "pods/log",
+      "allowed": false
+    },
+    {
+      "namespace": "mlp-system",
+      "resource": "workflows.argoproj.io",
+      "allowed": false
+    },
+    {
+      "namespace": "mlp-system",
+      "resource": "inferenceservices.serving.kserve.io",
+      "allowed": false
+    },
+    {
+      "check": "unsafe pod rejected by restricted PSA",
+      "passed": true
+    },
+    {
+      "check": "restricted pod accepted",
+      "passed": true
+    },
+    {
+      "namespace": "mlp-acceptance-security",
+      "resource": "revisions.serving.knative.dev",
+      "allowed": true
+    },
+    {
+      "namespace": "kube-system",
+      "resource": "revisions.serving.knative.dev",
+      "allowed": false
+    },
+    {
+      "namespace": "default",
+      "resource": "revisions.serving.knative.dev",
+      "allowed": false
+    },
+    {
+      "namespace": "mlp-system",
+      "resource": "revisions.serving.knative.dev",
+      "allowed": false
+    }
+  ]
+}

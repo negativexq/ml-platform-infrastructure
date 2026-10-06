@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 from typing import Any
 from unittest.mock import Mock, patch
 
@@ -133,6 +134,27 @@ def test_custom_containers_and_idle_services_are_callable(model_status: Any) -> 
         request.return_value.__enter__.return_value.read.return_value = b'{"answer": 42}'
         assert serving.invoke(REF, {"input": 1}) == {"answer": 42}
         assert request.call_args.args[0].full_url == "http://function.example/"
+
+
+@pytest.mark.parametrize(
+    "payload,path",
+    [
+        ({"instances": [[1, 2, 3]]}, "/invocations"),
+        (
+            {"inputs": [{"name": "x", "shape": [1], "datatype": "FP64", "data": [1.0]}]},
+            "/v2/models/function/infer",
+        ),
+    ],
+)
+def test_mlflow_json_and_native_v2_use_their_corresponding_handlers(
+    payload: dict[str, Any], path: str
+) -> None:
+    serving = provider(service(), {"candidate": revision(2), "stable": revision(1)})
+    with patch("urllib.request.urlopen") as request:
+        request.return_value.__enter__.return_value.read.return_value = b'{"predictions": [-0.9]}'
+        assert serving.predict(REF, payload) == {"predictions": [-0.9]}
+        assert request.call_args.args[0].full_url == "http://function.example" + path
+        assert json.loads(request.call_args.args[0].data) == payload
 
 
 def test_historical_failure_does_not_override_ready_backend() -> None:

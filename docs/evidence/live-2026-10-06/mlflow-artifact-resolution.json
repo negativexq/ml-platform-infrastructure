@@ -1,0 +1,10 @@
+{
+  "passed": true,
+  "scope": "updated adapter source executed as a probe inside API pod against live MLflow 3 server; installed application unchanged",
+  "registry_name": "acceptance-0e4dc88eab-scorer",
+  "version": "1",
+  "registry_model_id": null,
+  "source": "models:/m-3422bf6c3ac240f893e592d3a0ebbe8a",
+  "resolved": "s3://mlflow-artifacts/2/models/m-3422bf6c3ac240f893e592d3a0ebbe8a/artifacts",
+  "change_deployed_in_controlplane": false
+}
