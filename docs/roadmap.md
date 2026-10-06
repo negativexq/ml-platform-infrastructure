@@ -7,10 +7,11 @@ Current security remediation, local evidence and outstanding deployment/test wor
 Where the platform stands, what is missing, and what comes next. Kept up to date with the
 code; the original milestone plan is in [history/](history/).
 
-## Technical-review progress (2026-10-05)
+## Technical-review progress (reviewed 2026-10-05, updated 2026-10-06)
 
 Priorities and the original findings are in [technical-review.md](technical-review.md).
-Code fixes do not close the real-cluster gates below.
+Code fixes and live results are distinguished below; the current gate scopes are linked
+to the 2026-10-06 evidence.
 
 - KServe readiness now verifies the platform revision on the immutable Knative backend,
   including a separately verified previous backend for canary metrics. Custom containers
@@ -24,13 +25,15 @@ Code fixes do not close the real-cluster gates below.
 - [Control-plane image and chart](installation.md) are prepared: API, gateway, Lease-elected
   reconcilers, RBAC, migration hook, Services and optional Ingresses. Image runtime checks,
   pinned dependency/bootstrap bundles and live runtime/readiness/admission checks have
-  passed in the [2026-10-06 evidence batch](evidence/live-2026-10-06/README.md). Full CPU
-  lifecycle and multi-node failures remain open.
+  passed in the [2026-10-06 evidence batch](evidence/live-2026-10-06/README.md). The full
+  seven-phase CPU lifecycle also passed on single-node ARM64; multi-node failure drills
+  remain open.
 - [Connectivity matrix](networking.md) and database/OIDC policy corrections are prepared;
   configurable serving ingress and workload egress policies are implemented; actual CNI
   ingress allow/deny tests passed on an enforcing engine; strict-egress checks remain open.
-- Pending deployment checks: annotation propagation, reconciler permission to read
-  Knative Revisions, real canary metric attribution and scale-to-zero/reactivation.
+- Live checks passed immutable backend/apply identity after drift repair, namespace-scoped
+  Knative Revision reads, candidate-only metric attribution/rollback and actual zero-pod
+  reactivation. Broader controller-default cases and multi-node behavior remain open.
 
 ## Done
 
@@ -67,7 +70,8 @@ Code fixes do not close the real-cluster gates below.
   artifact and resolve the serving/initializer scan findings. See [installation.md](installation.md).
 - **Verify networking and readiness in the target topology.** The [matrix](networking.md)
   records required paths. `/readyz` checks DB/schema; `/healthz` provides process liveness.
-  Policies and probes still need real runtime acceptance.
+  Recorded ingress/DNS isolation and runtime probes passed on the lab; strict egress,
+  real ingress/TLS and target-topology acceptance remain open.
 - **Argo Workflows in `make local-up`.** Its `workflowNamespaces` and RBAC must cover the
   `mlp-*` namespaces.
 - **Per-project secrets:**
@@ -75,26 +79,29 @@ Code fixes do not close the real-cluster gates below.
   - The Hugging Face token (`mlp-hf-token`) for gated models.
 
   Manage these with the project Secrets API/UI. Classic S3/MinIO storage-initializer authentication is implemented through revision
-  accounts and storage_secret references; validate it with real private artifacts. Other
-  private/gated provider paths still need configuration/contracts; see [secrets.md](secrets.md).
+  accounts and storage_secret references; real private S3 artifact loading passed in the
+  ARM64 lab. Other private/gated provider paths still need configuration/contracts; see [secrets.md](secrets.md).
 
 ## Not yet run against the real thing
 
-Code and tests exist; these have only met fakes, schema validation or kubeconform. The steps
-for each are in [local-verification.md](local-verification.md).
+The following scopes still lack live evidence. Recorded CPU results are listed separately
+below; procedures are in [local-verification.md](local-verification.md).
 
-- KServe:
-  - the MLflow server;
-  - the Knative canary traffic split;
-  - vLLM on a GPU.
-- Argo Workflows running real jobs and pipelines.
-- The gateway in a cluster, behind an ingress with TLS (cert-manager), and with its
-  NetworkPolicy.
+- KServe vLLM on a GPU, maximum-replica/canary GPU quota and immutable/gated Hub downloads.
+- Broader pipeline DAG/retry/cancel paths beyond the recorded CPU training/discovery flow.
+- The gateway behind a real ingress with TLS (cert-manager); lab gateway inference and
+  ingress NetworkPolicy allow/deny checks already passed.
 - Prometheus scraping `mlp_*` in the cluster, and the alerts firing.
 - A Keycloak client-credentials token accepted by the gateway.
 
 Already verified for real here:
-- PostgreSQL, through the migrations and the full test suite.
+- PostgreSQL migrations through `0021`, separate runtime grants, shared-budget load at
+  1/2/4 gateways and basic real outage/recovery, including expired route/key caches.
+- Full single-node ARM64 CPU lifecycle: real Argo/MLflow training/discovery/evaluation,
+  KServe/gateway inference, healthy canary, Secret rotation/restart, drift repair and
+  scale-to-zero/reactivation; separate candidate-only rollback and forced Secret recovery.
+- Admission/PSA, namespace RBAC, enforcing ingress isolation, Lease failover/PDB and
+  API/gateway rolling restart in the acceptance lab.
 - Prometheus 3.1: every query the platform makes.
 - Keycloak 26.4: browser sign-in.
 - The gateway end to end, as a real process with HTTP to a model server.
@@ -103,8 +110,11 @@ Already verified for real here:
 
 ## Known limitations
 
-- **Production limits use shared PostgreSQL buckets.** Native concurrency tests pass;
-  cross-process PostgreSQL locking and outage behavior remain live acceptance gates.
+- **Production limits use shared PostgreSQL buckets.** Native concurrency tests and
+  live 1/2/4-gateway shared-budget checks passed. Basic DB outage/recovery passed with
+  warm and expired caches. At 500 offered RPS the budget held, but availability failed
+  with timeouts and lock waiters; isolated limiter latency, sustained outage/thread growth
+  and targeted lock/statement-timeout injections remain open.
   Explicit `CP_GATEWAY_LIMIT_STORE=memory` and demo mode keep per-process budgets.
 - **Token admission uses estimates.** Missing usage and interrupted streams consume their
   reservation. A model-specific tokenizer is still needed for exact hard token ceilings.
@@ -120,23 +130,25 @@ Already verified for real here:
 
 ## Next, in order
 
-1. **Close deployment and evidence gates:** prepare migration `0021`, verified stable
-   identity grants and separated runtime database users; build/scan the pinned images,
-   deploy chart 0.3.1 and prove admission/PSA/CNI enforcement. Source implementations
-   are present; real controller, image and topology behavior still needs evidence.
-2. **Prove the CPU lifecycle:** project → training → model version → serving → gateway →
-   canary/rollback → function scale-to-zero/reactivation, following `local-verification.md`.
-3. **Finish LLM verification:** run GPU serving, real ingress/TLS streaming and
-   maximum-replica/canary quota gates when resources are available.
-4. **Production hardening:**
-   - shared PostgreSQL limiter concurrency/outage acceptance;
-   - live acceptance checks for [project secrets](secrets.md), including rotation/restart and private-image pulls;
-   - live deletion/retention and control-plane restore acceptance drills;
-   - stable audit actor_subject persistence and safe rate-bucket GC;
-   - durable logs/streaming and cold-start observability.
+1. **Close release-image gates:** repeat the clean control-plane gate for the final
+   artifact/architecture and resolve the five serving/initializer HIGH findings. Lab
+   migration through `0021`, admission/PSA and ingress isolation already passed; repeat
+   the required checks for the production topology and verified OIDC identities.
+2. **Resolve limiter overload and extend HA/isolation evidence:** add isolated limiter
+   latency telemetry and an in-cluster generator, diagnose the failed 500 RPS availability
+   gate, then test sustained DB outage/thread growth, hung-leader fencing, strict egress
+   and multi-node drain/loss. Full CPU lifecycle and basic DB outage/recovery are closed
+   for the recorded single-node ARM64 scope.
+3. **Finish workload credential and recovery gates:** private-image pulls/rotation,
+   cleanup conflict/outage retry, private initializer providers beyond classic S3 and
+   control-plane backup/restore with recovered roles, revoked keys, lineage and RPO/RTO.
+4. **Finish LLM and remaining implementation work:** GPU serving, real ingress/TLS
+   streaming, maximum-replica/canary quota and immutable/gated Hub downloads when resources
+   are available; stable audit actor_subject persistence, safe rate-bucket GC, durable
+   logs/streaming, cold-start observability and exact tokenization.
 5. **AWS:** EKS, RDS and S3 from the existing Terraform.
 
-## Further remediation (2026-10-05)
+## Further remediation (implemented 2026-10-05, updated 2026-10-06)
 
 DB/schema readiness, topology-configured policies, function resources/probes, per-entity
 backoff, persisted deadlines, deployment deletion and optional workflow retention are
@@ -144,8 +156,9 @@ implemented. LLM requests reserve budgets before forwarding and retain them on m
 usage/interruption. Control-plane backup/restore tooling is prepared.
 
 See [operations.md](operations.md) and [recovery.md](recovery.md). Migrations `0014`/`0015`
-and cluster/runtime/restore behavior still need their real-system gates; local checks
-are recorded in [local-verification.md](local-verification.md).
+were exercised by live migration through `0021`; recorded CPU/runtime checks passed on
+the ARM64 lab. Restore and broader topology behavior remain open; local checks are
+recorded in [local-verification.md](local-verification.md).
 
 ### Serving drift and project credential management
 
@@ -153,13 +166,17 @@ Serving reconciliation now compares the owned predictor configuration, including
 environment, arguments, resources, probes and secret references. A same-revision drift
 replaces the owned predictor with a resource-version precondition and a fresh apply ID;
 readiness waits for the matching Knative backend. Unowned metadata/defaults are preserved
-where comparison allows them. Controller-default interactions still need a live KServe gate.
+where comparison allows them. The live same-revision repair passed; omitted zero probe
+delay and empty env slices exposed drift loops that were fixed and verified live.
+Broader controller-default cases remain separate checks.
 
 Project secret create/list/rotate/delete API and Settings UI are implemented. Values stay
 in project-owned Kubernetes Secrets; registration validates names/keys and immutable
 workload revisions snapshot references. Rotation uses version checks, referenced deletion
 is protected, and secret values are excluded from API responses and audit payloads.
-Migration `0016` and live workload/rotation/recovery gates remain pending. See
+Migration `0016` passed as part of live migration through `0021`. Workload rotation,
+restart, protected deletion and forced deletion/startup/recovery passed; private-registry
+pulls and broader provider paths remain open. See
 [secrets.md](secrets.md) for scope and limits.
 
 ### Shared budgets and release preparation
@@ -175,8 +192,10 @@ forms select secret names and keys; Settings shows referencing definitions/revis
 
 Base-image/dependency pins, checksum-verified bootstrap bundles and manual-sync GitOps
 manifests are prepared. See [installation.md](installation.md). These code changes are
-locally verified; image builds, live migrations through current head `0021`, PostgreSQL concurrency,
-cluster installation, real GPU/TLS workloads and recovery drills remain pending.
+locally verified and deployed on the ARM64 lab: the clean control-plane image gate,
+live migrations through `0021`, shared-budget checks and basic DB outage/recovery passed.
+Final release-image validation, real GPU/TLS workloads, limiter overload/sustained outage
+and backup/restore drills remain open.
 
 ### Security, HA and manual acceptance tooling
 
@@ -191,16 +210,20 @@ have a separate revision-scoped serving account/reference path, with owned-accou
 cleanup after deployment deletion.
 
 Manual image, limiter load/outage, database recovery and full CPU acceptance commands are
-prepared; these remain live gates until executed. See [acceptance.md](acceptance.md).
-Logs/archive/streaming, operational cold-start metrics, exact tokenization, adversarial
-canary attribution, CNI isolation and GPU/Hub/private-registry failure drills remain open.
+available. Image, full CPU, adversarial canary, ingress CNI isolation and basic DB outage
+checks have recorded passes; 500 RPS limiter availability failed. Backup/restore, sustained
+outage, strict egress and GPU/Hub/private-registry drills remain open. Logs/archive/streaming,
+operational cold-start metrics and exact tokenization remain implementation work.
+See [acceptance.md](acceptance.md).
 
 ### Reconciler admission boundary
 
 The current chart 0.3.1 retains always-on fail-closed native policies for namespace ownership,
 namespace-scoped provider writes, exact project RoleBindings/subjects and the workflow
 executor Role. Kubernetes 1.30+ is required. Rendered CEL tests and a server dry-run live
-gate are available; live cluster enforcement remains unverified until that gate runs.
+gate passed on the installed lab policies: four policies/bindings, zero type warnings
+and nine impersonated server dry runs. Full CPU provisioning also passed; broader
+production admission/topology checks remain separate.
 See [operations.md](operations.md#reconciler-provisioning-trust-boundary).
 
 ## 2026-10-06 ARM64 runtime follow-up

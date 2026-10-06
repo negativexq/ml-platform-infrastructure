@@ -1,8 +1,18 @@
 # Live acceptance: 2026-10-06
 
 Owned fixture: `kind-mlp-acceptance`, Kubernetes 1.32.0, single ARM64 node.
-The previously stopped `agentic-sre` lab was not started or modified. Local auth mode
-is `none`; this batch does not prove OIDC authentication. CI remains manual.
+The unrelated `agentic-sre` lab is stopped; Docker briefly auto-started its node during
+the recovery restart and it was stopped again. Local auth mode is `none`; this batch
+does not prove OIDC authentication. CI remains manual.
+
+Current result: the full seven-phase CPU lifecycle, candidate-only rollback, Secret
+rotation/forced-deletion recovery and scoped storage-account cleanup passed. Shared
+PostgreSQL budgets held at 1/2/4 gateway replicas; 50/100 RPS passed availability, while
+500 RPS failed with transport timeouts and lock waiters. Basic PVC-backed DB outage and
+recovery passed, including expired auth/route caches. These are single-node ARM64 lab
+results; multi-node, hung-leader, strict-egress, private-registry, GPU/HF, OIDC/TLS and
+backup/restore gates remain open. Five serving/initializer HIGH findings still block
+production release. Original failed attempts below are retained as history.
 
 | Evidence | Result and scope |
 | --- | --- |
@@ -17,6 +27,12 @@ is `none`; this batch does not prove OIDC authentication. CI remains manual.
 | [Reconciler PDB](reconciler-pdb.json) | First eviction accepted, concurrent second eviction denied |
 | [Rolling restart](api-gateway-rolling-drain.json) | 200/200 API/gateway probes succeeded after a 10s preStop drain |
 | [Initial rolling failure](api-gateway-rolling.json) | Preserved failed baseline that motivated draining; not counted as a pass |
+| [Full CPU lifecycle](serving-arm64/cpu-lifecycle-complete.json) | Seven phases passed, including drift identity repair and zero-pod activation |
+| [Candidate-only rollback](serving-arm64/canary-rollback-final.json) | Candidate error rate 1.0; stable healthy; 30 restored requests returned 200 |
+| [Forced Secret recovery](serving-arm64/secret-force-lifecycle.json) | Running value retained; replacement startup blocked; restored Secret recovered |
+| [Storage-account cleanup](serving-arm64/storage-account-cleanup.json) | Revision accounts retained through canary, scoped deletion preserved foreign accounts |
+| [Limiter load](limiter-load.json) | Shared budgets held; 50/100 RPS passed, 500 RPS availability failed |
+| [Basic DB outage/recovery](limiter-outage.json) | Warm/expired caches returned 503; recovered requests returned 200; PVC-backed fixture |
 
 The image gate's source/image digest is authoritative for that gate. Cluster checks were
 run during incremental upgrades; individual reports retain their own image IDs. The
@@ -35,16 +51,17 @@ Serving dependencies installed: Gateway API 1.2.1, Istio 1.23.2, cert-manager 1.
 Knative operator 1.15.7 / Serving 1.15.2, KServe 0.15.0, Argo Workflows 3.6.2.
 Helm 3.17.3 was required by the pinned Istio schema; ingress uses ClusterIP on kind.
 
-CPU lifecycle is in progress. The live install exposed a SQLAlchemy 2.1 driver change:
+The initial CPU attempt exposed a SQLAlchemy 2.1 driver change:
 MLflow requires an explicit `postgresql+psycopg2://` URL. With that change its pod becomes
 ready. The chart's old MinIO/mc image references fail to pull; the isolated fixture was
 rebuilt from official pinned source/assets and its pods/bucket initialization are ready.
 [Build provenance](storage-build/provenance.json) records the source/archive/binary hashes
-and runtime Dockerfiles. These storage images have not passed a production release scan. Inference, actual canary attribution,
-secret rotation/initializer, private registry credentials and scale-to-zero are not yet
-passing evidence. Limiter load/outage, restore, GPU/HF and multi-node checks also remain
-open. Private fixture credentials and debug logs are deliberately excluded from this
-public evidence directory.
+and runtime Dockerfiles. These storage images have not passed a production release scan.
+Subsequent runs passed inference, canary attribution, Secret rotation, classic S3
+initializer loading and scale-to-zero, followed by basic DB outage/recovery. Private
+registry credentials, backup/restore, GPU/HF, multi-node and sustained limiter outage
+checks remain open; 500 RPS availability failed. Private fixture credentials and debug
+logs are excluded from this public evidence directory.
 
 ## Original CPU failures and later follow-up
 
@@ -64,10 +81,11 @@ updated local adapter resolves this to the actual S3 artifact address, verified 
 the real server ([report](mlflow-artifact-resolution.json)); two regression cases and
 the adapter/bootstrap suite pass (12 tests). This describes the original failed attempt; the fix is now deployed, as recorded
 in the [ARM64 follow-up](serving-arm64/README.md). The
-existing discovered version retains its previous URI; use a fresh acceptance project
-after deploying the fixed image. The unsupported URI also caused KServe to fall back
+then-existing discovered version retained its previous URI; the successful rerun used
+a fresh acceptance project after deploying the fixed image. The unsupported URI also caused KServe to fall back
 to an initializer without restricted-compatible container security. Default S3
-ClusterStorageContainer security is configured; S3 initializer operation is still pending.
+ClusterStorageContainer security was configured for the rerun; subsequent native S3
+initializer loading passed in the [ARM64 follow-up](serving-arm64/README.md).
 
 The pinned default MLServer 1.5.0 image is AMD64, while this fixture node is ARM64. A
 native runtime and S3 initializer now load the artifact and reach READY; real gateway
@@ -80,7 +98,8 @@ values override them with the recorded locally built images.
 
 The [ARM64 follow-up](serving-arm64/README.md) now includes a passing seven-phase CPU
 lifecycle, real candidate-only error attribution/rollback and scoped storage-account
-cleanup. Earlier pending statements above describe the original attempts. Later images
+cleanup, plus forced Secret deletion/startup/recovery. Original failed reports above
+retain their attempt-specific scope. Later images
 are dirty acceptance artifacts and do not replace the clean release gate's source scope;
 five serving/initializer HIGH findings still block production release.
 

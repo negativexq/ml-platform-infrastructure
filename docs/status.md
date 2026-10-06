@@ -23,7 +23,8 @@ image gate at `b7a3420`. Historical counts retain their original scope.
   have separate ownership. Pipeline/run replay includes execution/lineage fingerprints.
   Deploy revalidates locked versions and reuses revisions after concurrent lookup.
 - Manual promotion of an actively reserved rollout version returns 409. Failed/rejected
-  candidates recover toward stable serving; real traffic restoration is still unproven.
+  candidates recover toward stable serving; candidate-only rollback restored real traffic
+  in the ARM64 lab.
 - Shared PostgreSQL inference budgets, maximum-replica GPU admission, SHA-pinned Hub and
   function images, automatic lineage-scoped model discovery, deployment deletion,
   optional workflow retention and owned storage-account cleanup.
