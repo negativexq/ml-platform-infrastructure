@@ -26,8 +26,10 @@ def test_release_gate_uses_one_image_and_cleans_only_its_fixtures(tmp_path: Path
     release = load("controlplane_release_check")
     calls: list[list[str]] = []
     revision, image = "b" * 40, "sha256:" + "a" * 64
+    log_reads = 0
 
     def fake(args: list[str], **kwargs: Any) -> str:
+        nonlocal log_reads
         calls.append(args)
         if args[0] == "git":
             return revision if "rev-parse" in args else ""
@@ -36,7 +38,8 @@ def test_release_gate_uses_one_image_and_cleans_only_its_fixtures(tmp_path: Path
         if "{{.State.Running}}" in args:
             return "true"
         if args[:2] == ["docker", "logs"]:
-            return "reconciler started"
+            log_reads += 1
+            return "" if log_reads < 4 else "reconciler started"
         if args[:2] == ["docker", "save"]:
             Path(args[args.index("-o") + 1]).write_bytes(b"image")
         if "get_heads" in " ".join(args) or "SELECT version_num" in " ".join(args):
@@ -52,6 +55,7 @@ def test_release_gate_uses_one_image_and_cleans_only_its_fixtures(tmp_path: Path
         release.check("image:release", "postgres:test", tmp_path / "report", True)
     report = json.loads((tmp_path / "report/report.json").read_text())
     assert report["passed"] and report["image_id"] == image
+    assert log_reads == 5  # delayed startup, then a completed-pass check
     workloads = [
         args
         for args in calls

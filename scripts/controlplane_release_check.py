@@ -284,12 +284,24 @@ assert code==int(sys.argv[2]), (code,sys.argv[2])
                     "controlplane.reconciler_main",
                 ]
             )
-            time.sleep(3)
-            if run(["docker", "inspect", "--format", "{{.State.Running}}", name]) != "true":
-                raise RuntimeError("reconciler exited")
-            logs = run(["docker", "logs", name])
-            if "reconciler started" not in logs or "pass failed" in logs:
-                raise RuntimeError("reconciler initialization/pass failed")
+            deadline = time.monotonic() + 60
+            while True:
+                if run(["docker", "inspect", "--format", "{{.State.Running}}", name]) != "true":
+                    raise RuntimeError("reconciler exited")
+                logs = run(["docker", "logs", name])
+                if "pass failed" in logs:
+                    raise RuntimeError("reconciler initialization/pass failed")
+                if "reconciler started" in logs:
+                    # Give the first empty-state pass time to finish before accepting startup.
+                    time.sleep(3)
+                    if run(["docker", "inspect", "--format", "{{.State.Running}}", name]) != "true":
+                        raise RuntimeError("reconciler exited")
+                    if "pass failed" in run(["docker", "logs", name]):
+                        raise RuntimeError("reconciler initialization/pass failed")
+                    break
+                if time.monotonic() >= deadline:
+                    raise RuntimeError("reconciler startup deadline exceeded")
+                time.sleep(0.5)
             record("reconciler configuration and empty-database passes (no live Kubernetes)")
             run(["docker", "stop", "--time", "10", database])
             for component, port in (("api", 8080), ("gateway", 8081)):
