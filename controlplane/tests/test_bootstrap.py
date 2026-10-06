@@ -73,6 +73,7 @@ def test_offline_bundle_pins_git_image_and_checks_before_mutation(tmp_path: Path
     assert plan["source_verified"] and not plan["artifacts_cached"]
     text = script.read_text()
     assert text.index("dependency checksum mismatch") < text.index("create namespace")
+    assert text.index("helm version --short") < text.index("create namespace")
     assert "--context chosen-context" in text and "controlplane-0.1.0.tgz" in text
 
 

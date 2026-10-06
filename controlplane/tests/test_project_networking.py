@@ -39,3 +39,22 @@ def test_empty_serving_namespaces_does_not_allow_all_egress() -> None:
     )
     egress = project_policies("mlp-a", {}, topology)["egressnetworkpolicy"]["spec"]["egress"]
     assert all(rule["to"] for rule in egress)
+
+
+def test_serving_metrics_only_allow_prometheus_on_queue_metric_port() -> None:
+    topology = NetworkTopology(observability_namespace="custom-monitoring")
+    rule = project_policies("mlp-a", {}, topology)["servingmetricsnetworkpolicy"]["spec"]
+    assert rule["podSelector"]["matchExpressions"][0]["key"] == "serving.kserve.io/inferenceservice"
+    assert rule["ingress"] == [
+        {
+            "from": [
+                {
+                    "namespaceSelector": {
+                        "matchLabels": {"kubernetes.io/metadata.name": "custom-monitoring"}
+                    },
+                    "podSelector": {"matchLabels": {"app.kubernetes.io/name": "prometheus"}},
+                }
+            ],
+            "ports": [{"port": 9091, "protocol": "TCP"}],
+        }
+    ]

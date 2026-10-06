@@ -58,6 +58,12 @@ spec:
           {{- if eq $component "reconciler" }}
           command: [python, -m, controlplane.reconciler_main]
           {{- else }}
+          # EndpointSlice and proxy updates are asynchronous. Keep serving during
+          # removal from Service endpoints before uvicorn receives SIGTERM.
+          lifecycle:
+            preStop:
+              exec:
+                command: [python, -c, "import time; time.sleep(10)"]
           command:
             - uvicorn
             - {{ ternary "controlplane.gateway_main:app_factory" "controlplane.main:app_factory" (eq $component "gateway") }}

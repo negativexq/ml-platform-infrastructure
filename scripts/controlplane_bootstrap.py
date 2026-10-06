@@ -63,7 +63,10 @@ def prepare(
     context: str,
     fetch: bool = False,
     cache: Path | None = None,
+    gateway_service_type: str = "LoadBalancer",
 ) -> Path:
+    if gateway_service_type not in {"LoadBalancer", "ClusterIP"}:
+        raise ValueError("gateway service type must be LoadBalancer or ClusterIP")
     if not re.fullmatch(r"[0-9a-f]{40}", revision):
         raise ValueError("source revision must be a full 40-character Git commit SHA")
     if not re.fullmatch(r"[A-Za-z0-9._:/-]+@sha256:[0-9a-f]{64}", image):
@@ -144,6 +147,12 @@ def prepare(
         "#!/usr/bin/env bash",
         "set -euo pipefail",
         "# Review the bundle; this installer changes the named cluster.",
+        "# Istio 1.23's defaults schema requires the verified Helm 3.17 renderer.",
+        'case "$(helm version --short)" in',
+        "  v3.17.*) ;;",
+        "  *) echo 'Pinned dependencies require Helm 3.17.x (verified: 3.17.3). "
+        "Select it through PATH before running this installer.' >&2; exit 1 ;;",
+        "esac",
     ]
     if not source_verified:
         steps += [
@@ -213,6 +222,8 @@ def prepare(
                 if name == "kserve"
                 else ""
             )
+            if name == "istio-ingressgateway":
+                extra = " --set service.type=" + gateway_service_type
             steps.append(
                 f"{helm} upgrade --install {q(name)} {path} --namespace {namespace} "
                 f"--create-namespace --wait --timeout 10m{extra}"
@@ -236,6 +247,7 @@ def prepare(
                 "image": image,
                 "source_revision": revision,
                 "context": context,
+                "gateway_service_type": gateway_service_type,
                 "dependency_lock_sha256": sha256(lock_copy),
                 "controlplane_chart_sha256": sha256(chart_archive),
                 "source_verified": source_verified,
@@ -257,6 +269,12 @@ def main() -> None:
     parser.add_argument("--context", default="REPLACE_WITH_CLUSTER_CONTEXT")
     parser.add_argument("--cache", type=Path)
     parser.add_argument(
+        "--gateway-service-type",
+        choices=("LoadBalancer", "ClusterIP"),
+        default="LoadBalancer",
+        help="use ClusterIP for kind without a LoadBalancer controller",
+    )
+    parser.add_argument(
         "--fetch", action="store_true", help="download and checksum pinned artifacts"
     )
     parser.add_argument(
@@ -273,6 +291,7 @@ def main() -> None:
         args.context,
         args.fetch,
         args.cache,
+        args.gateway_service_type,
     )
     print("Prepared installation bundle:", args.out)
     if args.apply:

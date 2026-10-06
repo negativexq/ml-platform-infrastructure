@@ -69,6 +69,23 @@ def project_policies(
                 "ingress": [{"from": callers}],
             },
         ),
+        "servingmetricsnetworkpolicy": policy(
+            "mlp-serving-metrics",
+            {
+                "podSelector": {
+                    "matchExpressions": [
+                        {"key": "serving.kserve.io/inferenceservice", "operator": "Exists"}
+                    ]
+                },
+                "policyTypes": ["Ingress"],
+                "ingress": [
+                    {
+                        "from": [peer(topology.observability_namespace, "prometheus")],
+                        "ports": [{"port": 9091, "protocol": "TCP"}],
+                    }
+                ],
+            },
+        ),
     }
     if topology.isolate_egress:
         egress: list[dict[str, Any]] = [
