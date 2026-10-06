@@ -1,0 +1,469 @@
+{
+  "passed": false,
+  "scope": "In-cluster generator; distinct gateway pod IPs. Isolated cumulative OTLP histogram deltas; histogram quantiles are interpolated estimates. Low-budget traffic tests admission/rejection, not 500 successful inference RPS.",
+  "seconds_per_sample": 10,
+  "limit_units_per_minute": 600,
+  "results": [
+    {
+      "generator_cpu_stat_delta": {
+        "usage_usec": 601403,
+        "user_usec": 552307,
+        "system_usec": 49096,
+        "nice_usec": 0,
+        "nr_periods": 102,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "replicas": 1,
+      "offered_rps": 50,
+      "elapsed_seconds": 10.136133172000001,
+      "statuses": {
+        "200": 500
+      },
+      "completed_rps": 49.328475811781686,
+      "limiter_latency_ms": null,
+      "limiter_metric_window_seconds": 60,
+      "http_latency_ms": {
+        "p50": 5.082625000000007,
+        "p95": 7.017042000001084,
+        "p99": 15.795875000009119
+      },
+      "request_latency_ms": {
+        "p50": 5.076375000015787,
+        "p95": 7.010750000006283,
+        "p99": 15.790957999996635
+      },
+      "client_queue_latency_ms": {
+        "p50": 0.0036659999977928237,
+        "p95": 0.006874999996853148,
+        "p99": 0.012375000011388693
+      },
+      "scheduling_lag_p95_ms": 2.8906290000065837,
+      "max_observed_bucket_lock_waiters": 0,
+      "allowed": 500,
+      "shared_budget_upper_bound": 702,
+      "shared_budget_upper_bound_holds": true,
+      "isolated_limiter_histogram_delta_ms": {
+        "observations": 500.0,
+        "mean_ms": 2.250629895999623,
+        "p50": 3.0366598778004072,
+        "p95": 4.869653767820774,
+        "p99": 13.75
+      },
+      "limiter_observation_count_matches": true
+    },
+    {
+      "generator_cpu_stat_delta": {
+        "usage_usec": 969323,
+        "user_usec": 902317,
+        "system_usec": 67007,
+        "nice_usec": 0,
+        "nr_periods": 101,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "replicas": 1,
+      "offered_rps": 100,
+      "elapsed_seconds": 10.122547338999993,
+      "statuses": {
+        "200": 699,
+        "429": 301
+      },
+      "completed_rps": 98.78936264859098,
+      "limiter_latency_ms": null,
+      "limiter_metric_window_seconds": 60,
+      "http_latency_ms": {
+        "p50": 3.6104589999865766,
+        "p95": 5.447874999987334,
+        "p99": 11.592417000002797
+      },
+      "request_latency_ms": {
+        "p50": 3.6065419999999904,
+        "p95": 5.443083000017168,
+        "p99": 11.58533299999931
+      },
+      "client_queue_latency_ms": {
+        "p50": 0.002999999992425728,
+        "p95": 0.0043750000031650416,
+        "p99": 0.009750000003805326
+      },
+      "scheduling_lag_p95_ms": 2.303626000013992,
+      "max_observed_bucket_lock_waiters": 0,
+      "allowed": 699,
+      "shared_budget_upper_bound": 702,
+      "shared_budget_upper_bound_holds": true,
+      "isolated_limiter_histogram_delta_ms": {
+        "observations": 1000.0,
+        "mean_ms": 1.5083512829997971,
+        "p50": 3.006103763987792,
+        "p95": 4.837232960325535,
+        "p99": 5.0
+      },
+      "limiter_observation_count_matches": true
+    },
+    {
+      "generator_cpu_stat_delta": {
+        "usage_usec": 15399491,
+        "user_usec": 14853542,
+        "system_usec": 545949,
+        "nice_usec": 0,
+        "nr_periods": 221,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "replicas": 1,
+      "offered_rps": 500,
+      "elapsed_seconds": 22.105460719000007,
+      "statuses": {
+        "200": 817,
+        "429": 4183
+      },
+      "completed_rps": 226.18845467909284,
+      "limiter_latency_ms": null,
+      "limiter_metric_window_seconds": 60,
+      "http_latency_ms": {
+        "p50": 2799.375709000003,
+        "p95": 12024.764755000007,
+        "p99": 12320.728006000025
+      },
+      "request_latency_ms": {
+        "p50": 388.6465840000142,
+        "p95": 4188.580002000009,
+        "p99": 5397.652169999987
+      },
+      "client_queue_latency_ms": {
+        "p50": 2379.4204180000233,
+        "p95": 11536.740922000006,
+        "p99": 11683.467463999988
+      },
+      "scheduling_lag_p95_ms": 4.407125999989603,
+      "max_observed_bucket_lock_waiters": 11,
+      "allowed": 817,
+      "shared_budget_upper_bound": 822,
+      "shared_budget_upper_bound_holds": true,
+      "isolated_limiter_histogram_delta_ms": {
+        "observations": 5000.0,
+        "mean_ms": 25.83703097759999,
+        "p50": 22.83361486486487,
+        "p95": 81.57370517928288,
+        "p99": 134.61538461538464
+      },
+      "limiter_observation_count_matches": true
+    },
+    {
+      "generator_cpu_stat_delta": {
+        "usage_usec": 602550,
+        "user_usec": 555173,
+        "system_usec": 47378,
+        "nice_usec": 0,
+        "nr_periods": 101,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "replicas": 2,
+      "offered_rps": 50,
+      "elapsed_seconds": 10.138799669999997,
+      "statuses": {
+        "200": 500
+      },
+      "completed_rps": 49.315502453358974,
+      "limiter_latency_ms": null,
+      "limiter_metric_window_seconds": 60,
+      "http_latency_ms": {
+        "p50": 5.377457999998114,
+        "p95": 7.1724169999924925,
+        "p99": 20.16233300000181
+      },
+      "request_latency_ms": {
+        "p50": 5.37312500000553,
+        "p95": 7.167125000023589,
+        "p99": 20.1590000000067
+      },
+      "client_queue_latency_ms": {
+        "p50": 0.0036670000156391325,
+        "p95": 0.0065840000047501235,
+        "p99": 0.012749999996231054
+      },
+      "scheduling_lag_p95_ms": 2.880626000006714,
+      "max_observed_bucket_lock_waiters": 0,
+      "allowed": 500,
+      "shared_budget_upper_bound": 702,
+      "shared_budget_upper_bound_holds": true,
+      "isolated_limiter_histogram_delta_ms": {
+        "observations": 500.0,
+        "mean_ms": 2.2158015940008227,
+        "p50": 3.028397565922921,
+        "p95": 4.853955375253551,
+        "p99": 10.0
+      },
+      "limiter_observation_count_matches": true
+    },
+    {
+      "generator_cpu_stat_delta": {
+        "usage_usec": 1022276,
+        "user_usec": 966130,
+        "system_usec": 56145,
+        "nice_usec": 0,
+        "nr_periods": 101,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "replicas": 2,
+      "offered_rps": 100,
+      "elapsed_seconds": 10.12198100500001,
+      "statuses": {
+        "200": 699,
+        "429": 301
+      },
+      "completed_rps": 98.7948900028586,
+      "limiter_latency_ms": null,
+      "limiter_metric_window_seconds": 60,
+      "http_latency_ms": {
+        "p50": 3.9972079999870402,
+        "p95": 6.67899999999122,
+        "p99": 21.830582999996295
+      },
+      "request_latency_ms": {
+        "p50": 3.993417000003774,
+        "p95": 6.671833000012839,
+        "p99": 21.823917000006077
+      },
+      "client_queue_latency_ms": {
+        "p50": 0.002958999999691514,
+        "p95": 0.004959000023063709,
+        "p99": 0.012333999990232769
+      },
+      "scheduling_lag_p95_ms": 2.4955009999985123,
+      "max_observed_bucket_lock_waiters": 0,
+      "allowed": 699,
+      "shared_budget_upper_bound": 702,
+      "shared_budget_upper_bound_holds": true,
+      "isolated_limiter_histogram_delta_ms": {
+        "observations": 1000.0,
+        "mean_ms": 1.6876129410001397,
+        "p50": 3.032520325203252,
+        "p95": 4.861788617886178,
+        "p99": 9.285714285714286
+      },
+      "limiter_observation_count_matches": true
+    },
+    {
+      "generator_cpu_stat_delta": {
+        "usage_usec": 23282143,
+        "user_usec": 22322943,
+        "system_usec": 959201,
+        "nice_usec": 0,
+        "nr_periods": 244,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "replicas": 2,
+      "offered_rps": 500,
+      "elapsed_seconds": 24.450299469000015,
+      "statuses": {
+        "200": 843,
+        "429": 4156,
+        "transport_error": 1
+      },
+      "completed_rps": 204.49647278714878,
+      "limiter_latency_ms": null,
+      "limiter_metric_window_seconds": 60,
+      "http_latency_ms": {
+        "p50": 9333.208378999985,
+        "p95": 14258.414548999952,
+        "p99": 14746.897923999995
+      },
+      "request_latency_ms": {
+        "p50": 422.07658299997775,
+        "p95": 4098.275752000007,
+        "p99": 5272.316710000041
+      },
+      "client_queue_latency_ms": {
+        "p50": 8586.761669999987,
+        "p95": 13525.44196499997,
+        "p99": 13851.109381000015
+      },
+      "scheduling_lag_p95_ms": 543.9403759999664,
+      "max_observed_bucket_lock_waiters": 23,
+      "allowed": 843,
+      "shared_budget_upper_bound": 845,
+      "shared_budget_upper_bound_holds": true,
+      "isolated_limiter_histogram_delta_ms": {
+        "observations": 4999.0,
+        "mean_ms": 18.388597473294475,
+        "p50": 4.2751269035533,
+        "p95": 94.45238095238098,
+        "p99": 233.07258064516148
+      },
+      "limiter_observation_count_matches": false
+    },
+    {
+      "generator_cpu_stat_delta": {
+        "usage_usec": 649883,
+        "user_usec": 592084,
+        "system_usec": 57798,
+        "nice_usec": 0,
+        "nr_periods": 101,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "replicas": 4,
+      "offered_rps": 50,
+      "elapsed_seconds": 10.127960879,
+      "statuses": {
+        "200": 500
+      },
+      "completed_rps": 49.368279160391886,
+      "limiter_latency_ms": null,
+      "limiter_metric_window_seconds": 60,
+      "http_latency_ms": {
+        "p50": 5.498583000019153,
+        "p95": 7.259666999971159,
+        "p99": 26.793792000034955
+      },
+      "request_latency_ms": {
+        "p50": 5.492917000026409,
+        "p95": 7.254875000000993,
+        "p99": 26.78299999996625
+      },
+      "client_queue_latency_ms": {
+        "p50": 0.0034999999911633495,
+        "p95": 0.005916000020533829,
+        "p99": 0.012249999997493433
+      },
+      "scheduling_lag_p95_ms": 2.7808340000206044,
+      "max_observed_bucket_lock_waiters": 0,
+      "allowed": 500,
+      "shared_budget_upper_bound": 702,
+      "shared_budget_upper_bound_holds": true,
+      "isolated_limiter_histogram_delta_ms": {
+        "observations": 500.0,
+        "mean_ms": 2.2651262440004984,
+        "p50": 3.0366598778004072,
+        "p95": 4.869653767820774,
+        "p99": 9.000000000000002
+      },
+      "limiter_observation_count_matches": true
+    },
+    {
+      "generator_cpu_stat_delta": {
+        "usage_usec": 921701,
+        "user_usec": 841600,
+        "system_usec": 80102,
+        "nice_usec": 0,
+        "nr_periods": 101,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "replicas": 4,
+      "offered_rps": 100,
+      "elapsed_seconds": 10.11913967099997,
+      "statuses": {
+        "200": 699,
+        "429": 301
+      },
+      "completed_rps": 98.82263043229447,
+      "limiter_latency_ms": null,
+      "limiter_metric_window_seconds": 60,
+      "http_latency_ms": {
+        "p50": 4.047208000031333,
+        "p95": 5.556583999975828,
+        "p99": 7.970709000005627
+      },
+      "request_latency_ms": {
+        "p50": 4.042874999981905,
+        "p95": 5.551916000001711,
+        "p99": 7.966957999997248
+      },
+      "client_queue_latency_ms": {
+        "p50": 0.0028329999963716546,
+        "p95": 0.004249999960848072,
+        "p99": 0.007417000006171293
+      },
+      "scheduling_lag_p95_ms": 2.423504999967463,
+      "max_observed_bucket_lock_waiters": 1,
+      "allowed": 699,
+      "shared_budget_upper_bound": 702,
+      "shared_budget_upper_bound_holds": true,
+      "isolated_limiter_histogram_delta_ms": {
+        "observations": 1000.0,
+        "mean_ms": 1.539896128999942,
+        "p50": 3.0,
+        "p95": 4.800000000000001,
+        "p99": 4.96
+      },
+      "limiter_observation_count_matches": true
+    },
+    {
+      "generator_cpu_stat_delta": {
+        "usage_usec": 15668786,
+        "user_usec": 14935365,
+        "system_usec": 733422,
+        "nice_usec": 0,
+        "nr_periods": 163,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "replicas": 4,
+      "offered_rps": 500,
+      "elapsed_seconds": 16.228927632000023,
+      "statuses": {
+        "200": 761,
+        "429": 4239
+      },
+      "completed_rps": 308.0918291940038,
+      "limiter_latency_ms": null,
+      "limiter_metric_window_seconds": 60,
+      "http_latency_ms": {
+        "p50": 5346.442544000012,
+        "p95": 6534.794420000026,
+        "p99": 7028.121877999979
+      },
+      "request_latency_ms": {
+        "p50": 354.4704170000159,
+        "p95": 1850.327334000042,
+        "p99": 4577.348710999957
+      },
+      "client_queue_latency_ms": {
+        "p50": 4840.978001999985,
+        "p95": 5836.681377000048,
+        "p99": 5862.419919000047
+      },
+      "scheduling_lag_p95_ms": 548.1306680000557,
+      "max_observed_bucket_lock_waiters": 47,
+      "allowed": 761,
+      "shared_budget_upper_bound": 763,
+      "shared_budget_upper_bound_holds": true,
+      "isolated_limiter_histogram_delta_ms": {
+        "observations": 5000.0,
+        "mean_ms": 20.71617463180056,
+        "p50": 3.561809303520946,
+        "p95": 147.16157205240174,
+        "p99": 376.4705882352941
+      },
+      "limiter_observation_count_matches": true
+    }
+  ],
+  "gateway_image": "localhost:5201/mlp-controlplane@sha256:e71c4490aede839b49b1aac2308276e5eacfa561d3e282d51a97c6d22dd58c5e",
+  "context": "kind-mlp-acceptance",
+  "architecture": "linux/arm64",
+  "measurement_overlap": "No image build, scan, push, deployment or disk cleanup during this matrix."
+}

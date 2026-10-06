@@ -1,0 +1,31 @@
+{
+  "source_revision": "92bdc0979a8a47213f41321973ceccd7d6233a7d",
+  "source_clean": false,
+  "image": "localhost:5201/mlp-controlplane@sha256:0ada11c75795983ada878eac23f61bbcc6a074e60010d5f5b22cb1aa19045ba5",
+  "architecture": "linux/arm64",
+  "scope": "Working-tree acceptance image: full dependency build 7e5e8215 followed by installation of the current universal application wheel. Full clean release build remains separate.",
+  "dependency_base_image_id": "sha256:7e5e8215ead5f3a79305a2709537153a05c677a543022bd0cb2a86aa4810e66d",
+  "application_wheel_sha256": "371163a73a39fe77db58ece2d19d123d84e64feb3aef8dfacef8be0e75b9c973",
+  "file_sha256": {
+    "controlplane/adapters/gateway/sql_limits.py": "c8c3ff5d072e55bf7782e6a56d71928dfcfb43559a6e99c0231f61c0cec5cac7",
+    "scripts/controlplane_limiter_check.py": "eeecd38c73b415dc0ee86481d10effed32cc91f99255bd4ec11c0c6e1b393a37",
+    "scripts/controlplane_limiter_matrix.py": "79314cfb7c711c02f40c48fc93eef92a8d356fe08aad7af1aeca7c3046477978"
+  },
+  "checks": {
+    "pip_check_exit_code": 0,
+    "trivy_exit_code": 0,
+    "fixable_high_critical": 0,
+    "cve_exclusions": [],
+    "sbom_sha256": "1b615addfb2aac439e7d4e9d102e7c2738d0c2030f759af0a4d6bc55c9e26019",
+    "postgres_sqlite_regression_tests": 5,
+    "load_metric_regression_tests": 12,
+    "gateway_tests": 29,
+    "ruff": "passed",
+    "limiter_mypy": "passed"
+  },
+  "baseline_load_passed": false,
+  "optimized_load_passed": false,
+  "in_image_limiter_hash_matches_source": true,
+  "default_ha_load_passed": true,
+  "dependency_base_image": "localhost:5201/mlp-controlplane@sha256:7e5e8215ead5f3a79305a2709537153a05c677a543022bd0cb2a86aa4810e66d"
+}

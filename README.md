@@ -128,7 +128,7 @@ Settings are environment variables prefixed `CP_` (`controlplane/settings.py`).
 ## Live verification
 
 Recorded on **Kubernetes 1.32.0, single-node ARM64 kind** (`kind-mlp-acceptance`),
-2026-10-06. The full seven-phase CPU lifecycle passed, alongside separate failure and
+2026-10-06–07. The full seven-phase CPU lifecycle passed, alongside separate failure and
 isolation drills:
 
 - ✓ Argo training → MLflow registration/discovery/evaluation
@@ -145,6 +145,7 @@ isolation drills:
 - ✓ Reconciler Lease failover + PDB
 - ✓ API/gateway rolling restart: 200/200 probes
 - ✓ Shared PostgreSQL limiter correctness across 1/2/4 gateway replicas
+- ✓ 500 offered RPS admission/rejection load with two/four gateway replicas
 - ✓ Basic PostgreSQL outage → fail-closed 503 → recovery, with warm and expired caches
 
 [Live reports and artifact scopes](docs/evidence/live-2026-10-06/README.md) record both
@@ -155,9 +156,26 @@ MLServer compatibility fork and standalone storage library.
 Separate local evidence covers PostgreSQL tests, Chromium, Prometheus queries,
 Keycloak sign-in, promtool and kubeconform; it does not establish in-cluster OIDC.
 
+**PostgreSQL limiter load follow-up:** an in-cluster aiohttp/uvloop generator and
+isolated OTLP histograms now separate limiter, HTTP and client queue latency. At
+500 offered RPS, two/four gateways completed approximately **493/495 RPS** with correct
+shared budgets, no 5xx/transport errors and no client backlog.
+
+| Gateway replicas | Limiter p95, before → after | HTTP request p95, before → after |
+| --- | --- | --- |
+| 2 | 96 → 30 ms | 519 → 161 ms |
+| 4 | 187 → 4.7 ms | 516 → 4.0 ms |
+
+The two-bucket PostgreSQL transaction uses three SQL statements instead of nine.
+The generator also fixed a significant client-side bottleneck. These are ten-second,
+600-units/minute admission/rejection tests; they do not prove 500 successful inference
+requests per second or a production capacity ceiling. A single gateway still develops
+a queue, including in the 2 CPU probe. See the [full report and limitations](docs/limiter-performance.md)
+and [raw comparison](docs/evidence/live-2026-10-07/limiter/summary.json).
+
 **Still open:**
 
-- 500 RPS limiter availability/performance (failed), isolated limiter latency and sustained outage/thread growth
+- Single-replica 500 RPS capacity, sustained/high-budget inference load and sustained DB outage/thread growth
 - Final clean release artifact/target-architecture rerun
 - OIDC in-cluster acceptance
 - Strict egress / multi-node loss and drain / hung-leader drills

@@ -82,10 +82,13 @@ See [live evidence](evidence/live-2026-10-06/README.md).
    boot/value. Private registry, cleanup conflict/outage retry and broader private
    initializer provider paths remain separate gates.
    See [ARM64 evidence](evidence/live-2026-10-06/serving-arm64/README.md).
-5. Shared-limiter load measured 1/2/4 distinct gateway replicas: 50/100 RPS preserved
-   shared budgets without availability errors; 500 offered RPS stayed within budget but
-   failed availability (transport timeouts, 10/23/41 observed lock waiters). Isolated
-   limiter latency telemetry and an in-cluster generator are needed for diagnosis.
+5. Shared-limiter load measured 1/2/4 distinct gateway targets. The original 500 RPS
+   port-forward gate failed; the new in-cluster aiohttp/uvloop comparison passes 500
+   offered RPS at two/four replicas (~493/495 completed RPS, no 5xx/transport errors or
+   client backlog). Isolated limiter p95 improved from 96→30ms and 187→4.7ms; the
+   two-bucket transaction now uses three statements rather than nine. The full matrix
+   remains failed at one replica; a 2 CPU probe still queues. Sustained and mostly-admitted
+   inference load remain open. See [load report](limiter-performance.md).
    Basic real PostgreSQL outage/recovery passed across four gateways, including expired
    auth/route caches; those SQL failures now return redacted 503 rather than 500. The lab
    DB now has a Bound PVC; the initial emptyDir fixture lost its historical rows and was

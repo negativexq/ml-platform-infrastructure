@@ -61,3 +61,59 @@ def test_sql_migration_lock_refuses_a_second_process() -> None:
     finally:
         engine.dispose()
         other.dispose()
+
+
+def test_sql_bucket_operations_and_clock_after_lock() -> None:
+    """Exercise debt/refunds and prove the shared clock is read after a contended lock."""
+    engine = make_engine(os.environ["CP_ACCEPTANCE_DATABASE_URL"])
+    other = make_engine(os.environ["CP_ACCEPTANCE_DATABASE_URL"])
+    prefix = "acceptance-" + uuid4().hex
+    buckets = [(prefix + "-b", 600), (prefix + "-a", 600)]
+    limiter = SqlTokenBucketLimiter(other)
+    try:
+        assert limiter.take(buckets, 600).allowed
+        assert not limiter.take(buckets, 1).allowed
+        limiter.refund(buckets, 25)
+        assert limiter.take(buckets, 20).allowed
+        limiter.charge(buckets, 50)
+        assert not limiter.admit(buckets).allowed
+        with engine.begin() as connection:
+            connection.execute(
+                text(
+                    "UPDATE gateway_rate_buckets SET tokens=0, "
+                    "updated_at=extract(epoch FROM clock_timestamp()) WHERE name LIKE :prefix"
+                ),
+                {"prefix": prefix + "%"},
+            )
+            # The statement must acquire both rows in name order, regardless of caller order.
+            connection.execute(
+                text("SELECT name FROM gateway_rate_buckets WHERE name=:name FOR UPDATE"),
+                {"name": prefix + "-a"},
+            )
+            with ThreadPoolExecutor(max_workers=1) as workers:
+                pending = workers.submit(limiter.take, buckets, 3)
+                time.sleep(0.4)
+                assert not pending.done()
+                released_at = float(
+                    connection.scalar(text("SELECT extract(epoch FROM clock_timestamp())"))
+                )
+                connection.commit()
+                assert pending.result(timeout=4).allowed
+        with engine.connect() as connection:
+            updated = (
+                connection.execute(
+                    text("SELECT updated_at FROM gateway_rate_buckets WHERE name LIKE :prefix"),
+                    {"prefix": prefix + "%"},
+                )
+                .scalars()
+                .all()
+            )
+            assert len(updated) == 2 and min(updated) >= released_at
+    finally:
+        with engine.begin() as connection:
+            connection.execute(
+                text("DELETE FROM gateway_rate_buckets WHERE name LIKE :prefix"),
+                {"prefix": prefix + "%"},
+            )
+        engine.dispose()
+        other.dispose()

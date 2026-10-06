@@ -91,7 +91,8 @@ below; procedures are in [local-verification.md](local-verification.md).
 - Broader pipeline DAG/retry/cancel paths beyond the recorded CPU training/discovery flow.
 - The gateway behind a real ingress with TLS (cert-manager); lab gateway inference and
   ingress NetworkPolicy allow/deny checks already passed.
-- Prometheus scraping `mlp_*` in the cluster, and the alerts firing.
+- Full production `mlp_*` collection and alerts firing (gateway limiter OTLP ingestion
+  is now live-verified).
 - A Keycloak client-credentials token accepted by the gateway.
 
 Already verified for real here:
@@ -112,9 +113,10 @@ Already verified for real here:
 
 - **Production limits use shared PostgreSQL buckets.** Native concurrency tests and
   live 1/2/4-gateway shared-budget checks passed. Basic DB outage/recovery passed with
-  warm and expired caches. At 500 offered RPS the budget held, but availability failed
-  with timeouts and lock waiters; isolated limiter latency, sustained outage/thread growth
-  and targeted lock/statement-timeout injections remain open.
+  warm and expired caches. The new in-cluster comparison passes 500 offered RPS at
+  two/four gateways and records isolated limiter latency. One gateway still queues,
+  including the 2 CPU probe. Sustained/high-budget inference load, sustained outage/thread
+  growth and targeted statement-timeout injections remain open. See [load report](limiter-performance.md).
   Explicit `CP_GATEWAY_LIMIT_STORE=memory` and demo mode keep per-process budgets.
 - **Token admission uses estimates.** Missing usage and interrupted streams consume their
   reservation. A model-specific tokenizer is still needed for exact hard token ceilings.
@@ -136,9 +138,9 @@ Already verified for real here:
    are resolved. Lab
    migration through `0021`, admission/PSA and ingress isolation already passed; repeat
    the required checks for the production topology and verified OIDC identities.
-2. **Resolve limiter overload and extend HA/isolation evidence:** add isolated limiter
-   latency telemetry and an in-cluster generator, diagnose the failed 500 RPS availability
-   gate, then test sustained DB outage/thread growth, hung-leader fencing, strict egress
+2. **Extend limiter capacity and HA/isolation evidence:** isolated latency and in-cluster
+   500 RPS checks passed at two/four replicas. Diagnose single-replica queueing, then test
+   sustained/high-budget inference load, sustained DB outage/thread growth, hung-leader fencing, strict egress
    and multi-node drain/loss. Full CPU lifecycle and basic DB outage/recovery are closed
    for the recorded single-node ARM64 scope.
 3. **Finish workload credential and recovery gates:** private-image pulls/rotation,
@@ -196,7 +198,7 @@ Base-image/dependency pins, checksum-verified bootstrap bundles and manual-sync 
 manifests are prepared. See [installation.md](installation.md). These code changes are
 locally verified and deployed on the ARM64 lab: the clean control-plane image gate,
 live migrations through `0021`, shared-budget checks and basic DB outage/recovery passed.
-Final release-image validation, real GPU/TLS workloads, limiter overload/sustained outage
+Final release-image validation, real GPU/TLS workloads, single-replica limiter capacity/sustained outage
 and backup/restore drills remain open.
 
 ### Security, HA and manual acceptance tooling
@@ -213,7 +215,8 @@ cleanup after deployment deletion.
 
 Manual image, limiter load/outage, database recovery and full CPU acceptance commands are
 available. Image, full CPU, adversarial canary, ingress CNI isolation and basic DB outage
-checks have recorded passes; 500 RPS limiter availability failed. Backup/restore, sustained
+checks have recorded passes; the new 500 RPS limiter check passes at two/four replicas
+while one replica still queues. Backup/restore, sustained
 outage, strict egress and GPU/Hub/private-registry drills remain open. Logs/archive/streaming,
 operational cold-start metrics and exact tokenization remain implementation work.
 See [acceptance.md](acceptance.md).
@@ -249,8 +252,9 @@ See [dependency remediation](serving-image-security.md) and
 
 Live 1/2/4-replica measurements preserved shared budgets. 50/100 offered RPS had no
 availability errors; 500 RPS failed availability with transport timeouts and growing
-bucket lock waiters. Add isolated limiter latency telemetry and repeat from an
-in-cluster generator before selecting a throughput fix. Basic PVC-backed PostgreSQL
+bucket lock waiters. The [2026-10-07 in-cluster follow-up](limiter-performance.md) now
+passes 500 offered RPS at two/four replicas, with isolated telemetry and reduced
+SQL round trips; single-replica queueing remains open. Basic PVC-backed PostgreSQL
 outage/recovery passed, including expired auth/route caches after a redacted 503 fix.
 Sustained outage/thread growth and backup/restore remain open. The initial ephemeral
 acceptance DB was lost during the first pod-stop test; historical rows were not restored.

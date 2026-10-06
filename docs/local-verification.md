@@ -39,8 +39,12 @@ in new ARM64 images. Their own scans reported zero fixable HIGH/CRITICAL; native
 inference and real private S3 loading/gateway passed. See
 [dependency remediation](serving-image-security.md).
 
-**Open scopes:** 500 RPS limiter availability
-(failed), isolated limiter latency and sustained outage/thread growth, final clean
+**Recorded limiter follow-up:** isolated telemetry and an in-cluster generator now
+verify 500 offered RPS at two/four gateways; the single-replica case still queues.
+See [load report](limiter-performance.md).
+
+**Open scopes:** single-replica capacity, sustained/high-budget inference load and
+sustained outage/thread growth, final clean
 release-artifact rerun, strict egress, hung-leader, multi-node loss/drain, private
 registry, backup/restore, GPU/vLLM/HF, in-cluster OIDC, real ingress/TLS and AWS.
 Lab auth was `none`; later acceptance artifacts do not inherit the earlier clean image
@@ -689,7 +693,7 @@ kubectl apply -f k8s/gateway/gateway.yaml   # after setting the host, the issuer
 | 2 | Through the ingress with TLS: `curl https://<host>/v1/<project>/<endpoint>/predict -H 'Authorization: Bearer <key>'` gives the model's answer | **you**: needs the ingress controller and cert-manager |
 | 3 | The gateway reaches KServe at the endpoint's in-cluster URL through Knative's local gateway | **Recorded live result:** MLflow `instances` via `/invocations` and function `/invoke` passed; native tensor `inputs` uses `/v2/models/<name>/infer` |
 | 4 | A long answer is streamed, not buffered | **you**: `proxy-buffering: off` on the ingress; matters for LLM endpoints later |
-| 5 | Gateway replicas share PostgreSQL capacity, including concurrent requests and DB recovery | **Recorded live result:** shared budgets held across 1/2/4 pods and basic DB outage/recovery passed; 500 RPS availability failed; live LLM reservations remain separate |
+| 5 | Gateway replicas share PostgreSQL capacity, including concurrent requests and DB recovery | **Recorded live result:** shared budgets held across 1/2/4 pods and basic DB outage/recovery passed; 500 offered RPS now passes at two/four pods with isolated telemetry; one pod still queues; live LLM reservations remain separate |
 | 6 | Prometheus scrapes `mlp_gateway_*` (OTLP → Collector → Prometheus), the usage panel and Monitor show data, `GatewayHighErrorRate` fires when the model is scaled to zero with no activator | **you** |
 | 7 | A client-credentials token from Keycloak with the invoker role is accepted, without the role 403 | **you**: same issuer settings as the API |
 
@@ -848,7 +852,7 @@ full CPU serving lifecycle, healthy canary and candidate-only rollback, Secret
 rotation/restart/forced recovery, shared-budget concurrency and basic DB outage passed.
 
 Remaining scopes: final clean release rerun for control-plane and remediated serving/initializer,
-500 RPS availability, isolated limiter latency, sustained outage and targeted timeout
+single-replica capacity, sustained/high-budget inference load, sustained outage and targeted timeout
 faults, strict egress, hung-leader/multi-node, GPU/HF/TLS/OIDC, private pulls, broader
 UI browser acceptance and backup/restore. See [roadmap.md](roadmap.md).
 
@@ -879,7 +883,8 @@ loopback HTTP servers used by existing gateway tests were stopped after their te
 
 **Recorded live result (2026-10-06):** image/runtime/scan/SBOM and full CPU commands
 passed; shared budgets held, basic DB outage/recovery passed, and Lease failover,
-reconciler PDB and API/gateway rolling drain passed. The 500 RPS availability gate failed;
+reconciler PDB and API/gateway rolling drain passed. The original 500 RPS gate failed; the new [in-cluster report](limiter-performance.md)
+passes at two/four replicas while the single-replica case still queues;
 sustained outage, hung-leader, multi-node and backup/restore remain open. Commands are
 in [acceptance.md](acceptance.md). First deployment must stop any Lease-unaware old reconciler before
 starting the new leader/standby pair. See [installation.md](installation.md).

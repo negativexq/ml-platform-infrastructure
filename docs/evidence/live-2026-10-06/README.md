@@ -8,7 +8,10 @@ does not prove OIDC authentication. CI remains manual.
 Current result: the full seven-phase CPU lifecycle, candidate-only rollback, Secret
 rotation/forced-deletion recovery and scoped storage-account cleanup passed. Shared
 PostgreSQL budgets held at 1/2/4 gateway replicas; 50/100 RPS passed availability, while
-500 RPS failed with transport timeouts and lock waiters. Basic PVC-backed DB outage and
+the original 500 RPS gate failed with transport timeouts and lock waiters. The
+[2026-10-07 follow-up](../../limiter-performance.md) passes 500 offered RPS at two/four
+replicas with isolated limiter telemetry; single-replica queueing remains open.
+Basic PVC-backed DB outage and
 recovery passed, including expired auth/route caches. These are single-node ARM64 lab
 results; multi-node, hung-leader, strict-egress, private-registry, GPU/HF, OIDC/TLS and
 backup/restore gates remain open. The original five serving/initializer HIGH findings
@@ -107,6 +110,10 @@ the original five serving/initializer HIGH findings are resolved by separately s
 new artifacts. Final clean release/target-architecture reruns remain open.
 
 ## Shared PostgreSQL limiter load follow-up
+
+This section records the original failed gate. The
+[new in-cluster comparison](../../limiter-performance.md) passes at two/four replicas
+and preserves the single-replica failures separately.
 
 [Measured 1/2/4 replica matrix](limiter-load.json) used four distinct gateway pod
 port-forwards, 10s of offered traffic per sample, and endpoint/caller budgets of 600

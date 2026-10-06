@@ -1,0 +1,76 @@
+{
+  "passed": false,
+  "scope": "In-cluster generator; distinct gateway pod IPs. Isolated cumulative OTLP histogram deltas; histogram quantiles are interpolated estimates. Low-budget traffic tests admission/rejection, not 500 successful inference RPS.",
+  "target_replicas": [
+    1
+  ],
+  "seconds_per_sample": 10,
+  "limit_units_per_minute": 600,
+  "results": [
+    {
+      "generator_transport": "aiohttp, 200 persistent pooled connections",
+      "generator_cpu_stat_delta": {
+        "usage_usec": 1054829,
+        "user_usec": 915904,
+        "system_usec": 138924,
+        "nice_usec": 0,
+        "nr_periods": 107,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "replicas": 1,
+      "offered_rps": 500,
+      "elapsed_seconds": 10.784183963000032,
+      "statuses": {
+        "200": 707,
+        "429": 4293
+      },
+      "completed_rps": 463.6419424181502,
+      "limiter_latency_ms": null,
+      "limiter_metric_window_seconds": 60,
+      "http_latency_ms": {
+        "p50": 2071.1254179999514,
+        "p95": 2479.5735839999224,
+        "p99": 5321.154418999981
+      },
+      "request_latency_ms": {
+        "p50": 268.0305420000195,
+        "p95": 1380.9498750000557,
+        "p99": 4206.620294000004
+      },
+      "client_queue_latency_ms": {
+        "p50": 1790.6602510000766,
+        "p95": 2194.8279590000084,
+        "p99": 2220.1709580000397
+      },
+      "scheduling_lag_p95_ms": 1.139666999961264,
+      "max_observed_bucket_lock_waiters": 11,
+      "allowed": 707,
+      "shared_budget_upper_bound": 708,
+      "shared_budget_upper_bound_holds": true,
+      "isolated_limiter_histogram_delta_ms": {
+        "observations": 5000.0,
+        "mean_ms": 18.00270904219947,
+        "p50": 16.195777351247603,
+        "p95": 46.690734055354994,
+        "p99": 89.47368421052632
+      },
+      "limiter_observation_count_matches": true,
+      "availability_passed": false
+    }
+  ],
+  "generator_event_loop": "uvloop",
+  "legacy_throughput_gate_passed": true,
+  "gateway_cpu_limit": "2",
+  "gateway_image": "localhost:5201/mlp-controlplane@sha256:0ada11c75795983ada878eac23f61bbcc6a074e60010d5f5b22cb1aa19045ba5",
+  "limitation": "CPU 2 probe cleared the initial 90% throughput guard but retained 2.2s p95 client queue; fails the strengthened queue guard. No production capacity claim.",
+  "evaluated_gate": {
+    "completed_rps_fraction_minimum": 0.9,
+    "client_queue_p95_ms_maximum": 100,
+    "scheduling_lag_p95_ms_maximum": 100,
+    "zero_5xx_transport_sampling_errors": true,
+    "shared_budget_and_observation_counts_required": true
+  }
+}

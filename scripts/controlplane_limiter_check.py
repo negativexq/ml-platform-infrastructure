@@ -17,6 +17,7 @@ from collections import Counter
 from pathlib import Path
 from typing import Any
 
+import aiohttp
 import httpx
 from sqlalchemy import text
 
@@ -26,6 +27,73 @@ from controlplane.persistence.sql import make_engine
 def percentile(values: list[float], quantile: float) -> float:
     ordered = sorted(values)
     return ordered[max(0, math.ceil(len(ordered) * quantile) - 1)] if ordered else 0
+
+
+async def limiter_snapshot(prometheus: str) -> list[dict[str, Any]]:
+    """Cumulative limiter buckets; compare snapshots to avoid adjacent-sample bleed."""
+    async with httpx.AsyncClient(timeout=5) as client:
+        response = await client.get(
+            prometheus.rstrip("/") + "/api/v1/query",
+            params={
+                "query": '{__name__=~"mlp_gateway_limiter_duration_seconds_(bucket|count|sum)",'
+                'operation="take",job="mlp-gateway"}'
+            },
+        )
+        response.raise_for_status()
+        payload = response.json()
+        if payload.get("status") != "success":
+            raise ValueError("limiter metric query failed")
+        return list(payload["data"]["result"])
+
+
+def limiter_histogram_delta(
+    before: list[dict[str, Any]], after: list[dict[str, Any]]
+) -> dict[str, Any]:
+    old = {json.dumps(s["metric"], sort_keys=True): float(s["value"][1]) for s in before}
+    buckets: dict[float, float] = {}
+    count = total = 0.0
+    for series in after:
+        labels = series["metric"]
+        value = float(series["value"][1]) - old.get(json.dumps(labels, sort_keys=True), 0)
+        if not math.isfinite(value) or value < 0:
+            raise ValueError("limiter counter reset or invalid observation")
+        name = labels["__name__"]
+        if name.endswith("_bucket"):
+            boundary = float(labels["le"])
+            buckets[boundary] = buckets.get(boundary, 0) + value
+        elif name.endswith("_count"):
+            count += value
+        elif name.endswith("_sum"):
+            total += value
+    if not count or buckets.get(math.inf) != count:
+        raise ValueError("limiter histogram missing or incomplete")
+    result: dict[str, Any] = {"observations": count, "mean_ms": total * 1000 / count}
+    for name, quantile in (("p50", 0.5), ("p95", 0.95), ("p99", 0.99)):
+        previous_boundary = previous_count = 0.0
+        for boundary, cumulative in sorted(buckets.items()):
+            if cumulative < previous_count:
+                raise ValueError("non-monotonic limiter histogram")
+            if cumulative >= quantile * count:
+                estimate = previous_boundary
+                if math.isfinite(boundary) and cumulative > previous_count:
+                    estimate += (
+                        (boundary - previous_boundary)
+                        * (quantile * count - previous_count)
+                        / (cumulative - previous_count)
+                    )
+                result[name] = estimate * 1000
+                break
+            previous_boundary, previous_count = boundary, cumulative
+    return result
+
+
+def generator_cpu_stat() -> dict[str, int]:
+    path = Path("/sys/fs/cgroup/cpu.stat")
+    if not path.exists():
+        return {}
+    return {
+        name: int(value) for name, value in (line.split() for line in path.read_text().splitlines())
+    }
 
 
 async def sample(
@@ -38,27 +106,39 @@ async def sample(
     database_url: str | None,
 ) -> dict[str, Any]:
     latencies: list[float] = []
+    queue_latencies: list[float] = []
+    request_latencies: list[float] = []
+    scheduling_lag: list[float] = []
     codes: Counter[str] = Counter()
     locks: list[int] = []
     semaphore = asyncio.Semaphore(200)
     engine = make_engine(database_url) if database_url else None
+    cpu_before = generator_cpu_stat()
     started = time.monotonic()
-    async with httpx.AsyncClient(timeout=15, limits=httpx.Limits(max_connections=200)) as client:
+    async with aiohttp.ClientSession(
+        timeout=aiohttp.ClientTimeout(total=15),
+        connector=aiohttp.TCPConnector(limit=200, limit_per_host=200),
+    ) as client:
 
         async def request(index: int) -> None:
             target = started + index / rps
             await asyncio.sleep(max(0, target - time.monotonic()))
             before = time.monotonic()
+            scheduling_lag.append(max(0, before - target) * 1000)
             async with semaphore:
+                entered = time.monotonic()
+                queue_latencies.append((entered - before) * 1000)
                 try:
-                    response = await client.post(
+                    async with client.post(
                         urls[index % len(urls)],
                         json=body,
                         headers={"authorization": "Bearer " + token},
-                    )
-                    codes[str(response.status_code)] += 1
-                except httpx.HTTPError:
+                    ) as response:
+                        await response.read()
+                        codes[str(response.status)] += 1
+                except (TimeoutError, aiohttp.ClientError):
                     codes["transport_error"] += 1
+                request_latencies.append((time.monotonic() - entered) * 1000)
             latencies.append((time.monotonic() - before) * 1000)
 
         async def observe() -> None:
@@ -92,6 +172,7 @@ async def sample(
             if engine:
                 engine.dispose()
     elapsed = time.monotonic() - started
+    cpu_after = generator_cpu_stat()
     limiter_latency: dict[str, Any] = {}
     prometheus = os.environ.get("CP_ACCEPTANCE_PROMETHEUS_URL")
     if prometheus:
@@ -114,6 +195,10 @@ async def sample(
     allowed = sum(n for code, n in codes.items() if code.isdigit() and int(code) < 400)
     maximum = math.ceil(limit + limit * elapsed / 60)
     return {
+        "generator_transport": "aiohttp, 200 persistent pooled connections",
+        "generator_cpu_stat_delta": {
+            name: value - cpu_before.get(name, value) for name, value in cpu_after.items()
+        },
         "replicas": len(urls),
         "offered_rps": rps,
         "elapsed_seconds": elapsed,
@@ -126,6 +211,15 @@ async def sample(
             "p95": percentile(latencies, 0.95),
             "p99": percentile(latencies, 0.99),
         },
+        "request_latency_ms": {
+            name: percentile(request_latencies, q)
+            for name, q in (("p50", 0.5), ("p95", 0.95), ("p99", 0.99))
+        },
+        "client_queue_latency_ms": {
+            name: percentile(queue_latencies, q)
+            for name, q in (("p50", 0.5), ("p95", 0.95), ("p99", 0.99))
+        },
+        "scheduling_lag_p95_ms": percentile(scheduling_lag, 0.95),
         "max_observed_bucket_lock_waiters": max(locks, default=0) if locks else None,
         "allowed": allowed,
         "shared_budget_upper_bound": maximum,

@@ -1,0 +1,58 @@
+[
+  {
+    "pod": "mlp-controlplane-gateway-79c595ccc9-2dzld",
+    "cpu_stat": {
+      "usage_usec": "29654471",
+      "user_usec": "24024817",
+      "system_usec": "5629654",
+      "nice_usec": "0",
+      "nr_periods": "1430",
+      "nr_throttled": "118",
+      "throttled_usec": "1183638",
+      "nr_bursts": "0",
+      "burst_usec": "0"
+    }
+  },
+  {
+    "pod": "mlp-controlplane-gateway-79c595ccc9-4c7s4",
+    "cpu_stat": {
+      "usage_usec": "13180257",
+      "user_usec": "11372074",
+      "system_usec": "1808183",
+      "nice_usec": "0",
+      "nr_periods": "1135",
+      "nr_throttled": "4",
+      "throttled_usec": "315446",
+      "nr_bursts": "0",
+      "burst_usec": "0"
+    }
+  },
+  {
+    "pod": "mlp-controlplane-gateway-79c595ccc9-5kmh2",
+    "cpu_stat": {
+      "usage_usec": "7194506",
+      "user_usec": "6277174",
+      "system_usec": "917332",
+      "nice_usec": "0",
+      "nr_periods": "1124",
+      "nr_throttled": "8",
+      "throttled_usec": "957652",
+      "nr_bursts": "0",
+      "burst_usec": "0"
+    }
+  },
+  {
+    "pod": "mlp-controlplane-gateway-79c595ccc9-jfl6f",
+    "cpu_stat": {
+      "usage_usec": "6702795",
+      "user_usec": "5735175",
+      "system_usec": "967619",
+      "nice_usec": "0",
+      "nr_periods": "930",
+      "nr_throttled": "4",
+      "throttled_usec": "285441",
+      "nr_bursts": "0",
+      "burst_usec": "0"
+    }
+  }
+]

@@ -1,0 +1,59 @@
+{
+  "context": "kind-mlp-acceptance",
+  "architecture": "linux/arm64",
+  "date_timezone": "2026-10-07 Europe/Istanbul",
+  "default_ha_load_passed": true,
+  "entire_1_2_4_matrix_passed": false,
+  "single_replica_cpu2_probe_passed": false,
+  "scope": "Ten-second low-budget admission/rejection fixture; four gateway pods running, traffic targets 1/2/4 distinct pod IPs. Not 500 successful inference RPS or a production ceiling.",
+  "comparison": [
+    {
+      "target_replicas": 1,
+      "cpu_limit_per_gateway": "1",
+      "before_completed_rps": 403.3721900241909,
+      "after_completed_rps": 383.1936806151248,
+      "before_limiter_p95_ms": 80.74204946996467,
+      "after_limiter_p95_ms": 66.56346749226007,
+      "before_http_request_p95_ms": 1219.699999999989,
+      "after_http_request_p95_ms": 1699.4098339999937,
+      "before_sampled_peak_lock_waiters": 11,
+      "after_sampled_peak_lock_waiters": 10,
+      "after_availability_passed": false
+    },
+    {
+      "target_replicas": 2,
+      "cpu_limit_per_gateway": "1",
+      "before_completed_rps": 492.0354526344057,
+      "after_completed_rps": 492.6834898564277,
+      "before_limiter_p95_ms": 95.8860759493671,
+      "after_limiter_p95_ms": 30.47945205479452,
+      "before_http_request_p95_ms": 519.1292920000024,
+      "after_http_request_p95_ms": 161.3415410000698,
+      "before_sampled_peak_lock_waiters": 22,
+      "after_sampled_peak_lock_waiters": 20,
+      "after_availability_passed": true
+    },
+    {
+      "target_replicas": 4,
+      "cpu_limit_per_gateway": "1",
+      "before_completed_rps": 490.05367834525305,
+      "after_completed_rps": 495.0355175013903,
+      "before_limiter_p95_ms": 187.125748502994,
+      "after_limiter_p95_ms": 4.66758392955421,
+      "before_http_request_p95_ms": 515.686457999891,
+      "after_http_request_p95_ms": 3.9727920000132144,
+      "before_sampled_peak_lock_waiters": 47,
+      "after_sampled_peak_lock_waiters": 0,
+      "after_availability_passed": true
+    }
+  ],
+  "gate_correction": "Added queue and scheduling guards after the CPU2 probe exposed a throughput-only false positive; legacy result retained. Current code re-evaluates all recorded samples.",
+  "cleanup": {
+    "gateway_replicas": 2,
+    "gateway_cpu_limit": "1",
+    "endpoint_original_limits_restored": true,
+    "load_key_revoked": true,
+    "generator_jobs_configmap_token_secret_removed": true
+  },
+  "disk_incident": "Dependency image unpack filled disk before measured matrices. Cleared disposable task build files/package cache; recovered Docker, stopped auto-started unrelated lab node. Original running image retained in registry/node; no PVC deletion or backup/restore claim. Measurements ran after recovery without builds/scans/pushes/deployments/cleanup overlap."
+}
