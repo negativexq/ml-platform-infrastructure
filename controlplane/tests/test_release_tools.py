@@ -38,6 +38,7 @@ def test_release_gate_uses_one_image_and_cleans_only_its_fixtures(tmp_path: Path
         if "{{.State.Running}}" in args:
             return "true"
         if args[:2] == ["docker", "logs"]:
+            assert kwargs.get("include_stderr") is True
             log_reads += 1
             return "" if log_reads < 4 else "reconciler started"
         if args[:2] == ["docker", "save"]:
@@ -87,6 +88,17 @@ def test_release_errors_do_not_echo_credentials() -> None:
     ):
         release.run(["docker", "sensitive-credential"])
     assert "sensitive-credential" not in str(failure.value) and "secret" not in str(failure.value)
+
+
+def test_release_reads_reconciler_stderr_without_changing_other_command_output() -> None:
+    release = load("controlplane_release_check")
+    with patch.object(
+        release.subprocess,
+        "run",
+        return_value=subprocess.CompletedProcess([], 0, stdout="", stderr="reconciler started"),
+    ):
+        assert release.run(["docker", "logs", "fixture"], include_stderr=True) == "reconciler started"
+        assert release.run(["docker", "inspect", "fixture"]) == ""
 
 
 def test_cpu_acceptance_default_is_plan_only(monkeypatch: pytest.MonkeyPatch, capsys: Any) -> None:

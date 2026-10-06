@@ -17,12 +17,12 @@ from uuid import uuid4
 ROOT = Path(__file__).resolve().parents[1]
 
 
-def run(args: list[str], *, timeout: int = 600) -> str:
+def run(args: list[str], *, timeout: int = 600, include_stderr: bool = False) -> str:
     result = subprocess.run(args, text=True, capture_output=True, timeout=timeout, check=False)
     if result.returncode:
         # Commands can contain ephemeral credentials; do not echo them or raw output.
         raise RuntimeError(f"{args[0]} operation failed (exit {result.returncode})")
-    return result.stdout.strip()
+    return (result.stdout + (result.stderr if include_stderr else "")).strip()
 
 
 def check(image: str, postgres_image: str, output: Path, build: bool) -> None:
@@ -288,7 +288,7 @@ assert code==int(sys.argv[2]), (code,sys.argv[2])
             while True:
                 if run(["docker", "inspect", "--format", "{{.State.Running}}", name]) != "true":
                     raise RuntimeError("reconciler exited")
-                logs = run(["docker", "logs", name])
+                logs = run(["docker", "logs", name], include_stderr=True)
                 if "pass failed" in logs:
                     raise RuntimeError("reconciler initialization/pass failed")
                 if "reconciler started" in logs:
@@ -296,7 +296,7 @@ assert code==int(sys.argv[2]), (code,sys.argv[2])
                     time.sleep(3)
                     if run(["docker", "inspect", "--format", "{{.State.Running}}", name]) != "true":
                         raise RuntimeError("reconciler exited")
-                    if "pass failed" in run(["docker", "logs", name]):
+                    if "pass failed" in run(["docker", "logs", name], include_stderr=True):
                         raise RuntimeError("reconciler initialization/pass failed")
                     break
                 if time.monotonic() >= deadline:
