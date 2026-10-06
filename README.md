@@ -117,7 +117,7 @@ reply = client.chat.completions.create(model="assistant-prod",
 | --- | --- |
 | Local cluster | `make local-up`: kind, Argo CD (GitOps), MLflow, PostgreSQL, MinIO, Prometheus, Grafana |
 | Database | `make cp-migrate`: Alembic migrations |
-| Control plane | `docker/controlplane/Dockerfile` and `helm/controlplane`: API, reconciler, gateway, migration Job, RBAC and fail-closed admission policies (Kubernetes 1.30+); prepared, runtime verification pending ([installation](docs/installation.md)) |
+| Control plane | `docker/controlplane/Dockerfile` and `helm/controlplane`: API, reconciler, gateway, migration Job, RBAC and fail-closed admission policies (Kubernetes 1.30+); deployed and runtime-verified on the ARM64 lab ([installation](docs/installation.md)) |
 | Gateway | Included in the control-plane chart; standalone example at `k8s/gateway/gateway.yaml` has Ingress/TLS and a topology-specific NetworkPolicy ([networking](docs/networking.md)) |
 | Identity | `k8s/identity/` (Keycloak), configured with `CP_OIDC_*` settings |
 | Observability | `make observability-up`: OpenTelemetry Collector, Tempo, dashboards, alerts |
@@ -125,23 +125,52 @@ reply = client.chat.completions.create(model="assistant-prod",
 
 Settings are environment variables prefixed `CP_` (`controlplane/settings.py`).
 
-## Status
+## Live verification
 
-* **Tested here:**
-  * The full test suite, against in-memory stores and a real PostgreSQL.
-  * Browser tests in Chromium.
-  * Queries against a real Prometheus, and sign-in against a real Keycloak.
-  * Alert rules with promtool, manifests with kubeconform.
-  * The gateway end to end.
-* **Not yet run against real KServe, Argo or GPUs, or a production ingress:** what remains
-  is listed check by check in [`docs/local-verification.md`](docs/local-verification.md).
-* **In progress:**
-  * A Helm chart for the control plane itself.
+Recorded on **Kubernetes 1.32.0, single-node ARM64 kind** (`kind-mlp-acceptance`),
+2026-10-06. The full seven-phase CPU lifecycle passed, alongside separate failure and
+isolation drills:
 
-The full list of what is missing and what comes next: [`docs/roadmap.md`](docs/roadmap.md).
+- ✓ Argo training → MLflow registration/discovery/evaluation
+- ✓ KServe serving → real gateway inference
+- ✓ Healthy canary: 10% → 100%
+- ✓ Candidate-only failure → automatic rollback
+- ✓ Scale-to-zero → reactivation
+- ✓ Secret rotation / forced-delete startup failure and recovery
+- ✓ Scoped storage-account cleanup, preserving foreign accounts
+- ✓ Same-revision serving drift repair with a new matching immutable backend
+- ✓ Project RBAC / restricted PSA / installed admission policies (server dry runs)
+- ✓ Cross-project ingress isolation on an enforcing network-policy engine
+- ✓ Reconciler Lease failover + PDB
+- ✓ API/gateway rolling restart: 200/200 probes
+- ✓ Shared PostgreSQL limiter correctness across 1/2/4 gateway replicas
+- ✓ Basic PostgreSQL outage → fail-closed 503 → recovery, with warm and expired caches
+
+[Live reports and artifact scopes](docs/evidence/live-2026-10-06/README.md) record both
+passes and failed attempts. Lab auth was `none`; later acceptance images were built
+from working trees and do not inherit the earlier clean control-plane release scan.
+Separate local evidence covers PostgreSQL tests, Chromium, Prometheus queries,
+Keycloak sign-in, promtool and kubeconform; it does not establish in-cluster OIDC.
+
+**Still open:**
+
+- Five fixable HIGH findings: four in serving, one in the initializer image
+- 500 RPS limiter availability/performance (failed), isolated limiter latency and sustained outage/thread growth
+- Final clean release artifact/target-architecture rerun
+- OIDC in-cluster acceptance
+- Strict egress / multi-node loss and drain / hung-leader drills
+- Private-registry pulls/credential rotation and cleanup conflict/outage retry
+- Backup/restore disaster recovery
+- GPU/vLLM/immutable and gated Hugging Face downloads
+- Real ingress/TLS and AWS deployment
+
+Current closure status: [docs/status.md](docs/status.md). Procedures and next steps:
+[verification checklist](docs/local-verification.md) and [roadmap](docs/roadmap.md).
 
 ## Documentation
 
+* [Current status and recorded verification](docs/status.md)
+* [Live acceptance evidence](docs/evidence/live-2026-10-06/README.md)
 * [Roadmap: what is missing and what comes next](docs/roadmap.md)
 * [Security hardening and remaining tests](docs/security-hardening.md)
 * [Identity and roles](docs/identity.md)
@@ -160,7 +189,7 @@ The full list of what is missing and what comes next: [`docs/roadmap.md`](docs/r
 * **Committed credentials:** only disposable local-development defaults.
 * **API keys:** stored hashed and shown once.
 * **Sessions:** HttpOnly signed cookies, with CSRF protection.
-* **Workloads:** project namespaces enforce Pod Security `restricted`; serving has no Kubernetes token/RBAC. Production requires site-configured NetworkPolicies. Live controller/CNI validation remains pending ([security hardening](docs/security-hardening.md)).
+* **Workloads:** project namespaces enforce Pod Security `restricted`; serving has no Kubernetes token/RBAC. Project RBAC, PSA, installed admission policies and enforcing cross-project ingress isolation passed in the lab. Production requires site-configured NetworkPolicies; strict egress and broader topology checks remain open ([security hardening](docs/security-hardening.md)).
 
 ## License
 
@@ -177,7 +206,8 @@ pinned, checksum-verified bootstrap bundles and manual-sync GitOps. Run `make cp
 for checks without PostgreSQL/browser startup, or `make cp-http-test` for native gateway
 streaming tests.
 
-Security/HA preparation now includes namespace-scoped API Secret RBAC, API/gateway PDBs
-and two replicas, Lease-elected reconcilers, migration ownership locks and a production
-policy profile. Manual image, load/outage, recovery and CPU lifecycle gates are described
-in [docs/acceptance.md](docs/acceptance.md); their live results remain pending.
+Security/HA includes namespace-scoped API Secret and workload-read RBAC, API/gateway PDBs
+and two replicas, Lease-elected reconcilers with a PDB/watchdog, migration ownership locks
+and a production policy profile. Manual image, load/outage, recovery and CPU lifecycle
+procedures are in [docs/acceptance.md](docs/acceptance.md); recorded results and open
+scopes are listed in Live verification above.
