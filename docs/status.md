@@ -48,7 +48,7 @@ RBAC checks and restricted-PSA checks passed. An enforcing network-policy engine
 cross-project traffic while permitted ingress and DNS worked. Lease takeover took 31.44s;
 the reconciler PDB rejected the second concurrent eviction. API/gateway rolling restarts
 passed 200/200 probes after adding a 10s preStop drain. This does not establish node-loss,
-hung-leader, strict-egress, inference, GPU or identity-provider acceptance.
+hung-leader, strict-egress, GPU or identity-provider acceptance.
 See [live evidence](evidence/live-2026-10-06/README.md).
 
 ## Required before deployment acceptance

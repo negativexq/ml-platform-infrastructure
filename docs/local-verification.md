@@ -7,8 +7,10 @@ PostgreSQL promotion/concurrency checks. See [concurrency-identity-audit.md](con
 and [security-hardening.md](security-hardening.md) for the complete scope. This document
 review did not rerun those tests; the older dated counts below are historical snapshots.
 
-What the platform does that has only been tested against fakes, a real PostgreSQL or schema
-validation, and how to check each part on a real Kubernetes cluster. Run these on a
+Procedures and checklists for verifying the platform on a real Kubernetes cluster.
+A checklist row describes an expected result, not an automatic claim that every row
+passed. `Recorded live result:` notes identify the tested subset and evidence; dated
+local batches retain their original scope. Repeat the required checks on a
 machine with a working container runtime. Earlier cloud-sandbox verification could not
 start pods; those results do not establish Argo, KServe, CNI or GPU behavior.
 
@@ -21,14 +23,24 @@ start pods; those results do not establish Argo, KServe, CNI or GPU behavior.
   `kube-controller-manager` (`scripts/envtest.sh`): resources created, a second apply
   changed nothing, drift was repaired, and the namespace was deleted.
 
-**Verified on 2026-10-06:** control-plane image runtime/scan/SBOM, separated-runtime-role
-readiness, real project provisioning, admission/PSA, scoped API RBAC, Lease failover,
-reconciler PDB, API/gateway rolling restarts and enforcing ingress isolation.
-Pinned Argo/KServe/Knative dependencies are installed; full CPU inference acceptance
-remains in progress. See [live evidence](evidence/live-2026-10-06/README.md).
+**Recorded live result: 2026-10-06, single-node ARM64.** Control-plane image
+runtime/scan/SBOM, migrations through `0021`, separated-runtime-role readiness,
+project provisioning, admission/PSA, scoped API RBAC, Lease failover, reconciler PDB,
+API/gateway rolling drain and enforcing ingress isolation passed. The full seven-phase
+CPU lifecycle passed: Argo/MLflow training/discovery/evaluation, serving/gateway,
+healthy canary, credential rotation, same-revision drift repair and zero-pod activation.
+Separate candidate-only rollback, forced Secret recovery and scoped storage-account
+cleanup passed. Shared budgets held across 1/2/4 gateway replicas; 50/100 RPS passed
+availability. Basic PVC-backed DB outage/recovery passed with warm and expired caches.
+See [live evidence](evidence/live-2026-10-06/README.md).
 
-Strict egress, full serving lifecycle, GPU and multi-node fault checks remain open. See [installation.md](installation.md), [networking.md](networking.md)
-and [roadmap.md](roadmap.md).
+**Open scopes:** five serving/initializer HIGH findings, 500 RPS limiter availability
+(failed), isolated limiter latency and sustained outage/thread growth, final clean
+release-artifact rerun, strict egress, hung-leader, multi-node loss/drain, private
+registry, backup/restore, GPU/vLLM/HF, in-cluster OIDC, real ingress/TLS and AWS.
+Lab auth was `none`; later acceptance artifacts do not inherit the earlier clean image
+scan. See [installation.md](installation.md), [networking.md](networking.md) and
+[roadmap.md](roadmap.md).
 
 ---
 
@@ -41,7 +53,7 @@ and [roadmap.md](roadmap.md).
 > 5. Deployments and endpoints
 > 6. Canary rollouts and rollback
 > 7. Web UI
-> 8. Code that has never run against the real thing
+> 8. Adapter procedures and remaining live cases
 > 9. Missing pieces
 > 10. Observability
 > 11. Identity
@@ -62,7 +74,7 @@ kubectl apply -n argo -f https://github.com/argoproj/argo-workflows/releases/dow
 # PostgreSQL for the control plane: reuse the platform one or any local instance
 export CP_DATABASE_URL=postgresql+psycopg://USER:PASS@localhost:5432/controlplane
 export CP_KUBECONFIG=$HOME/.kube/config      # context must be the kind cluster
-make cp-migrate                    # alembic upgrade head (currently 0013)
+make cp-migrate                    # alembic upgrade head (currently 0021)
 
 make cp-run                        # API on :8080      (terminal 1)
 make cp-reconcile                  # reconcilers       (terminal 2)
@@ -76,6 +88,10 @@ Quick sanity (no cluster needed): `make cp-check`.
 ---
 
 ## 1. Projects and isolation
+
+**Recorded live result (2026-10-06):** Project provisioning, namespace-scoped API RBAC, admission/PSA and enforcing ingress
+isolation passed. Broader project deletion/drift cases below remain checklist items.
+See [CPU and serving evidence](evidence/live-2026-10-06/serving-arm64/README.md).
 
 Drive everything through the API (`curl`/`/docs`), inspect with `kubectl`.
 
@@ -106,6 +122,10 @@ Things to eyeball while doing this:
 ---
 
 ## 2. Jobs and runs
+
+**Recorded live result (2026-10-06):** Real Argo training completed and produced MLflow runs/artifacts in the CPU gate.
+Failure/cancel/deadline cases below are not all covered by that success path.
+See [CPU and serving evidence](evidence/live-2026-10-06/serving-arm64/README.md).
 
 Create a project (READY), then:
 
@@ -198,6 +218,10 @@ mid-run and restart → it resumes, no second workflow.
 
 ## 4. Models, evaluation and promotion
 
+**Recorded live result (2026-10-06):** Automatic MLflow discovery and threshold evaluation passed in the CPU gate.
+Broader alias/manual-promotion cases require their own evidence.
+See [CPU and serving evidence](evidence/live-2026-10-06/serving-arm64/README.md).
+
 Needs `CP_MLFLOW_TRACKING_URI` (section 3) and a pipeline that registers a model.
 Register the version under the name the API tells you, then let the platform find it:
 
@@ -246,6 +270,10 @@ Judgement calls to confirm you agree with:
 
 ## 5. Deployments and endpoints
 
+**Recorded live result (2026-10-06):** Private classic S3 artifacts loaded, KServe became READY and real gateway inference
+passed. Same-platform-revision repair produced a new matching immutable backend.
+See [CPU and serving evidence](evidence/live-2026-10-06/serving-arm64/README.md).
+
 Extra setup: KServe must be installed, with the MLflow runtime available (the
 `InferenceService` uses `modelFormat: mlflow`, protocol v2), and the serving pods
 need credentials for the artifact store.
@@ -256,8 +284,9 @@ immutable Knative readiness/canary contract. For classic private S3/MinIO artifa
 project Secret management with AWS keys and allowlisted S3 annotations, then configure
 `secret_refs.storage_secret` at model registration. The platform creates revision-specific
 `mlp-storage-*` accounts for the initializer. See [secrets.md](secrets.md). Do not attach
-storage credentials to the deprecated shared workload account. Actual download and PSA
-compatibility remain live gates.
+storage credentials to the deprecated shared workload account. Recorded native classic
+S3 artifact loading and serving readiness passed on ARM64; other provider/runtime
+combinations and production release scans remain separate gates.
 
 ```bash
 curl -XPOST localhost:8080/projects/credit-risk/deployments -H 'content-type: application/json' \
@@ -295,13 +324,18 @@ Judgement calls to confirm:
 - A FAILED deployment is **not** retried automatically; a new revision (or the same
   version after a fix, via a new revision) retries it. Say if you want auto-retry
   with backoff instead.
-- A rollout of revision N+1 keeps the endpoint READY while N serves; if N+1 fails the
-  deployment is FAILED and the endpoint UNAVAILABLE even though N might still be up,
-  because the platform does not yet track per-revision serving (see canary rollouts).
+- A rollout of revision N+1 keeps stable serving available during observation; a
+  rejected candidate recovers toward stable. The recorded candidate-only failure drill
+  restored the original stable image/platform revision and real gateway traffic.
 
 ---
 
 ## 6. Canary rollouts and rollback
+
+**Recorded live result (2026-10-06):** Healthy 10% → 100% promotion passed. A separate candidate-only 503 drill triggered
+rollback, rejected the candidate and restored 30 successful stable requests.
+Latency-only failure and manual rollback cases below are separate checks.
+See [CPU and serving evidence](evidence/live-2026-10-06/serving-arm64/README.md).
 
 **Setup is heavier than for plain deployments.** KServe's native canary split only exists in Serverless
 mode (Knative Serving + Kourier/Istio), and the gates read per-revision Knative
@@ -311,7 +345,7 @@ metrics from Prometheus:
 # Knative Serving + Kourier, then KServe in Serverless mode (default), instead of RawDeployment
 # (follow the Knative and KServe install docs for the versions you pin)
 export CP_PROMETHEUS_URL=http://localhost:9090     # your kube-prometheus-stack; port-forward it
-make cp-migrate                                    # 0007
+make cp-migrate                                    # upgrade through current head 0021
 make cp-reconcile                                  # now also drives rollouts
 ```
 
@@ -477,20 +511,21 @@ ids in *Activity* only appear when the control plane runs with OTEL export on. O
 authentication and project roles are implemented (section 11); actions are anonymous only
 with `CP_AUTH_MODE=none`. Verify actor attribution using your configured identity provider.
 
-## 8. Code that has never run against the real thing
+## 8. Adapter procedures and remaining live cases
 
-Adapters have local manifest and synthetic-response tests. Check workflow behavior
-against real Argo, and serving behavior against real KServe/Knative:
+Adapters have local tests and the live results recorded above. Use the checks below
+for untested cases and target-version repeats; they do not mean the entire adapter
+is unverified. Basic Argo completion, KServe readiness/drift/canary and actual metric
+attribution passed; broader failure/defaulting cases remain separate.
 
 000. **Canary adapter and metrics** — `KServeServingProvider` canary support
      (`canaryTrafficPercent` set via merge patch, `null` to remove; the
-     `mlp.io/previous-revision` annotation; `components.predictor.latestCreatedRevision` /
-     `previousRolledoutRevision` used to label metrics) and all of
+     verified immutable stable/candidate backend identities) and the queries in
      `adapters/metrics/prometheus.py` (metric names, label names `namespace_name` /
      `revision_name`, window `2m`, NaN handling). If gates never pass although traffic
      flows, run the four queries by hand in Prometheus first.
-00. **KServe adapter, all of it** — `adapters/serving/kserve.py` has only been
-    tested with local manifests and synthetic controller/backend responses. Specifically
+00. **KServe adapter target-version checks** — `adapters/serving/kserve.py` has
+    recorded live readiness, drift repair, canary and activation results. Specifically
     check: (a) the status fields it reads —
     condition `Ready`, `components.predictor.latestCreatedRevision` and
     `latestReadyRevision`, `status.modelStatus.lastFailureInfo`, `status.address.url`;
@@ -499,8 +534,9 @@ against real Argo, and serving behavior against real KServe/Knative:
     The reconciler needs `get` on `serving.knative.dev/revisions`. Older unmarked
     backends need redeployment. `modelStatus == UpToDate` is no longer a universal
     readiness requirement: ready custom containers and zero-pod services remain callable.
-    Source inspection and synthetic regression tests passed; annotation propagation,
-    delayed status, actual metric labels and cold-start activation remain cluster gates.
+    **Recorded live result:** matching immutable annotations after same-revision repair,
+    stable/candidate metric attribution and cold-start activation passed. Broader delayed
+    status and controller-default cases still need target-version checks.
     Failure attribution requires `lastFailureInfo.modelRevisionName` to match the
     verified backend; if the installed version omits it, failure stays PENDING rather
     than marking a new revision FAILED from unbound historical information.
@@ -535,8 +571,10 @@ against real Argo, and serving behavior against real KServe/Knative:
    `mlp-workflow-executor` (`workflowtaskresults` create/patch for SA
    `mlp-training`). If steps run but the workflow never completes, check the
    Argo version's required RBAC and the pod's `wait` container log.
-7. **Provisioner on kind vs. envtest** — only exercised on envtest. Re-run the
-   projects table (section 1) on kind (the NetworkPolicy and namespace-deletion rows especially).
+7. **Provisioner on the target cluster** — **Recorded live result:** kind project
+   provisioning, RBAC/admission/PSA and enforcing ingress isolation passed. Repeat the
+   projects table for your topology; namespace deletion/repair and strict-egress cases
+   are not implied by the basic provisioning result.
 
 ---
 
@@ -547,14 +585,17 @@ against real Argo, and serving behavior against real KServe/Knative:
 - Build and exercise the prepared **control-plane image/chart**, including migration
   hooks, process commands, RBAC and read-only filesystems. The chart includes Knative
   Revision read permissions, native admission, separated runtime credentials, topology
-  policies and pinned bootstrap sources; their installed runtime behavior is still open. See [installation.md](installation.md).
+  policies and pinned bootstrap sources. Recorded image/runtime, migration, RBAC and
+  admission checks passed; repeat for the final clean release and target topology.
+  See [installation.md](installation.md).
 - CI job running `scripts/envtest.sh` and an integration test for
   `KubernetesClusterProvider` (currently only a manual smoke).
 - `docs/evidence/m14/gate.md`, `docs/evidence/m15/gate.md` and README rows once
   the tables above pass.
 - Step pods need MLflow/S3 credentials and a reachable tracking URI. Project secret
   management and workload references are implemented ([secrets.md](secrets.md)); verify
-  actual credential use and connectivity in the cluster. The original training Secret
+  other credential/provider paths on the target cluster. Recorded training and classic
+  S3 artifact loading used project credentials successfully. The original training Secret
   still lives in `ml-platform` and is not automatically copied or adopted.
 - No pipeline-run retry endpoint or physical history purge. Steps inherit job resources
   and namespace LimitRange defaults; per-step resource overrides remain separate work.
@@ -639,11 +680,11 @@ kubectl apply -f k8s/gateway/gateway.yaml   # after setting the host, the issuer
 
 | # | Gate | Status |
 | --- | --- | --- |
-| 1 | Gateway pods Ready (`/readyz`; `/healthz` is liveness), PDB holds one during a drain | **you** |
+| 1 | Gateway pods Ready (`/readyz`; `/healthz` is liveness), PDB holds one during a drain | **Recorded live result:** readiness and rolling drain passed; gateway-specific eviction/PDB drill remains separate |
 | 2 | Through the ingress with TLS: `curl https://<host>/v1/<project>/<endpoint>/predict -H 'Authorization: Bearer <key>'` gives the model's answer | **you**: needs the ingress controller and cert-manager |
-| 3 | The gateway reaches KServe at the endpoint's in-cluster URL (`/v2/models/<name>/infer`) through Knative's local gateway | **you**: KServe Serverless; the NetworkPolicy allows `kourier-system`, `istio-system`, `knative-serving` and the project namespaces |
+| 3 | The gateway reaches KServe at the endpoint's in-cluster URL through Knative's local gateway | **Recorded live result:** MLflow `instances` via `/invocations` and function `/invoke` passed; native tensor `inputs` uses `/v2/models/<name>/infer` |
 | 4 | A long answer is streamed, not buffered | **you**: `proxy-buffering: off` on the ingress; matters for LLM endpoints later |
-| 5 | Two production replicas share PostgreSQL capacity, including concurrent reservations and restarts | **you**: live PostgreSQL/replica acceptance; demo/explicit memory mode remains per process |
+| 5 | Gateway replicas share PostgreSQL capacity, including concurrent requests and DB recovery | **Recorded live result:** shared budgets held across 1/2/4 pods and basic DB outage/recovery passed; 500 RPS availability failed; live LLM reservations remain separate |
 | 6 | Prometheus scrapes `mlp_gateway_*` (OTLP → Collector → Prometheus), the usage panel and Monitor show data, `GatewayHighErrorRate` fires when the model is scaled to zero with no activator | **you** |
 | 7 | A client-credentials token from Keycloak with the invoker role is accepted, without the role 403 | **you**: same issuer settings as the API |
 
@@ -685,14 +726,17 @@ Verified here:
 * Calls through the platform and through the gateway (`/invoke`).
 * The UI in a real browser.
 
-All of it ran against fakes; no function container has run in a cluster yet. Left for you:
+**Recorded live result (2026-10-06):** a real function image reached READY, gateway
+invocation passed, zero pods reactivated with a fresh boot, candidate-only 503s rolled
+back to stable, and Secret rotation/forced-delete recovery passed. Autoscaling saturation
+and private-registry pulls/rotation remain open. Checklist:
 
 | # | Gate | Status |
 | --- | --- | --- |
-| 1 | A function deploys from a real image: the InferenceService has `containers[0].image`, `minReplicas`, `maxReplicas`, `containerConcurrency`, and goes READY | **you** (KServe Serverless) |
-| 2 | With `min_scale: 0`: after a few idle minutes the pod is gone; the next call through the gateway succeeds within the 60 s timeout (cold start) | **you** |
+| 1 | A function deploys from a real image: the InferenceService has `containers[0].image`, `minReplicas`, `maxReplicas`, `containerConcurrency`, and goes READY | **Recorded live result:** real digest-pinned image reached READY in the CPU gate |
+| 2 | With `min_scale: 0`: after a few idle minutes the pod is gone; the next call through the gateway succeeds within the 60 s timeout (cold start) | **Recorded live result:** actual zero pods, fresh boot; activation request 1.25s |
 | 3 | Under load it scales up to `max_scale` and no further | **you** |
-| 4 | A canary between two images splits traffic and rolls back when the new image returns 5xx | **you** |
+| 4 | A canary between two images splits traffic and rolls back when the new image returns 5xx | **Recorded live result:** candidate-only 503s triggered rollback; 30 restored requests returned 200 |
 | 5 | The image is pulled from a private registry with the project's pull secret | **you**: management API/UI and references implemented; live pull pending ([secrets.md](secrets.md)) |
 
 ## Further local remediation verification — 2026-10-05
@@ -725,10 +769,14 @@ Cluster resources were not applied or removed. See [operations.md](operations.md
   atomic restore flags, schema/count verification and inventory coverage. No actual
   snapshot dump/restore was performed; the recovery acceptance drill remains open.
 
-Pending runtime gates: DB outage/schema mismatch and recovery; real function probes and
-resource scheduling; selected CNI ingress/egress; Argo deadline/cancellation/foreground
-cleanup; asynchronous KServe removal and GPU reservation release; real LLM streaming and
-usage settlement; compatible PostgreSQL snapshot backup/restore with measured RPO/RTO.
+**Recorded live result (2026-10-06):** basic DB outage/recovery, function readiness,
+CPU scheduling, ingress isolation and scoped storage-account deletion passed. This
+supersedes the original batch's pending status for those cases.
+
+Open runtime scopes: sustained DB outage/thread growth and additional schema-mismatch
+faults; strict egress, broader scheduling failures, Argo deadline/cancellation/foreground
+cleanup, cleanup conflict/outage retry and GPU reservation release; real LLM streaming
+and usage settlement; PostgreSQL backup/restore with measured RPO/RTO.
 
 ## Project secrets and serving drift verification — 2026-10-05
 
@@ -741,7 +789,8 @@ No PostgreSQL server, browser, Docker runtime or cluster was started for this ba
 - OpenAPI schema validation and UI TypeScript/production build passed. The existing
   bundle-size advisory remains; the new Settings form has not been tested in a browser.
 - Helm lint passed; default chart rendered **14 valid resources** with kubeconform.
-  API secret/namespace RBAC is prepared and has not been applied to a cluster.
+  API secret/namespace RBAC had not been applied to a cluster in this local batch;
+  its later live result is recorded below.
 - PostgreSQL offline DDL through head `0016` passed and matches the three new reference
   columns in ORM metadata. No live migration/row-lock concurrency gate was run.
 - Regression coverage includes secret admin isolation, cross-project isolation,
@@ -752,13 +801,18 @@ No PostgreSQL server, browser, Docker runtime or cluster was started for this ba
   resource-version preconditions, preservation of unowned metadata, idempotent reapply
   and waiting for the backend with the new apply ID.
 
-Live checks and rotation/recovery limitations are recorded in [secrets.md](secrets.md).
+**Recorded live result (2026-10-06):** project-scoped Secret/workload RBAC, rotation
+with old-value retention and new-value restart, protected deletion, forced-delete
+startup failure/recovery and same-revision drift repair passed. Private-registry
+pulls/rotation and broader provider paths remain open. Scope and semantics are in
+[secrets.md](secrets.md).
 
 ## Shared budgets, discovery and release preparation (2026-10-05)
 
 This batch started no Docker, cluster, PostgreSQL or browser processes. Tests briefly
 started two native loopback HTTP servers, then stopped them; SQLite was used for local
-shared-limiter concurrency. Live-system checks below remain pending.
+shared-limiter concurrency. This is a historical local batch; subsequent live results
+and remaining scopes are recorded after its test inventory.
 
 - Final lightweight suite: **354 passed, 5 skipped, 181 deselected**. PostgreSQL/browser
   variants were deliberately excluded; skipped provider gates remain pending.
@@ -783,10 +837,15 @@ shared-limiter concurrency. Live-system checks below remain pending.
 - PostgreSQL offline DDL rendered through head `0019`; ORM/backup inventory contains
   19 durable tables. Live migration/backup/restore was not run.
 
-Remaining gates: real PostgreSQL migrations/locking/outages, image build and four process
-commands, pinned dependency installation on the target Kubernetes version, CNI/RBAC,
-real CPU/GPU/TLS serving and canary/rollback, workload credential rotation/private pulls,
-UI browser acceptance and recovery drills. See [roadmap.md](roadmap.md).
+**Recorded live result (2026-10-06):** migrations through `0021`, image build/four
+commands, pinned dependency installation, admission/namespace RBAC/ingress isolation,
+full CPU serving lifecycle, healthy canary and candidate-only rollback, Secret
+rotation/restart/forced recovery, shared-budget concurrency and basic DB outage passed.
+
+Remaining scopes: final clean release rerun and serving/initializer HIGH fixes,
+500 RPS availability, isolated limiter latency, sustained outage and targeted timeout
+faults, strict egress, hung-leader/multi-node, GPU/HF/TLS/OIDC, private pulls, broader
+UI browser acceptance and backup/restore. See [roadmap.md](roadmap.md).
 
 ## Scoped RBAC, availability and release gates (2026-10-05)
 
@@ -813,8 +872,11 @@ loopback HTTP servers used by existing gateway tests were stopped after their te
 - Acceptance CLI help paths and CPU default plan-only behavior passed. Recovery refusal
   and restoration of source libpq environment after failure were tested without a server.
 
-The image, load/outage, recovery and CPU lifecycle commands in [acceptance.md](acceptance.md)
-remain live gates. First deployment must stop any Lease-unaware old reconciler before
+**Recorded live result (2026-10-06):** image/runtime/scan/SBOM and full CPU commands
+passed; shared budgets held, basic DB outage/recovery passed, and Lease failover,
+reconciler PDB and API/gateway rolling drain passed. The 500 RPS availability gate failed;
+sustained outage, hung-leader, multi-node and backup/restore remain open. Commands are
+in [acceptance.md](acceptance.md). First deployment must stop any Lease-unaware old reconciler before
 starting the new leader/standby pair. See [installation.md](installation.md).
 
 Read-only tool inventory: Docker daemon reachable, Docker/Trivy/kubectl installed; Syft
@@ -836,10 +898,14 @@ started. Release preflight rejects missing tools before building or creating fix
   transport retries and preservation of the stricter Lease timeout.
 - Watchdog tests prove successful Lease renewal does not refresh main-loop progress,
   and batch entity heartbeats preserve long progressing batches. Live hung-leader failover
-  and voluntary eviction/PDB behavior are not proven by these tests.
+  and voluntary eviction/PDB behavior are not proven by these tests. **Recorded live
+  result (2026-10-06):** leader deletion/standby takeover and reconciler eviction/PDB
+  passed; hung-leader fencing remains open.
 - Storage-account deletion tests cover asynchronous serving deletion, multiple historic
   revisions, foreign/generated-name rejection, pagination, UID/resourceVersion
-  preconditions and retryable cleanup conflicts. Live credential cleanup remains pending.
+  preconditions and retryable cleanup conflicts. **Recorded live result (2026-10-06):**
+  scoped deletion preserved foreign/other-deployment accounts; live conflict/outage
+  retry remains open.
 
 CPU acceptance now checks both Secret and workload-reader authorization. See
 [acceptance.md](acceptance.md) for pending cluster drills and
@@ -885,6 +951,7 @@ CEL tests use a pinned Go engine with dynamic fixture types; they do not prove K
 structural-schema type checking or admission activation. The new live gate requires
 current policy observed generations and completed zero-warning type checks, verifies
 bindings, then checks nine allowed/denied operations by impersonating the reconciler.
-It is also called from CPU acceptance after project provisioning. Running it on the
-installed chart remains required for actual cluster enforcement evidence; see
+It is also called from CPU acceptance after project provisioning. **Recorded live result
+(2026-10-06):** four installed policies/bindings, zero type warnings and nine impersonated
+server dry runs passed; full CPU provisioning also passed. Repeat on the target chart/cluster; see
 [acceptance.md](acceptance.md#reconciler-admission-enforcement).

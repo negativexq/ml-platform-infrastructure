@@ -1,6 +1,8 @@
 # Technical review: platform readiness
 
-Current consolidated status (2026-10-06): [status.md](status.md). Dated findings and test records below retain their original scope.
+> **Historical review.** Current closure status is in [docs/status.md](status.md), with
+> recorded live results in [acceptance evidence](evidence/live-2026-10-06/README.md).
+> Original findings and dated remediation records below retain their reviewed scope.
 
 Review date: 2026-10-03  
 Reviewed branch: `v2`  

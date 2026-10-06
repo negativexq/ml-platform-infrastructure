@@ -120,8 +120,9 @@ See [operations.md](operations.md), [networking.md](networking.md) and
 OCI digests. The baseline follows [KServe 0.15 quick install](https://github.com/kserve/kserve/blob/v0.15.0/hack/quick_install.sh):
 Gateway API 1.2.1, Istio 1.23.2, cert-manager 1.16.1, Knative operator 1.15.7 / Serving
 1.15.2, KServe 0.15.0 and Argo Workflows 3.6.2. These dependencies were installed on
-Kubernetes 1.32.0 in the [2026-10-06 live batch](evidence/live-2026-10-06/README.md); full
-CPU lifecycle remains a separate gate. The generated installer requires Helm 3.17.x
+Kubernetes 1.32.0 in the [2026-10-06 live batch](evidence/live-2026-10-06/README.md).
+The recorded single-node ARM64 CPU lifecycle passed; repeat it for the final clean
+release artifact/target architecture. The generated installer requires Helm 3.17.x
 (3.17.3 verified): newer Helm rejects the pinned Istio schema. For kind without a
 LoadBalancer controller, pass `--gateway-service-type ClusterIP`; the default remains
 LoadBalancer for environments that provide one.
@@ -148,8 +149,9 @@ The installer verifies dependency/chart checksums before cluster writes and requ
 explicit context. Only `--apply` executes it; this work did not execute that option.
 Provision the dedicated DB, namespace, DB/identity Secrets and site identity/network values
 first. The bootstrap installs serving/workflow dependencies and the control plane, not
-PostgreSQL or an identity provider. Actual image build, live migrations and CPU/GPU/TLS
-lifecycle checks remain release gates.
+PostgreSQL or an identity provider. Recorded ARM64 image/runtime checks, live migrations
+through `0021` and the CPU lifecycle passed. Repeat them for the final clean release
+artifact/target architecture; GPU and real ingress/TLS acceptance remain open.
 
 ## First upgrade to Lease election and scoped Secret RBAC
 
