@@ -174,6 +174,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/pipeline-runs/{run_id}/steps/{step}/logs/stream-ticket": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Step Log Ticket */
+        post: operations["step_log_ticket_pipeline_runs__run_id__steps__step__logs_stream_ticket_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/pipeline-runs/{run_id}/tracking": {
         parameters: {
             query?: never;
@@ -970,6 +987,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/runs/{run_id}/logs/stream-ticket": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Run Log Ticket */
+        post: operations["run_log_ticket_runs__run_id__logs_stream_ticket_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/runs/{run_id}/retry": {
         parameters: {
             query?: never;
@@ -1695,6 +1729,15 @@ export interface components {
              */
             min_scale: number;
         };
+        /** LogStreamTicket */
+        LogStreamTicket: {
+            /** Expires At */
+            expires_at: number;
+            /** Token */
+            token: string;
+            /** Url */
+            url: string;
+        };
         /** MeOut */
         MeOut: {
             /**
@@ -1716,6 +1759,8 @@ export interface components {
             roles: {
                 [key: string]: components["schemas"]["ProjectRole"];
             };
+            /** User Subject */
+            user_subject: string;
             /** Username */
             username: string;
         };
@@ -3307,6 +3352,38 @@ export interface operations {
                 };
                 content: {
                     "text/plain": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    step_log_ticket_pipeline_runs__run_id__steps__step__logs_stream_ticket_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+                step: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogStreamTicket"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -6419,6 +6496,37 @@ export interface operations {
                 };
                 content: {
                     "text/plain": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    run_log_ticket_runs__run_id__logs_stream_ticket_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["LogStreamTicket"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

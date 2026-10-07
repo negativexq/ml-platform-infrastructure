@@ -1,13 +1,16 @@
-ARG PYTHON_IMAGE=python:3.12.15-slim-bookworm@sha256:34386ef0cb081344d7ec1c103ba398e6e9f64e9ab3a1509accc92a4e24a07258
-FROM ${PYTHON_IMAGE}
+FROM --platform=$BUILDPLATFORM golang:1.26.6-bookworm@sha256:116d58cbd88c1297624acc6e967a060012422bacf9930927e23fb719189c6f36 AS build
+ARG TARGETOS
+ARG TARGETARCH
+WORKDIR /src
+COPY services/storage-initializer-go/go.mod services/storage-initializer-go/go.sum ./
+RUN go mod download
+COPY services/storage-initializer-go/*.go ./
+RUN CGO_ENABLED=0 GOOS=$TARGETOS GOARCH=$TARGETARCH go build -mod=readonly -trimpath -ldflags='-s -w' -o /storage-initializer .
+
+FROM scratch
 ARG SOURCE_REVISION=unknown
 LABEL org.opencontainers.image.revision=${SOURCE_REVISION}
-ENV PYTHONDONTWRITEBYTECODE=1 PYTHONUNBUFFERED=1 PIP_NO_CACHE_DIR=1
-COPY constraints/storage-initializer.txt /tmp/requirements.txt
-RUN python -m pip install --only-binary=:all: --no-deps -r /tmp/requirements.txt \
-    && python -m pip check \
-    && useradd --uid 1000 --create-home kserve
-COPY docker/storage-initializer/initialize.py /app/initialize.py
-WORKDIR /app
+COPY --from=build /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=build /storage-initializer /storage-initializer
 USER 1000:1000
-ENTRYPOINT ["python", "/app/initialize.py"]
+ENTRYPOINT ["/storage-initializer"]

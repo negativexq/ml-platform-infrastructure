@@ -189,6 +189,46 @@ pre.logs.numbered.nowrap .ln { white-space: pre; }
 pre.logs.numbered .n { display: inline-block; width: 3em; margin-right: .6em; text-align: right; color: #6b7686; user-select: none; text-indent: 0; }
 pre.logs .ln.err { background: rgb(255 90 80 / 14%); color: #ffcfc9; }
 
+/* One log display contract: time / severity / source / message; raw text stays exportable. */
+.log-events { --log-grid: 34px 108px 66px 116px minmax(200px, 1fr); background: var(--surface); border: 1px solid var(--border); border-radius: 8px; overflow: auto; max-height: 420px; margin-top: 12px; font: 12px/1.65 var(--mono); color: var(--text); }
+.log-columns, .log-line { display: grid; grid-template-columns: var(--log-grid); gap: 12px; padding: 7px 12px; align-items: start; }
+.log-columns { position: sticky; top: 0; z-index: 1; background: var(--bg); border-bottom: 1px solid var(--border); color: var(--muted); font: 11px/1.7 system-ui, sans-serif; font-weight: 600; text-transform: uppercase; letter-spacing: .06em; }
+.log-line { border-bottom: 1px solid var(--border); border-left: 3px solid transparent; padding-left: 9px; }
+.log-line:last-child { border-bottom: 0; }
+.log-line:hover { background: var(--surface-2); }
+.log-line.err { border-left-color: var(--bad); background: color-mix(in srgb, var(--bad) 6%, var(--surface)); }
+.log-line.level-warn { border-left-color: var(--warn); background: color-mix(in srgb, var(--warn) 5%, var(--surface)); }
+.log-number, .log-time, .log-source { color: var(--muted); }
+.log-number { text-align: right; user-select: none; }
+.log-time { white-space: nowrap; font-variant-numeric: tabular-nums; }
+.log-source { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.log-body { min-width: 0; }
+.log-empty { display: block; padding: 12px; color: var(--muted); }
+.log-message { white-space: pre-wrap; overflow-wrap: anywhere; }
+.log-events.nowrap .log-message { white-space: pre; overflow-wrap: normal; }
+.log-severity { display: inline-block; border: 1px solid currentColor; border-radius: 4px; padding: 0 5px; font-size: 10px; font-weight: 650; letter-spacing: .025em; line-height: 1.7; }
+.severity-log, .severity-debug { color: var(--muted); }
+.severity-info { color: var(--accent); }
+.severity-warn { color: var(--warn); }
+.severity-error, .severity-fatal { color: var(--bad); }
+.severity-fatal { background: color-mix(in srgb, var(--bad) 12%, transparent); }
+.log-fields { margin-top: 4px; color: var(--muted); font-size: 11px; }
+.log-fields summary { cursor: pointer; width: fit-content; }
+.log-fields dl { border: 1px solid var(--border); border-radius: 5px; padding: 8px 10px; margin: 6px 0 2px; color: var(--text); }
+.log-fields dl > div { display: grid; grid-template-columns: minmax(80px, 140px) minmax(0, 1fr); gap: 12px; padding: 2px 0; }
+.log-fields dt { color: var(--muted); overflow-wrap: anywhere; }
+.log-fields dd { margin: 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.log-repeat { display: inline-block; margin-left: 8px; border-radius: 4px; padding: 0 5px; background: var(--surface-2); color: var(--muted); font-size: 10px; }
+.log-detail pre { white-space: pre-wrap; overflow-wrap: anywhere; margin: 6px 0; padding: 8px 10px; border: 1px solid var(--border); border-radius: 5px; font: inherit; max-height: 220px; overflow: auto; }
+.log-live { display: inline-flex; align-items: center; gap: 5px; color: var(--ok); font-size: 11px; }
+.log-live > span { width: 6px; height: 6px; background: currentColor; border-radius: 50%; }
+.log-tools select { width: auto; min-width: 108px; font-size: 12px; padding: 3px 6px; }
+@media (max-width: 700px) {
+  .log-events { --log-grid: 24px 62px minmax(140px, 1fr); }
+  .log-columns, .log-line { gap: 8px; }
+  .log-time, .log-source, .log-columns > span:nth-child(2), .log-columns > span:nth-child(4) { display: none; }
+}
+
 /* -- small fixes from looking at it ---------------------------------------------------- */
 td.num .btn + .btn { margin-left: 6px; }
 .cols > * { min-width: 0; }

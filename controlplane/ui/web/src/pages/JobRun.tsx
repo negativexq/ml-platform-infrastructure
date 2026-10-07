@@ -1,7 +1,7 @@
-import { useQuery } from '@tanstack/react-query';
 import { api, type S } from '../api/client';
 import { Alert, Badge, CopyButton, Time } from '../components/bits';
 import { Logs } from '../components/Logs';
+import { useRunLogs } from '../lib/logs';
 import { useOverlays } from '../components/overlays';
 import { useAccess } from '../lib/me';
 import { useCrumbs } from '../lib/chrome';
@@ -18,11 +18,7 @@ export function JobRunPage({ project, id }: { project: string; id: string }) {
   const act = useAct();
   const run = useLiveQuery(['job-run', id], () => api.get<S['RunOut']>(`/runs/${id}`), (r) => ACTIVE.has(r.status));
   const active = run.data ? ACTIVE.has(run.data.status) : false;
-  const logs = useQuery({
-    queryKey: ['job-run-logs', id], enabled: run.data !== undefined,
-    queryFn: async () => { try { return await api.text(`/runs/${id}/logs`); } catch { return '(logs are not available)'; } },
-    refetchInterval: active ? 3000 : false,
-  });
+  const logs = useRunLogs(run.data ? `/runs/${id}/logs` : null, active);
 
   return (
     <QueryView query={run}>
@@ -54,7 +50,7 @@ export function JobRunPage({ project, id }: { project: string; id: string }) {
           </p>
           {r.status_reason && <Alert bad={r.status === 'FAILED'}>{r.status_reason}</Alert>}
           {r.retry_of && <p className="small muted">{'Retry of '}<a href={routes.jobRun(project, r.retry_of)}>{shortId(r.retry_of)}</a></p>}
-          <Logs title="Logs" text={logs.data ?? ''} live={ACTIVE.has(r.status)} filename={`${r.job || 'job'}-${shortId(r.id)}.log`} />
+          <Logs title="Logs" text={logs.data} live={logs.live || ACTIVE.has(r.status)} filename={`${r.job || 'job'}-${shortId(r.id)}.log`} />
         </>)}
     </QueryView>
   );

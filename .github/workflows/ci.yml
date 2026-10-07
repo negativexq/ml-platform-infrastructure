@@ -9,6 +9,56 @@ on:
   workflow_dispatch:
 
 jobs:
+  log-stream:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: services/log-stream-go/go.mod
+          cache: false
+      - run: make log-stream-go-test
+      - run: docker build -f services/log-stream-go/Dockerfile -t mlp-log-stream:ci .
+      - name: trivy — log streaming
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: mlp-log-stream:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+      - name: log streaming SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: mlp-log-stream:ci
+          format: spdx-json
+          artifact-name: log-stream-sbom.spdx.json
+
+  storage-initializer:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v6
+        with:
+          go-version-file: services/storage-initializer-go/go.mod
+          cache-dependency-path: services/storage-initializer-go/go.sum
+      - run: make storage-initializer-go-test
+      - run: docker build -f docker/storage-initializer/Dockerfile -t mlp-storage-initializer:ci .
+      - name: trivy — initializer
+        uses: aquasecurity/trivy-action@v0.36.0
+        with:
+          scan-type: image
+          image-ref: mlp-storage-initializer:ci
+          severity: HIGH,CRITICAL
+          ignore-unfixed: true
+          exit-code: "1"
+      - name: initializer SBOM
+        uses: anchore/sbom-action@v0
+        with:
+          image: mlp-storage-initializer:ci
+          format: spdx-json
+          artifact-name: storage-initializer-sbom.spdx.json
+
   quality:
     runs-on: ubuntu-latest
     steps:
@@ -16,7 +66,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: python -m pip install --upgrade pip && pip install -e ".[dev]"
+      - run: python -m pip install --upgrade pip && pip install -e ".[dev,inference]"
       - run: ruff check .
       - run: mypy app
       - run: pytest

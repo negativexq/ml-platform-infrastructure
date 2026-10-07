@@ -101,6 +101,8 @@ def main() -> None:
             api_namespace=settings.system_namespace,
             secret_cluster_role=settings.project_secret_cluster_role,
             workload_cluster_role=settings.project_workload_cluster_role,
+            log_stream_service_account=settings.log_stream_service_account,
+            log_stream_cluster_role=settings.log_stream_cluster_role,
         ),
         "cluster",
         observability.CLUSTER_MUTATIONS,

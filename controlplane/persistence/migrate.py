@@ -9,7 +9,7 @@ from alembic import command
 from alembic.config import Config
 from sqlalchemy import Connection, Engine, text
 
-from controlplane.persistence.sql import make_engine
+from controlplane.persistence.engine import make_engine
 
 SCRIPT_LOCATION = Path(__file__).parent / "migrations"
 

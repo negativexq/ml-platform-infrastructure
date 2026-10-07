@@ -73,6 +73,11 @@ def test_chart_rbac_ha_and_production_fail_closed() -> None:
     result = render()
     assert result.returncode == 0, result.stderr
     docs = [d for d in yaml.safe_load_all(result.stdout) if d]
+    migration = next(d for d in docs if d["kind"] == "Job")
+    migration_spec = migration["spec"]["template"]["spec"]
+    assert migration_spec["automountServiceAccountToken"] is False
+    assert migration_spec["containers"][0]["image"] == "mlp-controlplane-migrate:dev"
+    assert [env["name"] for env in migration_spec["containers"][0]["env"]] == ["CP_DATABASE_URL"]
     api_role = next(
         d for d in docs if d["kind"] == "ClusterRole" and d["metadata"]["name"].endswith("-api")
     )

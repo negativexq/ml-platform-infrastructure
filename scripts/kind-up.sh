@@ -22,9 +22,10 @@ step "Creating kind cluster '$CLUSTER_NAME' (idempotent)"
 if kind get clusters 2>/dev/null | grep -qx "$CLUSTER_NAME"; then
   echo "cluster already exists"
 else
-  kind create cluster --config k8s/kind-cluster.yaml
+  kind create cluster --name "$CLUSTER_NAME" --config k8s/kind-cluster.yaml
 fi
 kubectl config use-context "kind-${CLUSTER_NAME}" >/dev/null
+python3 scripts/kind-storage.py --cluster "$CLUSTER_NAME" --apply
 
 step "Building images"
 docker build -q -t ml-platform-inference:dev . >/dev/null

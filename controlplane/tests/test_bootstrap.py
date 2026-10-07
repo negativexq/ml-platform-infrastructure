@@ -70,6 +70,7 @@ def test_offline_bundle_pins_git_image_and_checks_before_mutation(tmp_path: Path
             "chosen-context",
             mlflow_serving_image=IMAGE,
             s3_storage_initializer_image=IMAGE,
+            migration_image=IMAGE,
         )
     assert all(c[0] in {"helm", "git"} for c in calls)
     app = yaml.safe_load((out / "application.yaml").read_text())
@@ -77,6 +78,7 @@ def test_offline_bundle_pins_git_image_and_checks_before_mutation(tmp_path: Path
     assert "automated" not in app["spec"]["syncPolicy"]
     values = yaml.safe_load((out / "values.yaml").read_text())
     assert values["image"]["digest"] == "sha256:" + "a" * 64
+    assert values["migrations"]["image"]["digest"] == "sha256:" + "a" * 64
     serving = yaml.safe_load((out / "knative-serving.yaml").read_text())
     assert serving["spec"]["config"]["features"]["kubernetes.podspec-securitycontext"] == "enabled"
     plan = json.loads((out / "plan.json").read_text())

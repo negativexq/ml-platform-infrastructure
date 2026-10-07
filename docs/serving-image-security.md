@@ -22,18 +22,15 @@ changing a dependency declaration alone does not prove compatibility. Keep this 
 under review on each upstream upgrade and remove it when a supported release permits
 the fixed dependency chain.
 
-The initializer uses the upstream standalone `kserve-storage==0.21.0` package and its
-`Storage.download` entrypoint. It does not require the full KServe Python serving SDK,
-its old protobuf cap or a native psutil/compiler build. The controller remains KServe
-0.15.0; this is an independent storage-library update. The classic S3 URI, AWS credential,
-endpoint, TLS and revision-specific account contract is unchanged and must be verified
-against the real private artifact path. Other storage providers have no new live proof.
+The previous initializer used standalone `kserve-storage==0.21.0`. Its recorded scans
+and lifecycle results below describe that Python artifact. The current initializer is
+Go with AWS SDK v2 and a scratch runtime; it has no pip lock or Python interpreter.
+See [S3 initializer](s3-initializer.md) for its contract and current validation.
+A new cluster lifecycle and new image scans are required before attributing the old
+acceptance evidence to this replacement.
 
 The supported `scripts/lock.sh serving` command generates the verified compatibility
-wheel in its temporary directory before resolution; `scripts/lock.sh storage-initializer`
-resolves the standalone SDK. Both paths reproduce the recorded package pins.
-
-For an explicit ARM64 regeneration with uv 0.12.23 and Python 3.12:
+wheel in its temporary directory before resolution. For explicit ARM64 regeneration:
 
 ```bash
 python docker/serving/patch_mlserver.py --out /tmp/mlp-security-wheels
@@ -41,15 +38,13 @@ uv pip compile constraints/serving.in --constraint constraints/serving.txt \
   --find-links /tmp/mlp-security-wheels --python-version 3.12 \
   --python-platform aarch64-unknown-linux-gnu --no-annotate --no-header \
   --output-file constraints/serving.txt
-uv pip compile constraints/storage-initializer.in --constraint constraints/storage-initializer.txt \
-  --python-version 3.12 --python-platform aarch64-unknown-linux-gnu \
-  --no-annotate --no-header --output-file constraints/storage-initializer.txt
 ```
 
-The existing lock used as a constraint reproduces the recorded versions. For deliberate
-upgrades, remove that constraint, resolve again and repeat build/runtime/scan gates.
-AMD64 resolution with these constraints matched the ARM64 locks; an AMD64 image runtime
-is a separate gate. Both Dockerfiles install the resolved locks and run `pip check`.
+The existing serving lock used as a constraint reproduces the recorded versions.
+For deliberate upgrades, remove that constraint, resolve again and repeat
+build/runtime/scan gates. AMD64 resolution with these constraints matched the ARM64
+serving lock; an AMD64 image runtime is a separate gate. The serving Dockerfile
+installs its resolved lock and runs `pip check`.
 
 For each new artifact, retain its immutable digest, source hashes, SPDX SBOM and Trivy
 vulnerability/secret scan; then test model loading and both MLflow `/invocations` and

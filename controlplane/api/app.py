@@ -164,6 +164,8 @@ def create_app(
     readiness: Callable[[], None] | None = None,
     secrets: SecretProvider | None = None,
     require_job_image_digest: bool = False,
+    log_stream_key: str = "",
+    log_stream_url: str = "/log-stream",
 ) -> FastAPI:
     """`auth=None` runs without sign-in: every caller is an anonymous platform admin. That is
     for local development, the demo and tests; production passes an `AuthConfig`."""
@@ -199,6 +201,9 @@ def create_app(
     app.state.gateway_url = gateway_url.rstrip("/") or None
     app.state.clock = clock
     app.state.workflow = workflow
+    from controlplane.api.log_stream import configure
+
+    app.state.log_stream = configure(log_stream_key, log_stream_url)
     app.state.experiments = experiments
 
     @app.exception_handler(RequestValidationError)

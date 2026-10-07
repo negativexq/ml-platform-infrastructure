@@ -1,0 +1,8 @@
+{
+  "imageGCHighThresholdPercent": 80,
+  "imageGCLowThresholdPercent": 70,
+  "imageMinimumGCAge": "2m",
+  "imageMaximumGCAge": "6h",
+  "containerLogMaxSize": "10Mi",
+  "containerLogMaxFiles": 3
+}

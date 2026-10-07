@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { CopyButton } from './bits';
-
-const ERROR_LINE = /\b(error|exception|traceback|fatal|failed|killed)\b/i;
+import { fieldText, logTime, parseLogs, type LogLevel } from '../lib/log-format';
 
 /**
  * Log viewer with the controls people reach for: search, wrap, follow the tail while a run is
@@ -12,15 +11,15 @@ export function Logs({ title, text, live, filename }: { title: string; text: str
   const [follow, setFollow] = useState(true);
   const [needle, setNeedle] = useState('');
   const [errorsOnly, setErrorsOnly] = useState(false);
-  const pre = useRef<HTMLPreElement>(null);
+  const [severity, setSeverity] = useState<LogLevel | ''>('');
+  const pre = useRef<HTMLDivElement>(null);
 
-  const lines = useMemo(() => (text ? text.replace(/\n$/, '').split('\n') : []), [text]);
+  const lines = useMemo(() => (text ? parseLogs(text) : []), [text]);
   const shown = useMemo(() => {
     const n = needle.toLowerCase();
-    return lines.map((line, i) => ({ line, n: i + 1, error: ERROR_LINE.test(line) }))
-      .filter((l) => (!n || l.line.toLowerCase().includes(n)) && (!errorsOnly || l.error));
-  }, [lines, needle, errorsOnly]);
-  const errors = useMemo(() => lines.filter((l) => ERROR_LINE.test(l)).length, [lines]);
+    return lines.filter((l) => (!n || l.raw.toLowerCase().includes(n)) && (!errorsOnly || l.error) && (!severity || l.level === severity));
+  }, [lines, needle, errorsOnly, severity]);
+  const errors = useMemo(() => lines.filter((l) => l.error).length, [lines]);
 
   useEffect(() => {
     if (live && follow && !needle && pre.current) pre.current.scrollTop = pre.current.scrollHeight;
@@ -36,16 +35,21 @@ export function Logs({ title, text, live, filename }: { title: string; text: str
     a.remove();
     URL.revokeObjectURL(url);
   };
-  const filtered = Boolean(needle) || errorsOnly;
+  const filtered = Boolean(needle) || errorsOnly || Boolean(severity);
 
   return (
     <div className="section card">
       <div className="log-tools">
         <h2 style={{ margin: 0, flex: 1 }}>{title}</h2>
+        {live && <span className="log-live"><span aria-hidden="true" />Live</span>}
         <input type="search" className="log-search" placeholder="Find in logs" aria-label="Find in logs" data-testid="log-search"
           value={needle} onChange={(e) => setNeedle(e.target.value)} />
+        <select aria-label="Log level" data-testid="log-level" value={severity} onChange={(e) => setSeverity(e.target.value as LogLevel | '')}>
+          <option value="">All levels</option>
+          {(['DEBUG', 'INFO', 'WARN', 'ERROR', 'FATAL', 'LOG'] as LogLevel[]).map((level) => <option key={level} value={level}>{level === 'LOG' ? 'Plain output' : level}</option>)}
+        </select>
         <span className="muted small" data-testid="log-count">
-          {filtered ? `${shown.length} of ${lines.length} lines` : lines.length ? `${lines.length} line${lines.length === 1 ? '' : 's'}` : ''}
+          {filtered ? `${shown.length} of ${lines.length} events` : lines.length ? `${lines.length} event${lines.length === 1 ? '' : 's'}` : ''}
         </span>
         {errors > 0 && (
           <label title="Lines mentioning error, exception, traceback, fatal, failed or killed">
@@ -58,12 +62,34 @@ export function Logs({ title, text, live, filename }: { title: string; text: str
         <CopyButton text={text} what="logs" />
         <button className="btn small" type="button" onClick={download}>Download</button>
       </div>
-      <pre ref={pre} className={`logs numbered${wrap ? '' : ' nowrap'}`} data-testid="logs" tabIndex={0} aria-label={`${title} output`}>
-        {lines.length === 0 ? '(no output yet)'
-          : shown.length === 0 ? '(no line matches)'
-          : shown.map((l) => (
-            <span key={l.n} className={`ln${l.error ? ' err' : ''}`}><span className="n" aria-hidden="true">{l.n}</span>{l.line}{'\n'}</span>))}
-      </pre>
+      <div ref={pre} className={`logs log-events${wrap ? '' : ' nowrap'}`} data-testid="logs" tabIndex={0} role="table" aria-label={`${title} output`}>
+        {lines.length === 0 ? <span className="log-empty">(no output yet)</span>
+          : shown.length === 0 ? <span className="log-empty">(no line matches)</span>
+          : <>
+            <div className="log-columns" role="row">
+              <span role="columnheader">#</span><span role="columnheader" title="Browser local time; hover an event for its full timestamp">Time</span>
+              <span role="columnheader">Level</span><span role="columnheader">Source</span><span role="columnheader">Message</span>
+            </div>
+            {shown.map((l) => (
+              <div key={l.n} className={`ln log-line level-${l.level.toLowerCase()}${l.error ? ' err' : ''}`} role="row">
+                <span className="log-number" role="cell">{l.n}</span>
+                <time className="log-time" dateTime={l.timestamp ?? undefined} title={l.timestamp ?? 'Timestamp not provided'} role="cell">{logTime(l.timestamp)}</time>
+                <span role="cell"><span className={`log-severity severity-${l.level.toLowerCase()}`}>{l.level}</span></span>
+                <span className="log-source" title={l.source || 'Source not provided'} role="cell">{l.source || '—'}</span>
+                <div className="log-body" role="cell">
+                  <span className="log-message">{l.message}</span>
+                  {l.repeat > 1 && <span className="log-repeat" title="Consecutive repetitions">{`×${l.repeat}`}</span>}
+                  {l.detail !== l.message && <details className="log-fields log-detail" open={Boolean(needle && !l.message.toLowerCase().includes(needle.toLowerCase()))}>
+                    <summary>Details</summary><pre>{l.detail}</pre>
+                  </details>}
+                  {Object.keys(l.fields).length > 0 && <details className="log-fields">
+                    <summary>{`${Object.keys(l.fields).length} field${Object.keys(l.fields).length === 1 ? '' : 's'}`}</summary>
+                    <dl>{Object.entries(l.fields).map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{fieldText(value)}</dd></div>)}</dl>
+                  </details>}
+                </div>
+              </div>))}
+          </>}
+      </div>
     </div>
   );
 }

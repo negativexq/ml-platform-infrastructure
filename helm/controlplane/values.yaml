@@ -78,6 +78,11 @@ reconciler:
     requests: {cpu: 100m, memory: 256Mi}
     limits: {cpu: "1", memory: 1Gi}
 migrations:
+  image:
+    repository: mlp-controlplane-migrate
+    tag: dev
+    digest: ""
+    pullPolicy: IfNotPresent
   backoffLimit: 1
   activeDeadlineSeconds: 300
   resources:
@@ -95,6 +100,22 @@ networkPolicy:
   ingressNamespace: ingress-nginx
   servingNamespaces: [knative-serving, kourier-system, istio-system]
 # No CNI, Argo, KServe/Knative, identity or database is installed by this chart.
+
+logStreaming:
+  enabled: false
+  replicas: 2
+  existingSecret: ""
+  secretKey: signing-key
+  publicURL: /log-stream
+  allowedOrigin: "" # normally same origin; loopback origin permitted for local port forwarding
+  image:
+    repository: mlp-log-stream
+    tag: dev
+    digest: ""
+    pullPolicy: IfNotPresent
+  resources:
+    requests: {cpu: 50m, memory: 32Mi}
+    limits: {cpu: "1", memory: 128Mi}
 
 production:
   enabled: false # production profile enables strict site configuration checks

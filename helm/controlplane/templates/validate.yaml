@@ -1,6 +1,18 @@
 {{- if and (gt (int .Values.gateway.replicas) 1) (ne .Values.config.CP_GATEWAY_LIMIT_STORE "postgres") }}
 {{- fail "multiple gateway replicas require CP_GATEWAY_LIMIT_STORE=postgres" }}
 {{- end }}
+{{- if and .Values.logStreaming.enabled (not .Values.logStreaming.existingSecret) }}
+{{- fail "logStreaming.enabled requires a dedicated signing Secret" }}
+{{- end }}
+{{- if and .Values.logStreaming.enabled (lt (int .Values.logStreaming.replicas) 1) }}
+{{- fail "enabled log streaming requires at least one replica" }}
+{{- end }}
+{{- if and .Values.production.enabled .Values.logStreaming.enabled (lt (int .Values.logStreaming.replicas) 2) }}
+{{- fail "production log streaming requires at least two replicas" }}
+{{- end }}
+{{- if and .Values.production.enabled .Values.logStreaming.enabled (not (regexMatch "^sha256:[a-f0-9]{64}$" .Values.logStreaming.image.digest)) }}
+{{- fail "production log streaming requires a full image digest" }}
+{{- end }}
 {{- if .Values.production.enabled }}
 {{- if or (lt (int .Values.api.replicas) 2) (lt (int .Values.gateway.replicas) 2) (lt (int .Values.reconciler.replicas) 2) (not .Values.reconciler.leaderElection) }}
 {{- fail "production requires at least two API/gateway/reconciler replicas and leader election" }}
@@ -18,6 +30,9 @@
 {{- end }}
 {{- if not (regexMatch "^sha256:[a-f0-9]{64}$" .Values.image.digest) }}
 {{- fail "production requires a full image.digest" }}
+{{- end }}
+{{- if not (regexMatch "^sha256:[a-f0-9]{64}$" .Values.migrations.image.digest) }}
+{{- fail "production requires a full migrations.image.digest" }}
 {{- end }}
 {{- if or (ne .Values.config.CP_AUTH_MODE "oidc") (not .Values.identity.existingSecret) (not .Values.config.CP_OIDC_ISSUER) (not .Values.config.CP_OIDC_CLIENT_ID) (not .Values.config.CP_PUBLIC_URL) (not .Values.config.CP_GATEWAY_URL) }}
 {{- fail "production requires OIDC, identity Secret, client ID and public URLs" }}

@@ -88,6 +88,63 @@ def env(idp: FakeIdP, uow_factory: Callable[[], UnitOfWork], clock: FakeClock) -
     return Env(idp, uow_factory, clock)
 
 
+def test_log_stream_tickets_use_existing_project_roles_and_retention(env: Env) -> None:
+    import base64
+    import hashlib
+    import hmac
+    import json
+    from dataclasses import replace
+    from unittest.mock import MagicMock
+    from uuid import UUID
+
+    from controlplane.application.providers import LogTarget
+
+    project = env.project()
+    run_id = env.client.post(
+        f"/projects/{project}/jobs/train/runs", headers=env.as_("alice")
+    ).json()["id"]
+    app = env.client.app
+    app.state.log_stream = (SECRET, "/log-stream")
+    app.state.workflow = MagicMock()
+    target = LogTarget("mlp-credit-risk", "pod", "pod-uid", "workflow", "workflow-uid")
+    app.state.workflow.get_log_target.return_value = target
+    path = f"/runs/{run_id}/logs/stream-ticket"
+    env.grant(project, "user:bob", "viewer")
+    env.grant(project, "user:carol", "invoker")
+    assert env.client.post(path, headers=env.as_("mallory")).status_code == 403
+    assert env.client.post(path, headers=env.as_("carol")).status_code == 403
+    assert env.client.post(path, headers=env.as_("bob")).status_code == 409
+    with env.uow_factory() as uow:
+        run = uow.runs.get(UUID(run_id))
+        assert run is not None
+        uow.runs.update(
+            replace(run, external_ref="mlp-credit-risk/workflow"), expected_status=run.status
+        )
+        uow.commit()
+    response = env.client.post(path, headers=env.as_("bob"))
+    assert response.status_code == 200, response.text
+    assert response.headers["cache-control"] == "no-store"
+    payload, signature = response.json()["token"].split(".")
+    assert hmac.compare_digest(
+        base64.urlsafe_b64decode(signature + "="),
+        hmac.digest(SECRET.encode(), payload.encode(), hashlib.sha256),
+    )
+    claims = json.loads(base64.urlsafe_b64decode(payload + "=" * (-len(payload) % 4)))
+    assert claims["pod_uid"] == target.pod_uid
+    assert claims["workflow_uid"] == target.workflow_uid
+    assert claims["namespace"] == target.namespace
+    assert claims["container"] == "main"
+    assert claims["exp"] - claims["iat"] == 60
+    assert claims["end"] - claims["iat"] == 300
+    app.state.workflow.get_log_target.assert_called_with("mlp-credit-risk/workflow", "main")
+    with env.uow_factory() as uow:
+        run = uow.runs.get(UUID(run_id))
+        assert run is not None
+        uow.runs.update(replace(run, workflow_cleaned_at=env.clock()), expected_status=run.status)
+        uow.commit()
+    assert env.client.post(path, headers=env.as_("bob")).status_code == 410
+
+
 # -- authentication --------------------------------------------------------------------
 
 

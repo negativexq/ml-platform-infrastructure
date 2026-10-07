@@ -46,6 +46,10 @@ class Settings(BaseSettings):
     # Logging. JSON by default (cluster log collectors want it); set false for a console.
     log_json: bool = True
     log_level: str = "INFO"
+    log_stream_signing_key: str = ""
+    log_stream_url: str = "/log-stream"
+    log_stream_service_account: str = ""
+    log_stream_cluster_role: str = ""
 
     # -- identity ------------------------------------------------------------------------
     # "oidc" (the default) requires a signed-in caller for every API request. "none" makes

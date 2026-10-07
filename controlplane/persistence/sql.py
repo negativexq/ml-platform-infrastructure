@@ -6,7 +6,7 @@ from types import TracebackType
 from typing import Any, Self
 from uuid import UUID
 
-from sqlalchemy import Engine, create_engine, delete, func, select, update
+from sqlalchemy import Engine, delete, func, select, update
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session, sessionmaker
@@ -56,6 +56,7 @@ from controlplane.domain.states import (
     ServingRuntime,
     StepStatus,
 )
+from controlplane.persistence.engine import make_engine as make_engine
 from controlplane.persistence.models import (
     ApiKeyRow,
     AuditEventRow,
@@ -76,21 +77,8 @@ from controlplane.persistence.models import (
     RunRow,
     StepRunRow,
 )
-from controlplane.persistence.pool import TimedQueuePool
 
 _UNIQUE_VIOLATION = "23505"
-
-
-def make_engine(url: str) -> Engine:
-    if url.startswith("postgresql"):
-        return create_engine(
-            url,
-            poolclass=TimedQueuePool,
-            pool_pre_ping=True,
-            pool_timeout=3,
-            connect_args={"connect_timeout": 3},
-        )
-    return create_engine(url, pool_pre_ping=True)
 
 
 def _project(row: ProjectRow) -> Project:

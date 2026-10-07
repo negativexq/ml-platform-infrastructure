@@ -104,6 +104,10 @@ class FakeWorkflowProvider:
         self.get_status(ref)
         return self._logs.get((ref, step), "")
 
+    def get_log_target(self, ref: str, step: str) -> None:
+        self.get_status(ref)
+        return None  # The in-memory provider has no Kubernetes pod identity.
+
     def delete(self, ref: str) -> None:
         self.submitted.pop(ref, None)
         self._status.pop(ref, None)

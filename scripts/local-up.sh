@@ -25,9 +25,10 @@ step "1/6  kind cluster"
 if kind get clusters 2>/dev/null | grep -qx "$CLUSTER_NAME"; then
   echo "cluster already exists"
 else
-  kind create cluster --config k8s/kind-cluster.yaml
+  kind create cluster --name "$CLUSTER_NAME" --config k8s/kind-cluster.yaml
 fi
 kubectl config use-context "kind-${CLUSTER_NAME}" >/dev/null
+python3 scripts/kind-storage.py --cluster "$CLUSTER_NAME" --apply
 
 step "2/6  build and load images"
 docker build -q -t ml-platform-inference:dev . >/dev/null

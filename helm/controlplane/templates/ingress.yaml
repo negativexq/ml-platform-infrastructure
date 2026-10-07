@@ -21,6 +21,14 @@ spec:
     - host: {{ $ingress.host | quote }}
       http:
         paths:
+          {{- if and (eq $component "api") $.Values.logStreaming.enabled }}
+          - path: /log-stream
+            pathType: Exact
+            backend:
+              service:
+                name: {{ $name }}-logs
+                port: {name: http}
+          {{- end }}
           - path: {{ ternary "/v1/" "/" (eq $component "gateway") }}
             pathType: Prefix
             backend:

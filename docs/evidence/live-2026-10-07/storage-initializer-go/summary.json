@@ -1,0 +1,27 @@
+{
+  "git_head": "320d4f15ad9f082454877ed09ce86a88e067531e",
+  "working_tree_artifact": true,
+  "platform": "linux/arm64",
+  "image_id": "sha256:b5460e41f64d2ec8e0ff60b5bacd83a0351fd99ee8c1ea09b04139441fd3a6ee",
+  "size_metrics": {
+    "docker_content_bytes": 3662833,
+    "trivy_runtime_bytes": 9528320,
+    "previous_python_trivy_runtime_bytes": 301766144
+  },
+  "fixable_high_critical_findings": 0,
+  "secret_findings": 0,
+  "sbom_packages": 21,
+  "source_sha256": {
+    "docker/storage-initializer/Dockerfile": "17ce6eb0913be37216aa1f1f968e3c0abc5b5dc741078f6afdd873a1b3303137",
+    "services/storage-initializer-go/go.mod": "163f8cdf07c2386fddfb50ae90e7f982084c6f0bdec512e3ffd512222e28498a",
+    "services/storage-initializer-go/go.sum": "a564fa1d3affe57583a61f95dda0a30c57bf4d4ad78dec0ae912568d41bee76c",
+    "services/storage-initializer-go/main.go": "8e9b5e0bf07f17974ce164d29e3f700bd42d8f50a2b60068ffd70dddcba934bb",
+    "services/storage-initializer-go/main_test.go": "b741ffc6fdea1b91d6c9123af06b895d9d5b01f5492590d0ea0c694964d2c5b8"
+  },
+  "limits": [
+    "No new KServe lifecycle run",
+    "No production credentials or real model inference",
+    "AMD64 smoke used emulation on ARM64 host",
+    "Local working-tree image, not a pushed clean release artifact"
+  ]
+}

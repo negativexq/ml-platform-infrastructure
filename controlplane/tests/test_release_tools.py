@@ -22,10 +22,14 @@ def load(name: str) -> ModuleType:
     return module
 
 
-def test_release_gate_uses_one_image_and_cleans_only_its_fixtures(tmp_path: Path) -> None:
+@pytest.mark.parametrize("separate_migration", [False, True])
+def test_release_gate_uses_pinned_images_and_cleans_only_its_fixtures(
+    tmp_path: Path, separate_migration: bool
+) -> None:
     release = load("controlplane_release_check")
     calls: list[list[str]] = []
     revision, image = "b" * 40, "sha256:" + "a" * 64
+    migration_image = "sha256:" + "c" * 64
     log_reads = 0
 
     def fake(args: list[str], **kwargs: Any) -> str:
@@ -34,7 +38,13 @@ def test_release_gate_uses_one_image_and_cleans_only_its_fixtures(tmp_path: Path
         if args[0] == "git":
             return revision if "rev-parse" in args else ""
         if args[:3] == ["docker", "image", "inspect"]:
+            if args[-1] == "migration:release" and "{{.Id}}" in args:
+                return migration_image
             return image if "{{.Id}}" in args else revision
+        if "/usr/local/bin/check-controlplane-dependencies.py" in args:
+            return json.dumps(
+                {"package_count": 88, "forbidden_present": [], "required_missing": []}
+            )
         if "{{.State.Running}}" in args:
             return "true"
         if args[:2] == ["docker", "logs"]:
@@ -53,7 +63,13 @@ def test_release_gate_uses_one_image_and_cleans_only_its_fixtures(tmp_path: Path
         patch.object(release.time, "sleep"),
         patch.object(release.subprocess, "run") as cleanup,
     ):
-        release.check("image:release", "postgres:test", tmp_path / "report", True)
+        release.check(
+            "image:release",
+            "postgres:test",
+            tmp_path / "report",
+            True,
+            "migration:release" if separate_migration else None,
+        )
     report = json.loads((tmp_path / "report/report.json").read_text())
     assert report["passed"] and report["image_id"] == image
     assert log_reads == 5  # delayed startup, then a completed-pass check
@@ -62,7 +78,10 @@ def test_release_gate_uses_one_image_and_cleans_only_its_fixtures(tmp_path: Path
         for args in calls
         if args[:2] == ["docker", "run"] and "POSTGRES_USER=platform" not in args
     ]
-    assert workloads and all(image in args for args in workloads)
+    assert workloads and all(image in args or migration_image in args for args in workloads)
+    migration = next(args for args in workloads if "controlplane.persistence.migrate" in args)
+    assert (migration_image if separate_migration else image) in migration
+    assert report["migration_image_id"] == (migration_image if separate_migration else image)
     for module in (
         "controlplane.main:app_factory",
         "controlplane.gateway_main:app_factory",
@@ -70,6 +89,9 @@ def test_release_gate_uses_one_image_and_cleans_only_its_fixtures(tmp_path: Path
         "controlplane.persistence.migrate",
     ):
         assert any(module in args for args in workloads)
+    assert "runtime pip check" in report["checks"]
+    assert report["dependencies"]["forbidden_present"] == []
+    assert any(args[-3:] == ["-m", "pip", "check"] for args in calls)
     assert any(args[0] == "trivy" for args in calls)
     assert any(args[0] == "syft" for args in calls)
     assert cleanup.call_count == 6  # 4 owned containers and their network
@@ -237,3 +259,28 @@ def test_admission_live_gate_requires_policy_denial_and_never_persists(failure: 
             with pytest.raises(RuntimeError, match="policy-specific denial"):
                 admission.verify("context", "test", "mlp-system", "mlp-team")
     assert all(args[3] == "get" or "--dry-run=server" in args for args in calls)
+
+
+def test_runtime_dependency_failure_prevents_fixture_creation(tmp_path: Path) -> None:
+    release = load("controlplane_release_check")
+    calls: list[list[str]] = []
+    revision = "b" * 40
+
+    def fake(args: list[str], **kwargs: Any) -> str:
+        calls.append(args)
+        if args[0] == "git":
+            return revision if "rev-parse" in args else ""
+        if args[:3] == ["docker", "image", "inspect"]:
+            return "sha256:" + "a" * 64 if "{{.Id}}" in args else revision
+        if "/usr/local/bin/check-controlplane-dependencies.py" in args:
+            raise RuntimeError("runtime dependency isolation failed")
+        return ""
+
+    with (
+        patch.object(release.shutil, "which", return_value="/fake/tool"),
+        patch.object(release, "run", side_effect=fake),
+        pytest.raises(RuntimeError, match="dependency isolation"),
+    ):
+        release.check("image:release", "postgres:test", tmp_path / "report", False)
+    assert not any(args[:3] == ["docker", "network", "create"] for args in calls)
+    assert not json.loads((tmp_path / "report/report.json").read_text())["passed"]

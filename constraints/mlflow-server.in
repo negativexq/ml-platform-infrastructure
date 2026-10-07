@@ -1,0 +1,25 @@
+# Tracking/registry server profile, audited against MLflow 3.15.0.
+# The skinny wheel contains server source; server/DB/S3 dependencies are explicit.
+-c controlplane.txt
+mlflow-skinny==3.15.0
+# FastAPI imports gateway providers/guardrails, which require NumPy and pandas.
+# Keep these import requirements; exclude inference/evaluation frameworks.
+numpy<3
+pandas<3
+Flask<4
+Flask-CORS<7
+aiohttp<4,>=3.7.0
+alembic!=1.10.0,<2
+# The skinny distribution has no full-MLflow <50 cap; share the patched runtime pin.
+cryptography>=50.0.2,<51
+docker<8,>=4.0.0
+graphene<4
+gunicorn<27
+huey<4,>=2.5.4
+sqlalchemy<3,>=1.4.0
+psycopg2-binary==2.9.13
+boto3==1.43.108
+setuptools>=78.1.1
+wheel>=0.46.2
+msgpack>=1.2.1
+jaraco.context>=6.1.0

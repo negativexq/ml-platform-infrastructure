@@ -1,0 +1,12 @@
+{
+  "passed": true,
+  "source_revision": "83c584348df06e6a5455b08d9605fcb71a991210",
+  "image_digest": "sha256:e921e1c33adf938923144185c113110d0f878c092320fca2ebcfe5326cbf8d66",
+  "before_shared_controlplane_bytes": 448904192,
+  "after_migration_bytes": 229410816,
+  "lock_packages": 14,
+  "sbom_packages": 128,
+  "fixable_high_critical": 0,
+  "helm_revision": 20,
+  "target": "kind-mlp-acceptance"
+}

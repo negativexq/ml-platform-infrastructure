@@ -109,6 +109,13 @@ spec:
                 name: {{ $.Values.identity.existingSecret }}
             {{- end }}
           env:
+            {{- if and (eq $component "api") $.Values.logStreaming.enabled }}
+            - name: CP_LOG_STREAM_SIGNING_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: {{ $.Values.logStreaming.existingSecret | quote }}
+                  key: {{ $.Values.logStreaming.secretKey | quote }}
+            {{- end }}
             {{- include "controlplane.databaseEnv" (dict "root" $ "component" $component) | nindent 12 }}
             - name: MLP_POD_UID
               valueFrom: {fieldRef: {fieldPath: metadata.uid}}

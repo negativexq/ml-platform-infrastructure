@@ -15,6 +15,9 @@ metadata:
 {{- $_ := set $config "CP_PROJECT_WORKLOAD_CLUSTER_ROLE" (printf "%s-%s-project-workload-reader" .Release.Namespace (include "controlplane.name" .)) }}
 {{- $_ := set $config "CP_LEADER_ELECTION_ENABLED" (.Values.reconciler.leaderElection | toString) }}
 {{- $_ := set $config "CP_LEADER_LEASE_NAME" (printf "%s-reconciler" (include "controlplane.name" .)) }}
+{{- $_ := set $config "CP_LOG_STREAM_URL" .Values.logStreaming.publicURL }}
+{{- $_ := set $config "CP_LOG_STREAM_SERVICE_ACCOUNT" (ternary (printf "%s-logs" (include "controlplane.name" .)) "" .Values.logStreaming.enabled) }}
+{{- $_ := set $config "CP_LOG_STREAM_CLUSTER_ROLE" (ternary (printf "%s-%s-project-logs" .Release.Namespace (include "controlplane.name" .)) "" .Values.logStreaming.enabled) }}
 data:
   {{- range $key, $value := $config }}
   {{ $key }}: {{ $value | toString | quote }}

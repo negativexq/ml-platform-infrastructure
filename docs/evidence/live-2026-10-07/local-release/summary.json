@@ -1,0 +1,19 @@
+{
+  "passed": true,
+  "context": "kind-mlp-acceptance",
+  "source_revision": "017269117dcc5fb5511c466e4ba27667f7e15f5f",
+  "source_clean": true,
+  "project": "acceptance-30c2c654af",
+  "elapsed_seconds": 647.276823583059,
+  "phases": [
+    "project/RBAC",
+    "training/MLflow/discovery",
+    "CPU serving/gateway",
+    "canary/metrics",
+    "function/credential rotation",
+    "same-revision drift repair",
+    "scale-to-zero/reactivation"
+  ],
+  "controlplane_digest": "sha256:c80da101b955acf62f1fb9c7d3c695de840f909890d482fe21b1de9ab769e112",
+  "initializer_digest": "sha256:9e5c8fc7000e76b6b06f5b68fd342c4609ab015332357f157dd7f620351acdc4"
+}

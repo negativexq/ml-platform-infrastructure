@@ -1,0 +1,7 @@
+# Standalone source image: no root wheel and no inference/API dependencies.
+# Share retained versions with the control-plane runtime.
+-c controlplane.txt
+sqlalchemy>=2.0,<2.1
+alembic>=1.13
+psycopg[binary]>=3.2
+pydantic-settings>=2.6

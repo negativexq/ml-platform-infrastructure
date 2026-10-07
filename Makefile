@@ -7,13 +7,15 @@
         local-up local-test local-down \
         tf-fmt tf-validate tf-lint tf-check \
         identity-up ui-install ui-build ui-api ui-dev cp-install cp-test cp-check cp-check-light cp-migrate cp-run cp-reconcile cp-gateway gateway-e2e cp-demo lock envtest-up envtest-down \
-        cp-docker-build cp-helm-lint cp-helm-template cp-http-test cp-bootstrap-help cp-release-check cp-admission-check cp-limiter-check-help cp-recovery-check-help cp-cpu-acceptance-help cp-query-profile-help loadgen-build loadgen-test gateway-go-build gateway-go-test cache-clean
+        cp-docker-build cp-helm-lint cp-helm-template cp-http-test cp-bootstrap-help cp-release-check cp-admission-check cp-limiter-check-help cp-recovery-check-help cp-cpu-acceptance-help cp-query-profile-help loadgen-build loadgen-test gateway-go-build gateway-go-test cache-clean kind-storage-status kind-storage-apply
+
+CLUSTER_NAME ?= ml-platform
 
 IMAGE ?= ml-platform-inference:dev
 
 install:
 	python -m pip install --upgrade pip
-	pip install -e ".[dev,train]"
+	pip install -e ".[dev,inference,train]"
 
 ## M7: the whole platform (PostgreSQL + MinIO + MLflow) runs inside kind.
 ## helm/platform-local deploys it; `make kind-up` does this end to end.
@@ -185,6 +187,11 @@ cp-install:
 	pip install -c constraints/controlplane.txt -e ".[dev,controlplane,controlplane-dev]"
 
 CP_IMAGE ?= mlp-controlplane:dev
+CP_MIGRATION_IMAGE ?= mlp-controlplane-migrate:dev
+
+.PHONY: cp-migration-docker-build
+cp-migration-docker-build:
+	docker build -t $(CP_MIGRATION_IMAGE) -f docker/controlplane-migrate/Dockerfile .
 
 cp-docker-build:
 	docker build -t $(CP_IMAGE) -f docker/controlplane/Dockerfile .
@@ -214,7 +221,7 @@ cp-http-test:
 
 CP_RELEASE_OUT ?= /tmp/mlp-release-check
 cp-release-check:
-	python scripts/controlplane_release_check.py --build --image $(CP_IMAGE) --out $(CP_RELEASE_OUT)
+	python scripts/controlplane_release_check.py --build --image $(CP_IMAGE) --migration-image $(CP_MIGRATION_IMAGE) --out $(CP_RELEASE_OUT)
 
 cp-admission-check:
 	go version >/dev/null
@@ -300,6 +307,12 @@ loadgen-test:
 cache-clean:
 	./scripts/cache-clean.sh
 
+kind-storage-status:
+	python3 scripts/kind-storage.py --cluster "$(CLUSTER_NAME)"
+
+kind-storage-apply:
+	python3 scripts/kind-storage.py --cluster "$(CLUSTER_NAME)" --apply
+
 GATEWAY_GO_OUT ?= /tmp/mlp-gateway-go
 gateway-go-build:
 	cd services/gateway-go && go build -mod=readonly -trimpath -o $(GATEWAY_GO_OUT) .
@@ -313,3 +326,23 @@ gateway-go-check:
 
 cp-gateway-go-release-check:
 	bash scripts/gateway-go-release-check.sh
+
+.PHONY: storage-initializer-go-build storage-initializer-go-test
+STORAGE_INITIALIZER_GO_OUT ?= /tmp/mlp-storage-initializer-go
+storage-initializer-go-build:
+	cd services/storage-initializer-go && go build -mod=readonly -trimpath -o $(STORAGE_INITIALIZER_GO_OUT) .
+
+storage-initializer-go-test:
+	cd services/storage-initializer-go && go test -race ./... && go vet ./...
+
+.PHONY: log-stream-go-build log-stream-go-test
+LOG_STREAM_GO_OUT ?= /tmp/mlp-log-stream-go
+log-stream-go-build:
+	cd services/log-stream-go && go build -mod=readonly -trimpath -o $(LOG_STREAM_GO_OUT) .
+
+log-stream-go-test:
+	cd services/log-stream-go && go test -race ./... && go vet ./...
+
+.PHONY: cp-log-stream-check-help
+cp-log-stream-check-help:
+	$(PYTHON) scripts/controlplane_log_stream_check.py --help

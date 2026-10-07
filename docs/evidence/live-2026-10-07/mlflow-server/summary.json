@@ -1,0 +1,24 @@
+{
+  "image_id": "sha256:dfd41d7114dcc6ce622515ea9ef0ed905ed501b88231f66671be28f156adaa3d",
+  "profile": "mlflow-server",
+  "installed_distributions": 82,
+  "lock_packages": 81,
+  "image_size_bytes_trivy": 540818944,
+  "sbom_packages": 215,
+  "cryptography": "50.0.2",
+  "fixable_high_critical": 0,
+  "acceptance_passed": true,
+  "checks": [
+    "runtime pip check",
+    "PostgreSQL database upgrade",
+    "server health",
+    "upstream UI index",
+    "experiment create/read and run logging/search",
+    "logged-model lookup, registry, aliases and control-plane discovery",
+    "server-proxied S3 artifact upload/list/download"
+  ],
+  "postgres_fixture": "postgres:16-alpine",
+  "deployed": false,
+  "limits": "Native ARM64 Docker fixtures; no cluster rollout or inference acceptance.",
+  "secrets_findings": 0
+}

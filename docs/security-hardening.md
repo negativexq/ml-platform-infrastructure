@@ -132,10 +132,10 @@ architectures and CUDA/GPU image compatibility have not been verified.
 
 **Recorded serving remediation (2026-10-06):** the classic serving image now uses MLflow
 3.16.1/cryptography 50.0.2 and the explicit MLServer metadata fork with fixed Starlette.
-The S3 initializer uses standalone `kserve-storage` with fixed protobuf. Their new ARM64
+That batch used a Python S3 initializer with standalone `kserve-storage` and fixed protobuf. Its ARM64
 scans and native inference/private S3 gateway checks passed; the old five HIGH findings
 are resolved for these two artifacts. Training and tracking-server locks above retain
-their separate scope. See [serving-image-security.md](serving-image-security.md).
+their separate scope. The current Go initializer has separate [validation evidence](evidence/live-2026-10-07/storage-initializer-go/README.md); the recorded Python lifecycle does not validate it. See [serving-image-security.md](serving-image-security.md).
 
 ## Verification completed locally
 

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
+import { useRunLogs } from '../lib/logs';
 import { api, enc, type S } from '../api/client';
 import { Alert, Badge, CopyButton, Table, Time } from '../components/bits';
 import { Dag } from '../components/Dag';
@@ -29,14 +30,7 @@ export function PipelineRunPage({ project, id }: { project: string; id: string }
   const selected = picked ?? fallback?.step ?? null;
   const running = run.data ? ACTIVE.has(run.data.status) : false;
 
-  const logs = useQuery({
-    queryKey: ['pipeline-run-logs', id, selected], enabled: selected !== null,
-    queryFn: async () => {
-      const step = selected ?? '';
-      try { return await api.text(`/pipeline-runs/${id}/steps/${enc(step)}/logs`); } catch { return '(logs are not available)'; }
-    },
-    refetchInterval: running ? 3000 : false,
-  });
+  const logs = useRunLogs(selected ? `/pipeline-runs/${id}/steps/${enc(selected)}/logs` : null, running);
   const tracking = useQuery({
     queryKey: ['pipeline-run-tracking', id], retry: false,
     queryFn: () => api.get<S['TrackingOut']>(`/pipeline-runs/${id}/tracking`),

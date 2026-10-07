@@ -210,3 +210,31 @@ its HIGH/CRITICAL scan and is installed on two ARM64 lab replicas. During Helm r
 200/200 real function requests succeeded; post-rollout connection reuse after 5.2 seconds
 idle and health/readiness passed. API/reconciler pod templates were unchanged.
 Heterogeneous-client/real-OIDC load acceptance remains pending.
+
+Local kind [storage housekeeping](local-storage.md) now configures native kubelet image GC
+(six-hour unused-image age, 80/70% imagefs thresholds) and three 10Mi log files. The ARM64
+acceptance node loaded the policy; runtime config, idempotent reapply and final component
+readiness passed. Registry/PVC retention and host disk alerts are separate; this is not a
+total volume size cap. A natural six-hour GC/log-rotation drill remains unobserved.
+
+
+Control-plane dependency split (2026-10-07): inference-only requirements now live in
+`.[inference]`; the shared Python control-plane lock drops from 97 to 82 packages
+without upgrading retained versions. Native ARM64 Trivy image size decreased from
+838.44 MB to 448.90 MB; API/reconciler startup RSS decreased by about 22%/24% in the
+isolated empty-state fixture. Both full image release gates passed, including scans
+and SBOM. Broader regression testing found only baseline-confirmed UI, memory-race and
+typecheck diagnostics; it is not reported as wholly green. The slim image was subsequently
+deployed to the local acceptance cluster; the seven-phase CPU lifecycle gate passed.
+[Measurements and exact limits](evidence/live-2026-10-07/controlplane-dependency-split/README.md).
+
+Go log streaming and the readable Runs detail log panel are deployed in the local acceptance
+cluster (2026-10-08). The user-reported `a061e088` / `train` log snapshot decodes UTF-8,
+groups three Git metadata warnings, preserves details/raw downloads and treats Argo INFO
+`error="<nil>"` exits correctly. Eight live stream/browser checks and 22 UI tests passed.
+[Validation evidence](evidence/live-2026-10-07/log-stream/README.md).
+
+The MLflow tracking/registry server profile also passed native ARM64 build, pip check,
+seven PostgreSQL/MinIO fixture checks, fixable HIGH/CRITICAL and secret scans. The image
+has 82 Python distributions; its measured Trivy size is 540.82 MB. It has not been
+rolled out to the cluster. [Audit evidence](evidence/live-2026-10-07/mlflow-server/README.md).

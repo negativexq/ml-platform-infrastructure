@@ -163,6 +163,8 @@ PLATFORM_ADMIN = "platform-admin"  # platform-wide decisions, e.g. how many GPUs
 # (method, route) -> who may call it. Routes not listed: GET needs viewer, anything else
 # operator, in the project the route is about.
 POLICY: dict[tuple[str, str], str | ProjectRole] = {
+    ("POST", "/runs/{run_id}/logs/stream-ticket"): ProjectRole.VIEWER,
+    ("POST", "/pipeline-runs/{run_id}/steps/{step}/logs/stream-ticket"): ProjectRole.VIEWER,
     ("GET", "/healthz"): PUBLIC,
     ("GET", "/readyz"): PUBLIC,
     ("GET", "/"): PUBLIC,  # redirects to the UI

@@ -94,6 +94,8 @@ def app_factory() -> FastAPI:
             else None
         ),
         gateway_url=settings.gateway_url,
+        log_stream_key=settings.log_stream_signing_key,
+        log_stream_url=settings.log_stream_url,
         require_job_image_digest=settings.job_image_digest_required,
         readiness=DatabaseReadiness(
             engine, component="api" if settings.database_role_enforcement else None

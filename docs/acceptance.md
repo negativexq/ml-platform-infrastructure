@@ -17,13 +17,15 @@ make cp-release-check CP_IMAGE=mlp-controlplane:release-check \
 ```
 
 The output directory must be new. The gate builds the control-plane Dockerfile with its
-full source SHA label; every runtime uses the resulting immutable image ID. It tests clean
+full source SHA label; every runtime uses the resulting immutable image ID. Before creating fixtures it checks installed runtime dependencies and `pip check`,
+rejecting inference packages and missing required SDKs. It tests clean
 PostgreSQL migrations to the current image head (`0021`), API/gateway liveness/readiness,
 reconciler configuration/empty-state passes and database restart recovery. The fixture
 kubeconfig is deliberately not connected to Kubernetes; election/RBAC are live gates.
 The disposable owner-credential fixture explicitly disables runtime-role enforcement; it does not prove DB privilege separation. An isolated Docker network/database is removed afterwards, including labelled temporary
 probe containers. It writes `report.json`, `trivy.json`, `trivy-secrets.json` and `sbom.spdx.json`. The SBOM is
-required; no scan result is silently skipped. The scan gate fails on fixable HIGH/CRITICAL
+required; no scan result is silently skipped. Keep these raw outputs outside the repository;
+commit only a short summary, measurements and artifact hashes. The scan gate fails on fixable HIGH/CRITICAL
 vulnerabilities and detected secrets. It does not assert absence of every unfixed CVE.
 
 The direct CLI also accepts `--postgres-image` and an existing built image without

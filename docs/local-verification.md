@@ -989,6 +989,13 @@ nor installed virtualenv dependencies. Run between builds, not during an active 
 No unattended global cleanup daemon is installed. Use this at the end of large build/test
 batches; downloaded dependencies will be fetched again when needed.
 
+Node image accumulation is handled separately by [native kubelet GC](local-storage.md):
+six-hour unused-image age, 80/70% imagefs thresholds, and three 10Mi container log files.
+`kind-up`/`local-up` configure it; `make kind-storage-status` inspects the running policy
+and `make kind-storage-apply` upgrades an existing selected cluster. The 2026-10-07 lab
+runtime/idempotence checks passed. Natural six-hour expiry and long-run rotation remain
+unobserved. Host disk pressure can differ from VM pressure; status warns below 15GiB free.
+
 The 2026-10-07 cleanup removed 8.349GB reported Docker build cache, ~551MB pip cache,
 30.5MiB uv cache, ~494MiB Go build cache, 161MiB Go module cache and the 109MiB temporary
 acceptance build directory. Host availability rose from ~778MiB to ~9.3GiB; Docker's

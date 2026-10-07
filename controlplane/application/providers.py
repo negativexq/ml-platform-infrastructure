@@ -101,6 +101,15 @@ class WorkflowStatus:
     exit_codes: Mapping[str, int] = field(default_factory=dict)
 
 
+@dataclass(frozen=True, slots=True)
+class LogTarget:
+    namespace: str
+    pod: str
+    pod_uid: str
+    workflow: str
+    workflow_uid: str
+
+
 @runtime_checkable
 class WorkflowProvider(Protocol):
     def submit(self, spec: WorkflowSpec, idempotency_key: str) -> str:
@@ -117,6 +126,8 @@ class WorkflowProvider(Protocol):
         """Idempotently delete a workflow and its owned pods after retention expires."""
 
     def get_logs(self, ref: str, step: str) -> str: ...
+
+    def get_log_target(self, ref: str, step: str) -> LogTarget | None: ...
 
 
 # --- serving ---------------------------------------------------------------

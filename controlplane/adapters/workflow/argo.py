@@ -20,6 +20,7 @@ from controlplane.adapters.kubernetes.security import (
 from controlplane.application.jobs import require_training_digest
 from controlplane.application.providers import (
     ExternalState,
+    LogTarget,
     StepSpec,
     WorkflowSpec,
     WorkflowStatus,
@@ -265,12 +266,59 @@ class ArgoWorkflowProvider:
         if pod is None:
             return ""
         try:
-            logs: str = self._core.read_namespaced_pod_log(pod, namespace, container="main")
+            # Decode the HTTP body ourselves. Some client versions deserialize text bytes
+            # with str(bytes), exposing b'...' and literal escaped newlines to the UI.
+            response = self._core.read_namespaced_pod_log(
+                pod, namespace, container="main", _preload_content=False
+            )
         except ApiException as exc:
             if exc.status in (400, 404):  # pod not started yet, or already garbage-collected
                 return ""
             raise
-        return logs
+        if isinstance(response, str):
+            return response
+        if isinstance(response, bytes):
+            return response.decode("utf-8", errors="replace")
+        try:
+            data = response.data
+            if not isinstance(data, bytes):
+                raise TypeError("Kubernetes log response must contain bytes")
+            return data.decode("utf-8", errors="replace")
+        finally:
+            response.close()
+            response.release_conn()
+
+    def get_log_target(self, ref: str, step: str) -> LogTarget | None:
+        namespace, name = _split(ref)
+        workflow = self._get(ref)
+        nodes = (workflow.get("status") or {}).get("nodes") or {}
+        pod_name = next(
+            (
+                n["id"]
+                for n in nodes.values()
+                if n.get("type") == "Pod" and n.get("templateName") == step
+            ),
+            None,
+        )
+        if pod_name is None:
+            return None
+        try:
+            pod = self._core.read_namespaced_pod(pod_name, namespace)
+        except ApiException as exc:
+            if exc.status == 404:
+                return None
+            raise
+        uid = workflow["metadata"]["uid"]
+        labels = pod.metadata.labels or {}
+        owners = pod.metadata.owner_references or []
+        if (
+            not pod.metadata.uid
+            or labels.get("workflows.argoproj.io/workflow") != name
+            or not any(o.kind == "Workflow" and o.uid == uid for o in owners)
+            or not any(c.name == "main" for c in pod.spec.containers)
+        ):
+            raise NotFound("workflow pod", pod_name)
+        return LogTarget(namespace, pod_name, pod.metadata.uid, name, uid)
 
 
 def _node_state(node: dict[str, Any]) -> ExternalState:

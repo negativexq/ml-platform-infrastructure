@@ -1,5 +1,0 @@
-kserve-storage==0.21.0
-boto3==1.43.108
-cryptography>=50.0.0
-protobuf>=6.33.5
-setuptools>=78.1.1

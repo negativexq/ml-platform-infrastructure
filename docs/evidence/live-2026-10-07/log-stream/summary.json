@@ -1,0 +1,43 @@
+{
+  "controlplane_source_revision": "622f188d73d457af94468be5e94e00f40428f2c2",
+  "go_source_revision": "af3c6ce54210c438affe87b15895e0e2d385f1e9",
+  "helm_revision": 26,
+  "controlplane_image": "localhost:5201/mlp-controlplane@sha256:ae4c5556e8f185233a681b201d60949f9d312788f231814ec4bc5e6268455d98",
+  "migration_image": "localhost:5201/mlp-controlplane-migrate@sha256:158cd5e099992fd8faf588452389277768bd3dbc72690405e1eb01748263966d",
+  "log_stream_image": "localhost:5201/mlp-log-stream@sha256:62a17083a998b4225f28ca39ef9c0f1823900804164b96ef38f0dbb55dcef23b",
+  "release_gate_passed": true,
+  "ui_tests_passed": 22,
+  "live_checks_passed": 8,
+  "browser_sse_statuses": [
+    200,
+    200
+  ],
+  "actual_runs_view": {
+    "passed": true,
+    "url": "http://127.0.0.1:18905/ui/#/projects/acceptance-30c2c654af/pipeline-runs/a061e088-0030-4676-8ac4-7d792bcac7ac",
+    "run_id": "a061e088-0030-4676-8ac4-7d792bcac7ac",
+    "step": "train",
+    "git_warning_repetitions": 3,
+    "decoded_utf8": true,
+    "events": 11,
+    "false_errors": 0,
+    "details_collapsed": true,
+    "browser_errors": []
+  },
+  "training_git_quiet": "Native ARM64 training image rebuilt; pip check, CLI and MLflow/sklearn imports passed without Git executable or missing-Git warning; existing job definitions unchanged.",
+  "cleanup": {
+    "docker_images_reclaimed": "1.436GB",
+    "build_cache_reclaimed": "2.806GB",
+    "registry_obsolete_manifests_removed": 36,
+    "registry_retained_manifests_verified": 31,
+    "previously_absent_mc_reference": "Retained in current Helm hook inventory; was already missing before this cleanup."
+  },
+  "training_image_id": "sha256:c0d31c9ca07765acf8223c3ed228a0a73ae69ca9af29b490d5f000dc891f0a97",
+  "pre_push_checks": {
+    "ui_tests": 22,
+    "python_controlplane_tests": 40,
+    "inference_tests": 10,
+    "go_race_vet": true,
+    "helm_lint": true
+  }
+}

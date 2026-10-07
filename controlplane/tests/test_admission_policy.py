@@ -29,9 +29,21 @@ ACTOR = f"system:serviceaccount:{SYSTEM}:{NAME}-reconciler"
 @pytest.mark.skipif(
     not shutil.which("helm") or not shutil.which("go"), reason="Helm and Go required"
 )
-def test_rendered_admission_cel_allows_provisioning_and_denies_escape() -> None:
+@pytest.mark.parametrize("log_stream", [False, True])
+def test_rendered_admission_cel_allows_provisioning_and_denies_escape(log_stream: bool) -> None:
     rendered = subprocess.run(
-        ["helm", "template", "test", str(ROOT / "helm/controlplane"), "-n", SYSTEM],
+        [
+            "helm",
+            "template",
+            "test",
+            str(ROOT / "helm/controlplane"),
+            "-n",
+            SYSTEM,
+            "--set",
+            f"logStreaming.enabled={str(log_stream).lower()}",
+            "--set",
+            "logStreaming.existingSecret=log-key",
+        ],
         capture_output=True,
         text=True,
         check=True,
@@ -66,6 +78,8 @@ def test_rendered_admission_cel_allows_provisioning_and_denies_escape() -> None:
         api_namespace=SYSTEM,
         secret_cluster_role=PREFIX + "-project-secrets",
         workload_cluster_role=PREFIX + "-project-workload-reader",
+        log_stream_service_account=NAME + "-logs" if log_stream else "",
+        log_stream_cluster_role=PREFIX + "-project-logs" if log_stream else "",
     )
     desired = provider._desired(spec)
 
@@ -101,7 +115,9 @@ def test_rendered_admission_cel_allows_provisioning_and_denies_escape() -> None:
             }
         )
 
-    for binding_kind in ("secretrolebinding", "workloadrolebinding", "rolebinding"):
+    for binding_kind in ("secretrolebinding", "workloadrolebinding", "rolebinding") + (
+        ("logrolebinding",) if log_stream else ()
+    ):
         binding = desired[binding_kind]
         for operation in ("CREATE", "UPDATE", "DELETE"):
             case(f"{binding_kind}-{operation}", "project-rbac", binding, True, operation=operation)

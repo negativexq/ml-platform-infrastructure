@@ -1,0 +1,131 @@
+{{- if .Values.logStreaming.enabled }}
+{{- $name := include "controlplane.name" . }}
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: {{ $name }}-logs
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: {{ .Release.Namespace }}-{{ $name }}-project-logs
+rules:
+  - apiGroups: [""]
+    resources: [pods, pods/log]
+    verbs: [get]
+# Bound by the reconciler only inside namespaces it owns; no ClusterRoleBinding.
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}-logs
+spec:
+  selector:
+    app.kubernetes.io/instance: {{ .Release.Name }}
+    app.kubernetes.io/name: mlp-controlplane-logs
+  ports: [{name: http, port: 80, targetPort: http}]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ $name }}-logs
+spec:
+  replicas: {{ .Values.logStreaming.replicas }}
+  strategy:
+    rollingUpdate: {maxUnavailable: 0, maxSurge: 1}
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/name: mlp-controlplane-logs
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/instance: {{ .Release.Name }}
+        app.kubernetes.io/name: mlp-controlplane-logs
+        app.kubernetes.io/part-of: ml-platform
+    spec:
+      serviceAccountName: {{ $name }}-logs
+      terminationGracePeriodSeconds: 30
+      securityContext:
+        {{- include "controlplane.podSecurity" . | nindent 8 }}
+      {{- with .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      {{- if gt (int .Values.logStreaming.replicas) 1 }}
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: kubernetes.io/hostname
+          whenUnsatisfiable: ScheduleAnyway
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/instance: {{ .Release.Name }}
+              app.kubernetes.io/name: mlp-controlplane-logs
+      {{- end }}
+      containers:
+        - name: logs
+          image: {{ if .Values.logStreaming.image.digest }}{{ printf "%s@%s" .Values.logStreaming.image.repository .Values.logStreaming.image.digest | quote }}{{ else }}{{ printf "%s:%s" .Values.logStreaming.image.repository .Values.logStreaming.image.tag | quote }}{{ end }}
+          imagePullPolicy: {{ .Values.logStreaming.image.pullPolicy }}
+          ports: [{name: http, containerPort: 8082}]
+          env:
+            - {name: LOG_STREAM_SIGNING_KEY_FILE, value: /signing/key}
+            - {name: GOMEMLIMIT, value: 96MiB}
+            - name: LOG_STREAM_ALLOWED_ORIGIN
+              value: {{ .Values.logStreaming.allowedOrigin | quote }}
+          volumeMounts: [{name: signing, mountPath: /signing, readOnly: true}]
+          startupProbe: {httpGet: {path: /healthz, port: http}, periodSeconds: 2, failureThreshold: 30}
+          readinessProbe: {httpGet: {path: /readyz, port: http}, periodSeconds: 5}
+          livenessProbe: {httpGet: {path: /healthz, port: http}, periodSeconds: 10}
+          resources:
+            {{- toYaml .Values.logStreaming.resources | nindent 12 }}
+          securityContext:
+            {{- include "controlplane.containerSecurity" . | nindent 12 }}
+      volumes:
+        - name: signing
+          secret:
+            secretName: {{ .Values.logStreaming.existingSecret | quote }}
+            items: [{key: {{ .Values.logStreaming.secretKey | quote }}, path: key}]
+---
+{{- if gt (int .Values.logStreaming.replicas) 1 }}
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata: {name: {{ $name }}-logs}
+spec:
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/name: mlp-controlplane-logs
+---
+{{- end }}
+{{- if .Values.networkPolicy.enabled }}
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata: {name: {{ $name }}-logs}
+spec:
+  podSelector:
+    matchLabels:
+      app.kubernetes.io/instance: {{ .Release.Name }}
+      app.kubernetes.io/name: mlp-controlplane-logs
+  policyTypes: [Ingress, Egress]
+  ingress:
+    - from:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: {{ .Values.networkPolicy.ingressNamespace }}}
+      ports: [{port: 8082}]
+    - from:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: {{ .Values.networkPolicy.observabilityNamespace }}}
+      ports: [{port: 8082}]
+  egress:
+    - to:
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: kube-system}
+          podSelector:
+            matchLabels: {k8s-app: kube-dns}
+      ports: [{port: 53, protocol: UDP}, {port: 53, protocol: TCP}]
+    {{- range .Values.networkPolicy.apiCIDRs }}
+    - to: [{ipBlock: {cidr: {{ . | quote }}}}]
+    {{- end }}
+{{- end }}
+{{- end }}

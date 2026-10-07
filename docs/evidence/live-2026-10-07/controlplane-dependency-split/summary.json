@@ -1,0 +1,90 @@
+{
+  "platform": "linux/arm64",
+  "main_checkout_head": "320d4f15ad9f082454877ed09ce86a88e067531e",
+  "validation_source": "Temporary local clean snapshot commits; main workspace was not committed or deployed",
+  "sides": {
+    "before": {
+      "image_id": "sha256:2cd1fc92dbdaa49fd439fe24f5744460b16ee9420bd1fb9558dac27b0b3084a4",
+      "source_revision": "77c0cbfd2dd071d2a9baceb94f826191aa225a5c",
+      "source_clean": true,
+      "full_release_gate_passed": true,
+      "lock_package_count": 97,
+      "installed_distribution_count": 99,
+      "sbom_package_count": 212,
+      "trivy_size_bytes": 838435840,
+      "docker_content_size_bytes": 228120802,
+      "startup_rss_kib": {
+        "api": 230020,
+        "gateway": 229012,
+        "reconciler": 218736
+      },
+      "fixable_high_critical_count": 0,
+      "secret_count": 0
+    },
+    "after": {
+      "image_id": "sha256:c80da101b955acf62f1fb9c7d3c695de840f909890d482fe21b1de9ab769e112",
+      "source_revision": "017269117dcc5fb5511c466e4ba27667f7e15f5f",
+      "source_clean": true,
+      "full_release_gate_passed": true,
+      "lock_package_count": 82,
+      "installed_distribution_count": 84,
+      "sbom_package_count": 197,
+      "trivy_size_bytes": 448904192,
+      "docker_content_size_bytes": 109848228,
+      "startup_rss_kib": {
+        "api": 179896,
+        "gateway": 178680,
+        "reconciler": 166548
+      },
+      "fixable_high_critical_count": 0,
+      "secret_count": 0
+    }
+  },
+  "runtime_size_reduction_percent": 46.45932692953584,
+  "startup_rss_reduction_percent": {
+    "api": 21.791148595774278,
+    "gateway": 21.977887621609348,
+    "reconciler": 23.858898398068906
+  },
+  "source_sha256": {
+    "pyproject.toml": "969c058c4f30e7f08b45407d559312e9290ea309e8eec579a6a2221d946b6a5e",
+    "constraints/controlplane.txt": "174adea421960cbee8585bd4c30395491cea8f6b8663dffeee0e43e9793e80c0",
+    "constraints/inference.txt": "a6196dfac0d81c73eafe27c2e2edc31ba54059a642dbb66690642a18dd3a2ae5",
+    "constraints/training.txt": "e26eae169af8d73a82c4fceb4c886417eba606190cfda0a88fe0b0f107027a63",
+    "constraints/serving.txt": "1c2a8f8f48c62ff839104432ca2a12c7612f07529dd6c32ca580d01eec2c3426",
+    "docker/controlplane/Dockerfile": "f409942f7e62f58590921be4c9b960ea0b84b648993a7c757c6877cc623a4022",
+    "docker/controlplane/check_dependencies.py": "b5d799b59d4ac4823476b4471261e88bbdb39eac6dfdaed73d2b43fee3819d22",
+    "Dockerfile": "973a69204b3dfcc85f1b2da88fc358c8e440f27c26f318c385bf8ef5c02aae75",
+    "scripts/lock.sh": "3818742f773b390f4ae9f8757c47ab42fc7214fc323665ceac5ec6dd23e460d4",
+    "scripts/controlplane_release_check.py": "5a0764e54647d4779f60c5be3e80be3de732b46feb4bfd98998b84a58fe4f1f4"
+  },
+  "inference_training_serving_locks_changed": false,
+  "regression_suite": {
+    "tests": 864,
+    "passed": 849,
+    "failed": 2,
+    "skipped": 13,
+    "failed_cases": [
+      {
+        "classname": "controlplane.tests.test_ui",
+        "name": "test_model_versions_evaluations_and_promote"
+      },
+      {
+        "classname": "controlplane.tests.test_ui_auth",
+        "name": "test_settings_say_where_your_role_comes_from"
+      }
+    ],
+    "failures_reproduced_on_baseline": true,
+    "PGTZ": "UTC",
+    "browser": "Google Chrome via CP_CHROMIUM",
+    "intermittent_memory_race": "One earlier run failed; reproduced on baseline with sys.setswitchinterval(0.000001), normal targeted rerun and final suite passed"
+  },
+  "typecheck": {
+    "changed_modules_passed": true,
+    "full_controlplane_errors_before": 20,
+    "full_controlplane_errors_after": 20,
+    "logs_identical": true
+  },
+  "inference_tests_passed": 10,
+  "inference_startup_smoke_passed": true
+}

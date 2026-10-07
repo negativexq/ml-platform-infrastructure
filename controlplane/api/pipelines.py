@@ -7,6 +7,7 @@ from fastapi import APIRouter, Header, HTTPException, Query, Request, Response, 
 from fastapi.responses import PlainTextResponse
 
 from controlplane.api.errors import PlatformRoute
+from controlplane.api.log_stream import LogStreamTicket, ticket
 from controlplane.api.schemas import ErrorOut
 from controlplane.api.schemas_pipelines import (
     PipelineCreate,
@@ -224,5 +225,16 @@ def pipeline_runs_router() -> APIRouter:
         if view.run.workflow_cleaned_at is not None:
             raise HTTPException(410, "workflow logs expired under the retention policy")
         return workflow.get_logs(view.run.external_ref, step)
+
+    @router.post("/{run_id}/steps/{step}/logs/stream-ticket", response_model=LogStreamTicket)
+    def step_log_ticket(
+        run_id: UUID, step: str, request: Request, response: Response
+    ) -> LogStreamTicket:
+        view = svc(request).view(run_id)
+        if step not in {s.step_name for s in view.steps}:
+            raise HTTPException(404, "step not in this run")
+        if view.run.workflow_cleaned_at is not None:
+            raise HTTPException(410, "workflow logs expired under the retention policy")
+        return ticket(request, response, view.run.external_ref, step)
 
     return router

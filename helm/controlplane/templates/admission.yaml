@@ -141,6 +141,12 @@ spec:
             variables.target.roleRef.kind == 'ClusterRole' &&
             variables.target.roleRef.name == '{{ $prefix }}-project-workload-reader' &&
             s.name == '{{ $name }}-api' && s.namespace == '{{ .Release.Namespace }}') ||
+           {{ if .Values.logStreaming.enabled -}}
+           (variables.target.metadata.name == 'mlp-log-stream' &&
+            variables.target.roleRef.kind == 'ClusterRole' &&
+            variables.target.roleRef.name == '{{ $prefix }}-project-logs' &&
+            s.name == '{{ $name }}-logs' && s.namespace == '{{ .Release.Namespace }}') ||
+           {{ end -}}
            (variables.target.metadata.name == 'mlp-workflow-executor' &&
             variables.target.roleRef.kind == 'Role' &&
             variables.target.roleRef.name == 'mlp-workflow-executor' &&

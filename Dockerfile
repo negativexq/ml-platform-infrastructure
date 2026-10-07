@@ -15,7 +15,8 @@ COPY constraints/inference.txt ./constraints/inference.txt
 COPY app ./app
 COPY scripts ./scripts
 # Versions come from the lock (scripts/lock.sh), so the same commit builds the same image.
-RUN pip install -c constraints/inference.txt --prefix=/install .
+RUN pip install -c constraints/inference.txt --prefix=/install '.[inference]' \
+    && PYTHONPATH=/install/lib/python3.12/site-packages python -m pip check
 
 # ---------------------------------------------------------------------------
 FROM ${PYTHON_IMAGE} AS runtime

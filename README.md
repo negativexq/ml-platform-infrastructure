@@ -121,6 +121,7 @@ reply = client.chat.completions.create(model="assistant-prod",
 | Gateway | Go runtime in `services/gateway-go`, a separate image and a Python rollback option in the control-plane chart; Python standalone fallback at `k8s/gateway/gateway.yaml` has Ingress/TLS and a topology-specific NetworkPolicy ([networking](docs/networking.md)) |
 | Identity | `k8s/identity/` (Keycloak), configured with `CP_OIDC_*` settings |
 | Observability | `make observability-up`: Collector, Tempo, dashboards and alerts; API HTTP/HTTPX + Go gateway server/upstream + reconciler SQL traces, DB pool/query metrics, control-plane resource panels and operator PostgreSQL profiling ([scope and verification](docs/observability.md#bottleneck-instrumentation-2026-10-07)) |
+| Local storage | Native kubelet GC collects six-hour-unused images; container logs rotate at 10Mi with three files. `make kind-storage-status` / `kind-storage-apply` inspect or configure existing nodes ([scope and host disk limits](docs/local-storage.md)) |
 | Benchmark client | Go [`mlp-loadgen`](tools/loadgen/README.md): open-loop load, visible queue/drop/scheduling delay, per-target results and streaming timings; cluster parity gate pending |
 | AWS | Legacy infrastructure lab in `infra/terraform`; current control-plane AWS deployment remains pending |
 

@@ -130,6 +130,7 @@ def prepare(
     gateway_service_type: str = "LoadBalancer",
     mlflow_serving_image: str | None = None,
     s3_storage_initializer_image: str | None = None,
+    migration_image: str | None = None,
 ) -> Path:
     runtime = mlflow_runtime(mlflow_serving_image) if mlflow_serving_image else None
     initializer = (
@@ -146,6 +147,18 @@ def prepare(
     values = yaml.safe_load(site_values.read_text()) or {}
     if not isinstance(values, dict):
         raise ValueError("site values must be a mapping")
+    if migration_image:
+        if not re.fullmatch(r"[A-Za-z0-9._:/-]+@sha256:[0-9a-f]{64}", migration_image):
+            raise ValueError("migration image must be digest-pinned")
+        values["migrations"] = {
+            **values.get("migrations", {}),
+            "image": {
+                **values.get("migrations", {}).get("image", {}),
+                "repository": migration_image.split("@")[0],
+                "digest": migration_image.split("@")[1],
+                "tag": "",
+            },
+        }
     values = {
         **values,
         "image": {
@@ -368,6 +381,7 @@ def prepare(
                 "gateway_service_type": gateway_service_type,
                 "mlflow_serving_image": mlflow_serving_image,
                 "s3_storage_initializer_image": s3_storage_initializer_image,
+                "migration_image": migration_image,
                 "dependency_lock_sha256": sha256(lock_copy),
                 "controlplane_chart_sha256": sha256(chart_archive),
                 "source_verified": source_verified,
@@ -385,6 +399,7 @@ def main() -> None:
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--values", type=Path, required=True)
     parser.add_argument("--image", required=True)
+    parser.add_argument("--migration-image", required=True, help="digest-pinned migration image")
     parser.add_argument("--source-revision", required=True)
     parser.add_argument("--context", default="REPLACE_WITH_CLUSTER_CONTEXT")
     parser.add_argument("--cache", type=Path)
@@ -421,6 +436,7 @@ def main() -> None:
         args.gateway_service_type,
         args.mlflow_serving_image,
         args.s3_storage_initializer_image,
+        args.migration_image,
     )
     print("Prepared installation bundle:", args.out)
     if args.apply:

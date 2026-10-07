@@ -65,12 +65,18 @@ class KubernetesClusterProvider:
         api_namespace: str = "mlp-system",
         secret_cluster_role: str = "",
         workload_cluster_role: str = "",
+        log_stream_service_account: str = "",
+        log_stream_cluster_role: str = "",
     ) -> None:
         self._topology = topology or NetworkTopology()
         self._api_service_account = api_service_account
         self._api_namespace = api_namespace
         self._secret_cluster_role = secret_cluster_role
         self._workload_cluster_role = workload_cluster_role
+        self._log_stream_service_account = log_stream_service_account
+        self._log_stream_cluster_role = log_stream_cluster_role
+        if bool(log_stream_service_account) != bool(log_stream_cluster_role):
+            raise ValueError("log streaming RBAC requires both service account and ClusterRole")
         if workload_cluster_role and not api_service_account:
             raise ValueError("API workload RBAC requires a service account")
         if bool(api_service_account) != bool(secret_cluster_role):
@@ -115,6 +121,22 @@ class KubernetesClusterProvider:
                         "name": self._workload_cluster_role,
                     },
                 }
+        if self._log_stream_service_account:
+            bindings["logrolebinding"] = {
+                "metadata": {"name": "mlp-log-stream", **meta},
+                "subjects": [
+                    {
+                        "kind": "ServiceAccount",
+                        "name": self._log_stream_service_account,
+                        "namespace": self._api_namespace,
+                    }
+                ],
+                "roleRef": {
+                    "apiGroup": "rbac.authorization.k8s.io",
+                    "kind": "ClusterRole",
+                    "name": self._log_stream_cluster_role,
+                },
+            }
         return {
             **bindings,
             "serviceaccount": {
@@ -296,7 +318,7 @@ class KubernetesClusterProvider:
     # -- writes -----------------------------------------------------------
 
     def _upsert(self, kind: str, ns: str, body: dict[str, Any]) -> None:
-        api_binding = kind in {"secretrolebinding", "workloadrolebinding"}
+        api_binding = kind in {"secretrolebinding", "workloadrolebinding", "logrolebinding"}
         kind = "serviceaccount" if kind.endswith("serviceaccount") else kind
         kind = "networkpolicy" if kind.endswith("networkpolicy") else kind
         kind = "rolebinding" if kind.endswith("rolebinding") else kind

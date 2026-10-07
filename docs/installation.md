@@ -1,7 +1,7 @@
 # Control-plane packaging
 
 Current runtime: the Helm gateway defaults to the separate Go image; API, reconciler
-and migrations use the shared Python image. See the
+use the shared Python image; migrations have a dedicated minimal image. See the
 [Go migration evidence](evidence/live-2026-10-07/observability/gateway-go-migration.md).
 
 The following initial packaging snapshot was prepared on 2026-10-05 without building images or changing the running cluster.
@@ -16,14 +16,32 @@ entrypoints, migration files and committed UI assets. No Docker runtime was star
 
 `docker/controlplane/Dockerfile` installs `.[controlplane]` with
 `constraints/controlplane.txt` and includes migrations and the committed UI bundle.
-The same non-root image supports four process commands:
+Inference-only packages live in `.[inference]`; they are absent from the shared
+control-plane image. `scripts/lock.sh inference` selects that extra, while
+`scripts/lock.sh controlplane` selects only the control-plane extra plus shared base
+requirements. Root inference builds use `.[inference]`; `make install` includes it for
+local inference/training. Training and serving locks retain their serialization pins.
+The image build and release gate run `pip check` and a runtime package audit that
+rejects NumPy/SciPy/sklearn/pandas/skops/joblib, boto3's chain and prometheus-client,
+and requires the MLflow/Kubernetes/DB/OIDC/HTTPX/OTel SDKs. See
+[before/after measurements](evidence/live-2026-10-07/controlplane-dependency-split/README.md).
+
+The shared non-root image supports these runtime commands:
 
 | Process | Command |
 | --- | --- |
 | API | `uvicorn controlplane.main:app_factory --factory --host=0.0.0.0 --port=8080` |
 | Gateway (Python rollback) | `uvicorn controlplane.gateway_main:app_factory --factory --host=0.0.0.0 --port=8081` |
 | Reconciler | `python -m controlplane.reconciler_main` |
-| Migration | `python -m controlplane.persistence.migrate upgrade` |
+
+`docker/controlplane-migrate/Dockerfile` copies only migration source, database models,
+engine/pool construction and settings. Its separate 14-package lock excludes FastAPI,
+MLflow, Kubernetes and OTel. It runs the same Alembic upgrade and advisory lock code:
+`python -m controlplane.persistence.migrate upgrade`. Build it with
+`make cp-migration-docker-build`; configure `migrations.image.repository` and
+`migrations.image.digest`. The pre-install/pre-upgrade Job receives only its migration
+database Secret, runs without a service account token, and retains the existing
+read-only filesystem and non-root security context. Production requires its digest.
 
 When RAM is available, build with `make cp-docker-build`. The default image is
 `mlp-controlplane:dev`; override `CP_IMAGE` to publish under your own repository.
@@ -137,6 +155,7 @@ Prepare locally with Helm and the Python control-plane environment:
 python scripts/controlplane_bootstrap.py --out /tmp/mlp-release \
   --values /path/to/site-values.yaml \
   --image registry.example/team/controlplane@sha256:<FULL_IMAGE_DIGEST> \
+  --migration-image registry.example/team/controlplane-migrate@sha256:<FULL_MIGRATION_DIGEST> \
   --source-revision <FULL_GIT_COMMIT_SHA> \
   --context <TARGET_CONTEXT> --cache /path/to/dependency-cache
 ```
@@ -184,7 +203,7 @@ manifest is not proof of isolation.
 
 `make cp-release-check CP_IMAGE=registry.example/controlplane:release CP_RELEASE_OUT=/tmp/release-evidence`
 requires a clean committed checkout plus Docker, Trivy and Syft. It builds the source
-revision into the image label and uses the resulting image ID for all four commands.
+revision into both image labels and uses the separate migration image for the upgrade.
 It creates isolated disposable PostgreSQL/network fixtures, migrates to the image head,
 checks API/gateway health/readiness, runs the reconciler on empty state with a smoke
 kubeconfig, cuts/restarts PostgreSQL, produces an SPDX SBOM and gates fixable HIGH/CRITICAL
@@ -240,9 +259,12 @@ Security upgrade prerequisites, DB grants and remaining live gates: [security-ha
 
 The pinned upstream MLServer and storage-initializer tags are AMD64-only. Native
 Dockerfiles are available under `docker/serving/` and `docker/storage-initializer/`.
-Their locks preserve the training model's serialization versions; regenerate with
-`scripts/lock.sh serving` and `scripts/lock.sh storage-initializer`. The S3 image uses
-the official standalone `kserve-storage` package with a restricted, S3-only entrypoint.
+The serving lock preserves training serialization versions; regenerate with
+`scripts/lock.sh serving`. The S3 initializer is a static Go binary using AWS SDK v2,
+with dependencies pinned in `services/storage-initializer-go/go.mod` and `go.sum`.
+Build it from the repository root with
+`docker build -f docker/storage-initializer/Dockerfile -t mlp-s3-initializer:local .`.
+See [initializer contract and validation](s3-initializer.md).
 The serving lock uses an explicit MLServer dependency-metadata compatibility fork;
 see [dependency remediation and regeneration](serving-image-security.md).
 
@@ -252,7 +274,7 @@ runtime has higher auto-selection priority. The S3 container has its own URI mat
 the installer removes S3 from the pinned upstream default to avoid ambiguous selection.
 Other storage provider images are unchanged by these options.
 
-The new ARM64 acceptance images passed native inference, the full seven-phase CPU
+The previous Python ARM64 acceptance images passed native inference, the full seven-phase CPU
 lifecycle, `pip check`, SPDX SBOM generation and Trivy scans with zero fixable
 HIGH/CRITICAL findings. Final clean release-artifact and AMD64 runtime reruns remain
 separate gates. See

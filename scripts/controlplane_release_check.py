@@ -25,7 +25,9 @@ def run(args: list[str], *, timeout: int = 600, include_stderr: bool = False) ->
     return (result.stdout + (result.stderr if include_stderr else "")).strip()
 
 
-def check(image: str, postgres_image: str, output: Path, build: bool) -> None:
+def check(
+    image: str, postgres_image: str, output: Path, build: bool, migration_image: str | None = None
+) -> None:
     if output.exists():
         raise ValueError("report directory must not already exist")
     output.mkdir(parents=True, mode=0o700)
@@ -76,6 +78,71 @@ def check(image: str, postgres_image: str, output: Path, build: bool) -> None:
         )
         if label != report["source_revision"]:
             raise RuntimeError("image source revision does not match the clean checkout")
+        run(["docker", "run", "--rm", "--read-only", image_id, "python", "-m", "pip", "check"])
+        record("runtime pip check")
+        report["dependencies"] = json.loads(
+            run(
+                [
+                    "docker",
+                    "run",
+                    "--rm",
+                    "--read-only",
+                    image_id,
+                    "python",
+                    "/usr/local/bin/check-controlplane-dependencies.py",
+                ]
+            )
+        )
+        record("runtime dependency isolation and required SDKs")
+        migration_id = image_id
+        if migration_image:
+            if build:
+                run(
+                    [
+                        "docker",
+                        "build",
+                        "-f",
+                        str(ROOT / "docker/controlplane-migrate/Dockerfile"),
+                        "--build-arg",
+                        "SOURCE_REVISION=" + report["source_revision"],
+                        "-t",
+                        migration_image,
+                        str(ROOT),
+                    ],
+                    timeout=1800,
+                )
+            migration_id = run(
+                ["docker", "image", "inspect", "--format", "{{.Id}}", migration_image]
+            )
+            migration_label = run(
+                [
+                    "docker",
+                    "image",
+                    "inspect",
+                    "--format",
+                    '{{index .Config.Labels "org.opencontainers.image.revision"}}',
+                    migration_id,
+                ]
+            )
+            if migration_label != report["source_revision"]:
+                raise RuntimeError(
+                    "migration image source revision does not match the clean checkout"
+                )
+            run(
+                [
+                    "docker",
+                    "run",
+                    "--rm",
+                    "--read-only",
+                    migration_id,
+                    "python",
+                    "-m",
+                    "pip",
+                    "check",
+                ]
+            )
+            record("migration runtime pip check and source identity")
+        report["migration_image_id"] = migration_id
         run(["docker", "network", "create", "--internal", network])
         network_created = True
         password = secrets.token_hex(24)
@@ -171,7 +238,7 @@ current-context: smoke
                     "run",
                     "--rm",
                     *common,
-                    image_id,
+                    migration_id,
                     "python",
                     "-m",
                     "controlplane.persistence.migrate",
@@ -406,10 +473,13 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--image", default="mlp-controlplane:release-check")
     parser.add_argument("--postgres-image", default="postgres:17-bookworm")
+    parser.add_argument(
+        "--migration-image", help="Dedicated image built from the same source revision"
+    )
     parser.add_argument("--out", type=Path, required=True)
     parser.add_argument("--build", action="store_true")
     args = parser.parse_args()
-    check(args.image, args.postgres_image, args.out, args.build)
+    check(args.image, args.postgres_image, args.out, args.build, args.migration_image)
 
 
 if __name__ == "__main__":

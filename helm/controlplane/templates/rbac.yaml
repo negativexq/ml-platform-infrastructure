@@ -65,7 +65,7 @@ rules:
     verbs: [get, list, create, patch, update, delete]
   - apiGroups: [rbac.authorization.k8s.io]
     resources: [clusterroles]
-    resourceNames: [{{ printf "%s-%s-project-secrets" .Release.Namespace $name | quote }}, {{ printf "%s-%s-project-workload-reader" .Release.Namespace $name | quote }}]
+    resourceNames: [{{ printf "%s-%s-project-secrets" .Release.Namespace $name | quote }}, {{ printf "%s-%s-project-workload-reader" .Release.Namespace $name | quote }}{{ if .Values.logStreaming.enabled }}, {{ printf "%s-%s-project-logs" .Release.Namespace $name | quote }}{{ end }}]
     verbs: [bind]
   - apiGroups: [argoproj.io]
     resources: [workflowtaskresults]

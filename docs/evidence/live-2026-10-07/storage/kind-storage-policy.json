@@ -1,0 +1,67 @@
+{
+  "scope": "single-node ARM64 kind / Kubernetes 1.32; configuration application, not natural six-hour expiry",
+  "applied": {
+    "cluster": "mlp-acceptance",
+    "host_free_bytes": 17919782912,
+    "host_low_space": false,
+    "nodes": [
+      {
+        "node": "mlp-acceptance-control-plane",
+        "changed": true,
+        "policy_active": true,
+        "effective": {
+          "imageGCHighThresholdPercent": 80,
+          "imageGCLowThresholdPercent": 70,
+          "imageMinimumGCAge": "2m0s",
+          "imageMaximumGCAge": "6h0m0s",
+          "containerLogMaxSize": "10Mi",
+          "containerLogMaxFiles": 3
+        }
+      }
+    ]
+  },
+  "reapply": {
+    "cluster": "mlp-acceptance",
+    "host_free_bytes": 17897578496,
+    "host_low_space": false,
+    "nodes": [
+      {
+        "node": "mlp-acceptance-control-plane",
+        "changed": false,
+        "policy_active": true,
+        "effective": {
+          "imageGCHighThresholdPercent": 80,
+          "imageGCLowThresholdPercent": 70,
+          "imageMinimumGCAge": "2m0s",
+          "imageMaximumGCAge": "6h0m0s",
+          "containerLogMaxSize": "10Mi",
+          "containerLogMaxFiles": 3
+        }
+      }
+    ]
+  },
+  "natural_age_expiry_observed": false,
+  "log_rotation_drill_completed": false,
+  "components": [
+    {
+      "name": "acceptance-postgres",
+      "ready": 1,
+      "desired": 1
+    },
+    {
+      "name": "mlp-controlplane-api",
+      "ready": 2,
+      "desired": 2
+    },
+    {
+      "name": "mlp-controlplane-gateway",
+      "ready": 2,
+      "desired": 2
+    },
+    {
+      "name": "mlp-controlplane-reconciler",
+      "ready": 2,
+      "desired": 2
+    }
+  ]
+}
