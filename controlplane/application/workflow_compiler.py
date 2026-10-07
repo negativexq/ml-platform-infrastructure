@@ -13,6 +13,7 @@ from controlplane.domain.entities import (
     Project,
     Run,
 )
+from controlplane.domain.parameters import encode, project_values
 
 LABEL_RUN_ID = "mlp.io/run-id"
 LABEL_JOB = "mlp.io/job"
@@ -36,7 +37,14 @@ def compile_job_run(project: Project, job: JobDefinition, run: Run) -> WorkflowS
                 name=MAIN_STEP,
                 image=job.image,
                 command=job.command,
-                env=dict(job.env),
+                env={
+                    **job.env,
+                    **(
+                        {"MLP_PARAMETERS": encode(dict(run.parameters))}
+                        if job.parameter_schema
+                        else {}
+                    ),
+                },
                 secret_refs=job.secret_refs,
                 resources=dict(job.resources),
             ),
@@ -102,7 +110,13 @@ def compile_pipeline_run(
                 name=name,
                 image=job.image,
                 command=job.command,
-                env={**job.env, **base, "MLP_STEP": name, "MLP_IMAGE": job.image},
+                env={
+                    **job.env,
+                    **base,
+                    "MLP_STEP": name,
+                    "MLP_IMAGE": job.image,
+                    "MLP_PARAMETERS": encode(project_values(job.parameter_schema, run.parameters)),
+                },
                 resources=dict(job.resources),
                 secret_refs=job.secret_refs,
                 depends_on=spec.depends_on,

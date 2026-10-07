@@ -10,6 +10,11 @@ image gate at `b7a3420`. Historical counts retain their original scope.
   creation, bounded queues, concurrency scopes, timezone/DST and UI history. Schema `0022`.
   See the [contract](scheduling.md) for policy boundaries and validation scope.
 
+- Run Parameters adds immutable Job/Pipeline schemas, typed validation/defaults,
+  persisted execution snapshots, retry/idempotency and scheduled date/time bindings.
+  Head `0023`; local acceptance revision 31 and all 12 image gates passed.
+  [Contract](run-parameters.md) and [validation scope](evidence/live-2026-10-08/run-parameters/README.md).
+
 - Bottleneck telemetry now wires gateway native HTTP/outbound HTTPX spans and reconciler
   SQL tracing, including stored-origin context for DB spans. SQLAlchemy 2.0 pin fixes the
   instrumentor incompatibility with 2.1. DB acquisition/query/transaction-lifetime metrics,

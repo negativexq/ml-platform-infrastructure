@@ -196,6 +196,7 @@ def _job(row: JobDefinitionRow) -> JobDefinition:
         env=dict(row.env),
         timeout_seconds=row.timeout_seconds,
         secret_refs=SecretRefs.from_json(row.secret_refs),
+        parameter_schema=dict(row.parameter_schema),
         created_at=row.created_at,
     )
 
@@ -214,6 +215,7 @@ def _run(row: RunRow) -> Run:
         idempotency_key=row.idempotency_key,
         traceparent=row.traceparent,
         timeout_seconds=row.timeout_seconds,
+        parameters=dict(row.parameters),
         created_at=row.created_at,
         updated_at=row.updated_at,
         started_at=row.started_at,
@@ -247,6 +249,7 @@ class SqlJobs:
                 env=dict(job.env),
                 timeout_seconds=job.timeout_seconds,
                 secret_refs=job.secret_refs.to_json(),
+                parameter_schema=dict(job.parameter_schema),
                 created_at=job.created_at,
             )
         )
@@ -292,6 +295,7 @@ class SqlRuns:
                 idempotency_key=run.idempotency_key,
                 traceparent=run.traceparent,
                 timeout_seconds=run.timeout_seconds,
+                parameters=dict(run.parameters),
                 created_at=run.created_at,
                 updated_at=run.updated_at,
                 started_at=run.started_at,
@@ -399,6 +403,7 @@ def _definition(row: PipelineDefinitionRow) -> PipelineDefinition:
             StepSpec(name=d["name"], job=d["job"], depends_on=tuple(d["depends_on"]))
             for d in row.steps
         ),
+        parameter_schema=dict(row.parameter_schema),
         created_at=row.created_at,
     )
 
@@ -416,6 +421,7 @@ def _pipeline_run(row: PipelineRunRow) -> PipelineRun:
         idempotency_key=row.idempotency_key,
         traceparent=row.traceparent,
         timeout_seconds=row.timeout_seconds,
+        parameters=dict(row.parameters),
         created_at=row.created_at,
         updated_at=row.updated_at,
         started_at=row.started_at,
@@ -456,6 +462,7 @@ class SqlPipelines:
                     {"name": st.name, "job": st.job, "depends_on": list(st.depends_on)}
                     for st in definition.steps
                 ],
+                parameter_schema=dict(definition.parameter_schema),
                 created_at=definition.created_at,
             )
         )
@@ -506,6 +513,7 @@ class SqlPipelineRuns:
                 idempotency_key=run.idempotency_key,
                 traceparent=run.traceparent,
                 timeout_seconds=run.timeout_seconds,
+                parameters=dict(run.parameters),
                 created_at=run.created_at,
                 updated_at=run.updated_at,
                 started_at=run.started_at,

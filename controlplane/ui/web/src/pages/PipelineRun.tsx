@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useRunLogs } from '../lib/logs';
 import { api, enc, type S } from '../api/client';
-import { Alert, Badge, CopyButton, Table, Time } from '../components/bits';
+import { Alert, Badge, CopyButton, Kv as ParameterKv, Table, Time } from '../components/bits';
 import { Dag } from '../components/Dag';
 import { niceTicks, statusOf, Tooltip, useTip, useWidth } from '../components/charts/base';
 import { Logs } from '../components/Logs';
@@ -41,7 +41,7 @@ export function PipelineRunPage({ project, id }: { project: string; id: string }
   async function rerun(r: S['PipelineRunOut']) {
     try {
       const again = await api.post<S['PipelineRunOut']>(
-        `/projects/${enc(project)}/pipelines/${enc(r.pipeline)}/runs?version=${r.pipeline_version}`, r.commit_sha ? { commit_sha: r.commit_sha } : {});
+        `/projects/${enc(project)}/pipelines/${enc(r.pipeline)}/runs?version=${r.pipeline_version}`, { commit_sha: r.commit_sha, parameters: r.parameters ?? {} });
       toast('New run started');
       go(routes.pipelineRun(project, again.id));
     } catch (error) { toast(error instanceof Error ? error.message : 'Could not start the run', 'bad'); }
@@ -68,6 +68,7 @@ export function PipelineRunPage({ project, id }: { project: string; id: string }
               </div>
             </div>
             <RunScheduleOrigin kind="pipeline-runs" id={id} />
+            {Object.keys(r.parameters ?? {}).length > 0 && <div className="section card" data-testid="execution-parameters"><h2>Execution parameters</h2><ParameterKv entries={Object.entries(r.parameters ?? {}).map(([key, value]) => [key, typeof value === 'string' ? value : JSON.stringify(value)])} /></div>}
             <p className="sub meta">
               <span className="mono" title={r.id}>{shortId(r.id)}</span><CopyButton text={r.id} what="run id" />
               <span>{'Started '}<Time iso={r.started_at || r.created_at} /></span><span>{`Took ${fmtDuration(r.duration_seconds)}`}</span>

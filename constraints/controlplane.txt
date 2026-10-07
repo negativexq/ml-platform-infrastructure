@@ -31,6 +31,8 @@ httptools==0.8.0
 httpx==0.28.1
 idna==3.20
 importlib-metadata==9.0.1
+jsonschema==4.26.0
+jsonschema-specifications==2025.9.1
 kubernetes==36.0.3
 mako==1.4.3
 markupsafe==3.0.3
@@ -64,8 +66,10 @@ pyjwt==2.15.1
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.4
 pyyaml==6.0.3
+referencing==0.37.0
 requests==2.34.2
 requests-oauthlib==2.0.0
+rpds-py==2026.9.1
 six==1.17.0
 smmap==5.0.3
 sqlalchemy==2.0.54

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -19,6 +20,8 @@ class StepIn(BaseModel):
 
 
 class PipelineCreate(BaseModel):
+    parameter_schema: dict[str, Any] = Field(default_factory=dict)
+
     model_config = ConfigDict(extra="forbid")
 
     name: str
@@ -32,6 +35,8 @@ class StepDefOut(BaseModel):
 
 
 class PipelineOut(BaseModel):
+    parameter_schema: dict[str, Any] = Field(default_factory=dict)
+
     id: UUID
     project_id: UUID
     name: str
@@ -46,6 +51,7 @@ class PipelineOut(BaseModel):
             project_id=d.project_id,
             name=d.name,
             version=d.version,
+            parameter_schema=dict(d.parameter_schema),
             steps=[
                 StepDefOut(name=s.name, job=s.job, depends_on=list(s.depends_on)) for s in d.steps
             ],
@@ -58,6 +64,8 @@ class PipelineList(BaseModel):
 
 
 class PipelineRunCreate(BaseModel):
+    parameters: dict[str, Any] = Field(default_factory=dict)
+
     model_config = ConfigDict(extra="forbid")
 
     commit_sha: str | None = Field(default=None, max_length=64)
@@ -89,6 +97,8 @@ class StepRunOut(BaseModel):
 
 
 class PipelineRunSummary(BaseModel):
+    parameters: dict[str, Any] = Field(default_factory=dict)
+
     """Omits the workflow system's references: the platform id is the only identity."""
 
     id: UUID
@@ -123,6 +133,7 @@ class PipelineRunSummary(BaseModel):
             timeout_seconds=run.timeout_seconds,
             workflow_cleaned_at=run.workflow_cleaned_at,
             commit_sha=run.commit_sha,
+            parameters=dict(run.parameters),
             created_at=run.created_at,
             started_at=run.started_at,
             finished_at=run.finished_at,

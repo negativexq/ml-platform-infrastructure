@@ -1,6 +1,7 @@
 from __future__ import annotations
 
-from collections.abc import Collection, Sequence
+from collections.abc import Collection, Mapping, Sequence
+from typing import Any
 from uuid import UUID
 
 from controlplane.application.context import current_traceparent
@@ -11,6 +12,7 @@ from controlplane.application.projects import Clock, UnitOfWorkFactory, utc_now
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import Run, validate_timeout
 from controlplane.domain.errors import AlreadyExists, Conflict, NotFound
+from controlplane.domain.parameters import fingerprint, resolve
 from controlplane.domain.states import ProjectStatus, RunStatus
 
 
@@ -42,11 +44,14 @@ class RunService:
         idempotency_key: str | None = None,
         retry_of: UUID | None = None,
         timeout_seconds: int | None = None,
+        parameters: Mapping[str, Any] | None = None,
     ) -> tuple[Run, bool]:
         """Returns `(run, created)`. The same `idempotency_key` for the same job
         returns the original run instead of creating a second workload."""
         try:
-            return self._create(project_ref, job_name, idempotency_key, retry_of, timeout_seconds)
+            return self._create(
+                project_ref, job_name, idempotency_key, retry_of, timeout_seconds, parameters
+            )
         except AlreadyExists:  # lost a race on the idempotency key: replay the winner
             with self._uow_factory() as uow:
                 project = resolve_project(uow, project_ref)
@@ -61,6 +66,8 @@ class RunService:
                 job.timeout_seconds if timeout_seconds is None else timeout_seconds
             ):
                 raise Conflict("idempotency key was used with a different timeout") from None
+            if existing.parameters != resolve(job.parameter_schema, parameters):
+                raise Conflict("idempotency key was used with different parameters") from None
             if existing.retry_of != retry_of:
                 raise Conflict("idempotency key was used for a different retry parent") from None
             return existing, False
@@ -72,9 +79,12 @@ class RunService:
         key: str | None,
         retry_of: UUID | None,
         timeout_seconds: int | None,
+        parameters: Mapping[str, Any] | None = None,
     ) -> tuple[Run, bool]:
         with self._uow_factory() as uow:
-            result = self.create_in_uow(uow, project_ref, job_name, key, retry_of, timeout_seconds)
+            result = self.create_in_uow(
+                uow, project_ref, job_name, key, retry_of, timeout_seconds, parameters
+            )
             uow.commit()
             return result
 
@@ -86,6 +96,7 @@ class RunService:
         key: str | None,
         retry_of: UUID | None,
         timeout_seconds: int | None,
+        parameters: Mapping[str, Any] | None = None,
     ) -> tuple[Run, bool]:
         project = resolve_project(uow, project_ref)
         job = uow.jobs.get_by_name(project.id, job_name)
@@ -94,6 +105,7 @@ class RunService:
         timeout = validate_timeout(
             job.timeout_seconds if timeout_seconds is None else timeout_seconds
         )
+        resolved = resolve(job.parameter_schema, parameters)
         if key is not None:
             existing = uow.runs.get_by_idempotency_key(project.id, key)
             if existing is not None:
@@ -101,6 +113,8 @@ class RunService:
                     raise Conflict(f"idempotency key {key!r} was used for a different job")
                 if existing.timeout_seconds != timeout:
                     raise Conflict("idempotency key was used with a different timeout") from None
+                if existing.parameters != resolved:
+                    raise Conflict("idempotency key was used with different parameters")
                 if existing.retry_of != retry_of:
                     raise Conflict(
                         "idempotency key was used for a different retry parent"
@@ -114,6 +128,7 @@ class RunService:
         run = Run(
             project_id=project.id,
             job_definition_id=job.id,
+            parameters=resolved,
             retry_of=retry_of,
             timeout_seconds=timeout,
             idempotency_key=key,
@@ -123,7 +138,13 @@ class RunService:
         )
         uow.runs.add(run)
         uow.audit.record(
-            _audit(run, "run.created", job=job.name, retry_of=str(retry_of) if retry_of else None)
+            _audit(
+                run,
+                "run.created",
+                job=job.name,
+                retry_of=str(retry_of) if retry_of else None,
+                parameters_sha256=fingerprint(resolved),
+            )
         )
         return run, True
 
@@ -175,6 +196,7 @@ class RunService:
             str(project.id),
             job.name,
             idempotency_key=idempotency_key,
+            parameters=original.parameters,
             retry_of=original.id,
             timeout_seconds=original.timeout_seconds,
         )

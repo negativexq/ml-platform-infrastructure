@@ -70,6 +70,9 @@ class JobDefinitionRow(Base):
     env: Mapped[dict[str, str]] = mapped_column(JSONB, nullable=False)
     timeout_seconds: Mapped[int] = mapped_column(Integer, nullable=False, server_default="3600")
     secret_refs: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, server_default="{}")
+    parameter_schema: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, server_default="{}"
+    )
     created_at: Mapped[datetime] = _ts()
 
 
@@ -95,6 +98,7 @@ class RunRow(Base):
     idempotency_key: Mapped[str | None] = mapped_column(String(200))
     traceparent: Mapped[str | None] = mapped_column(String(128))
     timeout_seconds: Mapped[int] = mapped_column(Integer, nullable=False, server_default="3600")
+    parameters: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, server_default="{}")
     created_at: Mapped[datetime] = _ts()
     updated_at: Mapped[datetime] = _ts()
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
@@ -113,6 +117,9 @@ class PipelineDefinitionRow(Base):
     name: Mapped[str] = mapped_column(String(40), nullable=False)
     version: Mapped[int] = mapped_column(Integer, nullable=False)
     steps: Mapped[list[dict[str, Any]]] = mapped_column(JSONB, nullable=False)
+    parameter_schema: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, server_default="{}"
+    )
     created_at: Mapped[datetime] = _ts()
 
 
@@ -141,6 +148,7 @@ class PipelineRunRow(Base):
     idempotency_key: Mapped[str | None] = mapped_column(String(200))
     traceparent: Mapped[str | None] = mapped_column(String(128))
     timeout_seconds: Mapped[int] = mapped_column(Integer, nullable=False, server_default="3600")
+    parameters: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, server_default="{}")
     created_at: Mapped[datetime] = _ts()
     updated_at: Mapped[datetime] = _ts()
     started_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))

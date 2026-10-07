@@ -1622,6 +1622,10 @@ export interface components {
             id: string;
             /** Job Run Id */
             job_run_id: string | null;
+            /** Parameters */
+            parameters?: {
+                [key: string]: unknown;
+            };
             /** Pipeline Run Id */
             pipeline_run_id: string | null;
             /**
@@ -1847,6 +1851,10 @@ export interface components {
             image: string;
             /** Name */
             name: string;
+            /** Parameter Schema */
+            parameter_schema?: {
+                [key: string]: unknown;
+            };
             /**
              * Resources
              * @example {
@@ -1891,6 +1899,10 @@ export interface components {
             image: string;
             /** Name */
             name: string;
+            /** Parameter Schema */
+            parameter_schema?: {
+                [key: string]: unknown;
+            };
             /**
              * Project Id
              * Format: uuid
@@ -2252,6 +2264,10 @@ export interface components {
         PipelineCreate: {
             /** Name */
             name: string;
+            /** Parameter Schema */
+            parameter_schema?: {
+                [key: string]: unknown;
+            };
             /** Steps */
             steps: components["schemas"]["StepIn"][];
         };
@@ -2274,6 +2290,10 @@ export interface components {
             id: string;
             /** Name */
             name: string;
+            /** Parameter Schema */
+            parameter_schema?: {
+                [key: string]: unknown;
+            };
             /**
              * Project Id
              * Format: uuid
@@ -2288,6 +2308,10 @@ export interface components {
         PipelineRunCreate: {
             /** Commit Sha */
             commit_sha?: string | null;
+            /** Parameters */
+            parameters?: {
+                [key: string]: unknown;
+            };
             /**
              * Timeout Seconds
              * @default 3600
@@ -2323,6 +2347,10 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /** Parameters */
+            parameters?: {
+                [key: string]: unknown;
+            };
             /** Pipeline */
             pipeline: string;
             /**
@@ -2349,10 +2377,7 @@ export interface components {
             /** Workflow Cleaned At */
             workflow_cleaned_at: string | null;
         };
-        /**
-         * PipelineRunSummary
-         * @description Omits the workflow system's references: the platform id is the only identity.
-         */
+        /** PipelineRunSummary */
         PipelineRunSummary: {
             /** Cancel Requested */
             cancel_requested: boolean;
@@ -2372,6 +2397,10 @@ export interface components {
              * Format: uuid
              */
             id: string;
+            /** Parameters */
+            parameters?: {
+                [key: string]: unknown;
+            };
             /** Pipeline */
             pipeline?: string | null;
             /**
@@ -2707,6 +2736,10 @@ export interface components {
         RolloutStatus: "PENDING" | "PROGRESSING" | "SUCCEEDED" | "ROLLED_BACK";
         /** RunCreate */
         RunCreate: {
+            /** Parameters */
+            parameters?: {
+                [key: string]: unknown;
+            };
             /** Timeout Seconds */
             timeout_seconds?: number | null;
         };
@@ -2719,11 +2752,7 @@ export interface components {
             /** Offset */
             offset: number;
         };
-        /**
-         * RunOut
-         * @description Deliberately omits the workflow system's references (workflow uid, pod
-         *     name, namespace): the platform id is the only identity users deal with.
-         */
+        /** RunOut */
         RunOut: {
             /** Cancel Requested */
             cancel_requested: boolean;
@@ -2750,6 +2779,10 @@ export interface components {
              * Format: uuid
              */
             job_id: string;
+            /** Parameters */
+            parameters?: {
+                [key: string]: unknown;
+            };
             /**
              * Project Id
              * Format: uuid
@@ -2815,6 +2848,14 @@ export interface components {
             missed_run_policy: components["schemas"]["MissedRunPolicy"];
             /** Name */
             name: string;
+            /** Parameter Bindings */
+            parameter_bindings?: {
+                [key: string]: string;
+            };
+            /** Parameters */
+            parameters?: {
+                [key: string]: unknown;
+            };
             /**
              * Paused
              * @default false
@@ -2892,6 +2933,14 @@ export interface components {
              * Format: date-time
              */
             next_run_at: string;
+            /** Parameter Bindings */
+            parameter_bindings?: {
+                [key: string]: string;
+            };
+            /** Parameters */
+            parameters?: {
+                [key: string]: unknown;
+            };
             /**
              * Paused
              * @default false
@@ -2957,6 +3006,14 @@ export interface components {
             /** Max Queue Size */
             max_queue_size?: number | null;
             missed_run_policy?: components["schemas"]["MissedRunPolicy"] | null;
+            /** Parameter Bindings */
+            parameter_bindings?: {
+                [key: string]: string;
+            } | null;
+            /** Parameters */
+            parameters?: {
+                [key: string]: unknown;
+            } | null;
             /** Paused */
             paused?: boolean | null;
             /** Queue Ttl Seconds */

@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from collections.abc import Sequence
+from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from typing import Any
 
 from controlplane.application.identity import current_actor
 from controlplane.application.jobs import resolve_project
@@ -22,6 +23,7 @@ class StepInput:
 class CreatePipeline:
     name: str
     steps: Sequence[StepInput] = field(default_factory=tuple)
+    parameter_schema: Mapping[str, Any] = field(default_factory=dict)
 
 
 class PipelineService:
@@ -49,6 +51,7 @@ class PipelineService:
                 name=cmd.name,
                 version=1 if latest is None else latest.version + 1,
                 steps=steps,
+                parameter_schema=cmd.parameter_schema,
                 now=self._clock(),
             )
             if latest is not None and latest.same_content(definition):

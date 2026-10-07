@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from collections.abc import Mapping, Sequence
 from dataclasses import dataclass, field
+from typing import Any
 from uuid import UUID
 
 from controlplane.application.identity import current_actor
@@ -23,6 +24,7 @@ class CreateJob:
     resources: Mapping[str, str] = field(default_factory=dict)
     env: Mapping[str, str] = field(default_factory=dict)
     secret_refs: SecretRefs = field(default_factory=SecretRefs)
+    parameter_schema: Mapping[str, Any] = field(default_factory=dict)
     timeout_seconds: int = 3600
 
 
@@ -80,6 +82,7 @@ class JobService:
                     now=self._clock(),
                     timeout_seconds=cmd.timeout_seconds,
                     secret_refs=cmd.secret_refs,
+                    parameter_schema=cmd.parameter_schema,
                 )
                 existing = uow.jobs.get_by_name(project.id, candidate.name)
                 if existing is None:
@@ -116,6 +119,7 @@ class JobService:
         )
         same = same and existing.timeout_seconds == candidate.timeout_seconds
         same = same and existing.secret_refs == candidate.secret_refs
+        same = same and existing.parameter_schema == candidate.parameter_schema
         if not same:
             raise Conflict(
                 f"job {candidate.name!r} already exists with a different definition; "

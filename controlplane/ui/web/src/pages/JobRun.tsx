@@ -1,6 +1,6 @@
 import { RunScheduleOrigin } from './Schedules';
 import { api, type S } from '../api/client';
-import { Alert, Badge, CopyButton, Time } from '../components/bits';
+import { Alert, Badge, CopyButton, Kv, Time } from '../components/bits';
 import { Logs } from '../components/Logs';
 import { useRunLogs } from '../lib/logs';
 import { useOverlays } from '../components/overlays';
@@ -45,6 +45,7 @@ export function JobRunPage({ project, id }: { project: string; id: string }) {
             </div>
           </div>
           <RunScheduleOrigin kind="runs" id={id} />
+            {Object.keys(r.parameters ?? {}).length > 0 && <div className="section card" data-testid="execution-parameters"><h2>Execution parameters</h2><Kv entries={Object.entries(r.parameters ?? {}).map(([key, value]) => [key, typeof value === 'string' ? value : JSON.stringify(value)])} /></div>}
           <p className="sub meta">
             <span className="mono" title={r.id}>{shortId(r.id)}</span><CopyButton text={r.id} what="run id" />
             <span>{'Started '}<Time iso={r.started_at || r.created_at} /></span><span>{`Took ${fmtDuration(r.duration_seconds)}`}</span>

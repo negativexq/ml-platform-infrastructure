@@ -23,6 +23,7 @@ from controlplane.domain.entities import (
     validate_timeout,
 )
 from controlplane.domain.errors import Conflict, InvalidArgument, NotFound
+from controlplane.domain.parameters import fingerprint, project_values, resolve, scheduled_values
 from controlplane.domain.schedules import (
     ConcurrencyPolicy,
     ExecutionStatus,
@@ -71,6 +72,31 @@ def resolve_definition(
     )
 
 
+def occurrence_parameters(
+    uow: UnitOfWork,
+    schedule: Schedule,
+    definition: JobDefinition | PipelineDefinition,
+    at: datetime,
+) -> dict[str, Any]:
+    values = resolve(
+        definition.parameter_schema,
+        scheduled_values(schedule.parameters, schedule.parameter_bindings, at, schedule.timezone),
+    )
+    if isinstance(definition, PipelineDefinition):
+        for step in definition.steps:
+            job = uow.jobs.get_by_name(schedule.project_id, step.job)
+            if job is None:
+                raise InvalidArgument("pipeline job unavailable")
+            project_values(job.parameter_schema, values)
+    return values
+
+
+def audit_configuration(values: dict[str, Any]) -> dict[str, Any]:
+    return {
+        key: (fingerprint(value) if key == "parameters" else value) for key, value in values.items()
+    }
+
+
 class ScheduleService:
     def __init__(self, uow_factory: UnitOfWorkFactory, clock: Clock = utc_now) -> None:
         self.uow_factory, self.clock = uow_factory, clock
@@ -91,7 +117,12 @@ class ScheduleService:
             self.validate(uow, entity)
             uow.schedules.add(entity)
             audit(
-                uow, entity, "schedule.created", now, revision=entity.revision, configuration=spec
+                uow,
+                entity,
+                "schedule.created",
+                now,
+                revision=entity.revision,
+                configuration=audit_configuration(spec),
             )
             uow.commit()
             return entity
@@ -117,8 +148,10 @@ class ScheduleService:
             entity.version is not None or entity.version_policy != VersionPolicy.PINNED
         ):
             raise InvalidArgument("jobs are immutable; use PINNED without a version")
-        if resolve_definition(uow, entity) is None:
+        definition = resolve_definition(uow, entity)
+        if definition is None:
             raise NotFound(entity.target_kind.value.lower(), entity.target_name)
+        occurrence_parameters(uow, entity, definition, entity.next_run_at)
 
     def get(self, id: UUID) -> Schedule:
         with self.uow_factory() as uow:
@@ -154,6 +187,8 @@ class ScheduleService:
                 "max_queue_size",
                 "timeout_seconds",
                 "paused",
+                "parameters",
+                "parameter_bindings",
             }
             if set(changes) - allowed:
                 raise InvalidArgument("schedule identity and target cannot be changed")
@@ -170,7 +205,7 @@ class ScheduleService:
                 "schedule.updated",
                 now,
                 revision=updated.revision,
-                changes=changes,
+                changes=audit_configuration(changes),
             )
             uow.commit()
             return updated
@@ -230,7 +265,15 @@ class ScheduleDispatcher:
                         schedule = replace(schedule, next_run_at=following, updated_at=now)
                         continue
                     definition = resolve_definition(uow, schedule)
+                    parameter_error = False
+                    parameters = {}
+                    if definition is not None:
+                        try:
+                            parameters = occurrence_parameters(uow, schedule, definition, at)
+                        except InvalidArgument:
+                            parameter_error = True
                     entity = ScheduleExecution(
+                        parameters=parameters,
                         schedule_id=schedule.id,
                         project_id=schedule.project_id,
                         scheduled_for_utc=at,
@@ -256,6 +299,12 @@ class ScheduleDispatcher:
                             entity,
                             status=ExecutionStatus.MISSED,
                             reason="superseded by a newer occurrence",
+                        )
+                    elif parameter_error:
+                        entity = replace(
+                            entity,
+                            status=ExecutionStatus.MISSED,
+                            reason="parameter validation failed for resolved definition",
                         )
                     elif definition is None:
                         entity = replace(
@@ -329,6 +378,7 @@ class ScheduleDispatcher:
                 None,
                 key,
                 entity.timeout_seconds,
+                entity.parameters,
             )
             updated = replace(
                 entity,
@@ -344,7 +394,7 @@ class ScheduleDispatcher:
                     uow, entity, ExecutionStatus.MISSED, "frozen definition unavailable", now
                 )
             run, _ = RunService(self.uow_factory, lambda: now).create_in_uow(
-                uow, project.name, job.name, key, None, entity.timeout_seconds
+                uow, project.name, job.name, key, None, entity.timeout_seconds, entity.parameters
             )
             updated = replace(
                 entity,

@@ -41,6 +41,7 @@ to the 2026-10-06 evidence.
 | --- | --- |
 | **Projects and access** | Projects with their own namespace and quota. OIDC sign-in for the browser (server-side PKCE, signed session cookie) and for bearer tokens. Project roles (`invoker` < `viewer` < `operator` < `admin`) for users and groups, plus platform admins. A fail-closed policy table and an audit trail |
 | **Scheduling** | Job/Pipeline cron schedules with timezone/DST, pause/resume, bounded queues, concurrency scopes, missed-run policy and execution/run history. [P0 contract](scheduling.md); backfill and batch inference remain future work |
+| **Run parameters** | Immutable schemas, validation/defaults, persisted snapshots, retry/idempotency, per-step container parameters and schedule bindings. [Contract](run-parameters.md) |
 | **Training** | Jobs and pipeline DAGs on Argo Workflows. Retry, cancel and logs; step timelines and failure reasons. Lineage from a run to the model versions it produced |
 | **Models** | Versions from the MLflow registry (including discovery after successful pipelines), or full-commit-pinned LLM versions from the Hugging Face Hub. Thresholds and evaluation, promotion to champion, registry aliases kept in sync |
 | **Serving** | Immutable revisions. Canary rollouts with gates (error rate, p95, minimum traffic) that roll back automatically. Manual rollback. Metrics and trends per revision |

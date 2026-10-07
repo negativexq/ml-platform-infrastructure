@@ -12,12 +12,13 @@ from dataclasses import dataclass, field, replace
 from datetime import datetime
 from decimal import Decimal
 from enum import StrEnum
-from typing import Self
+from typing import Any, Self
 from uuid import UUID
 
 from controlplane.domain import states
 from controlplane.domain.errors import InvalidArgument
 from controlplane.domain.ids import new_id
+from controlplane.domain.parameters import validate_schema
 from controlplane.domain.secrets import SecretRefs
 from controlplane.domain.states import (
     DeploymentStatus,
@@ -139,6 +140,7 @@ class JobDefinition:
     env: Mapping[str, str] = field(default_factory=dict)
     timeout_seconds: int = 3600
     secret_refs: SecretRefs = field(default_factory=SecretRefs)
+    parameter_schema: Mapping[str, Any] = field(default_factory=dict)
     created_at: datetime
 
     @classmethod
@@ -154,6 +156,7 @@ class JobDefinition:
         now: datetime,
         timeout_seconds: int = 3600,
         secret_refs: SecretRefs | None = None,
+        parameter_schema: Mapping[str, Any] | None = None,
     ) -> Self:
         validate_slug(name, "job name")
         if not image.strip() or any(c.isspace() for c in image):
@@ -177,6 +180,7 @@ class JobDefinition:
             env=dict(env),
             timeout_seconds=validate_timeout(timeout_seconds),
             secret_refs=secret_refs or SecretRefs(),
+            parameter_schema=validate_schema(parameter_schema or {}),
             created_at=now,
         )
 
@@ -239,6 +243,7 @@ class PipelineDefinition:
     name: str
     version: int
     steps: tuple[StepSpec, ...]
+    parameter_schema: Mapping[str, Any] = field(default_factory=dict)
     created_at: datetime
 
     @classmethod
@@ -250,17 +255,25 @@ class PipelineDefinition:
         version: int,
         steps: tuple[StepSpec, ...],
         now: datetime,
+        parameter_schema: Mapping[str, Any] | None = None,
     ) -> Self:
         validate_slug(name, "pipeline name")
         validate_dag(steps)
-        return cls(project_id=project_id, name=name, version=version, steps=steps, created_at=now)
+        return cls(
+            project_id=project_id,
+            name=name,
+            version=version,
+            steps=steps,
+            parameter_schema=validate_schema(parameter_schema or {}),
+            created_at=now,
+        )
 
     @property
     def execution_order(self) -> tuple[str, ...]:
         return validate_dag(self.steps)
 
     def same_content(self, other: PipelineDefinition) -> bool:
-        return self.steps == other.steps
+        return self.steps == other.steps and self.parameter_schema == other.parameter_schema
 
 
 @dataclass(frozen=True, slots=True, kw_only=True)
@@ -276,6 +289,7 @@ class PipelineRun:
     idempotency_key: str | None = None
     timeout_seconds: int = 3600
     traceparent: str | None = None
+    parameters: Mapping[str, Any] = field(default_factory=dict)
     created_at: datetime
     updated_at: datetime
     started_at: datetime | None = None
@@ -337,6 +351,7 @@ class Run:
     idempotency_key: str | None = None
     timeout_seconds: int = 3600
     traceparent: str | None = None
+    parameters: Mapping[str, Any] = field(default_factory=dict)
     created_at: datetime
     updated_at: datetime
     started_at: datetime | None = None

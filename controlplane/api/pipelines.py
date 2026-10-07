@@ -68,6 +68,7 @@ def pipelines_router() -> APIRouter:
             project,
             CreatePipeline(
                 name=body.name,
+                parameter_schema=body.parameter_schema,
                 steps=[StepInput(s.name, s.job, tuple(s.depends_on)) for s in body.steps],
             ),
         )
@@ -123,6 +124,7 @@ def pipelines_router() -> APIRouter:
             name,
             version=version,
             commit_sha=body.commit_sha if body else None,
+            parameters=body.parameters if body else None,
             timeout_seconds=body.timeout_seconds if body else 3600,
             idempotency_key=idempotency_key,
         )

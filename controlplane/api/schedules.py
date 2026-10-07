@@ -1,6 +1,6 @@
 from dataclasses import asdict
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Any
 from uuid import UUID
 
 from fastapi import APIRouter, Query, Request, status
@@ -41,6 +41,8 @@ class ScheduleCreate(BaseModel):
     queue_ttl_seconds: int = Field(default=86400, ge=1, le=604800)
     max_queue_size: int = Field(default=100, ge=1, le=1000)
     timeout_seconds: int = Field(default=3600, ge=1, le=604800)
+    parameters: dict[str, Any] = Field(default_factory=dict)
+    parameter_bindings: dict[str, str] = Field(default_factory=dict)
     paused: bool = False
 
 
@@ -58,10 +60,13 @@ class ScheduleUpdate(BaseModel):
     queue_ttl_seconds: int | None = Field(default=None, ge=1, le=604800)
     max_queue_size: int | None = Field(default=None, ge=1, le=1000)
     timeout_seconds: int | None = Field(default=None, ge=1, le=604800)
+    parameters: dict[str, Any] | None = None
+    parameter_bindings: dict[str, str] | None = None
     paused: bool | None = None
 
 
 class ExecutionOut(BaseModel):
+    parameters: dict[str, Any] = Field(default_factory=dict)
     id: UUID
     schedule_id: UUID
     project_id: UUID

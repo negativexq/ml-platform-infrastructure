@@ -1,8 +1,10 @@
 """Durable scheduling intent. Queued occurrences deliberately have no platform run."""
 
+from collections.abc import Mapping
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import StrEnum
+from typing import Any
 from uuid import UUID
 
 from controlplane.domain.ids import new_id
@@ -58,6 +60,8 @@ class Schedule:
     deadline_seconds: int = 300
     queue_ttl_seconds: int = 86400
     max_queue_size: int = 100
+    parameters: Mapping[str, Any] = field(default_factory=dict)
+    parameter_bindings: Mapping[str, str] = field(default_factory=dict)
     timeout_seconds: int = 3600
     paused: bool = False
     revision: int = 1
@@ -80,6 +84,7 @@ class ScheduleExecution:
     concurrency_scope: ConcurrencyScope
     timeout_seconds: int
     expires_at: datetime
+    parameters: Mapping[str, Any] = field(default_factory=dict)
     status: ExecutionStatus = ExecutionStatus.QUEUED
     pipeline_run_id: UUID | None = None
     job_run_id: UUID | None = None

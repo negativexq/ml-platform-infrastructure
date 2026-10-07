@@ -1,3 +1,4 @@
+import { parseParameterObject, type ParameterSchema } from '../components/ParameterFields';
 import { useState } from 'react';
 import { api, ApiError, enc, type S } from '../api/client';
 import { Badge, Empty, Section, Snippet, Table, Time } from '../components/bits';
@@ -19,20 +20,27 @@ const HISTORY = 20;
 export function useRunPipeline(project: string) {
   const { form, toast } = useOverlays();
   return async (pipelines: { name: string; version: number; project?: string; projectLabel?: string }[], preselect?: string, version?: number) => {
+    const definitions = await Promise.all(pipelines.map(x => {
+      const targetProject = x.project ?? project;
+      return api.get<S['PipelineOut']>(`/projects/${enc(targetProject)}/pipelines/${enc(x.name)}?version=${version ?? x.version}`);
+    }));
     const result = await form<{ run: S['PipelineRunOut']; project: string }>({
       title: 'Run a pipeline', submitLabel: 'Start run',
       intro: version ? `Runs version ${version}. You can follow it live on the next page.` : 'Runs the latest version of the pipeline. You can follow it live on the next page.',
       fields: [
         { name: 'pipeline', label: 'Pipeline', required: true, value: preselect,
           options: pipelines.map((x) => ({ value: x.project ? `${x.project}/${x.name}` : x.name, label: `${x.projectLabel ? x.projectLabel + ' / ' : ''}${x.name} (v${version ?? x.version})` })) },
+        { name: 'parameters', label: 'Run parameters', type: 'parameters', parameterSchema: v => { const i = pipelines.findIndex(x => (x.project ? `${x.project}/${x.name}` : x.name) === v.pipeline); return (definitions[i]?.parameter_schema ?? {}) as ParameterSchema; } },
         { name: 'commit_sha', label: 'Commit', placeholder: 'a83d2c1', hint: 'Optional. Recorded on the run and on every model it registers.' },
       ],
       submit: async (v) => {
         const pipeline = pipelines.find((x) => (x.project ? `${x.project}/${x.name}` : x.name) === v.pipeline);
         if (!pipeline) throw new ApiError(422, 'invalid_argument', 'Choose a pipeline');
         const targetProject = pipeline.project ?? project;
-        const pinned = version ? `?version=${version}` : '';
-        const run = await api.post<S['PipelineRunOut']>(`/projects/${enc(targetProject)}/pipelines/${enc(pipeline.name)}/runs` + pinned, v.commit_sha ? { commit_sha: v.commit_sha } : {});
+        const selected = definitions[pipelines.indexOf(pipeline)];
+        if (!selected) throw new ApiError(422, 'invalid_argument', 'Choose a pipeline');
+        const pinned = `?version=${selected.version}`;
+        const run = await api.post<S['PipelineRunOut']>(`/projects/${enc(targetProject)}/pipelines/${enc(pipeline.name)}/runs` + pinned, { commit_sha: v.commit_sha || null, parameters: parseParameterObject(v.parameters) });
         return { run, project: targetProject };
       },
     });

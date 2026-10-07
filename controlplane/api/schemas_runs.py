@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -11,6 +12,8 @@ from controlplane.domain.states import RunStatus
 
 
 class JobCreate(BaseModel):
+    parameter_schema: dict[str, Any] = Field(default_factory=dict)
+
     model_config = ConfigDict(extra="forbid")
 
     secret_refs: SecretRefsIn = Field(default_factory=SecretRefsIn)
@@ -25,6 +28,8 @@ class JobCreate(BaseModel):
 
 
 class JobOut(BaseModel):
+    parameter_schema: dict[str, Any] = Field(default_factory=dict)
+
     id: UUID
     project_id: UUID
     secret_refs: SecretRefsIn = Field(default_factory=SecretRefsIn)
@@ -46,6 +51,7 @@ class JobOut(BaseModel):
             image=job.image,
             command=list(job.command),
             resources=dict(job.resources),
+            parameter_schema=dict(job.parameter_schema),
             env=dict(job.env),
             created_at=job.created_at,
             timeout_seconds=job.timeout_seconds,
@@ -57,6 +63,8 @@ class JobList(BaseModel):
 
 
 class RunOut(BaseModel):
+    parameters: dict[str, Any] = Field(default_factory=dict)
+
     """Deliberately omits the workflow system's references (workflow uid, pod
     name, namespace): the platform id is the only identity users deal with."""
 
@@ -83,6 +91,7 @@ class RunOut(BaseModel):
             project_id=run.project_id,
             job_id=run.job_definition_id,
             job=job,
+            parameters=dict(run.parameters),
             status=run.status,
             status_reason=run.status_reason,
             exit_code=run.exit_code,
@@ -104,5 +113,7 @@ class RunList(BaseModel):
 
 
 class RunCreate(BaseModel):
+    parameters: dict[str, Any] = Field(default_factory=dict)
+
     model_config = ConfigDict(extra="forbid")
     timeout_seconds: int | None = Field(None, ge=1, le=604800)

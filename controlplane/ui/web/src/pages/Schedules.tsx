@@ -1,3 +1,4 @@
+import { parseParameterObject } from '../components/ParameterFields';
 import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { api, enc, type S } from '../api/client';
@@ -108,6 +109,8 @@ function ScheduleEditor({ project: initialProject, projects = [], schedule, onCl
   const [queueTTL, setQueueTTL] = useState(String(schedule?.queue_ttl_seconds ?? 86400));
   const [queueSize, setQueueSize] = useState(String(schedule?.max_queue_size ?? 100));
   const [timeout, setRunTimeout] = useState(String(schedule?.timeout_seconds ?? 3600));
+  const [parameterText, setParameterText] = useState(JSON.stringify(schedule?.parameters ?? {}, null, 2));
+  const [bindingText, setBindingText] = useState(JSON.stringify(schedule?.parameter_bindings ?? {}, null, 2));
   const [error, setError] = useState('');
   const [saving, setSaving] = useState(false);
   const [hour, dailyMinute] = time.split(':').map(Number);
@@ -123,7 +126,7 @@ function ScheduleEditor({ project: initialProject, projects = [], schedule, onCl
   return <Modal open label={schedule ? 'Edit schedule' : 'Create schedule'} onClose={onClose} className="schedule-modal"><form onSubmit={async (event) => {
     event.preventDefault(); setSaving(true); setError('');
     try {
-      const spec = { cron, timezone, version_policy: kind === 'PIPELINE' && latest ? 'LATEST' : 'PINNED', version: kind === 'PIPELINE' && !latest ? Number(version) : null, concurrency_policy: concurrency, concurrency_scope: scope, missed_run_policy: missed, deadline_seconds: Number(deadline), queue_ttl_seconds: Number(queueTTL), max_queue_size: Number(queueSize), timeout_seconds: Number(timeout) };
+      const spec = { parameters: parseParameterObject(parameterText), parameter_bindings: parseParameterObject(bindingText), cron, timezone, version_policy: kind === 'PIPELINE' && latest ? 'LATEST' : 'PINNED', version: kind === 'PIPELINE' && !latest ? Number(version) : null, concurrency_policy: concurrency, concurrency_scope: scope, missed_run_policy: missed, deadline_seconds: Number(deadline), queue_ttl_seconds: Number(queueTTL), max_queue_size: Number(queueSize), timeout_seconds: Number(timeout) };
       const saved = schedule ? await api.patch<Schedule>(`/schedules/${schedule.id}`, { expected_revision: schedule.revision, ...spec }) : await api.post<Schedule>(`/projects/${enc(project)}/schedules`, { name, target_kind: kind, target_name: target, ...spec });
       onSaved(saved);
     } catch (e) { setError(e instanceof Error ? e.message : 'Could not save schedule'); } finally { setSaving(false); }
@@ -144,6 +147,7 @@ function ScheduleEditor({ project: initialProject, projects = [], schedule, onCl
       <label>Timezone<input aria-label="Timezone" required list="schedule-timezones" value={timezone} onChange={(e) => setTimezone(e.target.value)} /><datalist id="schedule-timezones">{['UTC', 'Europe/Istanbul', 'Europe/London', 'America/New_York', 'Asia/Tokyo'].map((z) => <option key={z} value={z} />)}</datalist></label>
     </div>
     <div className="schedule-preview" aria-live="polite"><strong>Next executions</strong>{!previewCurrent || next.isPending ? <p>Calculating…</p> : next.isError ? <p className="bad">{next.error.message}</p> : <ul>{next.data?.executions.map((d) => <li key={d}>{new Date(d).toLocaleString(undefined, { timeZone: previewInput.timezone })} · {previewInput.timezone}</li>)}</ul>}</div>
+    <details><summary>Run parameters</summary><div className="schedule-fields section"><label>Static parameters<textarea aria-label="Static parameters" value={parameterText} onChange={e => setParameterText(e.target.value)} /></label><label>Scheduled values<textarea aria-label="Scheduled values" value={bindingText} onChange={e => setBindingText(e.target.value)} placeholder={'{"processing_date": "processing_date"}'} /></label></div><p className="muted small">Bind a parameter to processing_date (local date) or scheduled_for (UTC timestamp). Values are frozen when the occurrence is recorded.</p></details>
     <details><summary>Execution policies</summary><div className="schedule-fields section">
       <label>Concurrency<select aria-label="Concurrency" value={concurrency} onChange={(e) => setConcurrency(e.target.value as Schedule['concurrency_policy'])}><option value="FORBID">Skip while busy</option><option value="QUEUE">Queue while busy</option><option value="ALLOW">Allow overlapping runs</option></select></label>
       <label>Concurrency scope<select aria-label="Concurrency scope" value={scope} onChange={(e) => setScope(e.target.value as Schedule['concurrency_scope'])}><option value="TARGET">All schedules for this target</option><option value="SCHEDULE">This schedule only</option></select></label>

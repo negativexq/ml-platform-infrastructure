@@ -1,8 +1,9 @@
 from __future__ import annotations
 
-from collections.abc import Collection, Sequence
+from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from controlplane.application.context import current_traceparent
@@ -19,6 +20,7 @@ from controlplane.application.workflow_compiler import (
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import PipelineDefinition, PipelineRun, StepRun, validate_timeout
 from controlplane.domain.errors import AlreadyExists, Conflict, NotFound
+from controlplane.domain.parameters import fingerprint, project_values, resolve
 from controlplane.domain.states import ProjectStatus, RunStatus, StepStatus
 
 
@@ -81,12 +83,14 @@ class PipelineRunService:
         commit_sha: str | None = None,
         idempotency_key: str | None = None,
         timeout_seconds: int = 3600,
+        parameters: Mapping[str, Any] | None = None,
     ) -> tuple[PipelineRunView, bool]:
         with self._uow_factory() as uow:
             project = resolve_project(uow, project_ref)
             requested = uow.pipelines.get_version(project.id, pipeline_name, version)
             if requested is None:
                 raise NotFound("pipeline", pipeline_name)
+            parameters = resolve(requested.parameter_schema, parameters)
             version = requested.version  # freeze latest before any unique-key race
         try:
             return self._create(
@@ -96,6 +100,7 @@ class PipelineRunService:
                 commit_sha,
                 idempotency_key,
                 validate_timeout(timeout_seconds),
+                parameters,
             )
         except AlreadyExists:  # lost a race on the idempotency key: replay the winner
             with self._uow_factory() as uow:
@@ -110,6 +115,8 @@ class PipelineRunService:
                 ) from None
             if existing.timeout_seconds != timeout_seconds:
                 raise Conflict("idempotency key was used with a different timeout") from None
+            if existing.parameters != parameters:
+                raise Conflict("idempotency key was used with different parameters") from None
             return self.view(existing.id), False
 
     def _create(
@@ -120,10 +127,18 @@ class PipelineRunService:
         commit_sha: str | None,
         key: str | None,
         timeout_seconds: int,
+        parameters: Mapping[str, Any] | None = None,
     ) -> tuple[PipelineRunView, bool]:
         with self._uow_factory() as uow:
             result = self.create_in_uow(
-                uow, project_ref, pipeline_name, version, commit_sha, key, timeout_seconds
+                uow,
+                project_ref,
+                pipeline_name,
+                version,
+                commit_sha,
+                key,
+                timeout_seconds,
+                parameters,
             )
             uow.commit()
             return result
@@ -137,6 +152,7 @@ class PipelineRunService:
         commit_sha: str | None,
         key: str | None,
         timeout_seconds: int,
+        parameters: Mapping[str, Any] | None = None,
     ) -> tuple[PipelineRunView, bool]:
         project = resolve_project(uow, project_ref)
         definition = uow.pipelines.get_version(project.id, pipeline_name, version)
@@ -144,6 +160,12 @@ class PipelineRunService:
             raise NotFound(
                 "pipeline", pipeline_name if version is None else f"{pipeline_name}@{version}"
             )
+        resolved = resolve(definition.parameter_schema, parameters)
+        for step in definition.steps:
+            job = uow.jobs.get_by_name(project.id, step.job)
+            if job is None:
+                raise NotFound("job", step.job)
+            project_values(job.parameter_schema, resolved)
         if key is not None:
             existing = uow.pipeline_runs.get_by_idempotency_key(project.id, key)
             if existing is not None:
@@ -153,6 +175,8 @@ class PipelineRunService:
                     raise Conflict("idempotency key was used with a different commit")
                 if existing.timeout_seconds != timeout_seconds:
                     raise Conflict("idempotency key was used with a different timeout")
+                if existing.parameters != resolved:
+                    raise Conflict("idempotency key was used with different parameters")
                 return self._view(uow, existing), False
         if project.status is not ProjectStatus.READY:
             raise Conflict(
@@ -162,6 +186,7 @@ class PipelineRunService:
         run = PipelineRun(
             project_id=project.id,
             pipeline_definition_id=definition.id,
+            parameters=resolved,
             commit_sha=commit_sha,
             timeout_seconds=timeout_seconds,
             idempotency_key=key,
@@ -185,6 +210,7 @@ class PipelineRunService:
                 now,
                 pipeline=definition.name,
                 version=definition.version,
+                parameters_sha256=fingerprint(resolved),
             )
         )
         return self._view(uow, run), True

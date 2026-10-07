@@ -53,6 +53,7 @@ def jobs_router() -> APIRouter:
             project,
             CreateJob(
                 name=body.name,
+                parameter_schema=body.parameter_schema,
                 image=body.image,
                 command=tuple(body.command),
                 resources=body.resources,
@@ -98,6 +99,7 @@ def jobs_router() -> APIRouter:
             job,
             idempotency_key=idempotency_key,
             timeout_seconds=body.timeout_seconds if body else None,
+            parameters=body.parameters if body else None,
         )
         if not created:
             response.status_code = status.HTTP_200_OK

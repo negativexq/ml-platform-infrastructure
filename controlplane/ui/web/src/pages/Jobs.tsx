@@ -1,3 +1,4 @@
+import { parseParameterObject, type ParameterSchema } from '../components/ParameterFields';
 import { secretRefsFromForm } from '../components/SecretRefsPicker';
 import { api, ApiError, enc, type S } from '../api/client';
 import { Badge, Empty, Kv, Section, Snippet, Table, Time } from '../components/bits';
@@ -14,10 +15,13 @@ const ACTIVE = new Set(['PENDING', 'SUBMITTED', 'RUNNING']);
 const HISTORY = 20;
 
 function useStartJob(project: string) {
-  const { toast } = useOverlays();
+  const { form, toast } = useOverlays();
   return async (job: string) => {
     try {
-      const run = await api.post<S['RunOut']>(`/projects/${enc(project)}/jobs/${enc(job)}/runs`, {});
+      const definition = await api.get<S['JobOut']>(`/projects/${enc(project)}/jobs/${enc(job)}`);
+      const start = (parameters: Record<string, unknown>) => api.post<S['RunOut']>(`/projects/${enc(project)}/jobs/${enc(job)}/runs`, { parameters });
+      const run = Object.keys((definition.parameter_schema as ParameterSchema | undefined)?.properties ?? {}).length ? await form<S['RunOut']>({ title: `Start ${job}`, submitLabel: 'Start run', fields: [{ name: 'parameters', label: 'Run parameters', type: 'parameters', parameterSchema: () => definition.parameter_schema as ParameterSchema }], submit: values => start(parseParameterObject(values.parameters)) }) : await start({});
+      if (!run) return;
       toast(`${job} started`);
       go(routes.jobRun(project, run.id));
     } catch (error) { toast(error instanceof Error ? error.message : 'Could not start the job', 'bad'); }
@@ -48,6 +52,7 @@ export function JobsPage({ project }: { project: string }) {
         { name: 'command', label: 'Command', placeholder: 'python -m train --epochs 3', hint: 'Optional; the image entrypoint is used when empty. Quotes group words.' },
         { name: 'cpu', label: 'CPU', placeholder: '2', hint: 'Cores (2, 500m). Optional.' },
         { name: 'memory', label: 'Memory', placeholder: '4Gi', hint: 'Optional.' },
+        { name: 'parameter_schema', label: 'Parameter schema (optional)', type: 'textarea', placeholder: '{}', hint: 'JSON object schema with type: object and additionalProperties: false. Containers read values from MLP_PARAMETERS.' },
         { name: 'env', label: 'Environment', type: 'textarea', placeholder: 'MODEL_NAME=scorer', hint: 'One KEY=value per line. Not for secrets.' },
       ],
       submit: (v) => {
@@ -57,7 +62,7 @@ export function JobsPage({ project }: { project: string }) {
         const resources: Record<string, string> = {};
         if (v.cpu) resources.cpu = v.cpu;
         if (v.memory) resources.memory = v.memory;
-        return api.post<S['JobOut']>(`/projects/${p}/jobs`, { secret_refs: secretRefsFromForm(v.secretRefs), name: v.name, image: v.image, command, resources, env });
+        return api.post<S['JobOut']>(`/projects/${p}/jobs`, { secret_refs: secretRefsFromForm(v.secretRefs), name: v.name, image: v.image, command, resources, env, parameter_schema: parseParameterObject(v.parameter_schema) });
       },
     });
     if (job) { toast(`Job ${job.name} created`); go(`${routes.project(project)}/jobs/${enc(job.name)}`); }
