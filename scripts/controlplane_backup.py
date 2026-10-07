@@ -16,6 +16,8 @@ from typing import Any
 TABLES = (
     "schedules",
     "schedule_executions",
+    "data_connections",
+    "dataset_versions",
     "projects",
     "job_definitions",
     "runs",

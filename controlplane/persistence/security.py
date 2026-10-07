@@ -20,6 +20,8 @@ from controlplane.persistence.sql import make_engine
 API_TABLES = (
     "schedules",
     "schedule_executions",
+    "data_connections",
+    "dataset_versions",
     "projects",
     "job_definitions",
     "runs",
@@ -186,6 +188,8 @@ def configure_roles(engine: Engine, users: Mapping[str, str]) -> None:
             not in {
                 "job_definitions",
                 "pipeline_definitions",
+                "data_connections",
+                "dataset_versions",
                 "deployment_revisions",
                 "promotions",
                 "notification_reads",
@@ -206,6 +210,7 @@ def configure_roles(engine: Engine, users: Mapping[str, str]) -> None:
             ROLES["reconciler"],
         )
         _grant(conn, "INSERT, UPDATE", RECONCILER_TABLES, ROLES["reconciler"])
+        _grant(conn, "INSERT", ("data_connections", "dataset_versions"), ROLES["reconciler"])
         _grant(conn, "INSERT", ("audit_events",), ROLES["reconciler"])
         _grant(conn, "SELECT", GATEWAY_TABLES, ROLES["gateway"])
         _grant(conn, "SELECT, INSERT, UPDATE", ("gateway_rate_buckets",), ROLES["gateway"])

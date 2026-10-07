@@ -16,6 +16,7 @@ from uuid import UUID
 from controlplane.domain.access import Membership
 from controlplane.domain.api_keys import ApiKey
 from controlplane.domain.audit import AuditEvent
+from controlplane.domain.data import DataConnection, DatasetVersion
 from controlplane.domain.entities import (
     Deployment,
     DeploymentRevision,
@@ -49,6 +50,8 @@ from controlplane.domain.states import (
 
 @dataclass
 class MemoryStore:
+    data_connections: dict[UUID, DataConnection] = field(default_factory=dict)
+    dataset_versions: dict[UUID, DatasetVersion] = field(default_factory=dict)
     schedules: dict[UUID, Schedule] = field(default_factory=dict)
     schedule_executions: dict[UUID, ScheduleExecution] = field(default_factory=dict)
     notification_reads: dict[tuple[str, str], datetime] = field(default_factory=dict)
@@ -826,6 +829,11 @@ class MemoryUnitOfWork:
         self._store = store
 
     def __enter__(self) -> Self:
+        from controlplane.persistence.memory_data import MemoryDataCatalog
+
+        self._data_connections = dict(self._store.data_connections)
+        self._dataset_versions = dict(self._store.dataset_versions)
+        self.data_catalog = MemoryDataCatalog(self._data_connections, self._dataset_versions)
         self._notification_reads = dict(self._store.notification_reads)
         self.notification_reads = _NotificationReads(self._notification_reads)
         from controlplane.persistence.memory_schedules import MemorySchedules
@@ -878,6 +886,8 @@ class MemoryUnitOfWork:
         return None  # uncommitted work is simply dropped
 
     def commit(self) -> None:
+        self._store.data_connections = self._data_connections
+        self._store.dataset_versions = self._dataset_versions
         self._store.notification_reads = self._notification_reads
         self._store.schedules = self._schedules
         self._store.schedule_executions = self._schedule_executions

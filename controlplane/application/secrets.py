@@ -163,7 +163,8 @@ class ProjectSecretService:
             if locked is None or locked.status is not ProjectStatus.READY:
                 raise Conflict("secret deletion requires a READY project")
             used = (
-                any(name in j.secret_refs.names for j in uow.jobs.list(project.id))
+                uow.data_catalog.references_secret(project.id, name)
+                or any(name in j.secret_refs.names for j in uow.jobs.list(project.id))
                 or any(name in m.secret_refs.names for m in uow.models.list(project.id))
                 or any(
                     name in r.secret_refs.names

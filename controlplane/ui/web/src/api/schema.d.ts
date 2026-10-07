@@ -330,6 +330,59 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{project}/data-connections": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Connections */
+        get: operations["connections_projects__project__data_connections_get"];
+        put?: never;
+        /** Create Connection */
+        post: operations["create_connection_projects__project__data_connections_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/datasets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Datasets */
+        get: operations["datasets_projects__project__datasets_get"];
+        put?: never;
+        /** Publish Dataset */
+        post: operations["publish_dataset_projects__project__datasets_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/datasets/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Dataset */
+        get: operations["dataset_projects__project__datasets__name__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/projects/{project}/deployments": {
         parameters: {
             query?: never;
@@ -1305,6 +1358,18 @@ export interface components {
             /** Value */
             value: number | null;
         };
+        /** ColumnIn */
+        ColumnIn: {
+            /** Dtype */
+            dtype: string;
+            /** Name */
+            name: string;
+            /**
+             * Nullable
+             * @default false
+             */
+            nullable: boolean;
+        };
         /**
          * ConcurrencyPolicy
          * @enum {string}
@@ -1315,6 +1380,158 @@ export interface components {
          * @enum {string}
          */
         ConcurrencyScope: "SCHEDULE" | "TARGET";
+        /** ConnectionCreate */
+        ConnectionCreate: {
+            /** Bucket */
+            bucket: string;
+            /** Credential Secret */
+            credential_secret: string;
+            /** Endpoint */
+            endpoint: string;
+            /** Name */
+            name: string;
+            /**
+             * Prefix
+             * @default
+             */
+            prefix: string;
+            /**
+             * Region
+             * @default us-east-1
+             */
+            region: string;
+        };
+        /** ConnectionList */
+        ConnectionList: {
+            /** Items */
+            items: components["schemas"]["ConnectionOut"][];
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /** ConnectionOut */
+        ConnectionOut: {
+            /** Bucket */
+            bucket: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Credential Secret */
+            credential_secret: string;
+            /** Endpoint */
+            endpoint: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /**
+             * Prefix
+             * @default
+             */
+            prefix: string;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /**
+             * Region
+             * @default us-east-1
+             */
+            region: string;
+        };
+        /** DatasetCreate */
+        DatasetCreate: {
+            /** Checksum Sha256 */
+            checksum_sha256?: string | null;
+            /** Columns */
+            columns: components["schemas"]["ColumnIn"][];
+            /**
+             * Connection Id
+             * Format: uuid
+             */
+            connection_id: string;
+            /**
+             * Expected Latest Version
+             * @default 0
+             */
+            expected_latest_version: number;
+            format: components["schemas"]["DatasetFormat"];
+            /** Name */
+            name: string;
+            /** Object Version Id */
+            object_version_id?: string | null;
+            /** Producer Pipeline Run Id */
+            producer_pipeline_run_id?: string | null;
+            /** Producer Run Id */
+            producer_run_id?: string | null;
+            /** Row Count */
+            row_count?: number | null;
+            /** Uri */
+            uri: string;
+        };
+        /**
+         * DatasetFormat
+         * @enum {string}
+         */
+        DatasetFormat: "CSV" | "PARQUET";
+        /** DatasetList */
+        DatasetList: {
+            /** Items */
+            items: components["schemas"]["DatasetOut"][];
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /** DatasetOut */
+        DatasetOut: {
+            /** Checksum Sha256 */
+            checksum_sha256: string | null;
+            /** Columns */
+            columns: components["schemas"]["ColumnIn"][];
+            /**
+             * Connection Id
+             * Format: uuid
+             */
+            connection_id: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            format: components["schemas"]["DatasetFormat"];
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Name */
+            name: string;
+            /** Object Version Id */
+            object_version_id: string | null;
+            /** Producer Pipeline Run Id */
+            producer_pipeline_run_id: string | null;
+            /** Producer Run Id */
+            producer_run_id: string | null;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Row Count */
+            row_count: number | null;
+            /** Uri */
+            uri: string;
+            /** Version */
+            version: number;
+        };
         /** DeploymentCreate */
         DeploymentCreate: {
             /** Name */
@@ -4341,6 +4558,179 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    connections_projects__project__data_connections_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_connection_projects__project__data_connections_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ConnectionCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    datasets_projects__project__datasets_get: {
+        parameters: {
+            query?: {
+                name?: string | null;
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasetList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    publish_dataset_projects__project__datasets_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["DatasetCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasetOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dataset_projects__project__datasets__name__get: {
+        parameters: {
+            query?: {
+                version?: number | null;
+            };
+            header?: never;
+            path: {
+                project: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasetOut"];
                 };
             };
             /** @description Validation Error */

@@ -13,6 +13,7 @@ from fastapi.telemetry import TelemetryConfig
 
 from controlplane.api.api_access import api_access_router
 from controlplane.api.auth import AuthConfig, AuthMiddleware, authorize, request_principal
+from controlplane.api.data_catalog import data_catalog_router
 from controlplane.api.deployments import deployments_router
 from controlplane.api.errors import DomainHttpError, PlatformRoute, handle_domain_error
 from controlplane.api.identity import identity_router, login_router
@@ -33,6 +34,7 @@ from controlplane.api.schemas import (
 )
 from controlplane.api.secrets import secrets_router
 from controlplane.application.api_access import ApiAccessService
+from controlplane.application.data_catalog import DataCatalogService
 from controlplane.application.deployments import DeploymentService
 from controlplane.application.identity import visible_project_ids
 from controlplane.application.jobs import JobService
@@ -186,6 +188,7 @@ def create_app(
     app.state.members = MembershipService(uow_factory, clock)
     app.state.projects = ProjectService(uow_factory, clock)
     app.state.secrets = ProjectSecretService(uow_factory, secrets, clock)
+    app.state.data_catalog = DataCatalogService(uow_factory, clock, secrets)
     app.state.jobs = JobService(
         uow_factory, clock, secrets, require_image_digest=require_job_image_digest
     )
@@ -224,6 +227,7 @@ def create_app(
     app.add_exception_handler(DomainHttpError, handle_domain_error)
     app.include_router(_projects_router())
     app.include_router(secrets_router())
+    app.include_router(data_catalog_router())
     app.include_router(jobs_router())
     app.include_router(runs_router())
     app.include_router(pipelines_router())

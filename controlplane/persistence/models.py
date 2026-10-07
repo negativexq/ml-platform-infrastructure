@@ -13,6 +13,7 @@ from sqlalchemy import (
     DateTime,
     Float,
     ForeignKey,
+    ForeignKeyConstraint,
     Index,
     Integer,
     String,
@@ -458,3 +459,50 @@ class ScheduleExecutionRow(Base):
     expires_at: Mapped[datetime] = _ts()
     created_at: Mapped[datetime] = _ts()
     updated_at: Mapped[datetime] = _ts()
+
+
+class DataConnectionRow(Base):
+    __tablename__ = "data_connections"
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    project_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("projects.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(40), nullable=False)
+    spec: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = _ts()
+    __table_args__ = (
+        UniqueConstraint("project_id", "name", name="uq_data_connection_name"),
+        UniqueConstraint("project_id", "id", name="uq_data_connection_project_identity"),
+    )
+
+
+class DatasetVersionRow(Base):
+    __tablename__ = "dataset_versions"
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    project_id: Mapped[UUID] = mapped_column(
+        Uuid, ForeignKey("projects.id", ondelete="RESTRICT"), nullable=False, index=True
+    )
+    connection_id: Mapped[UUID] = mapped_column(Uuid, nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(40), nullable=False)
+    version: Mapped[int] = mapped_column(Integer, nullable=False)
+    spec: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    producer_run_id: Mapped[UUID | None] = mapped_column(
+        Uuid, ForeignKey("runs.id", ondelete="RESTRICT")
+    )
+    producer_pipeline_run_id: Mapped[UUID | None] = mapped_column(
+        Uuid, ForeignKey("pipeline_runs.id", ondelete="RESTRICT")
+    )
+    created_at: Mapped[datetime] = _ts()
+    __table_args__ = (
+        UniqueConstraint("project_id", "name", "version", name="uq_dataset_version"),
+        ForeignKeyConstraint(
+            ["project_id", "connection_id"],
+            ["data_connections.project_id", "data_connections.id"],
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint("version > 0", name="ck_dataset_version_positive"),
+        CheckConstraint(
+            "producer_run_id IS NULL OR producer_pipeline_run_id IS NULL",
+            name="ck_dataset_one_producer",
+        ),
+    )

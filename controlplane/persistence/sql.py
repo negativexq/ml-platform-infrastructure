@@ -1671,6 +1671,9 @@ class SqlUnitOfWork:
 
     def __enter__(self) -> Self:
         self._session = self._factory()
+        from controlplane.persistence.data_catalog import SqlDataCatalog
+
+        self.data_catalog = SqlDataCatalog(self._session)
         self.notification_reads = SqlNotificationReads(self._session)
         from controlplane.persistence.schedules import SqlSchedules
 

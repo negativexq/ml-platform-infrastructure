@@ -243,9 +243,10 @@ func (s *store) Ready(ctx context.Context) error {
 	if err = c.QueryRow(ctx, "SELECT CASE WHEN count(*)=1 THEN min(version_num) ELSE '' END FROM alembic_version").Scan(&head); err != nil {
 		return err
 	}
-	// 0022/0023 add scheduling and run parameters without changing gateway queries or privileges.
-	// Accept both heads so this gateway can roll out before the additive migration.
-	if head != "0021" && head != "0022" && head != "0023" {
+	// 0022–0024 add scheduling, run parameters and a data catalog.
+	// Gateway queries and privileges are unchanged.
+	// Accept these heads so this gateway can roll out before an additive migration.
+	if head != "0021" && head != "0022" && head != "0023" && head != "0024" {
 		return errors.New("schema does not match this release")
 	}
 	var safe bool

@@ -8,6 +8,7 @@ from types import TracebackType
 from typing import Protocol, Self
 from uuid import UUID
 
+from controlplane.application.data_ports import DataCatalogRepository
 from controlplane.application.schedule_ports import ScheduleRepository
 from controlplane.domain.access import Membership
 from controlplane.domain.api_keys import ApiKey
@@ -340,6 +341,9 @@ class NotificationReadRepository(Protocol):
 
 class UnitOfWork(Protocol):
     """One transaction. Leaving the block without `commit()` rolls everything back."""
+
+    @property
+    def data_catalog(self) -> DataCatalogRepository: ...
 
     @property
     def schedules(self) -> ScheduleRepository: ...

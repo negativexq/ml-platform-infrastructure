@@ -15,6 +15,12 @@ image gate at `b7a3420`. Historical counts retain their original scope.
   Head `0023`; local acceptance revision 31 and all 12 image gates passed.
   [Contract](run-parameters.md) and [validation scope](evidence/live-2026-10-08/run-parameters/README.md).
 
+- Data Catalog adds immutable S3/MinIO connections backed by project SecretRefs and
+  CSV/Parquet dataset versions with integrity identity, column schema and producer lineage.
+  Head `0024`; backend 779 passed/13 skipped, all 12 image checks and live metadata API
+  checks passed on local acceptance revision 33. Object verification belongs to consumers.
+  [Contract](data-catalog.md) and [scope](evidence/live-2026-10-08/data-catalog/README.md).
+
 - Bottleneck telemetry now wires gateway native HTTP/outbound HTTPX spans and reconciler
   SQL tracing, including stored-origin context for DB spans. SQLAlchemy 2.0 pin fixes the
   instrumentor incompatibility with 2.1. DB acquisition/query/transaction-lifetime metrics,

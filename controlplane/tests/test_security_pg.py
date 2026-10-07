@@ -51,6 +51,8 @@ def test_sql_runtime_privileges_and_audit_trigger(pg_engine: Engine) -> None:
             conn.execute(text("UPDATE public.gateway_rate_buckets SET tokens=4 WHERE name='test'"))
         denied = {
             "gateway": (
+                "SELECT * FROM public.data_connections",
+                "SELECT * FROM public.dataset_versions",
                 "SELECT * FROM public.schedules",
                 "SELECT * FROM public.schedule_executions",
                 "SELECT * FROM public.audit_events",
@@ -63,11 +65,17 @@ def test_sql_runtime_privileges_and_audit_trigger(pg_engine: Engine) -> None:
                 "DELETE FROM public.gateway_rate_buckets",
             ),
             "api": (
+                "UPDATE public.data_connections SET name='changed' WHERE false",
+                "DELETE FROM public.dataset_versions WHERE false",
+                "UPDATE public.dataset_versions SET version=99 WHERE false",
                 "SELECT * FROM public.gateway_rate_buckets",
                 "DELETE FROM public.job_definitions",
                 "UPDATE public.job_definitions SET image='tag:mutable' WHERE false",
             ),
             "reconciler": (
+                "UPDATE public.data_connections SET name='changed' WHERE false",
+                "DELETE FROM public.dataset_versions WHERE false",
+                "UPDATE public.dataset_versions SET version=99 WHERE false",
                 "UPDATE public.api_keys SET revoked_at=NULL WHERE false",
                 "SELECT * FROM public.api_keys",
                 "SELECT * FROM public.memberships",
