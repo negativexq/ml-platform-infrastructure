@@ -1,0 +1,40 @@
+{
+  "source_commit": "8e4dd9b",
+  "image": "localhost:5201/mlp-gateway-go@sha256:fcadc04330e475f3c612c14e4af50ee13b8b32daca4b7c70c74c872b20ab7a5c",
+  "idle_timeout": "60s",
+  "deployments": [
+    {
+      "name": "acceptance-postgres",
+      "ready": 1,
+      "replicas": 1,
+      "images": [
+        "postgres:16-alpine"
+      ]
+    },
+    {
+      "name": "mlp-controlplane-api",
+      "ready": 2,
+      "replicas": 2,
+      "images": [
+        "localhost:5201/mlp-controlplane@sha256:7271ee509006b80d56c687ea4613b60a5fb28a1c2d887bef878027af78d32072"
+      ]
+    },
+    {
+      "name": "mlp-controlplane-gateway",
+      "ready": 2,
+      "replicas": 2,
+      "images": [
+        "localhost:5201/mlp-gateway-go@sha256:fcadc04330e475f3c612c14e4af50ee13b8b32daca4b7c70c74c872b20ab7a5c"
+      ]
+    },
+    {
+      "name": "mlp-controlplane-reconciler",
+      "ready": 2,
+      "replicas": 2,
+      "images": [
+        "localhost:5201/mlp-controlplane@sha256:7271ee509006b80d56c687ea4613b60a5fb28a1c2d887bef878027af78d32072"
+      ]
+    }
+  ],
+  "api_reconciler_templates_unchanged": true
+}

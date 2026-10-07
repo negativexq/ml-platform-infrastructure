@@ -214,7 +214,12 @@ API/reconciler/migrations remain Python, with the Python gateway retained for ro
 OIDC/project roles, LLM reservation/settlement and per-read streaming deadlines are
 implemented/tested. Clean HIGH/CRITICAL scan, SBOM, a five-minute 500 RPS normal-OTel
 soak, real function rolling probes and DB outage/recovery are recorded in the
-[migration report](docs/evidence/live-2026-10-07/observability/gateway-go-migration.md).
+[migration report](docs/evidence/live-2026-10-07/observability/gateway-go-migration.md). The subsequent
+[concurrency follow-up](docs/evidence/live-2026-10-07/observability/gateway-concurrency-followup.md)
+removes auth/cache lock contention and sets a configurable 60-second server idle timeout.
+Its scanned source image is installed on two lab replicas; 200/200 real function calls
+passed during rollout, followed by connection reuse after 5.2 seconds idle.
+
 Real identity-provider/GPU and successful-upstream capacity gates remain open.
 
 **Still open:**

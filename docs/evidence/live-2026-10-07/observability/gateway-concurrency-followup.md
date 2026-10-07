@@ -32,7 +32,29 @@ The benchmark helper explicitly defaults Go probes to **5 seconds** for historic
 comparability. Set `--go-server-idle-timeout-seconds 60` to exercise the production setting.
 It also explicitly overrides cloned Go worker/pool settings so per-case values take effect.
 
-The recorded installed image remains `6e2d8490…` from the migration report. A new source
-image build/scan and rollout, real identity-provider/multi-key load, and heterogeneous
-clients near the new idle boundary remain release acceptance steps; prior 500-RPS warm
-API-key results do not measure those workloads.
+## Live artifact rollout
+
+Source commit `8e4dd9b` is now installed as
+`localhost:5201/mlp-gateway-go@sha256:fcadc04330e475f3c612c14e4af50ee13b8b32daca4b7c70c74c872b20ab7a5c`
+on the single-node ARM64 Kubernetes 1.32 acceptance lab. The manual release command
+passed race tests, vet, source image build and the HIGH/CRITICAL Trivy gate;
+[scan](gateway-concurrency-release/trivy.json),
+[SBOM](gateway-concurrency-release/sbom.cdx.json) and
+[provenance](gateway-concurrency-release/provenance.json) record the artifact.
+
+Helm revision 18 reached two ready gateway replicas with `CP_GATEWAY_IDLE_TIMEOUT=60s`.
+The lab post-renderer preserved existing API/reconciler Deployment specs and their pod
+templates were checked unchanged. Migration hooks were skipped for this gateway-only
+change; the database schema remains `0021`.
+
+A temporary in-cluster HTTPX client sent **200/200 successful real function calls** through
+the gateway Service during the Helm rollout, with zero transport errors and all request-ID
+and rate-limit headers validated. After rollout, a client with a 90-second idle budget
+reused the same connection after **5.2 seconds** idle; `/healthz` and `/readyz` returned 200.
+[Rolling probe](gateway-concurrency-release/rolling.json) and
+[installed state](gateway-concurrency-release/installed.json) record these results.
+The temporary key was revoked, probe Job/Secret deleted and API port-forward closed.
+
+These are availability/contract checks, not a new capacity benchmark. Real identity-provider/
+multi-key load and heterogeneous clients near the new 60-second closing boundary remain
+acceptance steps; earlier 500-RPS warm API-key results do not measure those workloads.

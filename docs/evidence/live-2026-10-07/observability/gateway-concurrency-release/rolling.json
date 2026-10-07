@@ -1,0 +1,14 @@
+{
+  "requests": 200,
+  "codes": {
+    "200": 200
+  },
+  "transport_errors": 0,
+  "headers_valid": 200,
+  "idle_5_2_seconds_connection_reused": true,
+  "health": 200,
+  "ready": 200,
+  "scope": "real function calls through Kubernetes Service during Helm image rollout; HTTPX contract client, not a capacity benchmark",
+  "passed": true,
+  "image": "localhost:5201/mlp-gateway-go@sha256:fcadc04330e475f3c612c14e4af50ee13b8b32daca4b7c70c74c872b20ab7a5c"
+}

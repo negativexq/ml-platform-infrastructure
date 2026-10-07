@@ -1,0 +1,8 @@
+{
+  "source_commit": "8e4dd9b",
+  "platform": "linux/arm64",
+  "image": "localhost:5201/mlp-gateway-go@sha256:fcadc04330e475f3c612c14e4af50ee13b8b32daca4b7c70c74c872b20ab7a5c",
+  "dockerfile": "services/gateway-go/Dockerfile",
+  "release_command": "CP_GATEWAY_GO_IMAGE=localhost:5201/mlp-gateway-go:fix-8e4dd9b CP_GATEWAY_GO_EVIDENCE_DIR=docs/evidence/live-2026-10-07/observability/gateway-concurrency-release scripts/gateway-go-release-check.sh",
+  "helm_notes": "Gateway-only lab upgrade. Lab post-renderer preserves existing API/reconciler specs. No migration hook: schema remains 0021."
+}

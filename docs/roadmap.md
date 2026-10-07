@@ -340,6 +340,8 @@ Go maximum capacity and successful inference throughput remain unmeasured.
 
 The [gateway concurrency follow-up](evidence/live-2026-10-07/observability/gateway-concurrency-followup.md)
 removes locks around OIDC verification/network fetches and cache DB loads, and makes Go
-idle timeout configurable (60-second source/chart default). Race/concurrency and real local
-HTTP reuse tests cover the source fix. The installed lab image remains the recorded migration
-artifact; fresh-image rollout and heterogeneous-client/real-OIDC load acceptance are pending.
+idle timeout configurable (60-second default). The source-built `8e4dd9b` artifact passed
+its HIGH/CRITICAL scan and is installed on two ARM64 lab replicas. During Helm rollout,
+200/200 real function requests succeeded; post-rollout connection reuse after 5.2 seconds
+idle and health/readiness passed. API/reconciler pod templates were unchanged.
+Heterogeneous-client/real-OIDC load acceptance remains pending.
