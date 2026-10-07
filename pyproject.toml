@@ -34,6 +34,7 @@ dev = [
     "requests>=2.32",
 ]
 controlplane = [
+    "croniter>=6,<7",
     # OTel SQLAlchemy instrumentation 0.66b0 supports SQLAlchemy <2.1.
     "sqlalchemy>=2.0,<2.1",
     "alembic>=1.13",
@@ -85,7 +86,7 @@ strict = true
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = ["joblib.*", "sklearn.*", "mlflow.*", "boto3.*", "pgserver.*", "kubernetes.*"]
+module = ["joblib.*", "sklearn.*", "mlflow.*", "boto3.*", "pgserver.*", "kubernetes.*", "croniter.*"]
 ignore_missing_imports = true
 
 [tool.pytest.ini_options]

@@ -122,57 +122,72 @@ class PipelineRunService:
         timeout_seconds: int,
     ) -> tuple[PipelineRunView, bool]:
         with self._uow_factory() as uow:
-            project = resolve_project(uow, project_ref)
-            definition = uow.pipelines.get_version(project.id, pipeline_name, version)
-            if definition is None:
-                raise NotFound(
-                    "pipeline", pipeline_name if version is None else f"{pipeline_name}@{version}"
-                )
-            if key is not None:
-                existing = uow.pipeline_runs.get_by_idempotency_key(project.id, key)
-                if existing is not None:
-                    if existing.pipeline_definition_id != definition.id:
-                        raise Conflict(f"idempotency key {key!r} was used for a different pipeline")
-                    if existing.commit_sha != commit_sha:
-                        raise Conflict("idempotency key was used with a different commit")
-                    if existing.timeout_seconds != timeout_seconds:
-                        raise Conflict("idempotency key was used with a different timeout")
-                    return self._view(uow, existing), False
-            if project.status is not ProjectStatus.READY:
-                raise Conflict(
-                    f"project {project.name!r} is {project.status.value}; runs need a READY project"
-                )
-            now = self._clock()
-            run = PipelineRun(
-                project_id=project.id,
-                pipeline_definition_id=definition.id,
-                commit_sha=commit_sha,
-                timeout_seconds=timeout_seconds,
-                idempotency_key=key,
-                traceparent=current_traceparent(),
-                created_at=now,
-                updated_at=now,
-            )
-            uow.pipeline_runs.add(run)
-            uow.step_runs.add_many(
-                [
-                    StepRun(pipeline_run_id=run.id, step_name=name, created_at=now, updated_at=now)
-                    for name in definition.execution_order
-                ]
-            )
-            uow.audit.record(
-                _audit(
-                    "pipeline_run",
-                    run.id,
-                    project.id,
-                    "pipeline_run.created",
-                    now,
-                    pipeline=definition.name,
-                    version=definition.version,
-                )
+            result = self.create_in_uow(
+                uow, project_ref, pipeline_name, version, commit_sha, key, timeout_seconds
             )
             uow.commit()
-            return self._view(uow, run), True
+            return result
+
+    def create_in_uow(
+        self,
+        uow: UnitOfWork,
+        project_ref: str,
+        pipeline_name: str,
+        version: int | None,
+        commit_sha: str | None,
+        key: str | None,
+        timeout_seconds: int,
+    ) -> tuple[PipelineRunView, bool]:
+        project = resolve_project(uow, project_ref)
+        definition = uow.pipelines.get_version(project.id, pipeline_name, version)
+        if definition is None:
+            raise NotFound(
+                "pipeline", pipeline_name if version is None else f"{pipeline_name}@{version}"
+            )
+        if key is not None:
+            existing = uow.pipeline_runs.get_by_idempotency_key(project.id, key)
+            if existing is not None:
+                if existing.pipeline_definition_id != definition.id:
+                    raise Conflict(f"idempotency key {key!r} was used for a different pipeline")
+                if existing.commit_sha != commit_sha:
+                    raise Conflict("idempotency key was used with a different commit")
+                if existing.timeout_seconds != timeout_seconds:
+                    raise Conflict("idempotency key was used with a different timeout")
+                return self._view(uow, existing), False
+        if project.status is not ProjectStatus.READY:
+            raise Conflict(
+                f"project {project.name!r} is {project.status.value}; runs need a READY project"
+            )
+        now = self._clock()
+        run = PipelineRun(
+            project_id=project.id,
+            pipeline_definition_id=definition.id,
+            commit_sha=commit_sha,
+            timeout_seconds=timeout_seconds,
+            idempotency_key=key,
+            traceparent=current_traceparent(),
+            created_at=now,
+            updated_at=now,
+        )
+        uow.pipeline_runs.add(run)
+        uow.step_runs.add_many(
+            [
+                StepRun(pipeline_run_id=run.id, step_name=name, created_at=now, updated_at=now)
+                for name in definition.execution_order
+            ]
+        )
+        uow.audit.record(
+            _audit(
+                "pipeline_run",
+                run.id,
+                project.id,
+                "pipeline_run.created",
+                now,
+                pipeline=definition.name,
+                version=definition.version,
+            )
+        )
+        return self._view(uow, run), True
 
     @staticmethod
     def _view(uow: UnitOfWork, run: PipelineRun) -> PipelineRunView:

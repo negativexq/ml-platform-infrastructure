@@ -1664,6 +1664,9 @@ class SqlUnitOfWork:
     def __enter__(self) -> Self:
         self._session = self._factory()
         self.notification_reads = SqlNotificationReads(self._session)
+        from controlplane.persistence.schedules import SqlSchedules
+
+        self.schedules = SqlSchedules(self._session)
         self.projects = SqlProjects(self._session)
         self.jobs = SqlJobs(self._session)
         self.runs = SqlRuns(self._session)

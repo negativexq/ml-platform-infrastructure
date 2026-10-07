@@ -1,7 +1,7 @@
 /** Global capabilities never depend on the selected project. */
 export const GLOBAL_NAV: { label: string; items: [string, string][] }[] = [
   { label: 'Overview', items: [['home', 'Home']] },
-  { label: 'Work', items: [['projects', 'Projects'], ['runs', 'Runs'], ['pipelines', 'Pipelines']] },
+  { label: 'Work', items: [['projects', 'Projects'], ['runs', 'Runs'], ['pipelines', 'Pipelines'], ['schedules', 'Schedules']] },
   { label: 'AI', items: [['models', 'Models'], ['functions', 'Functions']] },
   { label: 'Serving', items: [['deployments', 'Deployments'], ['endpoints', 'Endpoints']] },
   { label: 'Platform', items: [['services', 'Services']] },
@@ -10,7 +10,7 @@ export const GLOBAL_NAV: { label: string; items: [string, string][] }[] = [
 ];
 export const PROJECT_NAV: { label: string; key: string; items?: [string, string][] }[] = [
   { key: '', label: 'Overview' },
-  { key: 'build', label: 'Build', items: [['runs', 'Runs'], ['pipelines', 'Pipelines'], ['jobs', 'Jobs']] },
+  { key: 'build', label: 'Build', items: [['runs', 'Runs'], ['pipelines', 'Pipelines'], ['jobs', 'Jobs'], ['schedules', 'Schedules']] },
   { key: 'assets', label: 'Assets', items: [['models', 'Models'], ['functions', 'Functions']] },
   { key: 'serve', label: 'Serve', items: [['deployments', 'Deployments'], ['endpoints', 'Endpoints']] },
   { key: 'activity', label: 'Activity' }, { key: 'settings', label: 'Settings' },

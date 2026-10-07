@@ -74,50 +74,58 @@ class RunService:
         timeout_seconds: int | None,
     ) -> tuple[Run, bool]:
         with self._uow_factory() as uow:
-            project = resolve_project(uow, project_ref)
-            job = uow.jobs.get_by_name(project.id, job_name)
-            if job is None:
-                raise NotFound("job", job_name)
-            timeout = validate_timeout(
-                job.timeout_seconds if timeout_seconds is None else timeout_seconds
-            )
-            if key is not None:
-                existing = uow.runs.get_by_idempotency_key(project.id, key)
-                if existing is not None:
-                    if existing.job_definition_id != job.id:
-                        raise Conflict(f"idempotency key {key!r} was used for a different job")
-                    if existing.timeout_seconds != timeout:
-                        raise Conflict(
-                            "idempotency key was used with a different timeout"
-                        ) from None
-                    if existing.retry_of != retry_of:
-                        raise Conflict(
-                            "idempotency key was used for a different retry parent"
-                        ) from None
-                    return existing, False
-            if project.status is not ProjectStatus.READY:
-                raise Conflict(
-                    f"project {project.name!r} is {project.status.value}; runs need a READY project"
-                )
-            now = self._clock()
-            run = Run(
-                project_id=project.id,
-                job_definition_id=job.id,
-                retry_of=retry_of,
-                timeout_seconds=timeout,
-                idempotency_key=key,
-                traceparent=current_traceparent(),
-                created_at=now,
-                updated_at=now,
-            )
-            uow.runs.add(run)
-            uow.audit.record(
-                _audit(
-                    run, "run.created", job=job.name, retry_of=str(retry_of) if retry_of else None
-                )
-            )
+            result = self.create_in_uow(uow, project_ref, job_name, key, retry_of, timeout_seconds)
             uow.commit()
-            return run, True
+            return result
+
+    def create_in_uow(
+        self,
+        uow: UnitOfWork,
+        project_ref: str,
+        job_name: str,
+        key: str | None,
+        retry_of: UUID | None,
+        timeout_seconds: int | None,
+    ) -> tuple[Run, bool]:
+        project = resolve_project(uow, project_ref)
+        job = uow.jobs.get_by_name(project.id, job_name)
+        if job is None:
+            raise NotFound("job", job_name)
+        timeout = validate_timeout(
+            job.timeout_seconds if timeout_seconds is None else timeout_seconds
+        )
+        if key is not None:
+            existing = uow.runs.get_by_idempotency_key(project.id, key)
+            if existing is not None:
+                if existing.job_definition_id != job.id:
+                    raise Conflict(f"idempotency key {key!r} was used for a different job")
+                if existing.timeout_seconds != timeout:
+                    raise Conflict("idempotency key was used with a different timeout") from None
+                if existing.retry_of != retry_of:
+                    raise Conflict(
+                        "idempotency key was used for a different retry parent"
+                    ) from None
+                return existing, False
+        if project.status is not ProjectStatus.READY:
+            raise Conflict(
+                f"project {project.name!r} is {project.status.value}; runs need a READY project"
+            )
+        now = self._clock()
+        run = Run(
+            project_id=project.id,
+            job_definition_id=job.id,
+            retry_of=retry_of,
+            timeout_seconds=timeout,
+            idempotency_key=key,
+            traceparent=current_traceparent(),
+            created_at=now,
+            updated_at=now,
+        )
+        uow.runs.add(run)
+        uow.audit.record(
+            _audit(run, "run.created", job=job.name, retry_of=str(retry_of) if retry_of else None)
+        )
+        return run, True
 
     def job_names(self, project_id: UUID) -> dict[UUID, str]:
         """Job definition id -> name, so a listing can show readable names."""

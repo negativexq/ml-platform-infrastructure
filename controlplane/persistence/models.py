@@ -9,6 +9,7 @@ from uuid import UUID
 
 from sqlalchemy import (
     Boolean,
+    CheckConstraint,
     DateTime,
     Float,
     ForeignKey,
@@ -394,3 +395,58 @@ class GatewayRateBucketRow(Base):
     name: Mapped[str] = mapped_column(Text, primary_key=True)
     tokens: Mapped[float] = mapped_column(Float, nullable=False)
     updated_at: Mapped[float] = mapped_column(Float, nullable=False)
+
+
+class ScheduleRow(Base):
+    __tablename__ = "schedules"
+    __table_args__ = (
+        UniqueConstraint("project_id", "name", name="uq_schedules_name"),
+        Index("ix_schedules_due", "paused", "next_run_at"),
+    )
+    id: Mapped[UUID] = _pk()
+    project_id: Mapped[UUID] = _fk("projects.id")
+    name: Mapped[str] = mapped_column(String(40), nullable=False)
+    spec: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    paused: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    next_run_at: Mapped[datetime] = _ts()
+    created_at: Mapped[datetime] = _ts()
+    updated_at: Mapped[datetime] = _ts()
+
+
+class ScheduleExecutionRow(Base):
+    __tablename__ = "schedule_executions"
+    __table_args__ = (
+        UniqueConstraint("schedule_id", "scheduled_for_utc", name="uq_schedule_occurrence"),
+        UniqueConstraint("pipeline_run_id", name="uq_schedule_pipeline_run"),
+        UniqueConstraint("job_run_id", name="uq_schedule_job_run"),
+        CheckConstraint(
+            "status IN ('QUEUED', 'DISPATCHED', 'SKIPPED', 'MISSED')",
+            name="ck_schedule_execution_status",
+        ),
+        CheckConstraint(
+            "(status = 'DISPATCHED' AND resolved_definition_id IS NOT NULL AND "
+            "((pipeline_run_id IS NOT NULL AND job_run_id IS NULL) OR "
+            "(pipeline_run_id IS NULL AND job_run_id IS NOT NULL))) OR "
+            "(status <> 'DISPATCHED' AND pipeline_run_id IS NULL AND job_run_id IS NULL)",
+            name="ck_schedule_execution_run",
+        ),
+        Index("ix_schedule_executions_queue", "status", "scheduled_for_utc"),
+    )
+    id: Mapped[UUID] = _pk()
+    schedule_id: Mapped[UUID] = _fk("schedules.id")
+    project_id: Mapped[UUID] = _fk("projects.id")
+    scheduled_for_utc: Mapped[datetime] = _ts()
+    resolved_definition_id: Mapped[UUID | None] = mapped_column(Uuid)
+    spec: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    pipeline_run_id: Mapped[UUID | None] = mapped_column(
+        Uuid, ForeignKey("pipeline_runs.id", ondelete="RESTRICT"), index=True
+    )
+    job_run_id: Mapped[UUID | None] = mapped_column(
+        Uuid, ForeignKey("runs.id", ondelete="RESTRICT"), index=True
+    )
+    reason: Mapped[str | None] = mapped_column(Text)
+    expires_at: Mapped[datetime] = _ts()
+    created_at: Mapped[datetime] = _ts()
+    updated_at: Mapped[datetime] = _ts()

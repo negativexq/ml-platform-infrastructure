@@ -480,3 +480,15 @@ table.t tr.inactive td { color: var(--muted); }
 .project-attention .timeline li { display: flex; gap: 10px; }
 .project-attention .timeline li > :first-child { flex: 0 0 96px; }
 .project-attention .timeline .chip { flex: 0 0 auto; }
+
+.schedule-summary, .schedule-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; }
+.schedule-summary { margin-bottom: 20px; }
+.schedule-facts { display: grid; grid-template-columns: 130px 1fr; gap: 8px; }
+.schedule-facts dt { color: var(--muted); }
+.schedule-facts dd { margin: 0; overflow-wrap: anywhere; }
+.schedule-fields { margin-bottom: 18px; }
+.schedule-fields label { display: flex; flex-direction: column; gap: 6px; }
+.schedule-fields input, .schedule-fields select { width: 100%; }
+dialog.schedule-modal { width: min(720px, calc(100vw - 32px)); max-width: none; }
+.schedule-preview { background: var(--surface-2); border-radius: 8px; padding: 12px 16px; margin-bottom: 16px; }
+@media (max-width: 700px) { .schedule-summary, .schedule-fields { grid-template-columns: 1fr; } }

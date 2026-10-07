@@ -163,6 +163,8 @@ PLATFORM_ADMIN = "platform-admin"  # platform-wide decisions, e.g. how many GPUs
 # (method, route) -> who may call it. Routes not listed: GET needs viewer, anything else
 # operator, in the project the route is about.
 POLICY: dict[tuple[str, str], str | ProjectRole] = {
+    ("GET", "/schedules"): SIGNED_IN,
+    ("POST", "/schedule-preview"): SIGNED_IN,
     ("POST", "/runs/{run_id}/logs/stream-ticket"): ProjectRole.VIEWER,
     ("POST", "/pipeline-runs/{run_id}/steps/{step}/logs/stream-ticket"): ProjectRole.VIEWER,
     ("GET", "/healthz"): PUBLIC,
@@ -222,6 +224,7 @@ def project_of(uow: Any, route: str, params: dict[str, str]) -> UUID | None:
             raise NotFound("project", params["project_id"])
         return project.id  # type: ignore[no-any-return]
     lookups: dict[str, Callable[[], Any]] = {
+        "/schedules/{schedule_id}": lambda: uow.schedules.get(uuid("schedule_id")),
         "/runs/{run_id}": lambda: uow.runs.get(uuid("run_id")),
         "/pipeline-runs/{run_id}": lambda: uow.pipeline_runs.get(uuid("run_id")),
         "/model-versions/{version_id}": lambda: _model_version_project(uow, uuid("version_id")),

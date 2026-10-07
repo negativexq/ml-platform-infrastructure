@@ -24,6 +24,7 @@ from controlplane.adapters.mlflow import MlflowExperimentProvider
 from controlplane.adapters.serving import KServeServingProvider
 from controlplane.adapters.workflow import ArgoWorkflowProvider
 from controlplane.application.ports import UnitOfWork
+from controlplane.application.schedules import ScheduleDispatcher
 from controlplane.observability import instrument_reconciler, observe, observed_uow_factory
 from controlplane.persistence.readiness import DatabaseReadiness
 from controlplane.persistence.sql import SqlUnitOfWork, make_engine, sql_uow_factory
@@ -188,6 +189,7 @@ def main() -> None:
     )
     watchdog = ReconcileWatchdog(settings.reconciler_watchdog_seconds)
     token = progress.set(watchdog.beat)
+    schedules = ScheduleDispatcher(uow)
     log.info("reconciler started", telemetry=telemetry.enabled, standby=leadership is not None)
     try:
         if leadership:
@@ -200,6 +202,7 @@ def main() -> None:
                 "projects",
                 lambda: [r for r in projects.reconcile_all() if r.before != r.after or r.changed],
             )
+            _pass("schedules", lambda: [counts] if (counts := schedules.tick()) else [])
             _pass("runs", lambda: [r for r in runs.reconcile_all() if r.before != r.after])
             _pass(
                 "pipeline_runs",

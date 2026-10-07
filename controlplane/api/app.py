@@ -23,6 +23,7 @@ from controlplane.api.overview import overview_router
 from controlplane.api.pipelines import pipeline_runs_router, pipelines_router
 from controlplane.api.platform import platform_router
 from controlplane.api.rollouts import rollouts_router
+from controlplane.api.schedules import schedules_router
 from controlplane.api.schemas import (
     ErrorOut,
     GpuQuotaIn,
@@ -59,6 +60,7 @@ from controlplane.application.providers import (
 )
 from controlplane.application.rollouts import RolloutService
 from controlplane.application.runs import RunService
+from controlplane.application.schedules import ScheduleService
 from controlplane.application.secrets import ProjectSecretService, SecretProvider
 from controlplane.domain.errors import (
     DomainError,
@@ -188,6 +190,7 @@ def create_app(
         uow_factory, clock, secrets, require_image_digest=require_job_image_digest
     )
     app.state.runs = RunService(uow_factory, clock)
+    app.state.schedules = ScheduleService(uow_factory, clock)
     app.state.pipelines = PipelineService(uow_factory, clock)
     app.state.pipeline_runs = PipelineRunService(uow_factory, clock, experiments)
     app.state.models = ModelService(uow_factory, clock, experiments, secrets)
@@ -224,6 +227,7 @@ def create_app(
     app.include_router(jobs_router())
     app.include_router(runs_router())
     app.include_router(pipelines_router())
+    app.include_router(schedules_router())
     app.include_router(pipeline_runs_router())
     app.include_router(models_router())
     app.include_router(model_versions_router())

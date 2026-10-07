@@ -18,6 +18,8 @@ from controlplane.persistence.readiness import DatabaseReadiness
 from controlplane.persistence.sql import make_engine
 
 API_TABLES = (
+    "schedules",
+    "schedule_executions",
     "projects",
     "job_definitions",
     "runs",
@@ -37,6 +39,8 @@ API_TABLES = (
     "notification_reads",
 )
 RECONCILER_TABLES = (
+    "schedules",
+    "schedule_executions",
     "projects",
     "runs",
     "pipeline_runs",

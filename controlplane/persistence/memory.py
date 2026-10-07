@@ -34,6 +34,7 @@ from controlplane.domain.entities import (
     StepRun,
 )
 from controlplane.domain.errors import AlreadyExists, Conflict, NotFound
+from controlplane.domain.schedules import Schedule, ScheduleExecution
 from controlplane.domain.states import (
     DeploymentStatus,
     EndpointStatus,
@@ -48,6 +49,8 @@ from controlplane.domain.states import (
 
 @dataclass
 class MemoryStore:
+    schedules: dict[UUID, Schedule] = field(default_factory=dict)
+    schedule_executions: dict[UUID, ScheduleExecution] = field(default_factory=dict)
     notification_reads: dict[tuple[str, str], datetime] = field(default_factory=dict)
     projects: dict[UUID, Project] = field(default_factory=dict)
     jobs: dict[UUID, JobDefinition] = field(default_factory=dict)
@@ -825,6 +828,11 @@ class MemoryUnitOfWork:
     def __enter__(self) -> Self:
         self._notification_reads = dict(self._store.notification_reads)
         self.notification_reads = _NotificationReads(self._notification_reads)
+        from controlplane.persistence.memory_schedules import MemorySchedules
+
+        self._schedules = dict(self._store.schedules)
+        self._schedule_executions = dict(self._store.schedule_executions)
+        self.schedules = MemorySchedules(self._schedules, self._schedule_executions, self)
         self._projects = dict(self._store.projects)
         self._jobs = dict(self._store.jobs)
         self._runs = dict(self._store.runs)
@@ -871,6 +879,8 @@ class MemoryUnitOfWork:
 
     def commit(self) -> None:
         self._store.notification_reads = self._notification_reads
+        self._store.schedules = self._schedules
+        self._store.schedule_executions = self._schedule_executions
         self._store.projects = self._projects
         self._store.jobs = self._jobs
         self._store.runs = self._runs

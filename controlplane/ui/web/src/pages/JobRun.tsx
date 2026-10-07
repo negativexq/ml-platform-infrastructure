@@ -1,3 +1,4 @@
+import { RunScheduleOrigin } from './Schedules';
 import { api, type S } from '../api/client';
 import { Alert, Badge, CopyButton, Time } from '../components/bits';
 import { Logs } from '../components/Logs';
@@ -43,6 +44,7 @@ export function JobRunPage({ project, id }: { project: string; id: string }) {
                   }}>{r.status === 'FAILED' ? 'Retry' : 'Run again'}</button>)}
             </div>
           </div>
+          <RunScheduleOrigin kind="runs" id={id} />
           <p className="sub meta">
             <span className="mono" title={r.id}>{shortId(r.id)}</span><CopyButton text={r.id} what="run id" />
             <span>{'Started '}<Time iso={r.started_at || r.created_at} /></span><span>{`Took ${fmtDuration(r.duration_seconds)}`}</span>

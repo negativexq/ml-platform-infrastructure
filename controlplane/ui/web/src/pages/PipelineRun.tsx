@@ -1,3 +1,4 @@
+import { RunScheduleOrigin } from './Schedules';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 import { useRunLogs } from '../lib/logs';
@@ -66,6 +67,7 @@ export function PipelineRunPage({ project, id }: { project: string; id: string }
                     title={access.why('operator') ?? 'Start a new run of the same pipeline version'} onClick={() => rerun(r)}>Run again</button>)}
               </div>
             </div>
+            <RunScheduleOrigin kind="pipeline-runs" id={id} />
             <p className="sub meta">
               <span className="mono" title={r.id}>{shortId(r.id)}</span><CopyButton text={r.id} what="run id" />
               <span>{'Started '}<Time iso={r.started_at || r.created_at} /></span><span>{`Took ${fmtDuration(r.duration_seconds)}`}</span>

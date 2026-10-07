@@ -125,6 +125,7 @@ export function PipelinePage({ project, name }: { project: string; name: string 
                 </select>
               </label>
               <div className="actions">
+                <a className="btn" href={`${routes.project(project)}/schedules?target_kind=PIPELINE&target_name=${enc(name)}`}>Schedules</a>
                 <button className="btn primary" type="button" data-testid="run-this-pipeline" disabled={!access.may('operator')} title={access.why('operator')}
                   onClick={() => runPipeline([{ name, version: def.version }], name, def.version === latest.version ? undefined : def.version)}>
                   {def.version === latest.version ? 'Run pipeline' : `Run v${def.version}`}

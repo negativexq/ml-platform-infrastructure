@@ -20,6 +20,7 @@ import { PipelineRunPage } from './pages/PipelineRun';
 import { ProjectPage } from './pages/Project';
 import { ProjectsPage } from './pages/Projects';
 import { RunsPage } from './pages/Runs';
+import { SchedulePage, SchedulesPage } from './pages/Schedules';
 import { SettingsPage } from './pages/Settings';
 
 // The app lives under the hash (#/projects/...): the control plane serves one static page and
@@ -45,6 +46,8 @@ const admin = (['identity', 'settings'] as const).map((section) => createRoute({
   getParentRoute: () => root, path: `/${section}`, component: () => <AdminPage key={section} section={section} />,
 }));
 
+const schedules = createRoute({ getParentRoute: () => root, path: '/schedules', component: () => <SchedulesPage />, validateSearch: anySearch });
+const schedule = createRoute({ getParentRoute: () => root, path: '/schedules/$id', component: function Page() { const { id } = useParams({ strict: false }); return <SchedulePage key={id} id={id!} />; } });
 const monitor = createRoute({ getParentRoute: () => root, path: '/monitor', component: MonitorPage, validateSearch: anySearch });
 
 /** Everything inside a project; its sections are in the content header. */
@@ -74,11 +77,12 @@ const endpoint = child('endpoints/$name', (p) => <EndpointPage key={`${p.project
 const deployments = child('deployments', (p) => <DeploymentsPage key={p.project} project={p.project!} />);
 const deployment = child('deployments/$name', (p) => <DeploymentPage key={`${p.project}/${p.name}`} project={p.project!} name={p.name!} />);
 const activity = child('activity', (p) => <ActivityPage key={p.project} project={p.project!} />);
+const projectSchedules = child('schedules', (p) => <SchedulesPage key={p.project} project={p.project!} />);
 const settings = child('settings', (p) => <SettingsPage key={p.project} project={p.project!} />);
 
 const routeTree = root.addChildren([
-  index, home, help, projects, monitor, services, ...capabilities, ...admin,
-  project.addChildren([overview, runs, pipelineRun, jobRun, pipelines, pipeline, jobs, job, models, model, functions, fn, endpoints, endpoint, deployments, deployment, activity, settings]),
+  index, home, help, projects, monitor, schedules, schedule, services, ...capabilities, ...admin,
+  project.addChildren([overview, runs, pipelineRun, jobRun, pipelines, pipeline, jobs, job, models, model, functions, fn, endpoints, endpoint, deployments, deployment, activity, projectSchedules, settings]),
 ]);
 // Plain `?key=value` query strings (every value is a string), rather than JSON-encoded ones, so
 // shared links stay readable: `#/projects/x/runs?status=failed&kind=job`.

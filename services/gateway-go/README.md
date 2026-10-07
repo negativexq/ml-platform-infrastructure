@@ -21,7 +21,7 @@ retains at least the reservation. Actual GPU/vLLM acceptance remains a separate 
 `pgxpool` defaults to 15 connections, with 12 limiter workers, a three-second acquire/connect
 bound and checkout pre-ping. The limiter retains ordered bucket locks, DB clock, all-or-none
 admission, debt/refund, two-second lock and three-second statement timeouts. Readiness checks
-exact schema head `0021` and the full least-privilege gateway DB-role contract. Migrations
+explicitly compatible schema heads `0021`/`0022` and the full least-privilege gateway DB-role contract. Migrations
 run from the Python image; update and verify this head when releasing a new schema.
 
 Only the **normal** OTel profile is supported: independent metrics/traces export, 1% parent-based

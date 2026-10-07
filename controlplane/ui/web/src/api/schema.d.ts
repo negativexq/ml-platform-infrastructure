@@ -157,6 +157,23 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/pipeline-runs/{run_id}/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Pipeline Origin */
+        get: operations["pipeline_origin_pipeline_runs__run_id__schedule_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/pipeline-runs/{run_id}/steps/{step}/logs": {
         parameters: {
             query?: never;
@@ -832,6 +849,24 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{project}/schedules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Project */
+        get: operations["list_project_projects__project__schedules_get"];
+        put?: never;
+        /** Create */
+        post: operations["create_projects__project__schedules_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/projects/{project}/secret-references": {
         parameters: {
             query?: never;
@@ -1021,6 +1056,92 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/runs/{run_id}/schedule": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Job Origin */
+        get: operations["job_origin_runs__run_id__schedule_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/schedule-preview": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Preview Cron */
+        post: operations["preview_cron_schedule_preview_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/schedules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List All */
+        get: operations["list_all_schedules_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/schedules/{schedule_id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get */
+        get: operations["get_schedules__schedule_id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Update */
+        patch: operations["update_schedules__schedule_id__patch"];
+        trace?: never;
+    };
+    "/schedules/{schedule_id}/executions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** History */
+        get: operations["history_schedules__schedule_id__executions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -1184,6 +1305,16 @@ export interface components {
             /** Value */
             value: number | null;
         };
+        /**
+         * ConcurrencyPolicy
+         * @enum {string}
+         */
+        ConcurrencyPolicy: "ALLOW" | "FORBID" | "QUEUE";
+        /**
+         * ConcurrencyScope
+         * @enum {string}
+         */
+        ConcurrencyScope: "SCHEDULE" | "TARGET";
         /** DeploymentCreate */
         DeploymentCreate: {
             /** Name */
@@ -1463,6 +1594,74 @@ export interface components {
          * @enum {string}
          */
         EvaluationStatus: "PENDING" | "RUNNING" | "PASSED" | "FAILED";
+        /** ExecutionList */
+        ExecutionList: {
+            /** Items */
+            items: components["schemas"]["ExecutionOut"][];
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /** ExecutionOut */
+        ExecutionOut: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Expires At
+             * Format: date-time
+             */
+            expires_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Job Run Id */
+            job_run_id: string | null;
+            /** Pipeline Run Id */
+            pipeline_run_id: string | null;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Reason */
+            reason: string | null;
+            /** Resolved Definition Id */
+            resolved_definition_id: string | null;
+            /** Run Status */
+            run_status?: string | null;
+            /**
+             * Schedule Id
+             * Format: uuid
+             */
+            schedule_id: string;
+            /** Schedule Revision */
+            schedule_revision: number;
+            /**
+             * Scheduled For Utc
+             * Format: date-time
+             */
+            scheduled_for_utc: string;
+            status: components["schemas"]["ExecutionStatus"];
+            target_kind: components["schemas"]["TargetKind"];
+            /** Target Name */
+            target_name: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /**
+         * ExecutionStatus
+         * @enum {string}
+         */
+        ExecutionStatus: "QUEUED" | "DISPATCHED" | "SKIPPED" | "MISSED";
         /**
          * Exposure
          * @enum {string}
@@ -1810,6 +2009,11 @@ export interface components {
             /** Requests Per Second */
             requests_per_second: number | null;
         };
+        /**
+         * MissedRunPolicy
+         * @enum {string}
+         */
+        MissedRunPolicy: "SKIP" | "CATCH_UP";
         /** ModelCreate */
         ModelCreate: {
             /** @description how a function runs (kind function only) */
@@ -2237,6 +2441,11 @@ export interface components {
         PredictRequest: {
             [key: string]: unknown;
         };
+        /** PreviewOut */
+        PreviewOut: {
+            /** Executions */
+            executions: string[];
+        };
         /** ProjectCreate */
         ProjectCreate: {
             /**
@@ -2584,6 +2793,182 @@ export interface components {
             /** Value */
             value: number;
         };
+        /** ScheduleCreate */
+        ScheduleCreate: {
+            /** @default FORBID */
+            concurrency_policy: components["schemas"]["ConcurrencyPolicy"];
+            /** @default TARGET */
+            concurrency_scope: components["schemas"]["ConcurrencyScope"];
+            /** Cron */
+            cron: string;
+            /**
+             * Deadline Seconds
+             * @default 300
+             */
+            deadline_seconds: number;
+            /**
+             * Max Queue Size
+             * @default 100
+             */
+            max_queue_size: number;
+            /** @default SKIP */
+            missed_run_policy: components["schemas"]["MissedRunPolicy"];
+            /** Name */
+            name: string;
+            /**
+             * Paused
+             * @default false
+             */
+            paused: boolean;
+            /**
+             * Queue Ttl Seconds
+             * @default 86400
+             */
+            queue_ttl_seconds: number;
+            target_kind: components["schemas"]["TargetKind"];
+            /** Target Name */
+            target_name: string;
+            /**
+             * Timeout Seconds
+             * @default 3600
+             */
+            timeout_seconds: number;
+            /**
+             * Timezone
+             * @default UTC
+             */
+            timezone: string;
+            /** Version */
+            version?: number | null;
+            /** @default PINNED */
+            version_policy: components["schemas"]["VersionPolicy"];
+        };
+        /** ScheduleList */
+        ScheduleList: {
+            /** Items */
+            items: components["schemas"]["ScheduleOut"][];
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /** ScheduleOut */
+        ScheduleOut: {
+            /** @default FORBID */
+            concurrency_policy: components["schemas"]["ConcurrencyPolicy"];
+            /** @default TARGET */
+            concurrency_scope: components["schemas"]["ConcurrencyScope"];
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Cron */
+            cron: string;
+            /**
+             * Deadline Seconds
+             * @default 300
+             */
+            deadline_seconds: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            last_execution: components["schemas"]["ExecutionOut"] | null;
+            /**
+             * Max Queue Size
+             * @default 100
+             */
+            max_queue_size: number;
+            /** @default SKIP */
+            missed_run_policy: components["schemas"]["MissedRunPolicy"];
+            /** Name */
+            name: string;
+            /** Next Executions */
+            next_executions: string[];
+            /**
+             * Next Run At
+             * Format: date-time
+             */
+            next_run_at: string;
+            /**
+             * Paused
+             * @default false
+             */
+            paused: boolean;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /** Project Name */
+            project_name: string;
+            /**
+             * Queue Ttl Seconds
+             * @default 86400
+             */
+            queue_ttl_seconds: number;
+            /** Revision */
+            revision: number;
+            target_kind: components["schemas"]["TargetKind"];
+            /** Target Name */
+            target_name: string;
+            /**
+             * Timeout Seconds
+             * @default 3600
+             */
+            timeout_seconds: number;
+            /**
+             * Timezone
+             * @default UTC
+             */
+            timezone: string;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+            /** Version */
+            version?: number | null;
+            /** @default PINNED */
+            version_policy: components["schemas"]["VersionPolicy"];
+        };
+        /** SchedulePreview */
+        SchedulePreview: {
+            /** Cron */
+            cron: string;
+            /**
+             * Timezone
+             * @default UTC
+             */
+            timezone: string;
+        };
+        /** ScheduleUpdate */
+        ScheduleUpdate: {
+            concurrency_policy?: components["schemas"]["ConcurrencyPolicy"] | null;
+            concurrency_scope?: components["schemas"]["ConcurrencyScope"] | null;
+            /** Cron */
+            cron?: string | null;
+            /** Deadline Seconds */
+            deadline_seconds?: number | null;
+            /** Expected Revision */
+            expected_revision: number;
+            /** Max Queue Size */
+            max_queue_size?: number | null;
+            missed_run_policy?: components["schemas"]["MissedRunPolicy"] | null;
+            /** Paused */
+            paused?: boolean | null;
+            /** Queue Ttl Seconds */
+            queue_ttl_seconds?: number | null;
+            /** Timeout Seconds */
+            timeout_seconds?: number | null;
+            /** Timezone */
+            timezone?: string | null;
+            /** Version */
+            version?: number | null;
+            version_policy?: components["schemas"]["VersionPolicy"] | null;
+        };
         /** SecretKeyRefIn */
         SecretKeyRefIn: {
             /** Key */
@@ -2801,6 +3186,11 @@ export interface components {
             /** Runs */
             runs: number;
         };
+        /**
+         * TargetKind
+         * @enum {string}
+         */
+        TargetKind: "PIPELINE" | "JOB";
         /** ThresholdIn */
         ThresholdIn: {
             /** Max */
@@ -2885,6 +3275,11 @@ export interface components {
             /** Items */
             items: components["schemas"]["ModelVersionSummary"][];
         };
+        /**
+         * VersionPolicy
+         * @enum {string}
+         */
+        VersionPolicy: "PINNED" | "LATEST";
     };
     responses: never;
     parameters: never;
@@ -3284,6 +3679,37 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    pipeline_origin_pipeline_runs__run_id__schedule_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionOut"] | null;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };
@@ -6030,6 +6456,78 @@ export interface operations {
             };
         };
     };
+    list_project_projects__project__schedules_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+                target_kind?: components["schemas"]["TargetKind"] | null;
+                target_name?: string | null;
+                paused?: boolean | null;
+            };
+            header?: never;
+            path: {
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_projects__project__schedules_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScheduleCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     reference_catalog_projects__project__secret_references_get: {
         parameters: {
             query?: never;
@@ -6579,6 +7077,206 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    job_origin_runs__run_id__schedule_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                run_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionOut"] | null;
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    preview_cron_schedule_preview_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["SchedulePreview"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["PreviewOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_all_schedules_get: {
+        parameters: {
+            query?: {
+                project?: string | null;
+                limit?: number;
+                offset?: number;
+                target_kind?: components["schemas"]["TargetKind"] | null;
+                target_name?: string | null;
+                paused?: boolean | null;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_schedules__schedule_id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    update_schedules__schedule_id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScheduleUpdate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScheduleOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    history_schedules__schedule_id__executions_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                schedule_id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ExecutionList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

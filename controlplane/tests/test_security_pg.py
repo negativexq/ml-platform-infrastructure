@@ -35,6 +35,13 @@ def test_sql_runtime_privileges_and_audit_trigger(pg_engine: Engine) -> None:
                 conn.execute(text(f'SET LOCAL SESSION AUTHORIZATION "{user}"'))
                 _runtime_role(conn, component)
                 conn.execute(text("SELECT version_num FROM public.alembic_version"))
+                if component in {"api", "reconciler"}:
+                    conn.execute(text("SELECT * FROM public.schedule_executions LIMIT 1"))
+                    conn.execute(text("UPDATE public.schedules SET paused=true WHERE false"))
+                if component == "reconciler":
+                    conn.execute(
+                        text("UPDATE public.schedule_executions SET reason='test' WHERE false")
+                    )
         with pg_engine.begin() as conn:
             conn.execute(text(f'SET LOCAL SESSION AUTHORIZATION "{users["gateway"]}"'))
             conn.execute(text("SELECT * FROM public.endpoints LIMIT 1"))
@@ -44,6 +51,8 @@ def test_sql_runtime_privileges_and_audit_trigger(pg_engine: Engine) -> None:
             conn.execute(text("UPDATE public.gateway_rate_buckets SET tokens=4 WHERE name='test'"))
         denied = {
             "gateway": (
+                "SELECT * FROM public.schedules",
+                "SELECT * FROM public.schedule_executions",
                 "SELECT * FROM public.audit_events",
                 "UPDATE public.memberships SET role='admin' WHERE false",
                 "DELETE FROM public.memberships",

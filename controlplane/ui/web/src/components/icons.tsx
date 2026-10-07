@@ -11,6 +11,7 @@ const PATHS: Record<string, string> = {
   monitor: 'M1.5 8.5h3l2-5 3 9 2-4h3',
   overview: 'M2.5 7.5l5.5-5 5.5 5M4 6.5v7h8v-7',
   runs: 'M5 3l8 5-8 5z',
+  schedules: 'M3 3h10v11H3zM5 1.5v3M11 1.5v3M3 6h10M6 9h4M6 11.5h2',
   pipelines: 'M3 4.5a1.5 1.5 0 1 0 0 .01M13 4.5a1.5 1.5 0 1 0 0 .01M8 11.5a1.5 1.5 0 1 0 0 .01M4.5 4.5h7M4 6l3 4.5M12 6l-3 4.5',
   jobs: 'M2.5 5l5.5-2.5 5.5 2.5v6l-5.5 2.5-5.5-2.5zM2.5 5l5.5 2.5 5.5-2.5M8 7.5v6',
   models: 'M8 1.5l5.5 3.25v6.5l-5.5 3.25-5.5-3.25v-6.5zM8 8v6.5M8 8l5.5-3.25M8 8l-5.5-3.25',

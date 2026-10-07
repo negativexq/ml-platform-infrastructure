@@ -6,6 +6,10 @@ image gate at `b7a3420`. Historical counts retain their original scope.
 
 ## Implemented
 
+- Scheduling P0 adds PostgreSQL-backed Job/Pipeline schedules, transactional execution/run
+  creation, bounded queues, concurrency scopes, timezone/DST and UI history. Schema `0022`.
+  See the [contract](scheduling.md) for policy boundaries and validation scope.
+
 - Bottleneck telemetry now wires gateway native HTTP/outbound HTTPX spans and reconciler
   SQL tracing, including stored-origin context for DB spans. SQLAlchemy 2.0 pin fixes the
   instrumentor incompatibility with 2.1. DB acquisition/query/transaction-lifetime metrics,
@@ -29,8 +33,9 @@ image gate at `b7a3420`. Historical counts retain their original scope.
   use Lease election, bounded Kubernetes transport and main-loop progress watchdog;
   classic-model alias passes heartbeat between models.
 - Separate migration/API/reconciler/gateway database credentials and runtime grants;
-  migration advisory locking and expand/contract release contract. Schema head **0021**:
-  `0020` protects append-only audit rows; `0021` enforces active rollout version uniqueness.
+  migration advisory locking and expand/contract release contract. Schema head **0022**:
+  `0020` protects append-only audit rows; `0021` enforces active rollout version uniqueness;
+  `0022` adds scheduling intent and execution records.
 - Stable OIDC issuer/subject identity, shorter bounded browser sessions and no ID token in
   cookies. Username-only grants/cookies fail closed and require verified re-grant.
 - Concurrent membership changes preserve the last admin; model/endpoint field updates

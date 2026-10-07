@@ -14,6 +14,8 @@ from typing import Any
 
 # These counts cover durable control-plane identities; credentials are never printed.
 TABLES = (
+    "schedules",
+    "schedule_executions",
     "projects",
     "job_definitions",
     "runs",

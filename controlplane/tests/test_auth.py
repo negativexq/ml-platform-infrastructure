@@ -493,3 +493,39 @@ def test_oidc_subject_rename_and_username_reuse(env: Env) -> None:
     assert env.client.get(f"/projects/{project}/members", headers=renamed).status_code == 200
     assert env.client.get(f"/projects/{project}/members", headers=replacement).status_code == 403
     assert env.client.get("/me", headers=renamed).json()["user_subject"] == env.subject("alice")
+
+
+def test_schedules_enforce_project_roles_on_lists_and_execution_history(env: Env) -> None:
+    project = env.project("alice")
+    spec = {
+        "name": "daily-score",
+        "target_kind": "JOB",
+        "target_name": "train",
+        "cron": "0 3 * * *",
+    }
+    env.grant(project, "user:bob", "viewer")
+    bob = env.as_("bob")
+    assert (
+        env.client.post(f"/projects/{project}/schedules", json=spec, headers=bob).status_code == 403
+    )
+    created = env.client.post(f"/projects/{project}/schedules", json=spec, headers=env.as_("alice"))
+    assert created.status_code == 201, created.text
+    id = created.json()["id"]
+    assert env.client.get(f"/schedules/{id}", headers=bob).status_code == 200
+    assert env.client.get(f"/schedules/{id}/executions", headers=bob).status_code == 200
+    assert (
+        env.client.patch(
+            f"/schedules/{id}", json={"expected_revision": 1, "paused": True}, headers=bob
+        ).status_code
+        == 403
+    )
+    mallory = env.as_("mallory")
+    assert env.client.get("/schedules", headers=mallory).json()["items"] == []
+    assert env.client.get(f"/schedules/{id}/executions", headers=mallory).status_code == 403
+    env.grant(project, "user:bob", "operator")
+    assert (
+        env.client.patch(
+            f"/schedules/{id}", json={"expected_revision": 1, "paused": True}, headers=bob
+        ).status_code
+        == 200
+    )
