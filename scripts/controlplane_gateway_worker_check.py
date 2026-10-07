@@ -81,6 +81,13 @@ def main():
     )
     parser.add_argument("--go-gateway-image")
     parser.add_argument(
+        "--go-server-idle-timeout-seconds",
+        type=int,
+        default=5,
+        help=("Explicit Go probe idle timeout; default 5 matches historical Python "
+              "comparisons, production defaults to 60"),
+    )
+    parser.add_argument(
         "--contract-smoke",
         action="store_true",
         help="Verify real function forwarding and refusals outside timed load",
@@ -92,6 +99,8 @@ def main():
         default=ROOT / "docs/evidence/live-2026-10-07/observability/worker-experiment.json",
     )
     args = parser.parse_args()
+    if not 1 <= args.go_server_idle_timeout_seconds <= 600:
+        parser.error("Go server idle timeout must be 1–600 seconds")
     if args.profile_cpu and (
         len(args.cases) != 3 or len(set(args.cases)) != 1 or not args.probe_image
     ):
@@ -218,6 +227,15 @@ def main():
                     if runtimes[index] == "go":
                         container["image"] = args.go_gateway_image
                         container["command"] = ["/mlp-gateway-go"]
+                        overrides = {
+                            "CP_GATEWAY_IDLE_TIMEOUT": f"{args.go_server_idle_timeout_seconds}s",
+                            "CP_GATEWAY_WORKERS": str(workers),
+                            "CP_GATEWAY_DB_POOL_CAPACITY": str(pool),
+                        }
+                        container["env"] = [
+                            e for e in container["env"] if e["name"] not in overrides
+                        ]
+                        container["env"] += [{"name": k, "value": v} for k, v in overrides.items()]
                     container.pop("args", None)
                     container.setdefault("volumeMounts", []).append(
                         {"name": "probe", "mountPath": "/probe", "readOnly": True}

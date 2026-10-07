@@ -81,8 +81,8 @@ type gateway struct {
 	metrics  *telemetry
 	slots    chan struct{}
 	mu       sync.Mutex
-	keys     map[string]cacheEntry[*apiKey]
-	routes   map[string]cacheEntry[*route]
+	keys     entityCache[*apiKey]
+	routes   entityCache[*route]
 	touched  map[string]time.Time
 	now      func() time.Time
 }
@@ -96,40 +96,13 @@ func newGateway(db repository, workers int, t *telemetry) *gateway {
 	transport.MaxConnsPerHost = 200
 	transport.MaxIdleConns = 200
 	transport.MaxIdleConnsPerHost = 50
-	return &gateway{db: db, metrics: t, client: &http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}, slots: make(chan struct{}, workers), keys: map[string]cacheEntry[*apiKey]{}, routes: map[string]cacheEntry[*route]{}, touched: map[string]time.Time{}, now: time.Now}
+	return &gateway{db: db, metrics: t, client: &http.Client{Transport: transport, CheckRedirect: func(*http.Request, []*http.Request) error { return http.ErrUseLastResponse }}, slots: make(chan struct{}, workers), touched: map[string]time.Time{}, now: time.Now}
 }
 func (g *gateway) key(ctx context.Context, id string) (*apiKey, error) {
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	if entry, ok := g.keys[id]; ok && g.now().Sub(entry.At) < cacheTTL {
-		return entry.Value, nil
-	}
-	k, err := g.db.Key(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-	if len(g.keys) >= 10000 {
-		g.keys = map[string]cacheEntry[*apiKey]{}
-	}
-	g.keys[id] = cacheEntry[*apiKey]{k, g.now()}
-	return k, nil
+	return g.keys.get(ctx, id, g.now, func(op context.Context) (*apiKey, error) { return g.db.Key(op, id) })
 }
 func (g *gateway) route(ctx context.Context, project, endpoint string) (*route, error) {
-	name := project + "/" + endpoint
-	g.mu.Lock()
-	defer g.mu.Unlock()
-	if entry, ok := g.routes[name]; ok && g.now().Sub(entry.At) < cacheTTL {
-		return entry.Value, nil
-	}
-	r, err := g.db.Route(ctx, project, endpoint)
-	if err != nil {
-		return nil, err
-	}
-	if len(g.routes) >= 10000 {
-		g.routes = map[string]cacheEntry[*route]{}
-	}
-	g.routes[name] = cacheEntry[*route]{r, g.now()}
-	return r, nil
+	return g.routes.get(ctx, project+"/"+endpoint, g.now, func(op context.Context) (*route, error) { return g.db.Route(op, project, endpoint) })
 }
 func (g *gateway) authenticate(ctx context.Context, token string) (*apiKey, error) {
 	if token == "" {

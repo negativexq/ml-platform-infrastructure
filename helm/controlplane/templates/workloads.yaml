@@ -119,6 +119,10 @@ spec:
             - name: MLP_NODE_NAME
               valueFrom: {fieldRef: {fieldPath: spec.nodeName}}
             {{- if eq $component "gateway" }}
+            {{- if $go }}
+            - name: CP_GATEWAY_IDLE_TIMEOUT
+              value: {{ $settings.idleTimeout | default "60s" | quote }}
+            {{- end }}
             - name: CP_GATEWAY_WORKERS
               value: {{ $settings.workers | default 12 | quote }}
             - name: CP_GATEWAY_DB_POOL_CAPACITY

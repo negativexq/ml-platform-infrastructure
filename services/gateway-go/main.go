@@ -16,7 +16,7 @@ import (
 	"time"
 )
 
-func cgroupRuntime(workers, capacity int) map[string]any {
+func cgroupRuntime(workers, capacity int, idle time.Duration) map[string]any {
 	readInt := func(name string) int64 {
 		b, _ := os.ReadFile(filepath.Join("/sys/fs/cgroup", name))
 		v, _ := strconv.ParseInt(strings.TrimSpace(string(b)), 10, 64)
@@ -31,13 +31,13 @@ func cgroupRuntime(workers, capacity int) map[string]any {
 			cpu[pair[0]] = v
 		}
 	}
-	return map[string]any{"at_epoch": float64(time.Now().UnixNano()) / 1e9, "cpu": cpu, "memory_bytes": readInt("memory.current"), "memory_peak_bytes": readInt("memory.peak"), "goroutines": runtime.NumGoroutine(), "runtime_kind": "go", "server_keep_alive_seconds": 5, "workers": workers, "pool_capacity": capacity, "telemetry_profile": normalProfile(), "otel_sdk_disabled": os.Getenv("OTEL_SDK_DISABLED") == "true"}
+	return map[string]any{"at_epoch": float64(time.Now().UnixNano()) / 1e9, "cpu": cpu, "memory_bytes": readInt("memory.current"), "memory_peak_bytes": readInt("memory.peak"), "goroutines": runtime.NumGoroutine(), "runtime_kind": "go", "server_keep_alive_seconds": idle.Seconds(), "workers": workers, "pool_capacity": capacity, "telemetry_profile": normalProfile(), "otel_sdk_disabled": os.Getenv("OTEL_SDK_DISABLED") == "true"}
 }
-func runtimeHandler(t *telemetry, workers, capacity int) http.Handler {
+func runtimeHandler(t *telemetry, workers, capacity int, idle time.Duration) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /", func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
-		_ = json.NewEncoder(w).Encode(cgroupRuntime(workers, capacity))
+		_ = json.NewEncoder(w).Encode(cgroupRuntime(workers, capacity, idle))
 	})
 	mux.HandleFunc("POST /telemetry/flush", func(w http.ResponseWriter, r *http.Request) {
 		ctx, cancel := context.WithTimeout(r.Context(), 10*time.Second)
@@ -64,6 +64,20 @@ func capacitySetting(primary, legacy string, fallback int) int {
 	}
 	return n
 }
+func idleTimeoutSetting() (time.Duration, error) {
+	raw := os.Getenv("CP_GATEWAY_IDLE_TIMEOUT")
+	if raw == "" {
+		return 60 * time.Second, nil
+	}
+	d, err := time.ParseDuration(raw)
+	if err != nil || d < time.Second || d > 10*time.Minute {
+		return 0, errors.New("gateway idle timeout must be between 1s and 10m")
+	}
+	return d, nil
+}
+func publicServer(handler http.Handler, idle time.Duration) *http.Server {
+	return &http.Server{Addr: ":8081", Handler: handler, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 30 * time.Second, IdleTimeout: idle, MaxHeaderBytes: 1 << 20}
+}
 func main() {
 	if len(os.Args) == 2 && strings.HasPrefix(os.Args[1], "--drain-wait=") {
 		d, e := time.ParseDuration(strings.TrimPrefix(os.Args[1], "--drain-wait="))
@@ -76,6 +90,10 @@ func main() {
 
 	if profile := os.Getenv("CP_GATEWAY_OBSERVABILITY_PROFILE"); profile != "" && profile != "normal" {
 		log.Fatal("Go gateway currently supports the normal observability profile")
+	}
+	idle, err := idleTimeoutSetting()
+	if err != nil {
+		log.Fatal("invalid gateway idle timeout")
 	}
 	workers := capacitySetting("CP_GATEWAY_WORKERS", "PROBE_WORKERS", 12)
 	capacity := capacitySetting("CP_GATEWAY_DB_POOL_CAPACITY", "PROBE_POOL_CAPACITY", 15)
@@ -120,9 +138,9 @@ func main() {
 		log.Fatal("invalid authentication mode")
 	}
 
-	public := &http.Server{Addr: ":8081", Handler: g, ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 30 * time.Second, IdleTimeout: 5 * time.Second, MaxHeaderBytes: 1 << 20}
+	public := publicServer(g, idle)
 	// Probe diagnostics bind the same private pod-only port as the Python fixture.
-	probe := &http.Server{Addr: ":8082", Handler: runtimeHandler(t, workers, capacity), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second}
+	probe := &http.Server{Addr: ":8082", Handler: runtimeHandler(t, workers, capacity, idle), ReadHeaderTimeout: 5 * time.Second, ReadTimeout: 15 * time.Second, WriteTimeout: 15 * time.Second}
 	if os.Getenv("CP_GATEWAY_PROBE_ENABLED") == "true" {
 		go func() {
 			if err := probe.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {

@@ -53,6 +53,7 @@ gateway:
     tag: dev
     digest: ""
     pullPolicy: IfNotPresent
+  idleTimeout: 60s # Go HTTP keep-alive idle budget; configure for the ingress/client topology
   workers: 12
   dbPoolCapacity: 15
   extraEnv: [] # optional OTLP endpoints/resource overrides

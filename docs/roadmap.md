@@ -336,3 +336,10 @@ subsequent migration are recorded separately below.
 The gateway has since migrated to Go; API/reconciler remain Python.
 See [migration and final-artifact checks](evidence/live-2026-10-07/observability/gateway-go-migration.md).
 Go maximum capacity and successful inference throughput remain unmeasured.
+
+
+The [gateway concurrency follow-up](evidence/live-2026-10-07/observability/gateway-concurrency-followup.md)
+removes locks around OIDC verification/network fetches and cache DB loads, and makes Go
+idle timeout configurable (60-second source/chart default). Race/concurrency and real local
+HTTP reuse tests cover the source fix. The installed lab image remains the recorded migration
+artifact; fresh-image rollout and heterogeneous-client/real-OIDC load acceptance are pending.

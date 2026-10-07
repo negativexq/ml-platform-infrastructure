@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
+	"golang.org/x/sync/singleflight"
 )
 
 type principal struct {
@@ -43,14 +44,29 @@ type signingKey struct {
 	id, algorithm string
 	key           any
 }
+type identitySnapshot struct {
+	issuer, jwksURL string
+	keys            []signingKey
+	fetched         time.Time
+}
 type oidc struct {
 	issuer, audience, usernameClaim, groupsClaim string
 	admins                                       map[string]bool
 	client                                       *http.Client
-	mu                                           sync.Mutex
-	exactIssuer, jwksURL                         string
-	keys                                         []signingKey
-	fetched, lastUnknownRefresh                  time.Time
+	mu                                           sync.RWMutex
+	state                                        identitySnapshot
+	lastUnknownRefresh                           time.Time
+	flights                                      singleflight.Group
+}
+
+func (o *oidc) snapshot() identitySnapshot { o.mu.RLock(); defer o.mu.RUnlock(); return o.state }
+func waitIdentity(ctx context.Context, pending <-chan singleflight.Result) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case result := <-pending:
+		return result.Err
+	}
 }
 
 var oidcAlgorithms = []string{"RS256", "RS384", "RS512", "PS256", "PS384", "PS512", "ES256", "ES384"}
@@ -98,28 +114,40 @@ func (o *oidc) getJSON(ctx context.Context, address string, destination any) err
 	return nil
 }
 func (o *oidc) metadata(ctx context.Context) error {
-	if o.exactIssuer != "" {
-		return nil
-	}
-	var meta struct {
-		Issuer string `json:"issuer"`
-		JWKS   string `json:"jwks_uri"`
-	}
-	if err := o.getJSON(ctx, o.issuer+"/.well-known/openid-configuration", &meta); err != nil {
+	if err := ctx.Err(); err != nil {
 		return err
 	}
-	if strings.TrimRight(meta.Issuer, "/") != o.issuer || !validProviderURL(meta.JWKS) {
-		return errors.New("identity discovery issuer mismatch")
+	if o.snapshot().issuer != "" {
+		return nil
 	}
-	o.exactIssuer = meta.Issuer
-	o.jwksURL = meta.JWKS
-	return nil
+	return waitIdentity(ctx, o.flights.DoChan("metadata", func() (any, error) {
+		if o.snapshot().issuer != "" {
+			return nil, nil
+		}
+		op, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+		defer cancel()
+		var meta struct {
+			Issuer string `json:"issuer"`
+			JWKS   string `json:"jwks_uri"`
+		}
+		if err := o.getJSON(op, o.issuer+"/.well-known/openid-configuration", &meta); err != nil {
+			return nil, err
+		}
+		if strings.TrimRight(meta.Issuer, "/") != o.issuer || !validProviderURL(meta.JWKS) {
+			return nil, errors.New("identity discovery issuer mismatch")
+		}
+		o.mu.Lock()
+		o.state.issuer = meta.Issuer
+		o.state.jwksURL = meta.JWKS
+		o.mu.Unlock()
+		return nil, nil
+	}))
 }
-func (o *oidc) refresh(ctx context.Context) error {
+func (o *oidc) refresh(ctx context.Context, address string) error {
 	var document struct {
 		Keys []struct{ Kty, Kid, Alg, Use, N, E, Crv, X, Y string }
 	}
-	if err := o.getJSON(ctx, o.jwksURL, &document); err != nil {
+	if err := o.getJSON(ctx, address, &document); err != nil {
 		return err
 	}
 	keys := []signingKey{}
@@ -162,48 +190,89 @@ func (o *oidc) refresh(ctx context.Context) error {
 	if len(keys) == 0 {
 		return errors.New("identity signing keys unavailable")
 	}
-	o.keys = keys
-	o.fetched = time.Now()
+	o.mu.Lock()
+	o.state.keys = keys
+	o.state.fetched = time.Now()
+	o.mu.Unlock()
 	return nil
+}
+func findSigningKey(state identitySnapshot, kid, algorithm string) any {
+	for _, key := range state.keys {
+		if (key.id == kid || (kid == "" && len(state.keys) == 1)) && (key.algorithm == "" || key.algorithm == algorithm) {
+			return key.key
+		}
+	}
+	return nil
+}
+func freshSigningKeys(state identitySnapshot) bool {
+	return len(state.keys) > 0 && time.Since(state.fetched) < time.Hour
+}
+func (o *oidc) signingKey(ctx context.Context, kid, algorithm string) (any, error) {
+	if err := ctx.Err(); err != nil {
+		return nil, err
+	}
+	for attempt := 0; attempt < 2; attempt++ {
+		state := o.snapshot()
+		if freshSigningKeys(state) {
+			if key := findSigningKey(state, kid, algorithm); key != nil {
+				return key, nil
+			}
+		}
+		err := waitIdentity(ctx, o.flights.DoChan("jwks", func() (any, error) {
+			state := o.snapshot()
+			if freshSigningKeys(state) {
+				if findSigningKey(state, kid, algorithm) != nil {
+					return nil, nil
+				}
+				o.mu.Lock()
+				allowed := time.Since(o.lastUnknownRefresh) >= time.Second
+				if allowed {
+					o.lastUnknownRefresh = time.Now()
+				}
+				o.mu.Unlock()
+				if !allowed {
+					return nil, errors.New("unknown signing key")
+				}
+			}
+			op, cancel := context.WithTimeout(context.WithoutCancel(ctx), 10*time.Second)
+			defer cancel()
+			return nil, o.refresh(op, state.jwksURL)
+		}))
+		if cancelErr := ctx.Err(); cancelErr != nil {
+			return nil, cancelErr
+		}
+		before := state.fetched
+		state = o.snapshot()
+		if freshSigningKeys(state) {
+			if key := findSigningKey(state, kid, algorithm); key != nil {
+				return key, nil
+			}
+		}
+		if err != nil {
+			return nil, err
+		}
+		// A different kid can join a flight whose leader already became a cache hit.
+		// Retry that no-op once, rather than incorrectly rejecting a rotation without fetching.
+		if state.fetched.Equal(before) {
+			continue
+		}
+		return nil, errors.New("unknown signing key")
+	}
+	return nil, errors.New("unknown signing key")
 }
 func (o *oidc) Authenticate(ctx context.Context, raw string) (*principal, error) {
 	if len(raw) > 64*1024 {
 		return nil, errors.New("invalid token")
 	}
-	o.mu.Lock()
-	defer o.mu.Unlock()
 	if err := o.metadata(ctx); err != nil {
 		return nil, err
 	}
+	issuer := o.snapshot().issuer
 	claims := jwt.MapClaims{}
 	_, err := jwt.ParseWithClaims(raw, claims, func(token *jwt.Token) (any, error) {
-		if len(o.keys) == 0 || time.Since(o.fetched) >= time.Hour {
-			if err := o.refresh(ctx); err != nil {
-				return nil, err
-			}
-		}
 		kid, _ := token.Header["kid"].(string)
-		find := func() any {
-			for _, key := range o.keys {
-				if (key.id == kid || (kid == "" && len(o.keys) == 1)) && (key.algorithm == "" || key.algorithm == token.Method.Alg()) {
-					return key.key
-				}
-			}
-			return nil
-		}
-		key := find()
-		if key == nil && time.Since(o.lastUnknownRefresh) >= time.Second {
-			o.lastUnknownRefresh = time.Now()
-			if err := o.refresh(ctx); err != nil {
-				return nil, err
-			}
-			key = find()
-		}
-		if key == nil {
-			return nil, errors.New("unknown signing key")
-		}
-		return key, nil
-	}, jwt.WithValidMethods(oidcAlgorithms), jwt.WithIssuer(o.exactIssuer), jwt.WithAudience(o.audience), jwt.WithExpirationRequired(), jwt.WithIssuedAt(), jwt.WithLeeway(30*time.Second))
+		return o.signingKey(ctx, kid, token.Method.Alg())
+	}, jwt.WithValidMethods(oidcAlgorithms), jwt.WithIssuer(issuer), jwt.WithAudience(o.audience), jwt.WithExpirationRequired(), jwt.WithIssuedAt(), jwt.WithLeeway(30*time.Second))
 	if err != nil {
 		return nil, errors.New("invalid token")
 	}
@@ -215,7 +284,7 @@ func (o *oidc) Authenticate(ctx context.Context, raw string) (*principal, error)
 	if err != nil || issued == nil {
 		return nil, errors.New("invalid token")
 	}
-	encoded := pythonJSON([]any{o.exactIssuer, sub}, false)
+	encoded := pythonJSON([]any{issuer, sub}, false)
 	hash := sha256.Sum256(encoded)
 	p := &principal{subject: "user:oidc-" + hex.EncodeToString(hash[:])}
 	groups := map[string]bool{}

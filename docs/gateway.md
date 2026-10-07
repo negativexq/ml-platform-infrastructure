@@ -218,7 +218,9 @@ refused in the last hour. Each change is also in the audit trail (`endpoint.expo
 The chart defaults to `gateway.runtime=go` with its own `gateway.image.repository` and
 `gateway.image.digest`. API/reconciler/migrations still use the shared Python image.
 Go supports the normal OTel profile, `CP_GATEWAY_WORKERS` (12) and
-`CP_GATEWAY_DB_POOL_CAPACITY` (15). Diagnostic 8082 is disabled in installed workloads.
+`CP_GATEWAY_DB_POOL_CAPACITY` (15). Go public HTTP idle timeout defaults to 60 seconds;
+set `CP_GATEWAY_IDLE_TIMEOUT` / Helm `gateway.idleTimeout` (1s–10m) for your topology.
+Diagnostic 8082 is disabled in installed workloads.
 Use `gateway.extraEnv` for OTLP endpoint/resource overrides.
 
 For a Python rollback, select `gateway.runtime=python`; it uses the existing shared

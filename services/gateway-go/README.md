@@ -30,9 +30,15 @@ pool metrics, and 30-second metric export. Server/upstream spans propagate trace
 baggage. SQL auto-spans are absent. `OTEL_*_EXPORTER=none` disables that signal;
 `OTEL_SDK_DISABLED=true` disables both. No configured OTLP endpoint means no exporter.
 Pod identity comes from the downward API, with explicit resource attributes taking priority.
+
+OIDC verification and cache fills run outside shared locks. Discovery/JWKS and same-entry
+DB reads coalesce, with cancellable waiters and bounded independent provider operations.
+See the [concurrency follow-up](../../docs/evidence/live-2026-10-07/observability/gateway-concurrency-followup.md).
 Python diagnostic mode remains available through the rollback runtime.
 
-`/healthz` and `/readyz` listen on 8081. Diagnostic 8082 is disabled unless
+`/healthz` and `/readyz` listen on 8081. Public HTTP idle timeout defaults to 60 seconds;
+configure `CP_GATEWAY_IDLE_TIMEOUT` / Helm `gateway.idleTimeout` (1s–10m) for your ingress
+and client topology. This is separate from header/body/upstream streaming timeouts. Diagnostic 8082 is disabled unless
 `CP_GATEWAY_PROBE_ENABLED=true`; it is for disposable acceptance fixtures and is not a Service
 port. Scratch/non-root image preStop uses `/mlp-gateway-go --drain-wait=10s`, followed by
 20 seconds of graceful shutdown within the chart's 30-second termination period.
