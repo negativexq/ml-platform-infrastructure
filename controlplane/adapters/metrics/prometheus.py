@@ -270,16 +270,20 @@ class PrometheusUsage:
                 raise ValueError(f"unsafe label value {value!r}")
         sel = f'project="{project}",endpoint="{endpoint}"'
         w = self._window
-        requests = "mlp_gateway_requests_total"
+        requests = "mlp_gateway_usage_requests_total"
         window = {"start": start.timestamp(), "end": end.timestamp(), "step": f"{step_seconds}s"}
         units = self._by_caller(
             f"60 * sum by (caller) (rate(mlp_gateway_units_total{{{sel}}}[{w}]))", window
         )
         rejected = self._by_caller(
-            f'60 * sum by (caller) (rate({requests}{{{sel},code=~"4.."}}[{w}]))', window
+            f'60 * sum by (caller) (rate({requests}{{{sel},code=~"4.."}}[{w}]) '
+            f'or rate(mlp_gateway_requests_total{{{sel},caller!="",code=~"4.."}}[{w}]))',
+            window,
         )
         errors = self._by_caller(
-            f'60 * sum by (caller) (rate({requests}{{{sel},code=~"5.."}}[{w}]))', window
+            f'60 * sum by (caller) (rate({requests}{{{sel},code=~"5.."}}[{w}]) '
+            f'or rate(mlp_gateway_requests_total{{{sel},caller!="",code=~"5.."}}[{w}]))',
+            window,
         )
         callers: dict[str, list[UsagePoint]] = {}
         for caller in sorted(set(units) | set(rejected) | set(errors)):

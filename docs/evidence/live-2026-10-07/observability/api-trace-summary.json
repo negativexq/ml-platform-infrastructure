@@ -1,0 +1,11 @@
+{
+  "trace_id": "9b5a5083d1f323f910e41603d4990f90",
+  "span_names": [
+    "fastapi.dependencies",
+    "fastapi.endpoint",
+    "fastapi.serialization",
+    "GET /projects",
+    "connect",
+    "SELECT controlplane"
+  ]
+}

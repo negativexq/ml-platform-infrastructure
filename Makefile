@@ -7,7 +7,7 @@
         local-up local-test local-down \
         tf-fmt tf-validate tf-lint tf-check \
         identity-up ui-install ui-build ui-api ui-dev cp-install cp-test cp-check cp-check-light cp-migrate cp-run cp-reconcile cp-gateway gateway-e2e cp-demo lock envtest-up envtest-down \
-        cp-docker-build cp-helm-lint cp-helm-template cp-http-test cp-bootstrap-help cp-release-check cp-admission-check cp-limiter-check-help cp-recovery-check-help cp-cpu-acceptance-help
+        cp-docker-build cp-helm-lint cp-helm-template cp-http-test cp-bootstrap-help cp-release-check cp-admission-check cp-limiter-check-help cp-recovery-check-help cp-cpu-acceptance-help cp-query-profile-help loadgen-build loadgen-test gateway-go-build gateway-go-test cache-clean
 
 IMAGE ?= ml-platform-inference:dev
 
@@ -227,6 +227,9 @@ cp-cpu-acceptance-help:
 cp-limiter-check-help:
 	python scripts/controlplane_limiter_check.py --help
 
+cp-query-profile-help:
+	python scripts/controlplane_query_profile.py --help
+
 cp-recovery-check-help:
 	python scripts/controlplane_recovery_check.py --help
 
@@ -286,3 +289,27 @@ cp-demo:
 ## Regenerate constraints/*.txt (pinned versions for the images and the control plane).
 lock:
 	./scripts/lock.sh
+
+LOADGEN_OUT ?= /tmp/mlp-loadgen
+loadgen-build:
+	cd tools/loadgen && go build -trimpath -o $(LOADGEN_OUT) .
+
+loadgen-test:
+	cd tools/loadgen && go test -race ./... && go vet ./...
+
+cache-clean:
+	./scripts/cache-clean.sh
+
+GATEWAY_GO_OUT ?= /tmp/mlp-gateway-go
+gateway-go-build:
+	cd services/gateway-go && go build -mod=readonly -trimpath -o $(GATEWAY_GO_OUT) .
+
+gateway-go-test:
+	cd services/gateway-go && go test -race ./... && go vet ./...
+
+.PHONY: gateway-go-check cp-gateway-go-release-check
+gateway-go-check:
+	cd services/gateway-go && go test -race ./... && go vet ./...
+
+cp-gateway-go-release-check:
+	bash scripts/gateway-go-release-check.sh

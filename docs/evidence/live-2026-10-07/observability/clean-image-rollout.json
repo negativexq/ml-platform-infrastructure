@@ -1,0 +1,24 @@
+{
+  "deployments": [
+    {
+      "deployment": "mlp-controlplane-api",
+      "desired": 2,
+      "ready": 2,
+      "image": "localhost:5201/mlp-controlplane@sha256:7271ee509006b80d56c687ea4613b60a5fb28a1c2d887bef878027af78d32072"
+    },
+    {
+      "deployment": "mlp-controlplane-gateway",
+      "desired": 2,
+      "ready": 2,
+      "image": "localhost:5201/mlp-controlplane@sha256:7271ee509006b80d56c687ea4613b60a5fb28a1c2d887bef878027af78d32072"
+    },
+    {
+      "deployment": "mlp-controlplane-reconciler",
+      "desired": 2,
+      "ready": 2,
+      "image": "localhost:5201/mlp-controlplane@sha256:7271ee509006b80d56c687ea4613b60a5fb28a1c2d887bef878027af78d32072"
+    }
+  ],
+  "api_readyz": 200,
+  "scope": "direct acceptance deployment patch, not Helm release or full lifecycle rerun"
+}

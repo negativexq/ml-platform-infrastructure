@@ -1,0 +1,2106 @@
+[
+  {
+    "body": "{}",
+    "limit": 1000,
+    "error": "send \"messages\": [{\"role\": \"user\", \"content\": \"...\"}]"
+  },
+  {
+    "body": "[]",
+    "limit": 1000,
+    "error": "the body is a JSON object"
+  },
+  {
+    "body": "invalid",
+    "limit": 1000,
+    "error": "the body is not JSON"
+  },
+  {
+    "body": "{\"messages\":[]}",
+    "limit": 1000,
+    "error": "send \"messages\": [{\"role\": \"user\", \"content\": \"...\"}]"
+  },
+  {
+    "body": "{\"messages\":[{\"content\":\"İstanbul 🌍\"}],\"max_tokens\":10}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "content": "İstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "max_tokens": 10
+    },
+    "reserved": 134
+  },
+  {
+    "body": "{\"messages\":[{}],\"max_tokens\":1000000000000000000000000,\"max_completion_tokens\":2}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {}
+      ],
+      "model": "fn",
+      "max_tokens": 2
+    },
+    "reserved": 99
+  },
+  {
+    "body": "{\"messages\":[{}],\"n\":true}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {}
+      ],
+      "n": true,
+      "model": "fn",
+      "max_tokens": 256
+    },
+    "reserved": 364
+  },
+  {
+    "body": "{\"messages\":[{}],\"max_tokens\":true}",
+    "limit": 1000,
+    "error": "max_tokens and max_completion_tokens must be positive integers"
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"İstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.34, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_tokens\": 1, \"max_completion_tokens\": 30}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "İstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.34,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 1
+    },
+    "reserved": 214
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": -0.0, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": -0.0,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 256
+    },
+    "reserved": 470
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.0, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.0,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 256
+    },
+    "reserved": 470
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.0, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_tokens\": 4}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.0,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 4
+    },
+    "reserved": 219
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.0, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.0,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 256
+    },
+    "reserved": 472
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1e+16, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_completion_tokens\": 30}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1e+16,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 30
+    },
+    "reserved": 249
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.34, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_tokens\": 7}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.34,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 7
+    },
+    "reserved": 226
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.0, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.0,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 256
+    },
+    "reserved": 475
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1e-05, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1e-05,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 256
+    },
+    "reserved": 478
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1e-05, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_tokens\": 10}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1e-05,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 10
+    },
+    "reserved": 233
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1e+16, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_completion_tokens\": 30}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1e+16,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 30
+    },
+    "reserved": 254
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": -0.0, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": -0.0,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 256
+    },
+    "reserved": 480
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": -0.0, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_tokens\": 13}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": -0.0,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 13
+    },
+    "reserved": 238
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.0, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.0,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 256
+    },
+    "reserved": 481
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.34, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.34,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 256
+    },
+    "reserved": 483
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.0, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_tokens\": 16, \"max_completion_tokens\": 30}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.0,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 16
+    },
+    "reserved": 243
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": -0.0, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": -0.0,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 256
+    },
+    "reserved": 485
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1e+16, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1e+16,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 256
+    },
+    "reserved": 487
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.34, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_tokens\": 19}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.34,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 19
+    },
+    "reserved": 250
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1e-05, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1e-05,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 256
+    },
+    "reserved": 489
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1e+16, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_completion_tokens\": 30}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1e+16,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 30
+    },
+    "reserved": 264
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1e+16, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_tokens\": 22}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1e+16,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 22
+    },
+    "reserved": 257
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1e+16, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1e+16,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 256
+    },
+    "reserved": 492
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.34, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.34,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 256
+    },
+    "reserved": 492
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.34, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_tokens\": 25}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.34,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 25
+    },
+    "reserved": 262
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1e+16, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_completion_tokens\": 30}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1e+16,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 30
+    },
+    "reserved": 269
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.0, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.0,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 256
+    },
+    "reserved": 494
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.34, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_tokens\": 28}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.34,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 28
+    },
+    "reserved": 268
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1e-05, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1e-05,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 256
+    },
+    "reserved": 498
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1e-05, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1e-05,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 256
+    },
+    "reserved": 499
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.0, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_tokens\": 31, \"max_completion_tokens\": 30}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.0,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 30
+    },
+    "reserved": 272
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": -0.0, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": -0.0,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 256
+    },
+    "reserved": 500
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1e-05, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1e-05,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 256
+    },
+    "reserved": 502
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.34, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_tokens\": 34}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.34,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 34
+    },
+    "reserved": 280
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": -0.0, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": -0.0,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 256
+    },
+    "reserved": 503
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.34, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_completion_tokens\": 30}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.34,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 30
+    },
+    "reserved": 278
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1e+16, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_tokens\": 37}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1e+16,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 37
+    },
+    "reserved": 287
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": -0.0, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": -0.0,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 256
+    },
+    "reserved": 506
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.34, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.34,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 256
+    },
+    "reserved": 507
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.0, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_tokens\": 40}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.0,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 40
+    },
+    "reserved": 291
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1e-05, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_completion_tokens\": 30}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1e-05,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 30
+    },
+    "reserved": 284
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": -0.0, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": -0.0,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 256
+    },
+    "reserved": 510
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.0, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_tokens\": 43}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.0,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 43
+    },
+    "reserved": 297
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.34, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.34,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 256
+    },
+    "reserved": 512
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1e-05, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1e-05,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 256
+    },
+    "reserved": 514
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.0, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_tokens\": 46, \"max_completion_tokens\": 30}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.0,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 30
+    },
+    "reserved": 287
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1e-05, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1e-05,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 256
+    },
+    "reserved": 516
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": -0.0, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": -0.0,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 256
+    },
+    "reserved": 516
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.0, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_tokens\": 49}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.0,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 49
+    },
+    "reserved": 309
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.34, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.34,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 256
+    },
+    "reserved": 518
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1e-05, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_completion_tokens\": 30}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1e-05,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 30
+    },
+    "reserved": 294
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": -0.0, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_tokens\": 52}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": -0.0,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 52
+    },
+    "reserved": 316
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1e+16, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1e+16,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 256
+    },
+    "reserved": 522
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1e-05, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1e-05,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 256
+    },
+    "reserved": 523
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.34, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_tokens\": 55}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.34,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 55
+    },
+    "reserved": 322
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1e+16, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_completion_tokens\": 30}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1e+16,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 30
+    },
+    "reserved": 299
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1e+16, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1e+16,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 256
+    },
+    "reserved": 526
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.34, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_tokens\": 58}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.34,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 58
+    },
+    "reserved": 328
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.0, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.0,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 256
+    },
+    "reserved": 526
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1e-05, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1e-05,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 256
+    },
+    "reserved": 529
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.0, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_tokens\": 61, \"max_completion_tokens\": 30}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.0,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 30
+    },
+    "reserved": 302
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1e-05, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1e-05,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 256
+    },
+    "reserved": 531
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.0, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.0,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 256
+    },
+    "reserved": 530
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1e+16, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_tokens\": 64}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1e+16,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 64
+    },
+    "reserved": 341
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.34, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.34,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 256
+    },
+    "reserved": 533
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.34, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_completion_tokens\": 30}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.34,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 30
+    },
+    "reserved": 308
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.34, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_tokens\": 67}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.34,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 67
+    },
+    "reserved": 346
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.34, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.34,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 256
+    },
+    "reserved": 536
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1e+16, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1e+16,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 256
+    },
+    "reserved": 538
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.0, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_tokens\": 70}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.0,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 70
+    },
+    "reserved": 351
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.0, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_completion_tokens\": 30}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.0,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 30
+    },
+    "reserved": 312
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.0, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.0,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 256
+    },
+    "reserved": 539
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.0, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_tokens\": 73}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.0,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 73
+    },
+    "reserved": 357
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1e+16, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1e+16,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 256
+    },
+    "reserved": 543
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.0, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.0,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 256
+    },
+    "reserved": 542
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1e-05, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_tokens\": 76, \"max_completion_tokens\": 30}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1e-05,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 30
+    },
+    "reserved": 319
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.34, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.34,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 256
+    },
+    "reserved": 545
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.34, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.34,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 256
+    },
+    "reserved": 546
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.0, \"stream\": true, \"tools\": [{\"function\": {\"description\": \"工具\"}}], \"max_tokens\": 79}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.0,
+      "stream": true,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "stream_options": {
+        "include_usage": true
+      },
+      "max_tokens": 79
+    },
+    "reserved": 369
+  },
+  {
+    "body": "{\"messages\": [{\"role\": \"user\", \"content\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍\"}], \"model\": \"caller-model\", \"temperature\": 1.0, \"stream\": false, \"tools\": [{\"function\": {\"description\": \"工具\"}}]}",
+    "limit": 1000,
+    "prepared": {
+      "messages": [
+        {
+          "role": "user",
+          "content": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaİstanbul 🌍"
+        }
+      ],
+      "model": "fn",
+      "temperature": 1.0,
+      "stream": false,
+      "tools": [
+        {
+          "function": {
+            "description": "工具"
+          }
+        }
+      ],
+      "max_tokens": 256
+    },
+    "reserved": 547
+  }
+]

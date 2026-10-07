@@ -1,0 +1,21 @@
+{
+  "loadgen_image": "localhost:5201/mlp-loadgen@sha256:71b96f3f0651ce343ac6e2b41fe009ec270909c52378f39e68bfba258de0cfc5",
+  "base_image": "localhost:5201/mlp-loadgen@sha256:1460cea65aba8763039a3d31dac2ba13db61c0a2496909cdc3fcfcd284080f22",
+  "source_sha256": {
+    "tools/loadgen/main.go": "c38b4b718da3cdb081c3b8c2e6775d25748bcb3ffa339a7a52f08dc2a083d154",
+    "tools/loadgen/main_test.go": "ad4c063c20a4a47d22967c0d72111a962f21c44df00df65e9e70fc13775be7d7",
+    "tools/loadgen/go.mod": "31e5168c1f2fb84bca8141a67095aec86c296cced159bb2f98810b6a367d58b5",
+    "tools/loadgen/go.sum": "e72b9f558f7b3fde84480d00c6638794afde61105abe48e521898d7e64811c81",
+    "scripts/controlplane_gateway_worker_probe.py": "ddaec15098d00580023e09825ea8204c2bc54b6d4e7ada7e71e3d487e322caaa",
+    "scripts/controlplane_gateway_worker_sample.py": "c36c4c32e0983c95e523a25cbbf6f0458e51e2d35db877421cd60cbb250eea9a",
+    "scripts/controlplane_gateway_worker_check.py": "b1f1bcbfa83a1ea1cb16561e4c28ea767fc35d968f9a29592d368c5ee1110aba"
+  },
+  "compiler": "go version go1.26.6 darwin/arm64",
+  "build": "CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags=-s -w; same thin layer recipe",
+  "checks": [
+    "Go race/vet pass",
+    "Linux ARM64 compile pass",
+    "image short-idle diagnostic smoke pass (expected connection-refused exit 1)"
+  ],
+  "scope": "same image and connection diagnostics in A/B/C; no added retries; A default90s, B idle2s, C keepalive disabled; probe Uvicorn default keepalive5s"
+}

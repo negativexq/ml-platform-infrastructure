@@ -1,6 +1,6 @@
 # Roadmap
 
-Current consolidated status (2026-10-06): [status.md](status.md). Dated findings and test records below retain their original scope.
+Current consolidated status (2026-10-07): [status.md](status.md). Dated findings and test records below retain their original scope.
 
 Current security remediation, local evidence and outstanding deployment/test work: [security-hardening.md](security-hardening.md).
 
@@ -132,6 +132,13 @@ Already verified for real here:
 
 ## Next, in order
 
+Bottleneck instrumentation is implemented for gateway HTTP/HTTPX, reconciler SQL, DB
+acquisition/query/transaction lifetime, pod identity and resource panels. Operator query
+profiling passed on isolated PostgreSQL. Validate exported traces/new dashboard series
+on the final cluster artifact; continuous PostgreSQL scraping, gateway phases/event-loop/
+threadpool, collector health alerts and GPU latency signals remain open. See
+[observability](observability.md#bottleneck-instrumentation-2026-10-07).
+
 1. **Close release-image gates:** repeat the clean control-plane gate for the final
    artifact/architecture, including the remediated serving/initializer images. Their
    new ARM64 scans passed with zero fixable HIGH/CRITICAL; the prior five HIGH findings
@@ -259,3 +266,73 @@ outage/recovery passed, including expired auth/route caches after a redacted 503
 Sustained outage/thread growth and backup/restore remain open. The initial ephemeral
 acceptance DB was lost during the first pod-stop test; historical rows were not restored.
 See [live evidence](evidence/live-2026-10-06/README.md).
+
+## Go and runtime observability follow-up
+
+Gateway phase/loop-lag/inflight/limiter-worker and AnyIO pool metrics are implemented.
+Go loadgen has bounded visible queueing, local race/vet tests and a 500 RPS HTTP-fixture
+smoke. Real Collector/Tempo application export and the paired 1/2/4-pod 500 offered
+RPS comparison passed request/budget integrity; one pod still queues. Resource dashboard
+population and final committed release rerun remain open. Go S3 initializer
+is next; API/reconciler stay Python, the gateway now uses Go, and Rust is out of scope.
+See [staged plan](go-runtime-plan.md).
+
+The [rejection-only worker/pool experiment](evidence/live-2026-10-07/observability/worker-experiment.md)
+completed 35,000 requests with Go against Python: 12/15 retains availability; 24/15
+introduces DB-acquisition 503s; 24/30 fixes those errors without increasing throughput.
+No production worker/pool settings changed. A disposable CPU profile is now recorded
+(see below); precise SQL lock attribution and sustained successful inference capacity remain open.
+
+The [CPU profile](evidence/live-2026-10-07/observability/gateway-cpu-profile.md)
+identifies OTel and the PostgreSQL client stack as the largest attributed CPU groups.
+Profiler overhead reduced throughput about 3.3 times; 19% of thread CPU is unassigned.
+Normal-runtime attribution requires an unprofiled controlled comparison.
+
+An [unprofiled OTel SDK on/off comparison](evidence/live-2026-10-07/observability/gateway-otel-ab.md)
+completed 30,000 429-only requests: mean 424 RPS on versus offered-load-capped 500 off.
+Pod CPU/request fell from 2.352ms to 0.938ms (60.1%). This establishes combined
+instrumentation overhead, not metrics-versus-traces attribution or successful serving capacity.
+Production observability/settings remain active.
+
+The [OTel-disabled capacity probe](evidence/live-2026-10-07/observability/gateway-otel-off-capacity.md)
+completed 47,500 valid 429 responses at 750/1,000/1,500 offered RPS. A 1-CPU pod
+plateaus around 600–700 completed RPS in short tests (1,500 repeats: 691 and 607),
+with increasing client queue delay. This is neither a sustained capacity guarantee nor
+successful inference evidence; production telemetry remains active.
+
+The [gateway hot-path profile](evidence/live-2026-10-07/observability/gateway-hotpath-ab.md)
+is now implemented and live-tested: independent signal providers, gateway SQL tracing
+off in normal mode, exact counters with separate caller usage, sampled latency metrics
+and 30-second normal export. Normal repeats achieved 492/500/500 RPS versus full
+477/489, with 43.8% lower mean timed-window CPU. All 50,000 requests were valid 429s;
+exact counters, sampled HTTP traces and custom DB metrics survived. These short runs
+exclude forced flush cost and do not establish sustained successful inference capacity.
+Installed deployments retain their earlier image/settings.
+
+The subsequent [normal-profile soak](evidence/live-2026-10-07/observability/gateway-normal-soak.md)
+ran two five-minute 500 RPS windows across ten observed regular exports each. Mean CPU
+was 0.53–0.56 core with stable sampled memory/threads. Both strict zero-error gates
+failed: 299,997/300,000 attempts returned 429; three transport failures remain, including
+two immediate header-phase connection resets. The connection follow-up below narrows the failure mechanism; longer
+successful-upstream/streaming load and final clean release acceptance remain open.
+
+The subsequent [keep-alive A/B/C](evidence/live-2026-10-07/observability/gateway-connection-ab.md)
+reproduced a reset on a reused socket idle for 4,999 ms near Uvicorn's 5-second boundary.
+Client idle timeout 2 seconds retained reuse and passed 150,000/150,000 rejection requests
+at 500 RPS with no transport failures/drops and 0.60 mean CPU core. Keep-alive off failed
+at 472 RPS, 0.98 core, 856 network errors and 2,535 queue drops. The recommended acceptance
+client setting is idle 2 seconds; generic CLI defaults and installed deployments remain
+unchanged. Successful upstream/streaming, longer runs and final release acceptance remain open.
+
+The isolated [Go gateway PoC comparison](evidence/live-2026-10-07/observability/gateway-runtime-ab.md)
+now records normal OTel with the selected B transport (client idle 2 seconds). At 500
+rejection RPS, Python used 0.62 CPU core versus Go 0.18 (70.7% less CPU/request), with
+HTTP p95 251 versus 1.48 ms. Go completed 1,000/1,500 offered RPS without errors/drops
+at 0.33/0.48 core; Python completed 554/518 RPS and dropped offered traffic near one
+core. Real function forwarding/refusal smokes, shared PostgreSQL correctness and Tempo
+server→upstream trace/counter checks passed. These are six 60-second rejection windows,
+not successful inference capacity. OIDC/LLM/stream-timeout contract work and the
+subsequent migration are recorded separately below.
+The gateway has since migrated to Go; API/reconciler remain Python.
+See [migration and final-artifact checks](evidence/live-2026-10-07/observability/gateway-go-migration.md).
+Go maximum capacity and successful inference throughput remain unmeasured.

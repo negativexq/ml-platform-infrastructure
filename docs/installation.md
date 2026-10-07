@@ -1,10 +1,14 @@
 # Control-plane packaging
 
-Prepared on 2026-10-05 without building images or changing the running cluster.
+Current runtime: the Helm gateway defaults to the separate Go image; API, reconciler
+and migrations use the shared Python image. See the
+[Go migration evidence](evidence/live-2026-10-07/observability/gateway-go-migration.md).
+
+The following initial packaging snapshot was prepared on 2026-10-05 without building images or changing the running cluster.
 Helm rendering and Kubernetes schema validation are local checks, not installation evidence.
 The default control-plane chart, platform-local chart and standalone gateway manifest
 validated as 34 resources; enabling both control-plane Ingresses validated 16 chart
-resources. Rendering with two reconciler replicas correctly fails. A control-plane-only
+resources. That initial snapshot predates Lease-based reconciler HA; current two-replica rendering succeeds with leader election enabled. A control-plane-only
 Python wheel was built in an isolated temporary directory and inspected for the four
 entrypoints, migration files and committed UI assets. No Docker runtime was started.
 
@@ -17,7 +21,7 @@ The same non-root image supports four process commands:
 | Process | Command |
 | --- | --- |
 | API | `uvicorn controlplane.main:app_factory --factory --host=0.0.0.0 --port=8080` |
-| Gateway | `uvicorn controlplane.gateway_main:app_factory --factory --host=0.0.0.0 --port=8081` |
+| Gateway (Python rollback) | `uvicorn controlplane.gateway_main:app_factory --factory --host=0.0.0.0 --port=8081` |
 | Reconciler | `python -m controlplane.reconciler_main` |
 | Migration | `python -m controlplane.persistence.migrate upgrade` |
 
@@ -253,3 +257,13 @@ lifecycle, `pip check`, SPDX SBOM generation and Trivy scans with zero fixable
 HIGH/CRITICAL findings. Final clean release-artifact and AMD64 runtime reruns remain
 separate gates. See
 [ARM64 evidence and exact limitations](evidence/live-2026-10-06/serving-arm64/README.md).
+
+
+## Go gateway image
+
+Run `make cp-gateway-go-release-check` with `CP_GATEWAY_GO_IMAGE` and
+`CP_GATEWAY_GO_PLATFORM` as needed. It builds from `services/gateway-go/Dockerfile`,
+runs race tests/vet, scans HIGH/CRITICAL findings and emits an SBOM. Set
+`gateway.image.repository` and `gateway.image.digest` separately from `image`.
+`gateway.runtime=python` selects the retained shared-image rollback process.
+The recorded migration is ARM64; other target architectures need runtime acceptance.

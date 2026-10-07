@@ -1,0 +1,71 @@
+{
+  "trace_checks": [
+    {
+      "index": 0,
+      "variant": "normal",
+      "trace_id": "c004727203044807a3cb062bd67ce05b",
+      "sql_span_count": 0,
+      "server_span_count": 1,
+      "scope_names": [
+        "fastapi"
+      ],
+      "passed": true
+    },
+    {
+      "index": 1,
+      "variant": "normal",
+      "trace_id": "b11d4406a1d5d2a6fea06743146aeda5",
+      "sql_span_count": 0,
+      "server_span_count": 1,
+      "scope_names": [
+        "mlp.gateway.go"
+      ],
+      "passed": true
+    }
+  ],
+  "promql_checks": [
+    {
+      "query": "60 * sum by (caller) (rate(mlp_gateway_usage_requests_total{project=\"acceptance-ca9287f7c0\",endpoint=\"function\",code=~\"4..\"}[5m]) or rate(mlp_gateway_requests_total{project=\"acceptance-ca9287f7c0\",endpoint=\"function\",caller!=\"\",code=~\"4..\"}[5m]))",
+      "passed": true
+    },
+    {
+      "query": "60 * sum by (caller) (rate(mlp_gateway_usage_requests_total{project=\"acceptance-ca9287f7c0\",endpoint=\"function\",code=~\"5..\"}[5m]) or rate(mlp_gateway_requests_total{project=\"acceptance-ca9287f7c0\",endpoint=\"function\",caller!=\"\",code=~\"5..\"}[5m]))",
+      "passed": true
+    }
+  ],
+  "upstream_trace_checks": [
+    {
+      "index": 0,
+      "runtime": "python",
+      "trace_id": "90b773f374ed3ccc476a18e9a811c3d0",
+      "linked_upstream_client_spans": 1,
+      "passed": true
+    },
+    {
+      "index": 1,
+      "runtime": "go",
+      "trace_id": "29147ddb16c058c6bf24cbfe0ea03c89",
+      "linked_upstream_client_spans": 1,
+      "passed": true
+    }
+  ],
+  "passed": true,
+  "traffic_gate_passed": true,
+  "scope": "Read-only telemetry verification; does not override traffic gate",
+  "counter_schema_checks": [
+    {
+      "metric": "mlp_gateway_requests_total",
+      "peak_count_including_100_warmups_and_contract_smoke": 30105.0,
+      "contract_smoke_count": 5,
+      "has_caller": false,
+      "passed": true
+    },
+    {
+      "metric": "mlp_gateway_usage_requests_total",
+      "peak_count_including_100_warmups_and_contract_smoke": 30104.0,
+      "contract_smoke_count": 4,
+      "has_caller": true,
+      "passed": true
+    }
+  ]
+}

@@ -1,0 +1,116 @@
+{
+  "trace_checks": [
+    {
+      "index": 0,
+      "variant": "full",
+      "trace_id": "31b54200ddbea22297d41d468861dd28",
+      "sql_span_count": 16,
+      "server_span_count": 1,
+      "scope_names": [
+        "fastapi",
+        "opentelemetry.instrumentation.sqlalchemy"
+      ],
+      "passed": true
+    },
+    {
+      "index": 1,
+      "variant": "sql-off",
+      "trace_id": "9ead4595b7abf82a2269dbea681b12c3",
+      "sql_span_count": 0,
+      "server_span_count": 1,
+      "scope_names": [
+        "fastapi"
+      ],
+      "passed": true
+    },
+    {
+      "index": 2,
+      "variant": "trace5",
+      "trace_id": "38c3be8c323abbe53dcde8ff10abb4fd",
+      "sql_span_count": 0,
+      "server_span_count": 1,
+      "scope_names": [
+        "fastapi"
+      ],
+      "passed": true
+    },
+    {
+      "index": 3,
+      "variant": "lean-labels",
+      "trace_id": "f254fbe7d250e976ff1669b886db64b8",
+      "sql_span_count": 0,
+      "server_span_count": 1,
+      "scope_names": [
+        "fastapi"
+      ],
+      "passed": true
+    },
+    {
+      "index": 4,
+      "variant": "normal-interval",
+      "trace_id": "d81d001360be1c02dd5b44849ad02806",
+      "sql_span_count": 0,
+      "server_span_count": 1,
+      "scope_names": [
+        "fastapi"
+      ],
+      "passed": true
+    },
+    {
+      "index": 5,
+      "variant": "normal",
+      "trace_id": "fd0cf146423a8ab7d1a3522aa3887b3f",
+      "sql_span_count": 0,
+      "server_span_count": 1,
+      "scope_names": [
+        "fastapi"
+      ],
+      "passed": true
+    },
+    {
+      "index": 7,
+      "variant": "normal",
+      "trace_id": "53d9d19b02236a123b3ef28af95e414f",
+      "sql_span_count": 0,
+      "server_span_count": 1,
+      "scope_names": [
+        "fastapi"
+      ],
+      "passed": true
+    },
+    {
+      "index": 8,
+      "variant": "full",
+      "trace_id": "2bc868759811b8d8c3564c480e8a8b7f",
+      "sql_span_count": 16,
+      "server_span_count": 1,
+      "scope_names": [
+        "fastapi",
+        "opentelemetry.instrumentation.sqlalchemy"
+      ],
+      "passed": true
+    },
+    {
+      "index": 9,
+      "variant": "normal",
+      "trace_id": "12dc9e15e82ec514aa0bd2ccf6e361e9",
+      "sql_span_count": 0,
+      "server_span_count": 1,
+      "scope_names": [
+        "fastapi"
+      ],
+      "passed": true
+    }
+  ],
+  "promql_checks": [
+    {
+      "query": "60 * sum by (caller) (rate(mlp_gateway_usage_requests_total{project=\"acceptance-ca9287f7c0\",endpoint=\"function\",code=~\"4..\"}[5m]) or rate(mlp_gateway_requests_total{project=\"acceptance-ca9287f7c0\",endpoint=\"function\",caller!=\"\",code=~\"4..\"}[5m]))",
+      "passed": true
+    },
+    {
+      "query": "60 * sum by (caller) (rate(mlp_gateway_usage_requests_total{project=\"acceptance-ca9287f7c0\",endpoint=\"function\",code=~\"5..\"}[5m]) or rate(mlp_gateway_requests_total{project=\"acceptance-ca9287f7c0\",endpoint=\"function\",caller!=\"\",code=~\"5..\"}[5m]))",
+      "passed": true
+    }
+  ],
+  "passed": true
+}

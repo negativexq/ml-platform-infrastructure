@@ -14,7 +14,8 @@ from __future__ import annotations
 import asyncio
 import logging
 import time
-from collections.abc import AsyncIterator, Callable, Sequence
+from collections.abc import AsyncIterator, Callable, Iterator, Sequence
+from contextlib import contextmanager
 from dataclasses import dataclass, field
 from typing import Protocol
 from uuid import UUID
@@ -179,7 +180,11 @@ class GatewayService:
         authenticator: Authenticator | None = None,
         clock: Clock = utc_now,
         monotonic: Callable[[], float] = time.monotonic,
+        observe_phase: Callable[[str, float, str], None] | None = None,
+        observe_worker: Callable[[int], None] | None = None,
     ) -> None:
+        self._observe_worker = observe_worker
+        self._observe_phase = observe_phase
         self._uow_factory = uow_factory
         self._upstream = upstream
         self._limiter = limiter
@@ -207,12 +212,15 @@ class GatewayService:
         reserved = 0
         admitted = False
         try:
-            caller = self._authenticate(token)
-            route = self._route(project, endpoint)
+            with self._phase("auth"):
+                caller = self._authenticate(token)
+            with self._phase("route"):
+                route = self._route(project, endpoint)
             if route is None:
                 # Missing and internal look the same, so the gateway does not reveal what exists.
                 raise GatewayError(404, "not_found", f"no public endpoint {project}/{endpoint}")
-            self._authorize(caller, route)
+            with self._phase("authorize"):
+                self._authorize(caller, route)
             expected = OPERATIONS[route.protocol]
             if operation != expected:
                 raise GatewayError(
@@ -235,9 +243,25 @@ class GatewayService:
                     )
                 except InvalidChatRequest as exc:
                     raise GatewayError(400, "invalid_request", str(exc)) from exc
-            allowance = await asyncio.to_thread(self._limit, caller, route, reserved)
+            queued = time.perf_counter()
+
+            def limit() -> Allowance:
+                if self._observe_phase is not None:
+                    self._observe_phase("limiter.queue", time.perf_counter() - queued, "ok")
+                if self._observe_worker is not None:
+                    self._observe_worker(1)
+                try:
+                    with self._phase("limiter.work"):
+                        return self._limit(caller, route, reserved)
+                finally:
+                    if self._observe_worker is not None:
+                        self._observe_worker(-1)
+
+            with self._phase("limiter.total"):
+                allowance = await asyncio.to_thread(limit)
             admitted = True
-            reply = await self._forward(route, body, request_id)
+            with self._phase("upstream.headers"):
+                reply = await self._forward(route, body, request_id)
         except GatewayError as error:
             self._record(caller, route, error.status, reserved if admitted else 0, started)
             raise
@@ -257,6 +281,21 @@ class GatewayService:
             self._counted(reply, caller, route, started, reserved),
             headers,
         )
+
+    @contextmanager
+    def _phase(self, name: str) -> Iterator[None]:
+        if self._observe_phase is None:
+            yield
+            return
+        started = time.perf_counter()
+        outcome = "ok"
+        try:
+            yield
+        except BaseException:
+            outcome = "error"
+            raise
+        finally:
+            self._observe_phase(name, time.perf_counter() - started, outcome)
 
     # -- steps -------------------------------------------------------------------------------
 
@@ -345,6 +384,7 @@ class GatewayService:
     ) -> AsyncIterator[bytes]:
         """Pass the reply through as it arrives, then count the call once it has ended: one
         request for a model, the tokens it used for an LLM."""
+        stream_started = time.perf_counter()
         status = reply.status
         complete = False
         meter = None
@@ -360,6 +400,12 @@ class GatewayService:
             status = 502
             raise
         finally:
+            if self._observe_phase is not None:
+                self._observe_phase(
+                    "stream",
+                    time.perf_counter() - stream_started,
+                    "ok" if complete else "error",
+                )
             if meter is None:
                 self._record(caller, route, status, 1 if status < 500 else 0, started)
             else:

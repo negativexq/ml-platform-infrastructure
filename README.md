@@ -118,9 +118,10 @@ reply = client.chat.completions.create(model="assistant-prod",
 | Local cluster | `make local-up`: kind, Argo CD (GitOps), MLflow, PostgreSQL, MinIO, Prometheus, Grafana |
 | Database | `make cp-migrate`: Alembic migrations |
 | Control plane | `docker/controlplane/Dockerfile` and `helm/controlplane`: API, reconciler, gateway, migration Job, RBAC and fail-closed admission policies (Kubernetes 1.30+); deployed and runtime-verified on the ARM64 lab ([installation](docs/installation.md)) |
-| Gateway | Included in the control-plane chart; standalone example at `k8s/gateway/gateway.yaml` has Ingress/TLS and a topology-specific NetworkPolicy ([networking](docs/networking.md)) |
+| Gateway | Go runtime in `services/gateway-go`, a separate image and a Python rollback option in the control-plane chart; Python standalone fallback at `k8s/gateway/gateway.yaml` has Ingress/TLS and a topology-specific NetworkPolicy ([networking](docs/networking.md)) |
 | Identity | `k8s/identity/` (Keycloak), configured with `CP_OIDC_*` settings |
-| Observability | `make observability-up`: OpenTelemetry Collector, Tempo, dashboards, alerts |
+| Observability | `make observability-up`: Collector, Tempo, dashboards and alerts; API HTTP/HTTPX + Go gateway server/upstream + reconciler SQL traces, DB pool/query metrics, control-plane resource panels and operator PostgreSQL profiling ([scope and verification](docs/observability.md#bottleneck-instrumentation-2026-10-07)) |
+| Benchmark client | Go [`mlp-loadgen`](tools/loadgen/README.md): open-loop load, visible queue/drop/scheduling delay, per-target results and streaming timings; cluster parity gate pending |
 | AWS | Legacy infrastructure lab in `infra/terraform`; current control-plane AWS deployment remains pending |
 
 Settings are environment variables prefixed `CP_` (`controlplane/settings.py`).
@@ -173,9 +174,52 @@ requests per second or a production capacity ceiling. A single gateway still dev
 a queue, including in the 2 CPU probe. See the [full report and limitations](docs/limiter-performance.md)
 and [raw comparison](docs/evidence/live-2026-10-07/limiter/summary.json).
 
+**Observability / Go loadgen follow-up:** real Collector/Tempo now receives native API
+and gateway HTTP/SQL/outbound traces, reconciler SQL spans and application bottleneck
+metrics. A paired Python/Go 500 offered RPS run completed all 30,000 requests with valid
+shared budgets; both clients reached approximately 500 RPS at 2/4 gateway pods. One pod
+still queues, and resource dashboard sources remain missing in this lab.
+[Results, CPU/RSS and limitations](docs/evidence/live-2026-10-07/observability/README.md).
+A subsequent [Go-driven worker experiment](docs/evidence/live-2026-10-07/observability/worker-experiment.md)
+found that doubling Python gateway workers introduced DB-pool 503s; enlarging the pool
+removed those errors without improving throughput. An
+[unprofiled OTel on/off comparison](docs/evidence/live-2026-10-07/observability/gateway-otel-ab.md)
+found 60% lower pod CPU/request with the SDK disabled on rejection-only traffic;
+a subsequent [higher-load probe](docs/evidence/live-2026-10-07/observability/gateway-otel-off-capacity.md)
+observed a 600–700 RPS plateau with the SDK disabled on one CPU. These are short
+rejection-only tests. The subsequent
+[enabled hot-path profile](docs/evidence/live-2026-10-07/observability/gateway-hotpath-ab.md)
+retains counters, HTTP traces and custom DB/limiter metrics: normal repeats reached
+492–500 RPS with 43.8% lower timed CPU than full instrumentation. Normal/diagnostic
+profiles are implemented; installed deployments retain their earlier image/settings.
+Two subsequent [five-minute normal-profile soaks](docs/evidence/live-2026-10-07/observability/gateway-normal-soak.md)
+maintained approximately 500 RPS at 0.53–0.56 mean CPU core across regular exports.
+Both zero-error gates failed: 299,997/300,000 attempts returned 429, with three transport
+failures (two identified as connection resets). Memory/threads stayed stable in these
+windows. The subsequent [connection A/B/C](docs/evidence/live-2026-10-07/observability/gateway-connection-ab.md)
+reproduced a reset at the server keep-alive boundary; client idle timeout 2 seconds
+passed 150,000/150,000 rejection requests at 500 RPS with zero errors/drops and 0.60 core.
+Keep-alive off failed at 472 RPS with errors/drops and 0.98 core. These are rejection-only
+results; successful inference capacity remains open.
+
+**Go gateway comparison:** an isolated [PoC](docs/evidence/live-2026-10-07/observability/gateway-runtime-ab.md)
+with normal OTel and the B transport used 70.7% less CPU/request at 500 rejection RPS
+(0.62 → 0.18 core; p95 251 → 1.48 ms). Go also completed 1,000/1,500 offered RPS with
+zero errors/drops at 0.33/0.48 core; Python overloaded at 554/518 completed RPS. Real
+function forwarding and shared PostgreSQL/trace checks passed. These are 60-second
+rejection windows, not successful inference capacity.
+
+**Go gateway migration:** the chart now defaults to a separate, source-built Go image;
+API/reconciler/migrations remain Python, with the Python gateway retained for rollback.
+OIDC/project roles, LLM reservation/settlement and per-read streaming deadlines are
+implemented/tested. Clean HIGH/CRITICAL scan, SBOM, a five-minute 500 RPS normal-OTel
+soak, real function rolling probes and DB outage/recovery are recorded in the
+[migration report](docs/evidence/live-2026-10-07/observability/gateway-go-migration.md).
+Real identity-provider/GPU and successful-upstream capacity gates remain open.
+
 **Still open:**
 
-- Single-replica 500 RPS capacity, sustained/high-budget inference load and sustained DB outage/thread growth
+- Longer successful-inference load, final-image capacity rerun and sustained DB outage/thread growth
 - Final clean release artifact/target-architecture rerun
 - OIDC in-cluster acceptance
 - Strict egress / multi-node loss and drain / hung-leader drills
@@ -197,6 +241,7 @@ Current closure status: [docs/status.md](docs/status.md). Procedures and next st
 * [Gateway and API keys](docs/gateway.md)
 * [Web UI design](docs/ui.md)
 * [Observability](docs/observability.md)
+* [Go adoption and performance gates](docs/go-runtime-plan.md)
 * [Architecture](docs/architecture.md)
 * [Failure drills on the first infrastructure](docs/history/failure-engineering.md)
 * [SLOs measured on the first inference service](docs/history/slo.md)

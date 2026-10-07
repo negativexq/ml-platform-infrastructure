@@ -1,0 +1,417 @@
+{
+  "scope": "ARM64 single-node 429-only Go load; disposable gateway 1 CPU; telemetry enabled",
+  "samples": [
+    {
+      "planned": 5000,
+      "offered": 5000,
+      "started": 5000,
+      "completed": 5000,
+      "queue_dropped": 0,
+      "unscheduled": 0,
+      "canceled_before_start": 0,
+      "transport_errors": 0,
+      "offered_rps": 500,
+      "completed_rps": 485.29015747954844,
+      "completed_within_window_rps": 480.2,
+      "elapsed_seconds": 10.30311438,
+      "request_latency_ms": {
+        "count": 5000,
+        "p50": 49.105542,
+        "p95": 435.856042,
+        "p99": 525.097208
+      },
+      "queue_delay_ms": {
+        "count": 5000,
+        "p50": 0.002458,
+        "p95": 33.429167,
+        "p99": 46.680166
+      },
+      "schedule_lag_ms": {
+        "count": 5000,
+        "p50": 0.445002,
+        "p95": 1.0842939999999999,
+        "p99": 1.273667
+      },
+      "first_body_byte_ms": {
+        "count": 0,
+        "p50": 0,
+        "p95": 0,
+        "p99": 0
+      },
+      "status_codes": {
+        "429": 5000
+      },
+      "per_target": {
+        "target_0": {
+          "started": 5000,
+          "completed": 5000,
+          "transport_errors": 0,
+          "completed_rps": 485.29015747954844
+        }
+      },
+      "process_cpu_seconds": 0.860464,
+      "process_cpu_cores": 0.08351494201309644,
+      "peak_rss_bytes": 76365824,
+      "gomaxprocs": 2,
+      "stream": false,
+      "completed_within_window": 4802,
+      "workers": 12,
+      "pool_capacity": 15,
+      "exit_code": 0,
+      "phases": {
+        "auth": {
+          "observations": 5000.0,
+          "mean_ms": 0.008904618405358633,
+          "p50": 0.5002000800320128,
+          "p95": 0.9503801520608244,
+          "p99": 0.9903961584633854
+        },
+        "authorize": {
+          "observations": 5000.0,
+          "mean_ms": 0.0023710813831712583,
+          "p50": 0.5001000200040008,
+          "p95": 0.9501900380076015,
+          "p99": 0.9901980396079216
+        },
+        "limiter.queue": {
+          "observations": 5000.0,
+          "mean_ms": 131.47407311218888,
+          "p50": 20.584269662921347,
+          "p95": 462.819750148721,
+          "p99": 492.5639500297442
+        },
+        "limiter.total": {
+          "observations": 5000.0,
+          "mean_ms": 148.15689125820754,
+          "p50": 45.07648183556405,
+          "p95": 463.57808857808857,
+          "p99": 492.7156177156177
+        },
+        "limiter.work": {
+          "observations": 5000.0,
+          "mean_ms": 15.727203213607572,
+          "p50": 11.122448979591837,
+          "p95": 48.95048439181916,
+          "p99": 91.49484536082475
+        },
+        "mlp_db_pool_acquire_duration_seconds": {
+          "observations": 5007.0,
+          "mean_ms": 1.0836257381472476,
+          "p50": 0.6993016759776536,
+          "p95": 4.6799061767005465,
+          "p99": 17.918965517241432
+        },
+        "mlp_db_query_duration_seconds": {
+          "observations": 15067.0,
+          "mean_ms": 4.351226355875417,
+          "p50": 1.0530629853321831,
+          "p95": 22.83085738539898,
+          "p99": 46.96798780487805
+        },
+        "mlp_gateway_event_loop_lag_seconds": {
+          "observations": 158.0,
+          "mean_ms": 2.452264746582991,
+          "p50": 0.6076923076923076,
+          "p95": 4.495652173913043,
+          "p99": 22.099999999999937
+        },
+        "route": {
+          "observations": 5000.0,
+          "mean_ms": 0.002918607801620965,
+          "p50": 0.5002000800320128,
+          "p95": 0.9503801520608244,
+          "p99": 0.9903961584633854
+        }
+      },
+      "max_observed_gauges": {
+        "mlp_db_pool_checked_out": 12.0,
+        "mlp_gateway_inflight": 200.0,
+        "mlp_gateway_limiter_workers": 12.0
+      },
+      "gateway_cpu_stat_delta": {
+        "usage_usec": 8722877,
+        "user_usec": 6720293,
+        "system_usec": 2002584,
+        "nice_usec": 0,
+        "nr_periods": 103,
+        "nr_throttled": 60,
+        "throttled_usec": 659648,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "gateway_cpu_window_seconds": 10.324203491210938,
+      "gateway_memory_bytes": 209281024,
+      "cluster_lock_wait_samples": [
+        0,
+        6,
+        8,
+        7,
+        8,
+        9,
+        4,
+        10,
+        8,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        8,
+        8,
+        9,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        5,
+        6,
+        7,
+        9,
+        8,
+        8,
+        7,
+        10,
+        7,
+        8,
+        4,
+        9,
+        9,
+        7,
+        9,
+        8,
+        4,
+        7,
+        10,
+        7
+      ],
+      "monitor_errors": [],
+      "scope": "429-only; shared budget preserved; pg_locks waiters cluster-wide, not exact row-lock duration",
+      "index": 0,
+      "instance": "8e8f1bc9-d346-438f-9b0c-a5442782bdda",
+      "image": "localhost:5201/mlp-controlplane@sha256:7271ee509006b80d56c687ea4613b60a5fb28a1c2d887bef878027af78d32072",
+      "availability_passed": true,
+      "integrity_passed": true,
+      "pool_acquire_errors": 0
+    },
+    {
+      "planned": 5000,
+      "offered": 5000,
+      "started": 5000,
+      "completed": 5000,
+      "queue_dropped": 0,
+      "unscheduled": 0,
+      "canceled_before_start": 0,
+      "transport_errors": 0,
+      "offered_rps": 500,
+      "completed_rps": 466.2160156022046,
+      "completed_within_window_rps": 459.3,
+      "elapsed_seconds": 10.724642296,
+      "request_latency_ms": {
+        "count": 5000,
+        "p50": 386.986,
+        "p95": 521.710417,
+        "p99": 646.821458
+      },
+      "queue_delay_ms": {
+        "count": 5000,
+        "p50": 200.161417,
+        "p95": 400.967875,
+        "p99": 575.886751
+      },
+      "schedule_lag_ms": {
+        "count": 5000,
+        "p50": 0.476835,
+        "p95": 1.045795,
+        "p99": 1.2570439999999998
+      },
+      "first_body_byte_ms": {
+        "count": 0,
+        "p50": 0,
+        "p95": 0,
+        "p99": 0
+      },
+      "status_codes": {
+        "429": 4982,
+        "503": 18
+      },
+      "per_target": {
+        "target_0": {
+          "started": 5000,
+          "completed": 5000,
+          "transport_errors": 0,
+          "completed_rps": 466.2160156022046
+        }
+      },
+      "process_cpu_seconds": 0.810288,
+      "process_cpu_cores": 0.07555384857005584,
+      "peak_rss_bytes": 76521472,
+      "gomaxprocs": 2,
+      "stream": false,
+      "completed_within_window": 4593,
+      "workers": 24,
+      "pool_capacity": 15,
+      "exit_code": 0,
+      "phases": {
+        "auth": {
+          "observations": 5000.0,
+          "mean_ms": 0.10689859199301281,
+          "p50": 0.5003001801080649,
+          "p95": 0.9505703422053232,
+          "p99": 0.9905943566139684
+        },
+        "authorize": {
+          "observations": 5000.0,
+          "mean_ms": 0.0014883072100928985,
+          "p50": 0.5,
+          "p95": 0.95,
+          "p99": 0.99
+        },
+        "limiter.queue": {
+          "observations": 5000.0,
+          "mean_ms": 313.61978640640115,
+          "p50": 341.7721518987342,
+          "p95": 484.17721518987344,
+          "p99": 496.83544303797464
+        },
+        "limiter.total": {
+          "observations": 5000.0,
+          "mean_ms": 376.10363777059354,
+          "p50": 357.2786529060293,
+          "p95": 704.9861495844875,
+          "p99": 981.9944598337951
+        },
+        "limiter.work": {
+          "observations": 5000.0,
+          "mean_ms": 50.08542967139911,
+          "p50": 24.52777777777778,
+          "p95": 92.38861386138613,
+          "p99": 232.75862068965517
+        },
+        "mlp_db_pool_acquire_duration_seconds": {
+          "observations": 5009.0,
+          "mean_ms": 21.433991856868207,
+          "p50": 1.2734113712374582,
+          "p95": 6.520833333333345,
+          "p99": 122.03846153845986
+        },
+        "mlp_db_query_duration_seconds": {
+          "observations": 15021.0,
+          "mean_ms": 9.166133944807527,
+          "p50": 3.706929608326486,
+          "p95": 44.862213403880055,
+          "p99": 89.80411255411245
+        },
+        "mlp_gateway_event_loop_lag_seconds": {
+          "observations": 153.0,
+          "mean_ms": 5.325902770921566,
+          "p50": 0.7427184466019416,
+          "p95": 4.939534883720929,
+          "p99": 173.49999999999994
+        },
+        "route": {
+          "observations": 5000.0,
+          "mean_ms": 0.00564470398639969,
+          "p50": 0.5003001801080649,
+          "p95": 0.9505703422053232,
+          "p99": 0.9905943566139684
+        }
+      },
+      "max_observed_gauges": {
+        "mlp_db_pool_checked_out": 15.0,
+        "mlp_gateway_inflight": 200.0,
+        "mlp_gateway_limiter_workers": 24.0
+      },
+      "gateway_cpu_stat_delta": {
+        "usage_usec": 10738978,
+        "user_usec": 7752644,
+        "system_usec": 2986334,
+        "nice_usec": 0,
+        "nr_periods": 107,
+        "nr_throttled": 104,
+        "throttled_usec": 2234061,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "gateway_cpu_window_seconds": 10.738280057907104,
+      "gateway_memory_bytes": 211054592,
+      "cluster_lock_wait_samples": [
+        0,
+        0,
+        10,
+        8,
+        8,
+        10,
+        7,
+        11,
+        5,
+        10,
+        10,
+        11,
+        12,
+        11,
+        11,
+        11,
+        8,
+        6,
+        10,
+        9,
+        5,
+        7,
+        9,
+        12,
+        10,
+        7,
+        8,
+        7,
+        12,
+        10,
+        7,
+        9,
+        11,
+        10,
+        12,
+        11,
+        10,
+        10,
+        10,
+        9,
+        8,
+        10,
+        11,
+        9,
+        10,
+        9,
+        10,
+        12,
+        9,
+        11,
+        7,
+        10,
+        9,
+        8
+      ],
+      "monitor_errors": [],
+      "scope": "429-only; shared budget preserved; pg_locks waiters cluster-wide, not exact row-lock duration",
+      "index": 1,
+      "instance": "38fcfa42-087a-4cec-8295-9c41c3d82e85",
+      "pool_acquire_errors": 18,
+      "availability_passed": false,
+      "integrity_passed": true,
+      "image": "localhost:5201/mlp-controlplane@sha256:7271ee509006b80d56c687ea4613b60a5fb28a1c2d887bef878027af78d32072"
+    }
+  ],
+  "passed": false,
+  "key_revoked": true,
+  "abort_reason": "Initial runner treated 503 availability failure as job failure; retained result before cleanup. Follow-up runner distinguishes availability from request integrity."
+}

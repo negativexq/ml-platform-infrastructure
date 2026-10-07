@@ -5,6 +5,10 @@ stream_over_http_enabled: true
 server:
   http_listen_port: 3200
 
+querier:
+  # Keep historical reads bounded on the shared laptop node.
+  max_concurrent_queries: 2
+
 distributor:
   receivers:
     otlp:

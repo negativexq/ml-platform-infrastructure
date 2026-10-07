@@ -1,0 +1,12 @@
+{
+  "requests": 200,
+  "codes": {
+    "200": 200
+  },
+  "transport_errors": 0,
+  "headers_valid": 200,
+  "latency_max_ms": 969.1852080068202,
+  "passed": true,
+  "image": "localhost:5201/mlp-gateway-go@sha256:6e2d8490ef0b3e473ea4e6c6c1bb12edc601d29475ffa75cd3d7afb61c2f7925",
+  "scope": "Go-to-Go rolling restart; 200 real function calls through Kubernetes Service; Python HTTPX contract client, idle expiry 2s"
+}

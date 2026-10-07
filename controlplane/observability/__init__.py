@@ -30,16 +30,32 @@ from controlplane.observability.uow import observed_uow_factory
 
 
 def configure(
-    service_name: str, *, json_logs: bool = True, log_level: str = "INFO", engine: Any = None
+    service_name: str,
+    *,
+    json_logs: bool = True,
+    log_level: str = "INFO",
+    engine: Any = None,
+    sql_tracing: bool = True,
+    latency_sample_rate: float = 1,
+    trace_sample_rate: float | None = None,
+    metric_export_interval_ms: int | None = None,
 ) -> Telemetry:
     """Set up logging and (if OTEL_EXPORTER_OTLP_ENDPOINT is set) tracing and metrics."""
     configure_logging(service_name, json=json_logs, level=log_level)
-    telemetry = setup_providers(service_name)
+    telemetry = setup_providers(
+        service_name,
+        trace_sample_rate=trace_sample_rate,
+        metric_export_interval_ms=metric_export_interval_ms,
+    )
     set_traceparent_provider(otel_traceparent)
-    if telemetry.enabled and engine is not None:
+    if telemetry.tracer_provider is not None and sql_tracing and engine is not None:
         from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
 
         SQLAlchemyInstrumentor().instrument(engine=engine)
+    if telemetry.meter_provider is not None and engine is not None:
+        from controlplane.observability.database import instrument_database
+
+        instrument_database(engine, latency_sample_rate=latency_sample_rate)
     return telemetry
 
 

@@ -1,0 +1,67 @@
+{
+  "full": {
+    "samples": 2,
+    "completed_rps_mean": 483.16031711416133,
+    "gateway_cpu_seconds_mean": 10.209719,
+    "request_p95_ms_range": [
+      370.893875,
+      467.39945900000004
+    ]
+  },
+  "sql-off": {
+    "samples": 1,
+    "completed_rps_mean": 499.98142753989816,
+    "gateway_cpu_seconds_mean": 6.464863,
+    "request_p95_ms_range": [
+      63.065208,
+      63.065208
+    ]
+  },
+  "trace5": {
+    "samples": 1,
+    "completed_rps_mean": 488.36294768429445,
+    "gateway_cpu_seconds_mean": 6.848262,
+    "request_p95_ms_range": [
+      327.680708,
+      327.680708
+    ]
+  },
+  "lean-labels": {
+    "samples": 1,
+    "completed_rps_mean": 499.99533104359875,
+    "gateway_cpu_seconds_mean": 7.819535,
+    "request_p95_ms_range": [
+      233.000833,
+      233.000833
+    ]
+  },
+  "normal-interval": {
+    "samples": 1,
+    "completed_rps_mean": 487.5807333801375,
+    "gateway_cpu_seconds_mean": 7.241057,
+    "request_p95_ms_range": [
+      394.65612500000003,
+      394.65612500000003
+    ]
+  },
+  "normal": {
+    "samples": 3,
+    "completed_rps_mean": 497.38099565899194,
+    "gateway_cpu_seconds_mean": 5.733657333333333,
+    "request_p95_ms_range": [
+      36.755958,
+      467.614084
+    ]
+  },
+  "off": {
+    "samples": 1,
+    "completed_rps_mean": 499.93991532120504,
+    "gateway_cpu_seconds_mean": 5.094976,
+    "request_p95_ms_range": [
+      234.145375,
+      234.145375
+    ]
+  },
+  "normal_vs_full_timed_cpu_reduction_fraction": 0.43841183745279044,
+  "scope": "Short 429-only, offered-load capped; forced metric flush is outside timed CPU window; no steady-state export amortization claim"
+}

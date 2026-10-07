@@ -125,6 +125,8 @@ def _gateway_lines(start: int, end: int) -> list[str]:
             n = (t - start) * per_min / 60
             sel = f'{where},caller="{caller}",code="{code}"'
             out.append(f"mlp_gateway_requests_total{{{sel}}} {n:.2f} {t}")
+            if int(code) >= 400:
+                out.append(f"mlp_gateway_usage_requests_total{{{sel}}} {n:.2f} {t}")
     out.append("# TYPE mlp_gateway_units counter")
     for caller, per_min in (("partner-acme", 118), ("batch-job", 29)):
         for t in range(start, end + 1, STEP):

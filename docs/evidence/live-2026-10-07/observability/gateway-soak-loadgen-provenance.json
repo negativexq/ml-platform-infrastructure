@@ -1,0 +1,19 @@
+{
+  "loadgen_image": "localhost:5201/mlp-loadgen@sha256:1460cea65aba8763039a3d31dac2ba13db61c0a2496909cdc3fcfcd284080f22",
+  "base_image": "localhost:5201/mlp-loadgen@sha256:40973a26fdf21516f4730ff80cfa30b9ef76b5a158d4d4eedba1615eb440d284",
+  "compiler": "go version go1.26.6 darwin/arm64",
+  "source_sha256": {
+    "tools/loadgen/main.go": "4c7639eb3230d40cdc6122a54facf619e21b5a059df04b2239cdbd38d27ddea0",
+    "tools/loadgen/main_test.go": "d590d782172025d8fb1ea4d65b3c272b375a0e15363855cf960d5c8e908671be",
+    "tools/loadgen/go.mod": "31e5168c1f2fb84bca8141a67095aec86c296cced159bb2f98810b6a367d58b5",
+    "tools/loadgen/go.sum": "e72b9f558f7b3fde84480d00c6638794afde61105abe48e521898d7e64811c81"
+  },
+  "build": "CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -trimpath -ldflags=-s -w; thin layer COPY binary to /usr/local/bin/mlp-loadgen",
+  "checks": [
+    "go test -race passed",
+    "go vet passed",
+    "Linux ARM64 build passed",
+    "image connection-refused smoke classified headers failure, expected exit 1"
+  ],
+  "scope": "diagnostic comparison image; gateway image unchanged; no HTTP retry or timeout changes"
+}

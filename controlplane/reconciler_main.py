@@ -67,12 +67,12 @@ def _pass(name: str, step: Callable[[], list[Any]]) -> None:
 
 def main() -> None:
     settings = Settings()
+    engine = make_engine(settings.database_url)
     telemetry = observability.configure(
-        SERVICE_NAME, json_logs=settings.log_json, log_level=settings.log_level
+        SERVICE_NAME, json_logs=settings.log_json, log_level=settings.log_level, engine=engine
     )
     signal.signal(signal.SIGTERM, lambda *_: (_ for _ in ()).throw(SystemExit(0)))
 
-    engine = make_engine(settings.database_url)
     DatabaseReadiness(
         engine, component="reconciler" if settings.database_role_enforcement else None
     )()

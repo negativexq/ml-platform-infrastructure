@@ -1,0 +1,23 @@
+{
+  "started_at": 1791332785.488786,
+  "passed": true,
+  "checks": [
+    "migration clean database to 0021",
+    "api health/readiness",
+    "gateway health/readiness",
+    "reconciler configuration and empty-database passes (no live Kubernetes)",
+    "DB outage keeps liveness, removes readiness",
+    "readiness recovers after DB restart",
+    "SPDX SBOM",
+    "Trivy fixable HIGH/CRITICAL gate",
+    "Trivy secrets gate (all severities)"
+  ],
+  "source_revision": "cb6e5409d9cca7929949f3ab82c4dc9826c17c47",
+  "source_clean": false,
+  "release_eligible": false,
+  "scope": "Working-tree candidate runtime/scan/SBOM; committed release gate remains open",
+  "image_id": "sha256:7271ee509006b80d56c687ea4613b60a5fb28a1c2d887bef878027af78d32072",
+  "candidate_revision_label": "cb6e540-observability-working-tree",
+  "postgres_image_id": "sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685",
+  "finished_at": 1791332832.33906
+}

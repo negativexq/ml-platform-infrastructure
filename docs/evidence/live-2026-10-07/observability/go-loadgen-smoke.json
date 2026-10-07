@@ -1,0 +1,63 @@
+{
+  "planned": 1000,
+  "offered": 1000,
+  "started": 1000,
+  "completed": 1000,
+  "queue_dropped": 0,
+  "unscheduled": 0,
+  "canceled_before_start": 0,
+  "transport_errors": 0,
+  "offered_rps": 500,
+  "completed_rps": 499.9746575345463,
+  "completed_within_window_rps": 500,
+  "elapsed_seconds": 2.000101375,
+  "request_latency_ms": {
+    "count": 1000,
+    "p50": 0.387459,
+    "p95": 0.931792,
+    "p99": 1.7026249999999998
+  },
+  "queue_delay_ms": {
+    "count": 1000,
+    "p50": 0.0052499999999999995,
+    "p95": 0.017124999999999998,
+    "p99": 0.050041999999999996
+  },
+  "schedule_lag_ms": {
+    "count": 1000,
+    "p50": 0.3545,
+    "p95": 0.4485,
+    "p99": 0.759208
+  },
+  "first_body_byte_ms": {
+    "count": 0,
+    "p50": 0,
+    "p95": 0,
+    "p99": 0
+  },
+  "status_codes": {
+    "200": 1000
+  },
+  "per_target": {
+    "target_0": {
+      "started": 500,
+      "completed": 500,
+      "transport_errors": 0,
+      "completed_rps": 249.98732876727314
+    },
+    "target_1": {
+      "started": 500,
+      "completed": 500,
+      "transport_errors": 0,
+      "completed_rps": 249.98732876727314
+    }
+  },
+  "process_cpu_seconds": 0.25331000000000004,
+  "process_cpu_cores": 0.12664858050007594,
+  "peak_rss_bytes": 17989632,
+  "gomaxprocs": 8,
+  "stream": false,
+  "completed_within_window": 1000,
+  "scope": "local macOS ARM64 HTTP fixture; 2 loopback targets; not gateway/cluster acceptance",
+  "cli_exit_code": 0
+}

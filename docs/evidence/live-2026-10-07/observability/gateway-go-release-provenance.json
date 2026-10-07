@@ -1,0 +1,35 @@
+{
+  "image": "localhost:5201/mlp-gateway-go@sha256:6e2d8490ef0b3e473ea4e6c6c1bb12edc601d29475ffa75cd3d7afb61c2f7925",
+  "platform": "linux/arm64",
+  "build": "source Dockerfile, digest-pinned builder; scratch final",
+  "image_bytes": 6751452,
+  "binary_sha256": "a35566b525a6318130886364e6ecc2ae64ec4f396684d69cd6f73ff8e6f4d82c",
+  "runtime_sources_sha256": {
+    "services/gateway-go/gateway.go": "1b10969b63bb750ae9eb2514f9930846d8034f35aec8d5aecb619bd3277dabd1",
+    "services/gateway-go/identity.go": "da625b6836e576479c4e25262499d5a6ddfb475019bf626a404b380c395e93ba",
+    "services/gateway-go/llm.go": "01771ddc939d7ebd0b0b2051fcb998636c6164fc94a5e9b044bb402647e6345d",
+    "services/gateway-go/main.go": "c60a3f9d7920496efac500580b962ef455c892c17c91d3687e0a55ca783e8e2a",
+    "services/gateway-go/store.go": "c58e495be12763c56cfdf9b498a7d2838fd8fe4aaf67375c894248c1096662ef",
+    "services/gateway-go/stream.go": "f79be97fd6fbf81768fae588917b912c910294585527bcc873893265adf34dba",
+    "services/gateway-go/telemetry.go": "d2bf1a0b15cc51a8887371921e777cffcdac758d9e51756aa5fc83a6acaa3787",
+    "services/gateway-go/go.mod": "49f610c694457736b9c9f1f8b45d0d5c99d72dc847bf05cc3a5ffc540c449651",
+    "services/gateway-go/go.sum": "0e4218c97c26ef120d66f7f81eb6adf66f99f378f41c7c566a1e92b916e63192",
+    "services/gateway-go/limiter.sql": "9e89bfc431fa0ef742988a8760d55755e5042e8c4ad50404ae7be751b9329da3",
+    "services/gateway-go/Dockerfile": "40b071db63dda2ac75f1340fd82b63fd0793204bd21d5745b1f78cf9d2a012e9"
+  },
+  "go_build_info": "/tmp/mlp-go-release-binary: go1.26.6\n\tpath\tgithub.com/negativexq/ml-platform-infrastructure/services/gateway-go\n\tmod\tgithub.com/negativexq/ml-platform-infrastructure/services/gateway-go\t(devel)\t\n\tdep\tgithub.com/cenkalti/backoff/v5\tv5.0.3\th1:ZN+IMa753KfX5hd8vVaMixjnqRZ3y8CuJKRKj1xcsSM=\n\tdep\tgithub.com/cespare/xxhash/v2\tv2.3.0\th1:UL815xU9SqsFlibzuggzjXhog7bL6oX9BbNZnL2UFvs=\n\tdep\tgithub.com/go-logr/logr\tv1.4.4\th1:tG4xh9yMsRCAiodLVTxyrkzSZ9+o0L1Kg/+cPVcbP/8=\n\tdep\tgithub.com/go-logr/stdr\tv1.2.2\th1:hSWxHoqTgW2S2qGc0LTAI563KZ5YKYRhT3MFKZMbjag=\n\tdep\tgithub.com/golang-jwt/jwt/v5\tv5.3.1\th1:kYf81DTWFe7t+1VvL7eS+jKFVWaUnK9cB1qbwn63YCY=\n\tdep\tgithub.com/google/uuid\tv1.6.0\th1:NIvaJDMOsjHA8n1jAhLSgzrAzy1Hgr+hNrb57e+94F0=\n\tdep\tgithub.com/grpc-ecosystem/grpc-gateway/v2\tv2.30.0\th1:/Tnpcb2E0Pz/tN9s3bfEY2Q8ePCEX9iuS+cneUwncnw=\n\tdep\tgithub.com/jackc/pgpassfile\tv1.0.0\th1:/6Hmqy13Ss2zCq62VdNG8tM1wchn8zjSGOBJ6icpsIM=\n\tdep\tgithub.com/jackc/pgservicefile\tv0.0.0-20240606120523-5a60cdf6a761\th1:iCEnooe7UlwOQYpKFhBabPMi4aNAfoODPEFNiAnClxo=\n\tdep\tgithub.com/jackc/pgx/v5\tv5.11.0\th1:IzBBtyK9AHqf98cctWFifYSci2hgQR/cd56wB4p+ogg=\n\tdep\tgithub.com/jackc/puddle/v2\tv2.2.2\th1:PR8nw+E/1w0GLuRFSmiioY6UooMp6KJv0/61nB7icHo=\n\tdep\tgo.opentelemetry.io/auto/sdk\tv1.2.1\th1:jXsnJ4Lmnqd11kwkBV2LgLoFMZKizbCi5fNZ/ipaZ64=\n\tdep\tgo.opentelemetry.io/otel\tv1.47.0\th1:j7ALJ/zgkS7Z6aeJW09p8VC9804bC+PpeTfCD4XPnOM=\n\tdep\tgo.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetrichttp\tv1.47.0\th1:7kszRN4Ze5GeAkUnBjBSUIunVBMA+mZIG04auueqguM=\n\tdep\tgo.opentelemetry.io/otel/exporters/otlp/otlptrace\tv1.47.0\th1:julhjPeUH/q/7hinbSdDdqt5h7Zw9YWmRlWRhI0jd54=\n\tdep\tgo.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracehttp\tv1.47.0\th1:aXZXsZ012wOgVkqaiQv+Z/d8V0xKjmg70F6m4CE94lc=\n\tdep\tgo.opentelemetry.io/otel/log\tv1.47.0\th1:cOTS1CcLbSQeZKanGJ+0JpF/+t4PELi3O3bbl2lqCcI=\n\tdep\tgo.opentelemetry.io/otel/metric\tv1.47.0\th1:4PptaldXx3Eat1XjMZ68pPJEs5wrhlemctZE9a3UdWY=\n\tdep\tgo.opentelemetry.io/otel/sdk\tv1.47.0\th1:zWXEr4j2lFefG87TU6Yg8a7ngfohIKFZHKp0Hf5hC6I=\n\tdep\tgo.opentelemetry.io/otel/sdk/metric\tv1.47.0\th1:lfISg2j93VT6yqdk9OfUaZmw/GfcZqCCV3jdXtsPnKw=\n\tdep\tgo.opentelemetry.io/otel/trace\tv1.47.0\th1:JOjX/Oci8K94QHddo+bbfya/Ai/nf6/dt9ZfrFNWSrM=\n\tdep\tgo.opentelemetry.io/proto/otlp\tv1.11.0\th1:5rrYs0Ykyj50sdU/JU0x8etU+LubXWb+gED6TbEdMIk=\n\tdep\tgolang.org/x/net\tv0.59.0\th1:5zfYln+w5XCxwrnMMJPufRgNoXEaGxl0wo5GqPXyues=\n\tdep\tgolang.org/x/sync\tv0.23.0\th1:KameEIfc1IkluZyXWLn39Wd4tURc6GbCiISGiZm2bQk=\n\tdep\tgolang.org/x/sys\tv0.48.0\th1:bbX/i/6MgT9BVLM9RT1thmxL04yeTAhbEz4SyadbXoo=\n\tdep\tgolang.org/x/text\tv0.42.0\th1:JbOZXgfeCPU9gacVtYliJqOhD+zhrEqK4LfdpmlUZqI=\n\tdep\tgoogle.golang.org/genproto/googleapis/api\tv0.0.0-20260928230214-8a89bd6388cc\th1:rZHRz0ogq4Pid1IKtA/ivHi8XONVF5tqUQXA2TtgpkE=\n\tdep\tgoogle.golang.org/genproto/googleapis/rpc\tv0.0.0-20260928230214-8a89bd6388cc\th1:4bNTbnb44EqGVy9HaQxSY2jnafSUdgV3qHtedvNpDKg=\n\tdep\tgoogle.golang.org/grpc\tv1.84.0\th1:soMyaPJ8pAak5PIQ0DGBUir0XRo2fRoMqhNWMLlLxO0=\n\tdep\tgoogle.golang.org/protobuf\tv1.36.12\th1:pJOKDDOyeXErUroCihFAd5LQuwXBSpVnKGrj5o/fwxc=\n\tbuild\t-buildmode=exe\n\tbuild\t-compiler=gc\n\tbuild\t-trimpath=true\n\tbuild\tCGO_ENABLED=0\n\tbuild\tGOARCH=arm64\n\tbuild\tGOOS=linux\n\tbuild\tGOARM64=v8.0\n",
+  "race_vet": "passed",
+  "postgres_contract": "passed with explicit private config; two pools, lock timeout/recovery, scoped membership",
+  "helm_lint": "passed",
+  "drain_wait_command": "passed",
+  "critical_high_findings": 0,
+  "deployed_runtime_manifest": "sha256:680b51878fcd9d74b9ce8a1c316f4b15a63c1cdd8b0d3e37e67b8fb45126bfb6",
+  "manual_release_rebuild": {
+    "oci_index": "sha256:038f361819c8f6f0f4436bc81b18dced3bd3b46f67fa1ff3861ab6b7abc2523b",
+    "runtime_manifest": "sha256:680b51878fcd9d74b9ce8a1c316f4b15a63c1cdd8b0d3e37e67b8fb45126bfb6",
+    "same_runtime_manifest_as_deployed": true,
+    "reason_different_index": "regenerated BuildKit provenance attestation",
+    "command": "CP_GO_TEST_CONFIG=<private file> CP_GATEWAY_GO_IMAGE=localhost:5201/mlp-gateway-go:migrate-20261007 CP_GATEWAY_GO_PLATFORM=linux/arm64 make cp-gateway-go-release-check",
+    "passed": true
+  }
+}

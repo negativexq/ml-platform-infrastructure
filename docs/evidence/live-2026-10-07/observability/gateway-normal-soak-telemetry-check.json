@@ -1,0 +1,42 @@
+{
+  "trace_checks": [
+    {
+      "index": 0,
+      "variant": "normal",
+      "trace_id": "b329bf3f25337ee2af6724b594d15c4d",
+      "sql_span_count": 0,
+      "server_span_count": 1,
+      "scope_names": [
+        "fastapi"
+      ],
+      "passed": true
+    }
+  ],
+  "promql_checks": [
+    {
+      "query": "60 * sum by (caller) (rate(mlp_gateway_usage_requests_total{project=\"acceptance-ca9287f7c0\",endpoint=\"function\",code=~\"4..\"}[5m]) or rate(mlp_gateway_requests_total{project=\"acceptance-ca9287f7c0\",endpoint=\"function\",caller!=\"\",code=~\"4..\"}[5m]))",
+      "passed": true
+    },
+    {
+      "query": "60 * sum by (caller) (rate(mlp_gateway_usage_requests_total{project=\"acceptance-ca9287f7c0\",endpoint=\"function\",code=~\"5..\"}[5m]) or rate(mlp_gateway_requests_total{project=\"acceptance-ca9287f7c0\",endpoint=\"function\",caller!=\"\",code=~\"5..\"}[5m]))",
+      "passed": true
+    }
+  ],
+  "passed": true,
+  "traffic_gate_passed": false,
+  "scope": "Read-only telemetry verification; does not override traffic gate",
+  "counter_schema_checks": [
+    {
+      "metric": "mlp_gateway_requests_total",
+      "peak_count_including_100_warmups": 150098.0,
+      "has_caller": false,
+      "passed": true
+    },
+    {
+      "metric": "mlp_gateway_usage_requests_total",
+      "peak_count_including_100_warmups": 150098.0,
+      "has_caller": true,
+      "passed": true
+    }
+  ]
+}

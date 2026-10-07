@@ -1,0 +1,1686 @@
+{
+  "trace_id": "a54f95ba916c4eceab83a9c90fbb1f47",
+  "spans": [
+    {
+      "name": "POST /v1/{project}/{endpoint}/{operation}",
+      "kind": "SPAN_KIND_SERVER",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "5e14892e-3a02-4eda-9882-053026b68cfe"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-d66fz"
+        }
+      }
+    },
+    {
+      "name": "fastapi.dependencies",
+      "kind": "SPAN_KIND_INTERNAL",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "5e14892e-3a02-4eda-9882-053026b68cfe"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-d66fz"
+        }
+      }
+    },
+    {
+      "name": "fastapi.endpoint",
+      "kind": "SPAN_KIND_INTERNAL",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "5e14892e-3a02-4eda-9882-053026b68cfe"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-d66fz"
+        }
+      }
+    },
+    {
+      "name": "connect",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "5e14892e-3a02-4eda-9882-053026b68cfe"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-d66fz"
+        }
+      }
+    },
+    {
+      "name": "SELECT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "5e14892e-3a02-4eda-9882-053026b68cfe"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-d66fz"
+        }
+      }
+    },
+    {
+      "name": "connect",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "5e14892e-3a02-4eda-9882-053026b68cfe"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-d66fz"
+        }
+      }
+    },
+    {
+      "name": "SELECT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "5e14892e-3a02-4eda-9882-053026b68cfe"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-d66fz"
+        }
+      }
+    },
+    {
+      "name": "SELECT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "5e14892e-3a02-4eda-9882-053026b68cfe"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-d66fz"
+        }
+      }
+    },
+    {
+      "name": "SELECT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "5e14892e-3a02-4eda-9882-053026b68cfe"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-d66fz"
+        }
+      }
+    },
+    {
+      "name": "SELECT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "5e14892e-3a02-4eda-9882-053026b68cfe"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-d66fz"
+        }
+      }
+    },
+    {
+      "name": "SELECT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "5e14892e-3a02-4eda-9882-053026b68cfe"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-d66fz"
+        }
+      }
+    },
+    {
+      "name": "SELECT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "5e14892e-3a02-4eda-9882-053026b68cfe"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-d66fz"
+        }
+      }
+    },
+    {
+      "name": "SELECT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "5e14892e-3a02-4eda-9882-053026b68cfe"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-d66fz"
+        }
+      }
+    },
+    {
+      "name": "connect",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "5e14892e-3a02-4eda-9882-053026b68cfe"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-d66fz"
+        }
+      }
+    },
+    {
+      "name": "UPDATE controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "5e14892e-3a02-4eda-9882-053026b68cfe"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-d66fz"
+        }
+      }
+    },
+    {
+      "name": "connect",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "5e14892e-3a02-4eda-9882-053026b68cfe"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-d66fz"
+        }
+      }
+    },
+    {
+      "name": "SELECT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "5e14892e-3a02-4eda-9882-053026b68cfe"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-d66fz"
+        }
+      }
+    },
+    {
+      "name": "INSERT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "5e14892e-3a02-4eda-9882-053026b68cfe"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-d66fz"
+        }
+      }
+    },
+    {
+      "name": "WITH controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "5e14892e-3a02-4eda-9882-053026b68cfe"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-d66fz"
+        }
+      }
+    },
+    {
+      "name": "POST",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "5e14892e-3a02-4eda-9882-053026b68cfe"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-d66fz"
+        }
+      }
+    },
+    {
+      "name": "POST /v1/{project}/{endpoint}/{operation}",
+      "kind": "SPAN_KIND_SERVER",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "6cf4255a-e8b3-47ca-bb8d-20eaed259aca"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-kvrdf"
+        }
+      }
+    },
+    {
+      "name": "fastapi.dependencies",
+      "kind": "SPAN_KIND_INTERNAL",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "6cf4255a-e8b3-47ca-bb8d-20eaed259aca"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-kvrdf"
+        }
+      }
+    },
+    {
+      "name": "fastapi.endpoint",
+      "kind": "SPAN_KIND_INTERNAL",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "6cf4255a-e8b3-47ca-bb8d-20eaed259aca"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-kvrdf"
+        }
+      }
+    },
+    {
+      "name": "connect",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "6cf4255a-e8b3-47ca-bb8d-20eaed259aca"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-kvrdf"
+        }
+      }
+    },
+    {
+      "name": "SELECT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "6cf4255a-e8b3-47ca-bb8d-20eaed259aca"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-kvrdf"
+        }
+      }
+    },
+    {
+      "name": "connect",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "6cf4255a-e8b3-47ca-bb8d-20eaed259aca"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-kvrdf"
+        }
+      }
+    },
+    {
+      "name": "SELECT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "6cf4255a-e8b3-47ca-bb8d-20eaed259aca"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-kvrdf"
+        }
+      }
+    },
+    {
+      "name": "SELECT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "6cf4255a-e8b3-47ca-bb8d-20eaed259aca"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-kvrdf"
+        }
+      }
+    },
+    {
+      "name": "SELECT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "6cf4255a-e8b3-47ca-bb8d-20eaed259aca"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-kvrdf"
+        }
+      }
+    },
+    {
+      "name": "SELECT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "6cf4255a-e8b3-47ca-bb8d-20eaed259aca"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-kvrdf"
+        }
+      }
+    },
+    {
+      "name": "SELECT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "6cf4255a-e8b3-47ca-bb8d-20eaed259aca"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-kvrdf"
+        }
+      }
+    },
+    {
+      "name": "SELECT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "6cf4255a-e8b3-47ca-bb8d-20eaed259aca"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-kvrdf"
+        }
+      }
+    },
+    {
+      "name": "SELECT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "6cf4255a-e8b3-47ca-bb8d-20eaed259aca"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-kvrdf"
+        }
+      }
+    },
+    {
+      "name": "connect",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "6cf4255a-e8b3-47ca-bb8d-20eaed259aca"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-kvrdf"
+        }
+      }
+    },
+    {
+      "name": "UPDATE controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "6cf4255a-e8b3-47ca-bb8d-20eaed259aca"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-kvrdf"
+        }
+      }
+    },
+    {
+      "name": "connect",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "6cf4255a-e8b3-47ca-bb8d-20eaed259aca"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-kvrdf"
+        }
+      }
+    },
+    {
+      "name": "SELECT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "6cf4255a-e8b3-47ca-bb8d-20eaed259aca"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-kvrdf"
+        }
+      }
+    },
+    {
+      "name": "INSERT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "6cf4255a-e8b3-47ca-bb8d-20eaed259aca"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-kvrdf"
+        }
+      }
+    },
+    {
+      "name": "WITH controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "6cf4255a-e8b3-47ca-bb8d-20eaed259aca"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-kvrdf"
+        }
+      }
+    },
+    {
+      "name": "POST",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "6cf4255a-e8b3-47ca-bb8d-20eaed259aca"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-kvrdf"
+        }
+      }
+    },
+    {
+      "name": "POST /v1/{project}/{endpoint}/{operation}",
+      "kind": "SPAN_KIND_SERVER",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "9c1bc72c-478b-4549-a130-c208c2e0c13e"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-mq7c9"
+        }
+      }
+    },
+    {
+      "name": "fastapi.dependencies",
+      "kind": "SPAN_KIND_INTERNAL",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "9c1bc72c-478b-4549-a130-c208c2e0c13e"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-mq7c9"
+        }
+      }
+    },
+    {
+      "name": "fastapi.endpoint",
+      "kind": "SPAN_KIND_INTERNAL",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "9c1bc72c-478b-4549-a130-c208c2e0c13e"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-mq7c9"
+        }
+      }
+    },
+    {
+      "name": "connect",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "9c1bc72c-478b-4549-a130-c208c2e0c13e"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-mq7c9"
+        }
+      }
+    },
+    {
+      "name": "SELECT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "9c1bc72c-478b-4549-a130-c208c2e0c13e"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-mq7c9"
+        }
+      }
+    },
+    {
+      "name": "connect",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "9c1bc72c-478b-4549-a130-c208c2e0c13e"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-mq7c9"
+        }
+      }
+    },
+    {
+      "name": "SELECT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "9c1bc72c-478b-4549-a130-c208c2e0c13e"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-mq7c9"
+        }
+      }
+    },
+    {
+      "name": "SELECT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "9c1bc72c-478b-4549-a130-c208c2e0c13e"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-mq7c9"
+        }
+      }
+    },
+    {
+      "name": "SELECT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "9c1bc72c-478b-4549-a130-c208c2e0c13e"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-mq7c9"
+        }
+      }
+    },
+    {
+      "name": "SELECT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "9c1bc72c-478b-4549-a130-c208c2e0c13e"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-mq7c9"
+        }
+      }
+    },
+    {
+      "name": "SELECT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "9c1bc72c-478b-4549-a130-c208c2e0c13e"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-mq7c9"
+        }
+      }
+    },
+    {
+      "name": "SELECT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "9c1bc72c-478b-4549-a130-c208c2e0c13e"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-mq7c9"
+        }
+      }
+    },
+    {
+      "name": "SELECT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "9c1bc72c-478b-4549-a130-c208c2e0c13e"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-mq7c9"
+        }
+      }
+    },
+    {
+      "name": "connect",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "9c1bc72c-478b-4549-a130-c208c2e0c13e"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-mq7c9"
+        }
+      }
+    },
+    {
+      "name": "UPDATE controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "9c1bc72c-478b-4549-a130-c208c2e0c13e"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-mq7c9"
+        }
+      }
+    },
+    {
+      "name": "connect",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "9c1bc72c-478b-4549-a130-c208c2e0c13e"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-mq7c9"
+        }
+      }
+    },
+    {
+      "name": "SELECT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "9c1bc72c-478b-4549-a130-c208c2e0c13e"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-mq7c9"
+        }
+      }
+    },
+    {
+      "name": "INSERT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "9c1bc72c-478b-4549-a130-c208c2e0c13e"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-mq7c9"
+        }
+      }
+    },
+    {
+      "name": "WITH controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "9c1bc72c-478b-4549-a130-c208c2e0c13e"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-mq7c9"
+        }
+      }
+    },
+    {
+      "name": "POST",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "9c1bc72c-478b-4549-a130-c208c2e0c13e"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-mq7c9"
+        }
+      }
+    },
+    {
+      "name": "POST /v1/{project}/{endpoint}/{operation}",
+      "kind": "SPAN_KIND_SERVER",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "445cd6b9-4039-46d2-9082-f81a8a919164"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-nxvnw"
+        }
+      }
+    },
+    {
+      "name": "fastapi.dependencies",
+      "kind": "SPAN_KIND_INTERNAL",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "445cd6b9-4039-46d2-9082-f81a8a919164"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-nxvnw"
+        }
+      }
+    },
+    {
+      "name": "fastapi.endpoint",
+      "kind": "SPAN_KIND_INTERNAL",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "445cd6b9-4039-46d2-9082-f81a8a919164"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-nxvnw"
+        }
+      }
+    },
+    {
+      "name": "connect",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "445cd6b9-4039-46d2-9082-f81a8a919164"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-nxvnw"
+        }
+      }
+    },
+    {
+      "name": "SELECT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "445cd6b9-4039-46d2-9082-f81a8a919164"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-nxvnw"
+        }
+      }
+    },
+    {
+      "name": "connect",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "445cd6b9-4039-46d2-9082-f81a8a919164"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-nxvnw"
+        }
+      }
+    },
+    {
+      "name": "SELECT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "445cd6b9-4039-46d2-9082-f81a8a919164"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-nxvnw"
+        }
+      }
+    },
+    {
+      "name": "SELECT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "445cd6b9-4039-46d2-9082-f81a8a919164"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-nxvnw"
+        }
+      }
+    },
+    {
+      "name": "SELECT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "445cd6b9-4039-46d2-9082-f81a8a919164"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-nxvnw"
+        }
+      }
+    },
+    {
+      "name": "SELECT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "445cd6b9-4039-46d2-9082-f81a8a919164"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-nxvnw"
+        }
+      }
+    },
+    {
+      "name": "SELECT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "445cd6b9-4039-46d2-9082-f81a8a919164"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-nxvnw"
+        }
+      }
+    },
+    {
+      "name": "SELECT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "445cd6b9-4039-46d2-9082-f81a8a919164"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-nxvnw"
+        }
+      }
+    },
+    {
+      "name": "SELECT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "445cd6b9-4039-46d2-9082-f81a8a919164"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-nxvnw"
+        }
+      }
+    },
+    {
+      "name": "connect",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "445cd6b9-4039-46d2-9082-f81a8a919164"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-nxvnw"
+        }
+      }
+    },
+    {
+      "name": "UPDATE controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "445cd6b9-4039-46d2-9082-f81a8a919164"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-nxvnw"
+        }
+      }
+    },
+    {
+      "name": "connect",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "445cd6b9-4039-46d2-9082-f81a8a919164"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-nxvnw"
+        }
+      }
+    },
+    {
+      "name": "SELECT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "445cd6b9-4039-46d2-9082-f81a8a919164"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-nxvnw"
+        }
+      }
+    },
+    {
+      "name": "INSERT controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "445cd6b9-4039-46d2-9082-f81a8a919164"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-nxvnw"
+        }
+      }
+    },
+    {
+      "name": "WITH controlplane",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "445cd6b9-4039-46d2-9082-f81a8a919164"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-nxvnw"
+        }
+      }
+    },
+    {
+      "name": "POST",
+      "kind": "SPAN_KIND_CLIENT",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "445cd6b9-4039-46d2-9082-f81a8a919164"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-gateway"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-gateway-d5b68c9c4-nxvnw"
+        }
+      }
+    }
+  ],
+  "scope": "gateway native server + SQL + HTTPX outbound trace exported to Tempo; upstream controller/model spans not claimed"
+}

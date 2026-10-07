@@ -1,0 +1,52 @@
+{
+  "source_base": "cb6e540",
+  "scope": "working-tree code/local validation; no new cluster image deployment",
+  "controlplane_suite": {
+    "command": "TZ=UTC .venv/bin/pytest controlplane/tests",
+    "passed": 754,
+    "skipped": 100,
+    "warnings": 1,
+    "seconds": 100.72
+  },
+  "targeted_gateway_observability_architecture": {
+    "passed": 59
+  },
+  "utc_api_projects": {
+    "passed": 20
+  },
+  "ruff": "passed",
+  "mypy_modified_sources_and_observability_tests": {
+    "passed": true,
+    "sources": 18
+  },
+  "broad_mypy": "blocked by existing limiter-matrix and revision/CPU/load test typing/import issues",
+  "helm_lint": [
+    "controlplane",
+    "platform-local"
+  ],
+  "dashboard_promql_syntax": {
+    "expressions": 20,
+    "passed": true,
+    "live_series_verified": false
+  },
+  "postgres_profile": "isolated PostgreSQL 16.4; 11 fixture calls observed; operator role only",
+  "not_run": [
+    "final clean image/runtime gate",
+    "cluster Collector/Tempo export",
+    "live new dashboard series",
+    "load matrix with new instrumentation",
+    "profiling enable/restart on cluster application DB"
+  ],
+  "phase_followup": {
+    "controlplane_suite": {
+      "passed": 758,
+      "skipped": 100,
+      "seconds": 106.84
+    },
+    "scoped_mypy_sources": 14,
+    "dashboard_promql_syntax_expressions": 27,
+    "go_race_tests": "passed",
+    "go_vet": "passed",
+    "go_smoke": "1000 planned/offered/completed; no drop/error; local fixture only"
+  }
+}

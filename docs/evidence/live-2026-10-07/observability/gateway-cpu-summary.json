@@ -1,0 +1,349 @@
+{
+  "profiler": {
+    "profiler": "yappi",
+    "version": "1.7.6",
+    "source": "https://pypi.org/project/yappi/",
+    "base_image": "sha256:7271ee509006b80d56c687ea4613b60a5fb28a1c2d887bef878027af78d32072",
+    "image": "localhost:5201/mlp-controlplane@sha256:d7252f1382a62480770f666e17f06ff9ab164f2868460f117e129eb2ea4eb4dd",
+    "production_image_changed": false,
+    "recipe": "FROM localhost:5201/mlp-controlplane@sha256:7271ee509006b80d56c687ea4613b60a5fb28a1c2d887bef878027af78d32072\nUSER root\nRUN python -m pip install --no-cache-dir --no-deps --only-binary=:all: yappi==1.7.6\nUSER 10001\n",
+    "clock_sanity_check": "Separate sleeping-thread fixture: 200ms wall wait consumes <50ms attributed CPU; three threads collected"
+  },
+  "profile_clock": "cpu",
+  "aggregation": "Exclusive function self CPU; inclusive parent times are not summed",
+  "attributed_self_cpu_seconds": 28.133167629000003,
+  "profiled_thread_cpu_seconds": 34.723068408,
+  "unassigned_thread_cpu_seconds": 6.589900779000001,
+  "coverage_fraction": 0.8102154826420316,
+  "categories": [
+    {
+      "category": "OpenTelemetry SDK/instrumentation + FastAPI telemetry",
+      "self_cpu_seconds": 9.911586112999995,
+      "percent_of_attributed_self_cpu": 35.23096383495407,
+      "percent_of_profiled_thread_cpu": 28.54467236748127
+    },
+    {
+      "category": "psycopg PostgreSQL driver",
+      "self_cpu_seconds": 7.853924664000001,
+      "percent_of_attributed_self_cpu": 27.916958259275727,
+      "percent_of_profiled_thread_cpu": 22.618751809936533
+    },
+    {
+      "category": "SQLAlchemy",
+      "self_cpu_seconds": 3.5754034300000015,
+      "percent_of_attributed_self_cpu": 12.708854819158129,
+      "percent_of_profiled_thread_cpu": 10.296910941131712
+    },
+    {
+      "category": "Other/stdlib/probe",
+      "self_cpu_seconds": 2.2745059290000027,
+      "percent_of_attributed_self_cpu": 8.084784333547336,
+      "percent_of_profiled_thread_cpu": 6.55041744086179
+    },
+    {
+      "category": "FastAPI/Starlette HTTP framework",
+      "self_cpu_seconds": 2.080891880000001,
+      "percent_of_attributed_self_cpu": 7.396578684068953,
+      "percent_of_profiled_thread_cpu": 5.992822568412691
+    },
+    {
+      "category": "Gateway application/domain/adapters",
+      "self_cpu_seconds": 1.0711540400000004,
+      "percent_of_attributed_self_cpu": 3.807441999157756,
+      "percent_of_profiled_thread_cpu": 3.084848456979143
+    },
+    {
+      "category": "Async/thread runtime",
+      "self_cpu_seconds": 0.7758585470000001,
+      "percent_of_attributed_self_cpu": 2.7578072872257584,
+      "percent_of_profiled_thread_cpu": 2.2344181622533297
+    },
+    {
+      "category": "HTTP transport/server",
+      "self_cpu_seconds": 0.5898430260000003,
+      "percent_of_attributed_self_cpu": 2.0966107826122755,
+      "percent_of_profiled_thread_cpu": 1.6987065171466924
+    }
+  ],
+  "top_functions": [
+    {
+      "name": "Cursor._maybe_prepare_gen",
+      "module": "/install/lib/python3.12/site-packages/psycopg/_cursor_base.py",
+      "line": 275,
+      "calls": 40864,
+      "self_cpu_seconds": 1.7294475970000003,
+      "inclusive_cpu_seconds": 3.390166763
+    },
+    {
+      "name": "Connection.wait",
+      "module": "/install/lib/python3.12/site-packages/psycopg/connection.py",
+      "line": 479,
+      "calls": 40237,
+      "self_cpu_seconds": 1.4255289249999998,
+      "inclusive_cpu_seconds": 6.967999713999999
+    },
+    {
+      "name": "Connection._exec_command",
+      "module": "/install/lib/python3.12/site-packages/psycopg/_connection_base.py",
+      "line": 443,
+      "calls": 20118,
+      "self_cpu_seconds": 1.243895065,
+      "inclusive_cpu_seconds": 1.2869660559999998
+    },
+    {
+      "name": "_hash_attributes",
+      "module": "/install/lib/python3.12/site-packages/opentelemetry/sdk/metrics/_internal/_view_instrument_match.py",
+      "line": 45,
+      "calls": 361584,
+      "self_cpu_seconds": 1.0087633530000004,
+      "inclusive_cpu_seconds": 2.5122517450000004
+    },
+    {
+      "name": "_clean_attribute_value",
+      "module": "/install/lib/python3.12/site-packages/opentelemetry/attributes/__init__.py",
+      "line": 41,
+      "calls": 342780,
+      "self_cpu_seconds": 0.868431415,
+      "inclusive_cpu_seconds": 1.7488527799999998
+    },
+    {
+      "name": "Cursor._send_query_prepared",
+      "module": "/install/lib/python3.12/site-packages/psycopg/_cursor_base.py",
+      "line": 583,
+      "calls": 14550,
+      "self_cpu_seconds": 0.7250346960000001,
+      "inclusive_cpu_seconds": 0.7250346960000001
+    },
+    {
+      "name": "__instancecheck__",
+      "module": "<frozen abc>",
+      "line": 117,
+      "calls": 830767,
+      "self_cpu_seconds": 0.680161704,
+      "inclusive_cpu_seconds": 1.0980102120000002
+    },
+    {
+      "name": "Tracer.start_span",
+      "module": "/install/lib/python3.12/site-packages/opentelemetry/sdk/trace/__init__.py",
+      "line": 1138,
+      "calls": 35196,
+      "self_cpu_seconds": 0.42120086300000004,
+      "inclusive_cpu_seconds": 1.8713122899999997
+    },
+    {
+      "name": "get_value",
+      "module": "/install/lib/python3.12/site-packages/opentelemetry/context/__init__.py",
+      "line": 59,
+      "calls": 327759,
+      "self_cpu_seconds": 0.384991,
+      "inclusive_cpu_seconds": 0.9280494920000001
+    },
+    {
+      "name": "_Histogram.record",
+      "module": "/install/lib/python3.12/site-packages/opentelemetry/sdk/metrics/_internal/instrument.py",
+      "line": 297,
+      "calls": 70542,
+      "self_cpu_seconds": 0.33724168500000007,
+      "inclusive_cpu_seconds": 5.784283068000001
+    },
+    {
+      "name": "TraceBasedExemplarFilter.should_sample",
+      "module": "/install/lib/python3.12/site-packages/opentelemetry/sdk/metrics/_internal/exemplar/exemplar_filter.py",
+      "line": 102,
+      "calls": 125828,
+      "self_cpu_seconds": 0.33413749000000004,
+      "inclusive_cpu_seconds": 1.119340929
+    },
+    {
+      "name": "get_current_span",
+      "module": "/install/lib/python3.12/site-packages/opentelemetry/trace/propagation/__init__.py",
+      "line": 24,
+      "calls": 232126,
+      "self_cpu_seconds": 0.3301969250000001,
+      "inclusive_cpu_seconds": 1.3418675059999998
+    },
+    {
+      "name": "get_current",
+      "module": "/install/lib/python3.12/site-packages/opentelemetry/context/__init__.py",
+      "line": 95,
+      "calls": 352285,
+      "self_cpu_seconds": 0.322018958,
+      "inclusive_cpu_seconds": 0.782435089
+    },
+    {
+      "name": "_ViewInstrumentMatch.consume_measurement",
+      "module": "/install/lib/python3.12/site-packages/opentelemetry/sdk/metrics/_internal/_view_instrument_match.py",
+      "line": 125,
+      "calls": 125828,
+      "self_cpu_seconds": 0.315274819,
+      "inclusive_cpu_seconds": 3.427775469
+    },
+    {
+      "name": "ContextVarsRuntimeContext.get_current",
+      "module": "/install/lib/python3.12/site-packages/opentelemetry/context/contextvars_context.py",
+      "line": 30,
+      "calls": 352285,
+      "self_cpu_seconds": 0.30212752,
+      "inclusive_cpu_seconds": 0.46041613100000006
+    },
+    {
+      "name": "SynchronousMeasurementConsumer.consume_measurement",
+      "module": "/install/lib/python3.12/site-packages/opentelemetry/sdk/metrics/_internal/measurement_consumer.py",
+      "line": 62,
+      "calls": 125658,
+      "self_cpu_seconds": 0.294414339,
+      "inclusive_cpu_seconds": 5.1826543460000005
+    },
+    {
+      "name": "<genexpr>",
+      "module": "/install/lib/python3.12/site-packages/opentelemetry/sdk/metrics/_internal/_view_instrument_match.py",
+      "line": 57,
+      "calls": 361584,
+      "self_cpu_seconds": 0.28594943500000003,
+      "inclusive_cpu_seconds": 0.840173289
+    },
+    {
+      "name": "Cursor._execute_send",
+      "module": "/install/lib/python3.12/site-packages/psycopg/_cursor_base.py",
+      "line": 416,
+      "calls": 5634,
+      "self_cpu_seconds": 0.27965056999999993,
+      "inclusive_cpu_seconds": 0.27965056999999993
+    },
+    {
+      "name": "_ExplicitBucketHistogramAggregation.aggregate",
+      "module": "/install/lib/python3.12/site-packages/opentelemetry/sdk/metrics/_internal/aggregation.py",
+      "line": 475,
+      "calls": 70542,
+      "self_cpu_seconds": 0.26791527800000003,
+      "inclusive_cpu_seconds": 0.45314373900000005
+    },
+    {
+      "name": "_ProxyMeterConfig.is_enabled",
+      "module": "/install/lib/python3.12/site-packages/opentelemetry/sdk/metrics/_internal/__init__.py",
+      "line": 84,
+      "calls": 125828,
+      "self_cpu_seconds": 0.265213818,
+      "inclusive_cpu_seconds": 0.265213818
+    },
+    {
+      "name": "Connection._exec_single_context",
+      "module": "/install/lib/python3.12/site-packages/sqlalchemy/engine/base.py",
+      "line": 1852,
+      "calls": 15175,
+      "self_cpu_seconds": 0.247408573,
+      "inclusive_cpu_seconds": 10.045970337000002
+    },
+    {
+      "name": "MetricReaderStorage.consume_measurement",
+      "module": "/install/lib/python3.12/site-packages/opentelemetry/sdk/metrics/_internal/metric_reader_storage.py",
+      "line": 95,
+      "calls": 125828,
+      "self_cpu_seconds": 0.22773167100000005,
+      "inclusive_cpu_seconds": 3.7159721489999997
+    },
+    {
+      "name": "_UpDownCounter.add",
+      "module": "/install/lib/python3.12/site-packages/opentelemetry/sdk/metrics/_internal/instrument.py",
+      "line": 227,
+      "calls": 50104,
+      "self_cpu_seconds": 0.225040923,
+      "inclusive_cpu_seconds": 2.8143591450000005
+    },
+    {
+      "name": "RequestResponseCycle.send",
+      "module": "/install/lib/python3.12/site-packages/uvicorn/protocols/http/httptools_impl.py",
+      "line": 463,
+      "calls": 10020,
+      "self_cpu_seconds": 0.21649093300000002,
+      "inclusive_cpu_seconds": 0.34216943
+    },
+    {
+      "name": "Measurement.__init__",
+      "module": "<string>",
+      "line": 2,
+      "calls": 125828,
+      "self_cpu_seconds": 0.21615298,
+      "inclusive_cpu_seconds": 2.432476775
+    },
+    {
+      "name": "<lambda>",
+      "module": "/install/lib/python3.12/site-packages/opentelemetry/sdk/metrics/_internal/_view_instrument_match.py",
+      "line": 61,
+      "calls": 235756,
+      "self_cpu_seconds": 0.21369045400000006,
+      "inclusive_cpu_seconds": 0.298905185
+    },
+    {
+      "name": "Measurement.__post_init__",
+      "module": "/install/lib/python3.12/site-packages/opentelemetry/sdk/metrics/_internal/measurement.py",
+      "line": 41,
+      "calls": 125828,
+      "self_cpu_seconds": 0.20439056700000005,
+      "inclusive_cpu_seconds": 2.2163237950000005
+    },
+    {
+      "name": "key",
+      "module": "/install/lib/python3.12/site-packages/psycopg/_preparing.py",
+      "line": 54,
+      "calls": 40368,
+      "self_cpu_seconds": 0.20008205400000006,
+      "inclusive_cpu_seconds": 0.20008205400000006
+    },
+    {
+      "name": "SqlTokenBucketLimiter._postgres",
+      "module": "/install/lib/python3.12/site-packages/controlplane/adapters/gateway/sql_limits.py",
+      "line": 108,
+      "calls": 5000,
+      "self_cpu_seconds": 0.20003609900000002,
+      "inclusive_cpu_seconds": 19.236218342000004
+    },
+    {
+      "name": "_ListenerCollection.__call__",
+      "module": "/install/lib/python3.12/site-packages/sqlalchemy/event/attr.py",
+      "line": 510,
+      "calls": 55475,
+      "self_cpu_seconds": 0.19739444300000003,
+      "inclusive_cpu_seconds": 3.8607382180000003
+    }
+  ],
+  "samples": [
+    {
+      "profile_enabled": false,
+      "completed_rps": 473.2790603852238,
+      "elapsed_seconds": 10.56459163,
+      "gateway_cpu_seconds": 10.541584,
+      "requests": 5000,
+      "status_codes": {
+        "429": 5000
+      }
+    },
+    {
+      "profile_enabled": true,
+      "completed_rps": 143.8091151362318,
+      "elapsed_seconds": 34.768310724,
+      "gateway_cpu_seconds": 35.124571,
+      "requests": 5000,
+      "status_codes": {
+        "429": 5000
+      }
+    },
+    {
+      "profile_enabled": false,
+      "completed_rps": 475.4739932602636,
+      "elapsed_seconds": 10.515822255,
+      "gateway_cpu_seconds": 9.67457,
+      "requests": 5000,
+      "status_codes": {
+        "429": 5000
+      }
+    }
+  ],
+  "scope": "Single ARM64 1 CPU / 12 workers / 15 DB capacity, Go 500 offered RPS, 5000 429s/sample; telemetry on. Profiler distorts throughput and relative costs; percentages are not exact unprofiled production CPU distribution. Unassigned thread CPU may include profiling/native/unattributed runtime effects, not a measured single category.",
+  "cleanup_verified": {
+    "key_revoked": true,
+    "probe_pods_jobs_configmaps_secrets_removed": true,
+    "installed_api_gateway_reconciler": "2/2 each",
+    "profiler_added_to_production_dependencies": false
+  }
+}

@@ -1,0 +1,26 @@
+{
+  "trace_id": "53d347603b5413cf00d450c558b7ee1d",
+  "spans": [
+    {
+      "name": "SELECT controlplane",
+      "resource": {
+        "service.instance.id": {
+          "stringValue": "0c7f2332-7f11-46fc-b1cd-739df1ac28e3"
+        },
+        "k8s.node.name": {
+          "stringValue": "mlp-acceptance-control-plane"
+        },
+        "service.name": {
+          "stringValue": "mlp-controlplane-reconciler"
+        },
+        "k8s.namespace.name": {
+          "stringValue": "mlp-system"
+        },
+        "k8s.pod.name": {
+          "stringValue": "mlp-controlplane-reconciler-75f5854475-hm6fv"
+        }
+      }
+    }
+  ],
+  "scope": "live reconciler SQL span export and pod identity; stored-origin lifecycle correlation separately unit-tested"
+}

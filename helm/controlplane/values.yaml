@@ -47,6 +47,16 @@ api:
     annotations: {}
     tls: []
 gateway:
+  runtime: go # python keeps the previous shared-image gateway available for rollback
+  image:
+    repository: ghcr.io/negativexq/mlp-gateway-go
+    tag: dev
+    digest: ""
+    pullPolicy: IfNotPresent
+  workers: 12
+  dbPoolCapacity: 15
+  extraEnv: [] # optional OTLP endpoints/resource overrides
+  observabilityProfile: normal # Go currently supports normal; Python also supports diagnostic
   replicas: 2 # PostgreSQL limiter shares budgets across gateway replicas
   resources:
     requests: {cpu: 100m, memory: 256Mi}

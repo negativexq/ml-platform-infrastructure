@@ -12,7 +12,7 @@ Names as Prometheus sees them (the collector's Prometheus exporter appends the u
   mlp_state_transitions_total{entity_type,action}   every audit event, i.e. every real state change
   mlp_provider_calls_total{provider,operation,outcome}   outcome: ok | not_found | error
   mlp_provider_duration_seconds{provider,operation}
-  mlp_gateway_requests_total{project,endpoint,caller,code}   every public call, by HTTP status
+  mlp_gateway_requests_total{project,endpoint,code}   every public call, by HTTP status
   mlp_gateway_units_total{project,endpoint,caller,unit}      what quotas count (requests, tokens)
   mlp_gateway_duration_seconds{project,endpoint}             whole call, streaming included
   mlp_gateway_tokens_total{project,endpoint,caller,direction}  LLMs: prompt | completion
@@ -27,6 +27,8 @@ from typing import Any
 from opentelemetry import metrics
 from opentelemetry.metrics import Counter, Histogram
 
+from controlplane.observability.profile import sample_latency
+
 _BUCKETS = [0.005, 0.01, 0.025, 0.05, 0.1, 0.25, 0.5, 1.0, 2.5, 5.0, 10.0, 30.0]
 
 
@@ -39,6 +41,7 @@ class _Instruments:
     calls: Counter
     call_duration: Histogram
     gateway_requests: Counter
+    gateway_usage_requests: Counter
     gateway_units: Counter
     gateway_duration: Histogram
     gateway_tokens: Counter
@@ -74,6 +77,11 @@ def _instruments() -> _Instruments:
         ),
         gateway_requests=meter.create_counter(
             "mlp.gateway.requests", unit="{request}", description="Calls through the gateway"
+        ),
+        gateway_usage_requests=meter.create_counter(
+            "mlp.gateway.usage.requests",
+            unit="{request}",
+            description="Per-caller rejection/error usage; operational requests omit caller",
         ),
         gateway_units=meter.create_counter(
             "mlp.gateway.units", unit="{unit}", description="Quota units used through the gateway"
@@ -121,21 +129,36 @@ def record_gateway_call(
     seconds: float,
     prompt_tokens: int = 0,
     completion_tokens: int = 0,
+    *,
+    latency_sample_rate: float = 1,
+    request_caller_label: bool = False,
 ) -> None:
     i = _instruments()
     where = {"project": project, "endpoint": endpoint}
-    i.gateway_requests.add(1, {**where, "caller": caller, "code": str(code)})
+    request_attrs = {**where, "code": str(code)}
+    if request_caller_label:
+        request_attrs["caller"] = caller
+    i.gateway_requests.add(1, request_attrs)
+    if code >= 400:
+        i.gateway_usage_requests.add(1, {**where, "caller": caller, "code": str(code)})
     if units:
         i.gateway_units.add(units, {**where, "caller": caller, "unit": unit})
     for direction, tokens in (("prompt", prompt_tokens), ("completion", completion_tokens)):
         if tokens:
             i.gateway_tokens.add(tokens, {**where, "caller": caller, "direction": direction})
-    i.gateway_duration.record(seconds, where)
+    if sample_latency(latency_sample_rate):
+        i.gateway_duration.record(seconds, where)
 
 
 class GatewayUsageMetrics:
     """The gateway's UsageRecorder: usage as metrics, which Prometheus keeps and the
     control plane reads back for the usage panel."""
+
+    def __init__(
+        self, *, latency_sample_rate: float = 1, request_caller_label: bool = False
+    ) -> None:
+        self.sample_rate = latency_sample_rate
+        self.request_caller_label = request_caller_label
 
     def record(self, call: Any) -> None:  # a controlplane.application.gateway.CallRecord
         record_gateway_call(
@@ -148,11 +171,14 @@ class GatewayUsageMetrics:
             call.seconds,
             call.prompt_tokens,
             call.completion_tokens,
+            latency_sample_rate=self.sample_rate,
+            request_caller_label=self.request_caller_label,
         )
 
 
 class GatewayLimiterMetrics:
-    def __init__(self) -> None:
+    def __init__(self, *, latency_sample_rate: float = 1) -> None:
+        self.sample_rate = latency_sample_rate
         self._duration = metrics.get_meter("controlplane").create_histogram(
             "mlp.gateway.limiter.duration",
             unit="s",
@@ -174,4 +200,5 @@ class GatewayLimiterMetrics:
         )
 
     def record(self, operation: str, outcome: str, seconds: float) -> None:
-        self._duration.record(seconds, {"operation": operation, "outcome": outcome})
+        if sample_latency(self.sample_rate):
+            self._duration.record(seconds, {"operation": operation, "outcome": outcome})

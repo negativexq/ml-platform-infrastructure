@@ -1,0 +1,29 @@
+{
+  "scope": "ARM64 acceptance overlay; not a clean final Dockerfile rebuild",
+  "base": "localhost:5201/mlp-controlplane@sha256:0ada11c75795983ada878eac23f61bbcc6a074e60010d5f5b22cb1aa19045ba5",
+  "image": "localhost:5201/mlp-controlplane@sha256:2bd13f84abad0dff6311018bfe88ea51e4195e36a6b046662bd3dc26337bffd1",
+  "pip_check": "passed",
+  "wheels": [
+    {
+      "file": "opentelemetry_instrumentation_httpx-0.66b0-py3-none-any.whl",
+      "sha256": "2735d1868749ca04ce47a3802b0b809e3a00c05a65140e05bac5700e74410539"
+    },
+    {
+      "file": "greenlet-3.5.6-cp312-cp312-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl",
+      "sha256": "e85880b538e59a59f55117b81f208a6660ad5ac328aad9305f812d9b8bc67a0f"
+    },
+    {
+      "file": "opentelemetry_util_http-0.66b0-py3-none-any.whl",
+      "sha256": "7f5e581e94f023b30995f700e41ce319cec82bd542ff1c1c7c9b56d6b10bb687"
+    },
+    {
+      "file": "ml_platform_infra-0.1.0-py3-none-any.whl",
+      "sha256": "9841820dcf6b84e75ea6b5eef0bbeedaa921084ab2405853195bccf87748b798"
+    },
+    {
+      "file": "sqlalchemy-2.0.54-cp312-cp312-manylinux2014_aarch64.manylinux_2_17_aarch64.manylinux_2_28_aarch64.whl",
+      "sha256": "63cae7210fea9899e0bf35c1f1ae55d3ddd9c6d47cae8b6b43d945afa79dd65b"
+    }
+  ],
+  "recipe": "FROM localhost:5201/mlp-controlplane@sha256:0ada11c75795983ada878eac23f61bbcc6a074e60010d5f5b22cb1aa19045ba5\nUSER 0:0\nCOPY *.whl /tmp/wheels/\nRUN python -m pip uninstall -y sqlalchemy ml-platform-infra \\\n && python -m pip install --no-cache-dir --no-index --no-deps --prefix=/install /tmp/wheels/*.whl \\\n && python -m pip check\nLABEL org.opencontainers.image.revision=\"cb6e540-observability-working-tree\"\nUSER 10001:10001\n"
+}

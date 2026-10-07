@@ -1,0 +1,775 @@
+{
+  "passed": true,
+  "concurrency": 2,
+  "repeat": 100,
+  "scope": "historical single-gateway load-window search/read plus newly exported API traces",
+  "historical_window": [
+    1791332670,
+    1791332688
+  ],
+  "queries": [
+    {
+      "trace_id": "bc907daa0420f4070037b169d0a34423",
+      "status": 200,
+      "span_count": 8,
+      "duration_ms": 46.261792071163654,
+      "passed": true
+    },
+    {
+      "trace_id": "d76613b97c0159800108ff9d37ee5da6",
+      "status": 200,
+      "span_count": 8,
+      "duration_ms": 46.26333434134722,
+      "passed": true
+    },
+    {
+      "trace_id": "c1f386561b3f2b390007638356b603b4",
+      "status": 200,
+      "span_count": 8,
+      "duration_ms": 18.31333339214325,
+      "passed": true
+    },
+    {
+      "trace_id": "58d7ed1a7399ef5501d65fb2aa90d322",
+      "status": 200,
+      "span_count": 1,
+      "duration_ms": 17.640083096921444,
+      "passed": true
+    },
+    {
+      "trace_id": "c6ed2263d23935b8007271ec882e6361",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 17.708124592900276,
+      "passed": true
+    },
+    {
+      "trace_id": "cb60956904b5e47e0098267012600c04",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 18.22625007480383,
+      "passed": true
+    },
+    {
+      "trace_id": "996a5683eb036a6a01ee19866a9ff9ec",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 12.896250002086163,
+      "passed": true
+    },
+    {
+      "trace_id": "e5d7ae613143b3070091ec2eb9885dc3",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 22.50933274626732,
+      "passed": true
+    },
+    {
+      "trace_id": "d9cb9fd8bf6be09e0029c6f9bc10afa8",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 24.17175006121397,
+      "passed": true
+    },
+    {
+      "trace_id": "71acd9aa6acd39015eee19dde4135a",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 26.126625016331673,
+      "passed": true
+    },
+    {
+      "trace_id": "9441751d13d2805500ff1f521d4b3832",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 21.046042442321777,
+      "passed": true
+    },
+    {
+      "trace_id": "14d4e597d5854961006d9ca3cdb56dfb",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 18.599207513034344,
+      "passed": true
+    },
+    {
+      "trace_id": "45a205da5727fa720015ac98d6a36ebd",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 17.65025034546852,
+      "passed": true
+    },
+    {
+      "trace_id": "a3fa10652e32d208016bb945efb4791b",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 19.02537513524294,
+      "passed": true
+    },
+    {
+      "trace_id": "7e0a7606e794fdb600615caf14dad474",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 23.04662484675646,
+      "passed": true
+    },
+    {
+      "trace_id": "d82063e166d9c8e500c8eb63f0949faa",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 23.907000198960304,
+      "passed": true
+    },
+    {
+      "trace_id": "b89c882fe8e8ad5b019ab6ebfee1ff90",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 21.58570848405361,
+      "passed": true
+    },
+    {
+      "trace_id": "bd545abc5ca0e30901aa9b26240bbfed",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 17.147665843367577,
+      "passed": true
+    },
+    {
+      "trace_id": "347ff15a31947c68021745f6ccd66b10",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 15.651125460863113,
+      "passed": true
+    },
+    {
+      "trace_id": "c32b104e32ba8010011cd740eb48b9c9",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 14.172041788697243,
+      "passed": true
+    },
+    {
+      "trace_id": "23c4bf693d5366d301699a76b53eb141",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 13.64812534302473,
+      "passed": true
+    },
+    {
+      "trace_id": "ea159753cbc88ce9027766dc4484f4a0",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 17.607999965548515,
+      "passed": true
+    },
+    {
+      "trace_id": "84ff06712945566600b2b2e125d834c5",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 14.286207966506481,
+      "passed": true
+    },
+    {
+      "trace_id": "3a61f26e24a7ebc001c802fff1228e14",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 8.08445829898119,
+      "passed": true
+    },
+    {
+      "trace_id": "cab8217af1fb64140144f04313420e25",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 9.46387555450201,
+      "passed": true
+    },
+    {
+      "trace_id": "62d2431168f2a7400281932523aa9dc0",
+      "status": 200,
+      "span_count": 1,
+      "duration_ms": 8.683082647621632,
+      "passed": true
+    },
+    {
+      "trace_id": "511e58d3e131b8b90288d071c0ef3889",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 8.080665953457355,
+      "passed": true
+    },
+    {
+      "trace_id": "6d26d84cea29d50d0248a7163f78923d",
+      "status": 200,
+      "span_count": 1,
+      "duration_ms": 7.5630005449056625,
+      "passed": true
+    },
+    {
+      "trace_id": "9885554f8f2ebafb0096ceaeb3f7f620",
+      "status": 200,
+      "span_count": 8,
+      "duration_ms": 9.938666597008705,
+      "passed": true
+    },
+    {
+      "trace_id": "58335919cc945ef8026acc1a114073bb",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 9.449833072721958,
+      "passed": true
+    },
+    {
+      "trace_id": "f3d7e70fa4fdf36d008b49d32e097930",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 7.004542276263237,
+      "passed": true
+    },
+    {
+      "trace_id": "c3fe94221ad9bfde025ca2124bd1c4bb",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 9.008125402033329,
+      "passed": true
+    },
+    {
+      "trace_id": "6ba90353c1f71a9d0051c563ebad4a5d",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 10.842999443411827,
+      "passed": true
+    },
+    {
+      "trace_id": "9e3efc9b10805ec10090f753fff0e855",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 11.22674997895956,
+      "passed": true
+    },
+    {
+      "trace_id": "6974c2d7dfb9688301c673765c519d23",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 9.659583680331707,
+      "passed": true
+    },
+    {
+      "trace_id": "1bd96e2dbfbf84a9011a7e5fa763196a",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 9.504332207143307,
+      "passed": true
+    },
+    {
+      "trace_id": "16258ed2bc6b331d012e88f536afb905",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 8.427457883954048,
+      "passed": true
+    },
+    {
+      "trace_id": "facef856275f755e015eee4676494c08",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 8.185917511582375,
+      "passed": true
+    },
+    {
+      "trace_id": "51844a906717ae34022d4b033f366258",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 8.475583977997303,
+      "passed": true
+    },
+    {
+      "trace_id": "320bd4410e84b3c100d363aab3147b69",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 12.875832617282867,
+      "passed": true
+    },
+    {
+      "trace_id": "4c3cf4deb51da80d0212a0f7538a1ce8",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 13.154000043869019,
+      "passed": true
+    },
+    {
+      "trace_id": "f0f83a97c5ce95a0026c9032e24d21f4",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 17.507875338196754,
+      "passed": true
+    },
+    {
+      "trace_id": "da6c0ea96377e94c01ec94e94b9cf566",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 16.808750107884407,
+      "passed": true
+    },
+    {
+      "trace_id": "8f18525eaa8f4b490100381a82262edc",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 9.151667356491089,
+      "passed": true
+    },
+    {
+      "trace_id": "25cecd650aa0a8c40042545fa1aa626b",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 14.25633393228054,
+      "passed": true
+    },
+    {
+      "trace_id": "4d757fba203a7c3501e87b459de9b4b4",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 11.251000687479973,
+      "passed": true
+    },
+    {
+      "trace_id": "91e2cbf9759250300288f841e4df754c",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 11.547999456524849,
+      "passed": true
+    },
+    {
+      "trace_id": "d6720896ef4f6b2d015d5f44165f0586",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 17.10191648453474,
+      "passed": true
+    },
+    {
+      "trace_id": "3022afd98a9bc3170020568604314307",
+      "status": 200,
+      "span_count": 8,
+      "duration_ms": 17.999916337430477,
+      "passed": true
+    },
+    {
+      "trace_id": "ea8a68dcb1ba855402101d724c9bea2f",
+      "status": 200,
+      "span_count": 8,
+      "duration_ms": 17.49345939606428,
+      "passed": true
+    },
+    {
+      "trace_id": "5bf755998567cd90027dd0b42911110f",
+      "status": 200,
+      "span_count": 8,
+      "duration_ms": 14.804624952375889,
+      "passed": true
+    },
+    {
+      "trace_id": "a1f2556832da3c4700d5a1e532687416",
+      "status": 200,
+      "span_count": 8,
+      "duration_ms": 16.922959126532078,
+      "passed": true
+    },
+    {
+      "trace_id": "bc907daa0420f4070037b169d0a34423",
+      "status": 200,
+      "span_count": 8,
+      "duration_ms": 17.600500024855137,
+      "passed": true
+    },
+    {
+      "trace_id": "d76613b97c0159800108ff9d37ee5da6",
+      "status": 200,
+      "span_count": 8,
+      "duration_ms": 15.621124766767025,
+      "passed": true
+    },
+    {
+      "trace_id": "c1f386561b3f2b390007638356b603b4",
+      "status": 200,
+      "span_count": 8,
+      "duration_ms": 14.56329133361578,
+      "passed": true
+    },
+    {
+      "trace_id": "58d7ed1a7399ef5501d65fb2aa90d322",
+      "status": 200,
+      "span_count": 1,
+      "duration_ms": 12.337666936218739,
+      "passed": true
+    },
+    {
+      "trace_id": "c6ed2263d23935b8007271ec882e6361",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 16.042708419263363,
+      "passed": true
+    },
+    {
+      "trace_id": "cb60956904b5e47e0098267012600c04",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 21.469082683324814,
+      "passed": true
+    },
+    {
+      "trace_id": "996a5683eb036a6a01ee19866a9ff9ec",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 21.555082872509956,
+      "passed": true
+    },
+    {
+      "trace_id": "e5d7ae613143b3070091ec2eb9885dc3",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 16.338959336280823,
+      "passed": true
+    },
+    {
+      "trace_id": "d9cb9fd8bf6be09e0029c6f9bc10afa8",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 14.52112477272749,
+      "passed": true
+    },
+    {
+      "trace_id": "71acd9aa6acd39015eee19dde4135a",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 16.96691755205393,
+      "passed": true
+    },
+    {
+      "trace_id": "9441751d13d2805500ff1f521d4b3832",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 13.238916173577309,
+      "passed": true
+    },
+    {
+      "trace_id": "14d4e597d5854961006d9ca3cdb56dfb",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 9.355874732136726,
+      "passed": true
+    },
+    {
+      "trace_id": "45a205da5727fa720015ac98d6a36ebd",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 10.7182078063488,
+      "passed": true
+    },
+    {
+      "trace_id": "a3fa10652e32d208016bb945efb4791b",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 10.649957694113255,
+      "passed": true
+    },
+    {
+      "trace_id": "7e0a7606e794fdb600615caf14dad474",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 9.189708158373833,
+      "passed": true
+    },
+    {
+      "trace_id": "d82063e166d9c8e500c8eb63f0949faa",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 11.22837420552969,
+      "passed": true
+    },
+    {
+      "trace_id": "b89c882fe8e8ad5b019ab6ebfee1ff90",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 9.375625289976597,
+      "passed": true
+    },
+    {
+      "trace_id": "bd545abc5ca0e30901aa9b26240bbfed",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 6.730250082910061,
+      "passed": true
+    },
+    {
+      "trace_id": "347ff15a31947c68021745f6ccd66b10",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 10.07141638547182,
+      "passed": true
+    },
+    {
+      "trace_id": "c32b104e32ba8010011cd740eb48b9c9",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 10.232790373265743,
+      "passed": true
+    },
+    {
+      "trace_id": "23c4bf693d5366d301699a76b53eb141",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 8.190583437681198,
+      "passed": true
+    },
+    {
+      "trace_id": "ea159753cbc88ce9027766dc4484f4a0",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 7.815040647983551,
+      "passed": true
+    },
+    {
+      "trace_id": "84ff06712945566600b2b2e125d834c5",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 6.861625239253044,
+      "passed": true
+    },
+    {
+      "trace_id": "3a61f26e24a7ebc001c802fff1228e14",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 9.441915899515152,
+      "passed": true
+    },
+    {
+      "trace_id": "cab8217af1fb64140144f04313420e25",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 11.495959013700485,
+      "passed": true
+    },
+    {
+      "trace_id": "62d2431168f2a7400281932523aa9dc0",
+      "status": 200,
+      "span_count": 1,
+      "duration_ms": 10.516750626266003,
+      "passed": true
+    },
+    {
+      "trace_id": "511e58d3e131b8b90288d071c0ef3889",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 9.041041135787964,
+      "passed": true
+    },
+    {
+      "trace_id": "6d26d84cea29d50d0248a7163f78923d",
+      "status": 200,
+      "span_count": 1,
+      "duration_ms": 9.72779281437397,
+      "passed": true
+    },
+    {
+      "trace_id": "9885554f8f2ebafb0096ceaeb3f7f620",
+      "status": 200,
+      "span_count": 8,
+      "duration_ms": 9.021500125527382,
+      "passed": true
+    },
+    {
+      "trace_id": "58335919cc945ef8026acc1a114073bb",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 7.009708322584629,
+      "passed": true
+    },
+    {
+      "trace_id": "f3d7e70fa4fdf36d008b49d32e097930",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 6.382999941706657,
+      "passed": true
+    },
+    {
+      "trace_id": "c3fe94221ad9bfde025ca2124bd1c4bb",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 10.63545886427164,
+      "passed": true
+    },
+    {
+      "trace_id": "6ba90353c1f71a9d0051c563ebad4a5d",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 10.056874714791775,
+      "passed": true
+    },
+    {
+      "trace_id": "9e3efc9b10805ec10090f753fff0e855",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 6.941624917089939,
+      "passed": true
+    },
+    {
+      "trace_id": "6974c2d7dfb9688301c673765c519d23",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 6.9136666133999825,
+      "passed": true
+    },
+    {
+      "trace_id": "1bd96e2dbfbf84a9011a7e5fa763196a",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 6.7865001037716866,
+      "passed": true
+    },
+    {
+      "trace_id": "16258ed2bc6b331d012e88f536afb905",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 7.975250482559204,
+      "passed": true
+    },
+    {
+      "trace_id": "facef856275f755e015eee4676494c08",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 7.812791503965855,
+      "passed": true
+    },
+    {
+      "trace_id": "51844a906717ae34022d4b033f366258",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 7.924375124275684,
+      "passed": true
+    },
+    {
+      "trace_id": "320bd4410e84b3c100d363aab3147b69",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 7.994582876563072,
+      "passed": true
+    },
+    {
+      "trace_id": "4c3cf4deb51da80d0212a0f7538a1ce8",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 6.5347496420145035,
+      "passed": true
+    },
+    {
+      "trace_id": "f0f83a97c5ce95a0026c9032e24d21f4",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 6.6216252744197845,
+      "passed": true
+    },
+    {
+      "trace_id": "da6c0ea96377e94c01ec94e94b9cf566",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 7.573959417641163,
+      "passed": true
+    },
+    {
+      "trace_id": "8f18525eaa8f4b490100381a82262edc",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 8.769124746322632,
+      "passed": true
+    },
+    {
+      "trace_id": "25cecd650aa0a8c40042545fa1aa626b",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 7.742166519165039,
+      "passed": true
+    },
+    {
+      "trace_id": "4d757fba203a7c3501e87b459de9b4b4",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 17.799916677176952,
+      "passed": true
+    },
+    {
+      "trace_id": "91e2cbf9759250300288f841e4df754c",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 14.661124907433987,
+      "passed": true
+    },
+    {
+      "trace_id": "d6720896ef4f6b2d015d5f44165f0586",
+      "status": 200,
+      "span_count": 7,
+      "duration_ms": 9.65716689825058,
+      "passed": true
+    }
+  ],
+  "new_traces": [
+    {
+      "trace_id": "d140f2de73c6b0fc8daf028be8364496",
+      "span_names": [
+        "fastapi.dependencies",
+        "fastapi.endpoint",
+        "fastapi.serialization",
+        "GET /projects",
+        "connect",
+        "SELECT controlplane"
+      ],
+      "passed": true
+    },
+    {
+      "trace_id": "473ec2d57ecda9fda1cdd26f645702d2",
+      "span_names": [
+        "fastapi.dependencies",
+        "fastapi.endpoint",
+        "fastapi.serialization",
+        "GET /projects",
+        "connect",
+        "SELECT controlplane"
+      ],
+      "passed": true
+    },
+    {
+      "trace_id": "4bdf596958b6485881cb07e5e594c5f0",
+      "span_names": [
+        "fastapi.dependencies",
+        "fastapi.endpoint",
+        "fastapi.serialization",
+        "GET /projects",
+        "connect",
+        "SELECT controlplane"
+      ],
+      "passed": true
+    },
+    {
+      "trace_id": "1fbb63f4d3119b3a19da9ff1ba6344c6",
+      "span_names": [
+        "fastapi.dependencies",
+        "fastapi.endpoint",
+        "fastapi.serialization",
+        "GET /projects",
+        "connect",
+        "SELECT controlplane"
+      ],
+      "passed": true
+    },
+    {
+      "trace_id": "05b0fd4e1103e6eb19e102e244bf44fa",
+      "span_names": [
+        "fastapi.dependencies",
+        "fastapi.endpoint",
+        "fastapi.serialization",
+        "GET /projects",
+        "connect",
+        "SELECT controlplane"
+      ],
+      "passed": true
+    }
+  ],
+  "historical_trace_count": 52
+}

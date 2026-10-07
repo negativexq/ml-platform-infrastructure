@@ -3,7 +3,7 @@
 A project's models are reached from outside through one door: the gateway. It checks who is
 calling, whether they may, whether there is room under the limits. Then it forwards the call to
 the serving system and counts the call. It is a separate service from the control plane's API
-(`controlplane/gateway_main.py`), so prediction traffic scales on its own and never competes with
+(`services/gateway-go`; Python rollback: `controlplane/gateway_main.py`), so prediction traffic scales on its own and never competes with
 management calls.
 
 ```
@@ -191,7 +191,8 @@ refused in the last hour. Each change is also in the audit trail (`endpoint.expo
 
 ## Watching it
 
-* **Metrics:** `mlp_gateway_requests_total`, `mlp_gateway_units_total` and
+* **Metrics:** operational `mlp_gateway_requests_total` omits caller; per-caller red/error
+  usage uses `mlp_gateway_usage_requests_total`. Exact `mlp_gateway_units_total` and
   `mlp_gateway_duration_seconds` (`docs/observability.md`).
 * **Monitor page:** has the gateway's traffic, error rate and p95.
 * **Alerts:** `GatewayHighErrorRate` and `GatewayHighLatency` fire per endpoint.
@@ -210,3 +211,17 @@ refused in the last hour. Each change is also in the audit trail (`endpoint.expo
   * `make gateway-e2e`.
 * **Not verified:** KServe and Knative's gateway in a real cluster, the ingress controller, TLS
   and cert-manager (`docs/local-verification.md` §12).
+
+
+## Runtime and rollback
+
+The chart defaults to `gateway.runtime=go` with its own `gateway.image.repository` and
+`gateway.image.digest`. API/reconciler/migrations still use the shared Python image.
+Go supports the normal OTel profile, `CP_GATEWAY_WORKERS` (12) and
+`CP_GATEWAY_DB_POOL_CAPACITY` (15). Diagnostic 8082 is disabled in installed workloads.
+Use `gateway.extraEnv` for OTLP endpoint/resource overrides.
+
+For a Python rollback, select `gateway.runtime=python`; it uses the existing shared
+`image` values and the previous uvicorn process. Keep that image's digest available.
+The Go source image and live acceptance are documented in the
+[migration report](evidence/live-2026-10-07/observability/gateway-go-migration.md).

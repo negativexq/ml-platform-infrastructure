@@ -9,11 +9,14 @@ from time import perf_counter
 from typing import Any
 from uuid import UUID
 
+from opentelemetry import context
+
 from controlplane.application.context import bind_origin, clear_origin
 from controlplane.application.ports import UnitOfWork
 from controlplane.application.projects import UnitOfWorkFactory
 from controlplane.domain.errors import Conflict
 from controlplane.observability.metrics import record_pass, record_reconcile
+from controlplane.observability.tracing import parent_context
 
 log = logging.getLogger(__name__)
 
@@ -52,6 +55,10 @@ def instrument_reconciler(
             except Exception:  # noqa: BLE001 - never let a lookup stop the reconcile
                 log.debug("no origin trace for %s", entity_id, exc_info=True)
         bind_origin(origin)
+        # SQLAlchemy uses the current OTel context, unlike provider/audit wrappers
+        # which explicitly read bound_origin. Attach the stored parent for DB spans too.
+        origin_context = parent_context(origin)
+        token = context.attach(origin_context) if origin_context is not None else None
         started = perf_counter()
         try:
             result = original_one(entity_id)
@@ -62,6 +69,8 @@ def instrument_reconciler(
             record_reconcile(kind, "error", perf_counter() - started)
             raise
         finally:
+            if token is not None:
+                context.detach(token)
             clear_origin()
         record_reconcile(
             kind, "changed" if _changed(result) else "unchanged", perf_counter() - started

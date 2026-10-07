@@ -4,7 +4,8 @@ ServingProvider in-process."""
 from __future__ import annotations
 
 import json
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
+from time import perf_counter
 from typing import Any
 
 import anyio.to_thread
@@ -20,10 +21,21 @@ class HttpUpstream:
     """Streams the reply through as it arrives, so long answers (LLM tokens, later) are not
     buffered. MLflow JSON and native V2 requests use their matching backend handlers."""
 
-    def __init__(self, client: httpx.AsyncClient | None = None) -> None:
+    def __init__(
+        self,
+        client: httpx.AsyncClient | None = None,
+        *,
+        observe: Callable[[str, float, str], None] | None = None,
+    ) -> None:
+        self._observe = observe
         self._client = client or httpx.AsyncClient(
             limits=httpx.Limits(max_connections=200, max_keepalive_connections=50)
         )
+
+    @property
+    def client(self) -> httpx.AsyncClient:
+        """The composition root instruments this client, never global HTTPX clients."""
+        return self._client
 
     async def call(self, call: UpstreamCall) -> UpstreamReply:
         if not call.url:
@@ -46,6 +58,24 @@ class HttpUpstream:
             headers={"content-type": "application/json", "x-request-id": call.request_id},
             timeout=httpx.Timeout(call.timeout_seconds, connect=5.0),
         )
+        started = perf_counter()
+        stages: dict[str, float] = {}
+
+        async def network(event: str, info: Any) -> None:
+            stage, _, state = event.rpartition(".")
+            if stage not in {"connection.connect_tcp", "connection.start_tls"}:
+                return
+            if state == "started":
+                stages[stage] = perf_counter()
+            elif stage in stages and self._observe is not None:
+                self._observe(
+                    "upstream.connect" if stage.endswith("connect_tcp") else "upstream.tls",
+                    perf_counter() - stages.pop(stage),
+                    "ok" if state == "complete" else "error",
+                )
+
+        if self._observe is not None:
+            request.extensions["trace"] = network
         try:
             response = await self._client.send(request, stream=True)
         except httpx.TimeoutException as exc:
@@ -55,8 +85,26 @@ class HttpUpstream:
         return UpstreamReply(
             status=response.status_code,
             content_type=response.headers.get("content-type", "application/json"),
-            chunks=_stream(response),
+            chunks=self._observed_stream(response, started),
         )
+
+    async def _observed_stream(
+        self, response: httpx.Response, started: float
+    ) -> AsyncIterator[bytes]:
+        first, outcome = True, "ok"
+        try:
+            async for chunk in _stream(response):
+                if first and self._observe is not None:
+                    self._observe("upstream.first_chunk", perf_counter() - started, "ok")
+                first = False
+                yield chunk
+        except BaseException:
+            outcome = "error"
+            raise
+        finally:
+            await response.aclose()
+            if self._observe is not None:
+                self._observe("upstream.total", perf_counter() - started, outcome)
 
     async def aclose(self) -> None:
         await self._client.aclose()

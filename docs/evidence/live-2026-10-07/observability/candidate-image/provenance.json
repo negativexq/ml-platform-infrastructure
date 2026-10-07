@@ -1,0 +1,8 @@
+{
+  "source": "cb6e540 + uncommitted observability changes",
+  "image": "localhost:5201/mlp-controlplane@sha256:7271ee509006b80d56c687ea4613b60a5fb28a1c2d887bef878027af78d32072",
+  "recipe": "docker/controlplane/Dockerfile; clean build with constraints/controlplane.txt",
+  "runner_sha256": "0c9e4ab2b9a7e622b943762918ae8de1bce1b3d37281eedb5003f48c2f927577",
+  "release_eligible": false,
+  "scope": "Runtime/scan/SBOM parity via isolated candidate runner; repo release checker clean-source guards unchanged"
+}

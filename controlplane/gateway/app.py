@@ -16,10 +16,11 @@ from typing import Any
 
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse, Response, StreamingResponse
-from sqlalchemy.exc import SQLAlchemyError
+from fastapi.telemetry import TelemetryConfig
 
 from controlplane.application.gateway import GatewayError, GatewayService
 from controlplane.health import add_readiness
+from controlplane.http_telemetry import telemetry_config
 
 MAX_BODY_BYTES = 10 * 1024 * 1024  # before any endpoint's own (smaller) limit applies
 _REQUEST_ID = re.compile(r"^[A-Za-z0-9._:-]{1,64}$")
@@ -72,9 +73,14 @@ async def _read(request: Request) -> bytes:
 
 
 def create_gateway(
-    service: GatewayService, *, readiness: Callable[[], None] | None = None
+    service: GatewayService,
+    *,
+    readiness: Callable[[], None] | None = None,
+    telemetry: TelemetryConfig | None = None,
+    store_errors: tuple[type[Exception], ...] = (),
 ) -> FastAPI:
     app = FastAPI(
+        telemetry=telemetry_config(telemetry),
         title="ML Platform Gateway",
         version="1",
         description="Call a project's public endpoints with an API key "
@@ -106,7 +112,7 @@ def create_gateway(
             )
         except GatewayError as error:
             return _error(error, request_id)
-        except SQLAlchemyError:
+        except store_errors:
             # Authentication/route cache misses also require the shared database.
             # Never expose query text or connection details on this public surface.
             return _error(

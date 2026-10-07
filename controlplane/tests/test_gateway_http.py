@@ -203,13 +203,13 @@ def test_database_cache_miss_returns_redacted_unavailable() -> None:
     from unittest.mock import AsyncMock
 
     from fastapi.testclient import TestClient
-    from sqlalchemy.exc import OperationalError
+    from sqlalchemy.exc import OperationalError, SQLAlchemyError
 
     service = AsyncMock(spec=GatewayService)
     service.invoke.side_effect = OperationalError(
         "SELECT sensitive_query", {}, Exception("private database connection details")
     )
-    with TestClient(create_gateway(service)) as client:
+    with TestClient(create_gateway(service, store_errors=(SQLAlchemyError,))) as client:
         response = client.post(
             "/v1/project/function/invoke", json={}, headers={"x-request-id": "outage-check"}
         )
@@ -222,3 +222,43 @@ def test_database_cache_miss_returns_redacted_unavailable() -> None:
         }
     }
     service.invoke.assert_awaited_once()
+
+
+def test_upstream_network_and_stream_timing_on_keepalive() -> None:
+    from controlplane.application.gateway import UpstreamCall
+    from controlplane.domain.states import EndpointProtocol
+
+    app = FastAPI()
+
+    @app.post("/")
+    async def answer() -> StreamingResponse:
+        async def chunks() -> Any:
+            yield b"first"
+            await asyncio.sleep(0.05)
+            yield b"last"
+
+        return StreamingResponse(chunks())
+
+    phases: list[tuple[str, float, str]] = []
+
+    async def calls(url: str) -> None:
+        upstream = HttpUpstream(observe=lambda *args: phases.append(args))
+        try:
+            for _ in range(2):
+                reply = await upstream.call(
+                    UpstreamCall(
+                        "mlp-test/function", url, EndpointProtocol.HTTP, b"{}", 2, "timing"
+                    )
+                )
+                assert b"".join([chunk async for chunk in reply.chunks]) == b"firstlast"
+        finally:
+            await upstream.aclose()
+
+    with serve(app) as url:
+        asyncio.run(calls(url))
+    assert len([p for p in phases if p[0] == "upstream.connect"]) == 1
+    first = [p[1] for p in phases if p[0] == "upstream.first_chunk"]
+    total = [p[1] for p in phases if p[0] == "upstream.total"]
+    assert len(first) == len(total) == 2
+    assert all(t - f > 0.03 for f, t in zip(first, total, strict=True))
+    assert all(outcome == "ok" for _, _, outcome in phases)

@@ -76,6 +76,7 @@ from controlplane.persistence.models import (
     RunRow,
     StepRunRow,
 )
+from controlplane.persistence.pool import TimedQueuePool
 
 _UNIQUE_VIOLATION = "23505"
 
@@ -83,7 +84,11 @@ _UNIQUE_VIOLATION = "23505"
 def make_engine(url: str) -> Engine:
     if url.startswith("postgresql"):
         return create_engine(
-            url, pool_pre_ping=True, pool_timeout=3, connect_args={"connect_timeout": 3}
+            url,
+            poolclass=TimedQueuePool,
+            pool_pre_ping=True,
+            pool_timeout=3,
+            connect_args={"connect_timeout": 3},
         )
     return create_engine(url, pool_pre_ping=True)
 

@@ -1,0 +1,31 @@
+{
+  "image": "localhost:5201/mlp-gateway-go@sha256:5d4dbb808e939c2980d35d92b318de15c29451e960882e45a33558db06a48ac9",
+  "compiler": "go version go1.26.6 darwin/arm64",
+  "architecture": "linux/arm64",
+  "source_sha256": {
+    "services/gateway-go/gateway.go": "4f4e3d3bf6125f9591809f39c0ebe6398f22b27a2c1ade0e7a901583214d8fa9",
+    "services/gateway-go/gateway_test.go": "d787008c1a2003db54c59c39ab7f9101e2c5e298894d84eb219fc729d09ad858",
+    "services/gateway-go/main.go": "a2e17a25c94daac5c343840a70ce673a88f515b946910a34e03b3b9f233971fb",
+    "services/gateway-go/store.go": "5d00760e47345e578c0477942581995bd689c8e20a203ead8487934ef34ef937",
+    "services/gateway-go/store_integration_test.go": "0d83421229642f27666b73d7982c40d3788793b8b778469698b85a73cda6a673",
+    "services/gateway-go/telemetry.go": "1b4213af1f0c00c3e7b4865a15da60c1b8ead9cc783f7cc44b297611ff8b8a62",
+    "services/gateway-go/go.mod": "44ca5aa7a62b7655b70d39655a1c7f6912fb0800fe89faeab53a80c9189ea6e6",
+    "services/gateway-go/go.sum": "c0b2bc93a6bd3556ef0e1194072dec711c32a845d36541daa7b251d6561b7884",
+    "services/gateway-go/limiter.sql": "9e89bfc431fa0ef742988a8760d55755e5042e8c4ad50404ae7be751b9329da3",
+    "services/gateway-go/Dockerfile": "57f03253e6c58127f5ab09badb3e78532040a9eeeb2b4fed18ad9c4ba5cb1839"
+  },
+  "binary_sha256": "c912ced01aeb45cec4d6454fef543cd065891ccdabd0a41a4f7f7130eabd980d",
+  "recipe": "host CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -mod=readonly -trimpath -ldflags=-s -w; FROM scratch COPY static binary and host /etc/ssl/cert.pem CA bundle; USER10001",
+  "checks": [
+    "Go race tests including real PostgreSQL two-pool budget/debt/refund/row-lock timeout/recovery/role/schema passed",
+    "Go vet passed",
+    "Linux ARM64 static compile passed",
+    "Python/Go limiter CTE identical after parameter substitution"
+  ],
+  "scope": "Function/classic-model benchmark PoC; OIDC/LLM unsupported; total upstream timeout differs from HTTPX read timeout; production source Dockerfile not the current image build recipe; scan/SBOM/release gate pending",
+  "benchmark_harness_sha256": {
+    "scripts/controlplane_gateway_worker_check.py": "b71c03415ec46e491231e0880607298d94e7f9e201ae3ee5f89c515c9e12d2d5",
+    "scripts/controlplane_gateway_worker_sample.py": "09f90336782d15d5044916f4c31f0b14e44f3155df124d00e0e839a6cf722551",
+    "scripts/controlplane_gateway_worker_probe.py": "ddaec15098d00580023e09825ea8204c2bc54b6d4e7ada7e71e3d487e322caaa"
+  }
+}

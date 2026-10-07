@@ -1,0 +1,466 @@
+{
+  "scope": "Six 60-second single-CPU normal-OTel 429-only windows; real function 200/refusal smokes outside load; B client transport throughout",
+  "samples": [
+    {
+      "gateway_runtime": "python",
+      "planned": 30000,
+      "completed": 30000,
+      "offered_rps": 500,
+      "completed_rps": 499.987959089974,
+      "completed_within_window_rps": 500,
+      "request_latency_ms": {
+        "count": 30000,
+        "p50": 1.503209,
+        "p95": 250.930584,
+        "p99": 359.755125
+      },
+      "queue_delay_ms": {
+        "count": 30000,
+        "p50": 0.002167,
+        "p95": 0.01,
+        "p99": 0.284958
+      },
+      "queue_dropped": 0,
+      "unscheduled": 0,
+      "transport_errors": 0,
+      "request_accounting_passed": true,
+      "integrity_passed": true,
+      "availability_passed": true,
+      "capacity_passed": true,
+      "exact_request_metric_delta": 30000.0,
+      "db_error_metric_delta": 0,
+      "contract_checks": [
+        {
+          "case": "real-function-forward",
+          "status": 200,
+          "passed": true,
+          "has_rate_limit_headers": true,
+          "request_id_preserved": true
+        },
+        {
+          "case": "missing-token",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "case": "wrong-secret",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "case": "wrong-operation",
+          "status": 404,
+          "passed": true
+        },
+        {
+          "case": "unknown-endpoint",
+          "status": 404,
+          "passed": true
+        }
+      ],
+      "gateway_cpu_window_seconds": 60.01926279067993,
+      "gateway_cpu_stat_delta": {
+        "usage_usec": 37324507,
+        "user_usec": 29501461,
+        "system_usec": 7823045,
+        "nice_usec": 0,
+        "nr_periods": 600,
+        "nr_throttled": 147,
+        "throttled_usec": 2694674,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "mean_cpu_cores": 0.6218754657179147,
+      "cpu_ms_per_completed_request": 1.2441502333333332,
+      "cgroup_memory_after_mib": 190.48828125,
+      "regular_export_increments_observed": 2,
+      "mean_worker_queue_ms": 27.153282634228336,
+      "mean_limiter_work_ms": 7.327978239133919
+    },
+    {
+      "gateway_runtime": "go",
+      "planned": 30000,
+      "completed": 30000,
+      "offered_rps": 500,
+      "completed_rps": 499.99294327459614,
+      "completed_within_window_rps": 500,
+      "request_latency_ms": {
+        "count": 30000,
+        "p50": 0.9175,
+        "p95": 1.479583,
+        "p99": 6.4167499999999995
+      },
+      "queue_delay_ms": {
+        "count": 30000,
+        "p50": 0.001834,
+        "p95": 0.006167000000000001,
+        "p99": 0.013458000000000001
+      },
+      "queue_dropped": 0,
+      "unscheduled": 0,
+      "transport_errors": 0,
+      "request_accounting_passed": true,
+      "integrity_passed": true,
+      "availability_passed": true,
+      "capacity_passed": true,
+      "exact_request_metric_delta": 30000.0,
+      "db_error_metric_delta": 0,
+      "contract_checks": [
+        {
+          "case": "real-function-forward",
+          "status": 200,
+          "passed": true,
+          "has_rate_limit_headers": true,
+          "request_id_preserved": true
+        },
+        {
+          "case": "missing-token",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "case": "wrong-secret",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "case": "wrong-operation",
+          "status": 404,
+          "passed": true
+        },
+        {
+          "case": "unknown-endpoint",
+          "status": 404,
+          "passed": true
+        }
+      ],
+      "gateway_cpu_window_seconds": 60.01525664329529,
+      "gateway_cpu_stat_delta": {
+        "burst_usec": 0,
+        "nice_usec": 0,
+        "nr_bursts": 0,
+        "nr_periods": 600,
+        "nr_throttled": 0,
+        "system_usec": 5765953,
+        "throttled_usec": 0,
+        "usage_usec": 10930140,
+        "user_usec": 5164187
+      },
+      "mean_cpu_cores": 0.182122690317964,
+      "cpu_ms_per_completed_request": 0.364338,
+      "cgroup_memory_after_mib": 9.05859375,
+      "regular_export_increments_observed": 1,
+      "mean_worker_queue_ms": 0.16344599950207947,
+      "mean_limiter_work_ms": 1.017982112720611
+    },
+    {
+      "gateway_runtime": "python",
+      "planned": 60000,
+      "completed": 38281,
+      "offered_rps": 999.9833333333333,
+      "completed_rps": 554.4200530505412,
+      "completed_within_window_rps": 551.35,
+      "request_latency_ms": {
+        "count": 38281,
+        "p50": 354.030208,
+        "p95": 407.988292,
+        "p99": 565.088833
+      },
+      "queue_delay_ms": {
+        "count": 38281,
+        "p50": 8916.958462,
+        "p95": 9551.076296,
+        "p99": 9582.57863
+      },
+      "queue_dropped": 21718,
+      "unscheduled": 1,
+      "transport_errors": 0,
+      "request_accounting_passed": true,
+      "integrity_passed": false,
+      "availability_passed": false,
+      "capacity_passed": false,
+      "exact_request_metric_delta": 38281.0,
+      "db_error_metric_delta": 0,
+      "contract_checks": [
+        {
+          "case": "real-function-forward",
+          "status": 200,
+          "passed": true,
+          "has_rate_limit_headers": true,
+          "request_id_preserved": true
+        },
+        {
+          "case": "missing-token",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "case": "wrong-secret",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "case": "wrong-operation",
+          "status": 404,
+          "passed": true
+        },
+        {
+          "case": "unknown-endpoint",
+          "status": 404,
+          "passed": true
+        }
+      ],
+      "gateway_cpu_window_seconds": 69.06612968444824,
+      "gateway_cpu_stat_delta": {
+        "usage_usec": 68927813,
+        "user_usec": 46754332,
+        "system_usec": 22173480,
+        "nice_usec": 0,
+        "nr_periods": 691,
+        "nr_throttled": 681,
+        "throttled_usec": 13887562,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "mean_cpu_cores": 0.9979973297319513,
+      "cpu_ms_per_completed_request": 1.8005750372247327,
+      "cgroup_memory_after_mib": 252.01953125,
+      "regular_export_increments_observed": 2,
+      "mean_worker_queue_ms": 336.50884597620427,
+      "mean_limiter_work_ms": 21.596819281441263
+    },
+    {
+      "gateway_runtime": "go",
+      "planned": 60000,
+      "completed": 60000,
+      "offered_rps": 1000,
+      "completed_rps": 999.9976634387929,
+      "completed_within_window_rps": 999.9833333333333,
+      "request_latency_ms": {
+        "count": 60000,
+        "p50": 0.929042,
+        "p95": 2.2498750000000003,
+        "p99": 34.047417
+      },
+      "queue_delay_ms": {
+        "count": 60000,
+        "p50": 0.004834,
+        "p95": 0.014124999999999999,
+        "p99": 0.027375
+      },
+      "queue_dropped": 0,
+      "unscheduled": 0,
+      "transport_errors": 0,
+      "request_accounting_passed": true,
+      "integrity_passed": true,
+      "availability_passed": true,
+      "capacity_passed": true,
+      "exact_request_metric_delta": 60000.0,
+      "db_error_metric_delta": 0,
+      "contract_checks": [
+        {
+          "case": "real-function-forward",
+          "status": 200,
+          "passed": true,
+          "has_rate_limit_headers": true,
+          "request_id_preserved": true
+        },
+        {
+          "case": "missing-token",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "case": "wrong-secret",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "case": "wrong-operation",
+          "status": 404,
+          "passed": true
+        },
+        {
+          "case": "unknown-endpoint",
+          "status": 404,
+          "passed": true
+        }
+      ],
+      "gateway_cpu_window_seconds": 60.019922494888306,
+      "gateway_cpu_stat_delta": {
+        "burst_usec": 0,
+        "nice_usec": 0,
+        "nr_bursts": 0,
+        "nr_periods": 601,
+        "nr_throttled": 0,
+        "system_usec": 10157923,
+        "throttled_usec": 0,
+        "usage_usec": 19928706,
+        "user_usec": 9770783
+      },
+      "mean_cpu_cores": 0.33203485062309535,
+      "cpu_ms_per_completed_request": 0.33214509999999997,
+      "cgroup_memory_after_mib": 8.4921875,
+      "regular_export_increments_observed": 1,
+      "mean_worker_queue_ms": 0.5475430688705505,
+      "mean_limiter_work_ms": 1.23216571770415
+    },
+    {
+      "gateway_runtime": "go",
+      "planned": 90000,
+      "completed": 90000,
+      "offered_rps": 1500,
+      "completed_rps": 1499.8678421948164,
+      "completed_within_window_rps": 1499.75,
+      "request_latency_ms": {
+        "count": 90000,
+        "p50": 0.988792,
+        "p95": 21.56125,
+        "p99": 71.739875
+      },
+      "queue_delay_ms": {
+        "count": 90000,
+        "p50": 0.005,
+        "p95": 0.017374999999999998,
+        "p99": 0.056167
+      },
+      "queue_dropped": 0,
+      "unscheduled": 0,
+      "transport_errors": 0,
+      "request_accounting_passed": true,
+      "integrity_passed": true,
+      "availability_passed": true,
+      "capacity_passed": true,
+      "exact_request_metric_delta": 90000.0,
+      "db_error_metric_delta": 0,
+      "contract_checks": [
+        {
+          "case": "real-function-forward",
+          "status": 200,
+          "passed": true,
+          "has_rate_limit_headers": true,
+          "request_id_preserved": true
+        },
+        {
+          "case": "missing-token",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "case": "wrong-secret",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "case": "wrong-operation",
+          "status": 404,
+          "passed": true
+        },
+        {
+          "case": "unknown-endpoint",
+          "status": 404,
+          "passed": true
+        }
+      ],
+      "gateway_cpu_window_seconds": 60.03973126411438,
+      "gateway_cpu_stat_delta": {
+        "burst_usec": 0,
+        "nice_usec": 0,
+        "nr_bursts": 0,
+        "nr_periods": 600,
+        "nr_throttled": 0,
+        "system_usec": 15121280,
+        "throttled_usec": 0,
+        "usage_usec": 28993834,
+        "user_usec": 13872554
+      },
+      "mean_cpu_cores": 0.48291078906493295,
+      "cpu_ms_per_completed_request": 0.3221537111111111,
+      "cgroup_memory_after_mib": 13.27734375,
+      "regular_export_increments_observed": 2,
+      "mean_worker_queue_ms": 2.333561574700199,
+      "mean_limiter_work_ms": 1.7444063839191495
+    },
+    {
+      "gateway_runtime": "python",
+      "planned": 90000,
+      "completed": 36330,
+      "offered_rps": 1500,
+      "completed_rps": 518.4433419031119,
+      "completed_within_window_rps": 518.8333333333334,
+      "request_latency_ms": {
+        "count": 36330,
+        "p50": 368.818,
+        "p95": 545.203834,
+        "p99": 729.6525419999999
+      },
+      "queue_delay_ms": {
+        "count": 36330,
+        "p50": 9480.135629999999,
+        "p95": 10336.475797000001,
+        "p99": 10397.227879999999
+      },
+      "queue_dropped": 53670,
+      "unscheduled": 0,
+      "transport_errors": 0,
+      "request_accounting_passed": true,
+      "integrity_passed": false,
+      "availability_passed": false,
+      "capacity_passed": false,
+      "exact_request_metric_delta": 36330.0,
+      "db_error_metric_delta": 0,
+      "contract_checks": [
+        {
+          "case": "real-function-forward",
+          "status": 200,
+          "passed": true,
+          "has_rate_limit_headers": true,
+          "request_id_preserved": true
+        },
+        {
+          "case": "missing-token",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "case": "wrong-secret",
+          "status": 401,
+          "passed": true
+        },
+        {
+          "case": "wrong-operation",
+          "status": 404,
+          "passed": true
+        },
+        {
+          "case": "unknown-endpoint",
+          "status": 404,
+          "passed": true
+        }
+      ],
+      "gateway_cpu_window_seconds": 70.09840869903564,
+      "gateway_cpu_stat_delta": {
+        "usage_usec": 69388537,
+        "user_usec": 47684310,
+        "system_usec": 21704228,
+        "nice_usec": 0,
+        "nr_periods": 701,
+        "nr_throttled": 657,
+        "throttled_usec": 13168491,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "mean_cpu_cores": 0.9898732123565964,
+      "cpu_ms_per_completed_request": 1.9099514726121662,
+      "cgroup_memory_after_mib": 197.6875,
+      "regular_export_increments_observed": 2,
+      "mean_worker_queue_ms": 357.4175941312143,
+      "mean_limiter_work_ms": 22.682270311899476
+    }
+  ],
+  "at_500_cpu_per_completed_request_reduction_percent": 70.71591595302249,
+  "python_overload_failures_preserved": true,
+  "maximum_tested_go_offered_rps": 1500,
+  "maximum_capacity_established": false,
+  "successful_inference_throughput_established": false
+}

@@ -1,0 +1,470 @@
+{
+  "query": "count by(__name__,job)({__name__=~\"mlp_db.*|mlp_gateway_phase.*|mlp_gateway_inflight|mlp_gateway_event_loop.*|mlp_gateway_limiter_workers.*|mlp_gateway_threadpool.*\"})",
+  "series": [
+    {
+      "metric": {
+        "__name__": "mlp_db_pool_acquire_duration_seconds_bucket",
+        "job": "mlp-controlplane-reconciler"
+      },
+      "value": [
+        1791332699.595,
+        "26"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_pool_acquire_duration_seconds_sum",
+        "job": "mlp-controlplane-reconciler"
+      },
+      "value": [
+        1791332699.595,
+        "2"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_pool_acquire_duration_seconds_count",
+        "job": "mlp-controlplane-reconciler"
+      },
+      "value": [
+        1791332699.595,
+        "2"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_pool_acquire_duration_seconds_bucket",
+        "job": "mlp-controlplane-api"
+      },
+      "value": [
+        1791332699.595,
+        "26"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_pool_acquire_duration_seconds_sum",
+        "job": "mlp-controlplane-api"
+      },
+      "value": [
+        1791332699.595,
+        "2"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_pool_acquire_duration_seconds_count",
+        "job": "mlp-controlplane-api"
+      },
+      "value": [
+        1791332699.595,
+        "2"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_pool_acquire_duration_seconds_bucket",
+        "job": "mlp-gateway"
+      },
+      "value": [
+        1791332699.595,
+        "52"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_pool_acquire_duration_seconds_sum",
+        "job": "mlp-gateway"
+      },
+      "value": [
+        1791332699.595,
+        "4"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_pool_acquire_duration_seconds_count",
+        "job": "mlp-gateway"
+      },
+      "value": [
+        1791332699.595,
+        "4"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_pool_capacity",
+        "job": "mlp-controlplane-reconciler"
+      },
+      "value": [
+        1791332699.595,
+        "2"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_pool_capacity",
+        "job": "mlp-controlplane-api"
+      },
+      "value": [
+        1791332699.595,
+        "2"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_pool_capacity",
+        "job": "mlp-gateway"
+      },
+      "value": [
+        1791332699.595,
+        "4"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_pool_checked_out",
+        "job": "mlp-controlplane-reconciler"
+      },
+      "value": [
+        1791332699.595,
+        "2"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_pool_checked_out",
+        "job": "mlp-controlplane-api"
+      },
+      "value": [
+        1791332699.595,
+        "2"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_pool_checked_out",
+        "job": "mlp-gateway"
+      },
+      "value": [
+        1791332699.595,
+        "4"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_pool_connections_total",
+        "job": "mlp-controlplane-reconciler"
+      },
+      "value": [
+        1791332699.595,
+        "2"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_pool_idle",
+        "job": "mlp-controlplane-reconciler"
+      },
+      "value": [
+        1791332699.595,
+        "2"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_pool_idle",
+        "job": "mlp-controlplane-api"
+      },
+      "value": [
+        1791332699.595,
+        "2"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_pool_idle",
+        "job": "mlp-gateway"
+      },
+      "value": [
+        1791332699.595,
+        "4"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_query_duration_seconds_bucket",
+        "job": "mlp-controlplane-reconciler"
+      },
+      "value": [
+        1791332699.595,
+        "26"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_query_duration_seconds_sum",
+        "job": "mlp-controlplane-reconciler"
+      },
+      "value": [
+        1791332699.595,
+        "2"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_query_duration_seconds_count",
+        "job": "mlp-controlplane-reconciler"
+      },
+      "value": [
+        1791332699.595,
+        "2"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_query_duration_seconds_bucket",
+        "job": "mlp-controlplane-api"
+      },
+      "value": [
+        1791332699.595,
+        "26"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_query_duration_seconds_sum",
+        "job": "mlp-controlplane-api"
+      },
+      "value": [
+        1791332699.595,
+        "2"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_query_duration_seconds_count",
+        "job": "mlp-controlplane-api"
+      },
+      "value": [
+        1791332699.595,
+        "2"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_query_duration_seconds_bucket",
+        "job": "mlp-gateway"
+      },
+      "value": [
+        1791332699.595,
+        "52"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_query_duration_seconds_sum",
+        "job": "mlp-gateway"
+      },
+      "value": [
+        1791332699.595,
+        "4"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_query_duration_seconds_count",
+        "job": "mlp-gateway"
+      },
+      "value": [
+        1791332699.595,
+        "4"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_transaction_duration_seconds_bucket",
+        "job": "mlp-controlplane-reconciler"
+      },
+      "value": [
+        1791332699.595,
+        "26"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_transaction_duration_seconds_sum",
+        "job": "mlp-controlplane-reconciler"
+      },
+      "value": [
+        1791332699.595,
+        "2"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_transaction_duration_seconds_count",
+        "job": "mlp-controlplane-reconciler"
+      },
+      "value": [
+        1791332699.595,
+        "2"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_transaction_duration_seconds_bucket",
+        "job": "mlp-controlplane-api"
+      },
+      "value": [
+        1791332699.595,
+        "39"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_transaction_duration_seconds_sum",
+        "job": "mlp-controlplane-api"
+      },
+      "value": [
+        1791332699.595,
+        "3"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_transaction_duration_seconds_count",
+        "job": "mlp-controlplane-api"
+      },
+      "value": [
+        1791332699.595,
+        "3"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_transaction_duration_seconds_bucket",
+        "job": "mlp-gateway"
+      },
+      "value": [
+        1791332699.595,
+        "104"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_transaction_duration_seconds_sum",
+        "job": "mlp-gateway"
+      },
+      "value": [
+        1791332699.595,
+        "8"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_transaction_duration_seconds_count",
+        "job": "mlp-gateway"
+      },
+      "value": [
+        1791332699.595,
+        "8"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_gateway_event_loop_lag_seconds_bucket",
+        "job": "mlp-gateway"
+      },
+      "value": [
+        1791332699.595,
+        "44"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_gateway_event_loop_lag_seconds_sum",
+        "job": "mlp-gateway"
+      },
+      "value": [
+        1791332699.595,
+        "4"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_gateway_event_loop_lag_seconds_count",
+        "job": "mlp-gateway"
+      },
+      "value": [
+        1791332699.595,
+        "4"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_gateway_inflight",
+        "job": "mlp-gateway"
+      },
+      "value": [
+        1791332699.595,
+        "4"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_gateway_limiter_workers",
+        "job": "mlp-gateway"
+      },
+      "value": [
+        1791332699.595,
+        "4"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_gateway_phase_duration_seconds_bucket",
+        "job": "mlp-gateway"
+      },
+      "value": [
+        1791332699.595,
+        "598"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_gateway_phase_duration_seconds_sum",
+        "job": "mlp-gateway"
+      },
+      "value": [
+        1791332699.595,
+        "46"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_gateway_phase_duration_seconds_count",
+        "job": "mlp-gateway"
+      },
+      "value": [
+        1791332699.595,
+        "46"
+      ]
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_pool_connections_total",
+        "job": "mlp-gateway"
+      },
+      "value": [
+        1791332699.595,
+        "2"
+      ]
+    }
+  ],
+  "resource_panels": {
+    "container_cpu_usage_seconds_total": "absent",
+    "kube_deployment_status_replicas_available": "absent"
+  },
+  "scope": "application metrics exported through real Collector into Prometheus; infrastructure panels not validated"
+}

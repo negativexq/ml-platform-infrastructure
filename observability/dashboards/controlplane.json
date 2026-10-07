@@ -7,7 +7,7 @@
   ],
   "timezone": "browser",
   "schemaVersion": 39,
-  "version": 1,
+  "version": 3,
   "refresh": "10s",
   "time": {
     "from": "now-30m",
@@ -367,6 +367,518 @@
         "defaults": {
           "custom": {},
           "unit": "s"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 13,
+      "title": "DB pool acquisition p95",
+      "type": "timeseries",
+      "description": "Includes queue, connect and pre-ping; not pure queue wait.",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 27
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (job, instance, le) (rate(mlp_db_pool_acquire_duration_seconds_bucket{job=~\"mlp-controlplane-(api|reconciler)|mlp-gateway\"}[5m])))",
+          "legendFormat": "{{job}} {{instance}} {{namespace}} {{pod}} {{deployment}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "unit": "s"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 14,
+      "title": "DB checked-out / capacity",
+      "type": "timeseries",
+      "description": "Per instance. Compare checked-out connections with configured capacity.",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 27
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "mlp_db_pool_checked_out{job=~\"mlp-controlplane-(api|reconciler)|mlp-gateway\"}",
+          "legendFormat": "{{job}} {{instance}} {{namespace}} {{pod}} {{deployment}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "expr": "mlp_db_pool_capacity{job=~\"mlp-controlplane-(api|reconciler)|mlp-gateway\"}",
+          "legendFormat": "capacity {{job}} {{instance}}",
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "unit": "short"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 15,
+      "title": "DB query execute p95",
+      "type": "timeseries",
+      "description": "DBAPI execution, including server locks; excludes result fetching.",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 27
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (job, instance, le) (rate(mlp_db_query_duration_seconds_bucket{job=~\"mlp-controlplane-(api|reconciler)|mlp-gateway\"}[5m])))",
+          "legendFormat": "{{job}} {{instance}} {{namespace}} {{pod}} {{deployment}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "unit": "s"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 16,
+      "title": "DB transaction lifetime p95",
+      "type": "timeseries",
+      "description": "Begin until commit/rollback starts, not DBAPI commit duration.",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 35
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (job, instance, le) (rate(mlp_db_transaction_duration_seconds_bucket{job=~\"mlp-controlplane-(api|reconciler)|mlp-gateway\"}[5m])))",
+          "legendFormat": "{{job}} {{instance}} {{namespace}} {{pod}} {{deployment}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "unit": "s"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 17,
+      "title": "Control-plane CPU",
+      "type": "timeseries",
+      "description": "Requires kubelet/cAdvisor scrape.",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 35
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum by (namespace, pod) (rate(container_cpu_usage_seconds_total{container=~\"api|gateway|reconciler\", pod=~\".*-(api|gateway|reconciler)-.*\", image!=\"\"}[5m]))",
+          "legendFormat": "{{job}} {{instance}} {{namespace}} {{pod}} {{deployment}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "unit": "cores"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 18,
+      "title": "Control-plane working-set RAM",
+      "type": "timeseries",
+      "description": "Requires kubelet/cAdvisor scrape.",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 35
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum by (namespace, pod) (container_memory_working_set_bytes{container=~\"api|gateway|reconciler\", pod=~\".*-(api|gateway|reconciler)-.*\", image!=\"\"})",
+          "legendFormat": "{{job}} {{instance}} {{namespace}} {{pod}} {{deployment}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "unit": "bytes"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 19,
+      "title": "Control-plane CPU throttled periods",
+      "type": "timeseries",
+      "description": "Fraction of CPU quota periods throttled, not CPU time.",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 43
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum by (namespace, pod) (rate(container_cpu_cfs_throttled_periods_total{container=~\"api|gateway|reconciler\", pod=~\".*-(api|gateway|reconciler)-.*\"}[5m])) / sum by (namespace, pod) (rate(container_cpu_cfs_periods_total{container=~\"api|gateway|reconciler\", pod=~\".*-(api|gateway|reconciler)-.*\"}[5m]))",
+          "legendFormat": "{{job}} {{instance}} {{namespace}} {{pod}} {{deployment}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "unit": "percentunit"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 20,
+      "title": "Control-plane restarts (1h)",
+      "type": "timeseries",
+      "description": "Requires kube-state-metrics.",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 43
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "sum by (namespace, pod) (increase(kube_pod_container_status_restarts_total{container=~\"api|gateway|reconciler\", pod=~\".*-(api|gateway|reconciler)-.*\"}[1h]))",
+          "legendFormat": "{{job}} {{instance}} {{namespace}} {{pod}} {{deployment}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "unit": "short"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 21,
+      "title": "Control-plane available / desired replicas",
+      "type": "timeseries",
+      "description": "Requires kube-state-metrics.",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 43
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "kube_deployment_status_replicas_available{deployment=~\".*-(api|gateway|reconciler)\"}",
+          "legendFormat": "{{job}} {{instance}} {{namespace}} {{pod}} {{deployment}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "expr": "kube_deployment_spec_replicas{deployment=~\".*-(api|gateway|reconciler)\"}",
+          "legendFormat": "desired {{namespace}} {{deployment}}",
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "unit": "short"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 22,
+      "title": "Gateway phase p95",
+      "type": "timeseries",
+      "description": "See docs/observability.md for measurement boundaries and executor distinctions.",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 51
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (phase, instance, le) (rate(mlp_gateway_phase_duration_seconds_bucket{job=\"mlp-gateway\"}[5m])))",
+          "legendFormat": "{{phase}} {{job}} {{instance}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "unit": "s"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 23,
+      "title": "Gateway event-loop lag p95",
+      "type": "timeseries",
+      "description": "See docs/observability.md for measurement boundaries and executor distinctions.",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 51
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, sum by (instance, le) (rate(mlp_gateway_event_loop_lag_seconds_bucket{job=\"mlp-gateway\"}[5m])))",
+          "legendFormat": "{{phase}} {{job}} {{instance}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "unit": "s"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 24,
+      "title": "Gateway inflight / limiter workers",
+      "type": "timeseries",
+      "description": "See docs/observability.md for measurement boundaries and executor distinctions.",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 16,
+        "y": 51
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "mlp_gateway_inflight{job=\"mlp-gateway\"}",
+          "legendFormat": "{{phase}} {{job}} {{instance}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "expr": "mlp_gateway_limiter_workers{job=\"mlp-gateway\"}",
+          "legendFormat": "limiter workers {{instance}}",
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "unit": "short"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 25,
+      "title": "Gateway AnyIO threadpool borrowed / capacity",
+      "type": "timeseries",
+      "description": "See docs/observability.md for measurement boundaries and executor distinctions.",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 0,
+        "y": 59
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "mlp_gateway_anyio_threadpool_borrowed{job=\"mlp-gateway\"}",
+          "legendFormat": "{{phase}} {{job}} {{instance}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        },
+        {
+          "expr": "mlp_gateway_anyio_threadpool_capacity{job=\"mlp-gateway\"}",
+          "legendFormat": "AnyIO capacity {{instance}}",
+          "refId": "B",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "unit": "short"
+        },
+        "overrides": []
+      }
+    },
+    {
+      "id": 26,
+      "title": "DB pool idle",
+      "type": "timeseries",
+      "description": "See docs/observability.md for measurement boundaries and executor distinctions.",
+      "gridPos": {
+        "h": 8,
+        "w": 8,
+        "x": 8,
+        "y": 59
+      },
+      "datasource": {
+        "type": "prometheus",
+        "uid": "prometheus"
+      },
+      "targets": [
+        {
+          "expr": "mlp_db_pool_idle{job=~\"mlp-controlplane-(api|reconciler)|mlp-gateway\"}",
+          "legendFormat": "{{phase}} {{job}} {{instance}}",
+          "refId": "A",
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          }
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "custom": {},
+          "unit": "short"
         },
         "overrides": []
       }

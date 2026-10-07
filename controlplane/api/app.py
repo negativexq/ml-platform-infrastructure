@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from collections.abc import Callable, MutableMapping
+from collections.abc import Callable
 from typing import Annotated, Any
 from uuid import UUID
 
@@ -64,6 +64,7 @@ from controlplane.domain.errors import (
     DomainError,
 )
 from controlplane.health import add_readiness
+from controlplane.http_telemetry import telemetry_config
 from controlplane.ui import CONTENT_SECURITY_POLICY, STATIC_DIR
 
 
@@ -147,21 +148,6 @@ def _projects_router() -> APIRouter:
     return router
 
 
-def _skip_telemetry(scope: MutableMapping[str, Any]) -> bool:
-    """Probes and static UI files are noise in a trace backend."""
-    path = scope.get("path", "")
-    return bool(path in {"/healthz", "/readyz"} or path.startswith("/ui"))
-
-
-def _telemetry_config(extra: TelemetryConfig | None) -> TelemetryConfig:
-    # FastAPI's native OpenTelemetry (>= 0.142). Providers are set up by
-    # `controlplane.observability.configure`, so FastAPI must not add exporters of its own;
-    # logs stay out of OTLP (structured stdout logs carry the trace ids instead).
-    config: TelemetryConfig = {"exclude": _skip_telemetry, "auto_configure": False, "logs": False}
-    config.update(extra or {})
-    return config
-
-
 def create_app(
     uow_factory: UnitOfWorkFactory,
     clock: Clock = utc_now,
@@ -186,7 +172,7 @@ def create_app(
         version="0.1.0",
         description="Platform API. PostgreSQL owns lifecycle state; MLflow, Argo and "
         "KServe are adapters behind it.",
-        telemetry=_telemetry_config(telemetry),
+        telemetry=telemetry_config(telemetry),
         dependencies=[Depends(authorize)],
     )
     app.state.uow_factory = uow_factory

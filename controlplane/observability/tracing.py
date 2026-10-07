@@ -10,7 +10,8 @@ into a trace you can open:
       └─ step_run.running ... step_run.succeeded
       └─ pipeline_run.succeeded
 
-Reconcile passes that change nothing emit nothing, so an idle platform produces no spans.
+Reconcile passes that change nothing emit no lifecycle spans. When SQL tracing is
+enabled, read-only passes can still emit database spans.
 """
 
 from __future__ import annotations

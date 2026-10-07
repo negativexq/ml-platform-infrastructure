@@ -1,0 +1,11 @@
+{
+  "snapshot_sha256": "1d81a417a8862c41b050c6c64b984075f06439c52b607959be6f5fa5d9bb147d",
+  "snapshot_bytes": 891915,
+  "private_snapshot_path": "/tmp/mlp-acceptance-private/tempo-before-tuning.tar.gz",
+  "scope": "best-effort live pre-change local trace files; not a DR backup/restore guarantee",
+  "existing_safe_summaries": [
+    "api-trace-summary.json",
+    "gateway-trace-summary.json",
+    "reconciler-trace-summary.json"
+  ]
+}

@@ -22,6 +22,10 @@ networkPolicy:
 # ---------------------------------------------------------------------------
 postgres:
   image: postgres:16-alpine
+  # Enabling changes startup parameters and requires a database pod restart.
+  # Install the extension in each existing DB with controlplane_query_profile.py --install.
+  profiling:
+    enabled: false
   persistence:
     enabled: true
     size: 2Gi

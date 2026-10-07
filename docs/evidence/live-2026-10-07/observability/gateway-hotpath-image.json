@@ -1,0 +1,29 @@
+{
+  "image": "localhost:5201/mlp-controlplane@sha256:d86dc44f230d9c34154ac209649cab0579661990cb8b7122e9261ce817083d5b",
+  "parent_revision": "cb6e5409d9cca7929949f3ab82c4dc9826c17c47",
+  "source_clean": false,
+  "release_eligible": false,
+  "architecture": "linux/arm64",
+  "build": "actual docker/controlplane/Dockerfile; pip check passed",
+  "source_sha256": {
+    "controlplane/observability/profile.py": "f5cfcd5d543d9d36ab3c015e77b6dc6dff974832aa053d331b16f54e199ecc90",
+    "controlplane/observability/setup.py": "b2662b10de659289cc3dfa8c9fbb5af268d22c16eceb68cc49f2bae220554a35",
+    "controlplane/observability/metrics.py": "37cb45817dbce3af90fdc31cc7ea2c5d436ba11704310801124c4db9bb19639d",
+    "controlplane/observability/database.py": "2caaa5d080f7f78ed880eedefc52c7af8554193f9cabe085dc1ed0c924a2b925",
+    "controlplane/observability/gateway.py": "229ea2d5a667e34bc5333ac244161bfd02ee97e3874ed74e3466167c26e6fd00",
+    "controlplane/observability/__init__.py": "87d06951cccf802412bcb27efd94d2ad8cff401affaf206dcc24dbff5d78455c",
+    "controlplane/gateway_main.py": "0ae8682548dc78f1d5ab860ca9ad2128431421e10ac652f7b26261e2e425730d",
+    "controlplane/adapters/metrics/prometheus.py": "5cc795f3453e7fb6bcc8612ff3ff024791b440ea098b1b6d94df83762988d0bf",
+    "docker/controlplane/Dockerfile": "e61613675aee9f8027f01396898d4539e19475dd163d732b1ef962647ed86c0a",
+    "constraints/controlplane.txt": "4b381e1b040279cd5ad31a6ca2d111e7b5875ad1e8e8922289e50135466c02cc",
+    "pyproject.toml": "fd57ecae7b201c537d0f4d8e63df42876aed962b39502e3bef69e08300fb72db"
+  },
+  "validation": {
+    "targeted_pytest": "61 passed, 5 skipped",
+    "full_pytest": "773 passed, 100 skipped",
+    "scoped_mypy": "15 source files passed",
+    "helm_lint": true,
+    "diagnostic_profile_render": true
+  },
+  "scope": "Uncommitted candidate for disposable live probes; no final release scan/runtime gate claimed"
+}

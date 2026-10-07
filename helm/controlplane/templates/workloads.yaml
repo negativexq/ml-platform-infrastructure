@@ -4,6 +4,9 @@
 {{- $name := include "controlplane.name" . }}
 {{- range $component := list "api" "gateway" "reconciler" }}
 {{- $settings := index $.Values $component }}
+{{- $go := and (eq $component "gateway") (eq ($settings.runtime | default "go") "go") }}
+{{- if and (eq $component "gateway") (not (has ($settings.runtime | default "go") (list "go" "python"))) }}{{ fail "gateway.runtime must be go or python" }}{{ end }}
+{{- if and $go (ne ($settings.observabilityProfile | default "normal") "normal") }}{{ fail "Go gateway requires the normal observability profile" }}{{ end }}
 {{- $port := ternary 8081 8080 (eq $component "gateway") }}
 ---
 apiVersion: apps/v1
@@ -53,8 +56,13 @@ spec:
       {{- end }}
       containers:
         - name: {{ $component }}
+          {{- if $go }}
+          image: {{ if $settings.image.digest }}{{ printf "%s@%s" $settings.image.repository $settings.image.digest | quote }}{{ else }}{{ printf "%s:%s" $settings.image.repository $settings.image.tag | quote }}{{ end }}
+          imagePullPolicy: {{ $settings.image.pullPolicy }}
+          {{- else }}
           image: {{ include "controlplane.image" $ | quote }}
           imagePullPolicy: {{ $.Values.image.pullPolicy }}
+          {{- end }}
           {{- if eq $component "reconciler" }}
           command: [python, -m, controlplane.reconciler_main]
           {{- else }}
@@ -63,7 +71,14 @@ spec:
           lifecycle:
             preStop:
               exec:
+                {{- if $go }}
+                command: [/mlp-gateway-go, "--drain-wait=10s"]
+                {{- else }}
                 command: [python, -c, "import time; time.sleep(10)"]
+                {{- end }}
+          {{- if $go }}
+          command: [/mlp-gateway-go]
+          {{- else }}
           command:
             - uvicorn
             - {{ ternary "controlplane.gateway_main:app_factory" "controlplane.main:app_factory" (eq $component "gateway") }}
@@ -71,6 +86,7 @@ spec:
             - --host=0.0.0.0
             - --port={{ $port }}
             - --no-access-log
+          {{- end }}
           ports:
             - {name: http, containerPort: {{ $port }}}
           startupProbe:
@@ -94,6 +110,25 @@ spec:
             {{- end }}
           env:
             {{- include "controlplane.databaseEnv" (dict "root" $ "component" $component) | nindent 12 }}
+            - name: MLP_POD_UID
+              valueFrom: {fieldRef: {fieldPath: metadata.uid}}
+            - name: MLP_POD_NAME
+              valueFrom: {fieldRef: {fieldPath: metadata.name}}
+            - name: MLP_POD_NAMESPACE
+              valueFrom: {fieldRef: {fieldPath: metadata.namespace}}
+            - name: MLP_NODE_NAME
+              valueFrom: {fieldRef: {fieldPath: spec.nodeName}}
+            {{- if eq $component "gateway" }}
+            - name: CP_GATEWAY_WORKERS
+              value: {{ $settings.workers | default 12 | quote }}
+            - name: CP_GATEWAY_DB_POOL_CAPACITY
+              value: {{ $settings.dbPoolCapacity | default 15 | quote }}
+            - name: CP_GATEWAY_OBSERVABILITY_PROFILE
+              value: {{ $settings.observabilityProfile | default "normal" | quote }}
+            {{- end }}
+            {{- with $settings.extraEnv }}
+            {{- toYaml . | nindent 12 }}
+            {{- end }}
             - name: OTEL_SERVICE_NAME
               value: {{ ternary "mlp-gateway" (printf "mlp-controlplane-%s" $component) (eq $component "gateway") }}
           resources:

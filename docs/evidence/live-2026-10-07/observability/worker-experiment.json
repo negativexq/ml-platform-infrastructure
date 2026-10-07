@@ -1,0 +1,1450 @@
+{
+  "scope": "Rejection-only Go loadgen against Python gateway; no production deployment or endpoint limit changes",
+  "completed": true,
+  "request_integrity_passed": true,
+  "all_configurations_available": false,
+  "requests": 35000,
+  "pool_acquisition_errors_and_503s": 54.0,
+  "sampling": "7 x 10-second / 500 offered RPS samples; 200 client connections; 1 CPU per gateway",
+  "samples": [
+    {
+      "planned": 5000,
+      "offered": 5000,
+      "started": 5000,
+      "completed": 5000,
+      "queue_dropped": 0,
+      "unscheduled": 0,
+      "canceled_before_start": 0,
+      "transport_errors": 0,
+      "offered_rps": 500,
+      "completed_rps": 485.29015747954844,
+      "completed_within_window_rps": 480.2,
+      "elapsed_seconds": 10.30311438,
+      "request_latency_ms": {
+        "count": 5000,
+        "p50": 49.105542,
+        "p95": 435.856042,
+        "p99": 525.097208
+      },
+      "queue_delay_ms": {
+        "count": 5000,
+        "p50": 0.002458,
+        "p95": 33.429167,
+        "p99": 46.680166
+      },
+      "schedule_lag_ms": {
+        "count": 5000,
+        "p50": 0.445002,
+        "p95": 1.0842939999999999,
+        "p99": 1.273667
+      },
+      "first_body_byte_ms": {
+        "count": 0,
+        "p50": 0,
+        "p95": 0,
+        "p99": 0
+      },
+      "status_codes": {
+        "429": 5000
+      },
+      "per_target": {
+        "target_0": {
+          "started": 5000,
+          "completed": 5000,
+          "transport_errors": 0,
+          "completed_rps": 485.29015747954844
+        }
+      },
+      "process_cpu_seconds": 0.860464,
+      "process_cpu_cores": 0.08351494201309644,
+      "peak_rss_bytes": 76365824,
+      "gomaxprocs": 2,
+      "stream": false,
+      "completed_within_window": 4802,
+      "workers": 12,
+      "pool_capacity": 15,
+      "exit_code": 0,
+      "phases": {
+        "auth": {
+          "observations": 5000.0,
+          "mean_ms": 0.008904618405358633,
+          "p50": 0.5002000800320128,
+          "p95": 0.9503801520608244,
+          "p99": 0.9903961584633854
+        },
+        "authorize": {
+          "observations": 5000.0,
+          "mean_ms": 0.0023710813831712583,
+          "p50": 0.5001000200040008,
+          "p95": 0.9501900380076015,
+          "p99": 0.9901980396079216
+        },
+        "limiter.queue": {
+          "observations": 5000.0,
+          "mean_ms": 131.47407311218888,
+          "p50": 20.584269662921347,
+          "p95": 462.819750148721,
+          "p99": 492.5639500297442
+        },
+        "limiter.total": {
+          "observations": 5000.0,
+          "mean_ms": 148.15689125820754,
+          "p50": 45.07648183556405,
+          "p95": 463.57808857808857,
+          "p99": 492.7156177156177
+        },
+        "limiter.work": {
+          "observations": 5000.0,
+          "mean_ms": 15.727203213607572,
+          "p50": 11.122448979591837,
+          "p95": 48.95048439181916,
+          "p99": 91.49484536082475
+        },
+        "mlp_db_pool_acquire_duration_seconds": {
+          "observations": 5007.0,
+          "mean_ms": 1.0836257381472476,
+          "p50": 0.6993016759776536,
+          "p95": 4.6799061767005465,
+          "p99": 17.918965517241432
+        },
+        "mlp_db_query_duration_seconds": {
+          "observations": 15067.0,
+          "mean_ms": 4.351226355875417,
+          "p50": 1.0530629853321831,
+          "p95": 22.83085738539898,
+          "p99": 46.96798780487805
+        },
+        "mlp_gateway_event_loop_lag_seconds": {
+          "observations": 158.0,
+          "mean_ms": 2.452264746582991,
+          "p50": 0.6076923076923076,
+          "p95": 4.495652173913043,
+          "p99": 22.099999999999937
+        },
+        "route": {
+          "observations": 5000.0,
+          "mean_ms": 0.002918607801620965,
+          "p50": 0.5002000800320128,
+          "p95": 0.9503801520608244,
+          "p99": 0.9903961584633854
+        }
+      },
+      "max_observed_gauges": {
+        "mlp_db_pool_checked_out": 12.0,
+        "mlp_gateway_inflight": 200.0,
+        "mlp_gateway_limiter_workers": 12.0
+      },
+      "gateway_cpu_stat_delta": {
+        "usage_usec": 8722877,
+        "user_usec": 6720293,
+        "system_usec": 2002584,
+        "nice_usec": 0,
+        "nr_periods": 103,
+        "nr_throttled": 60,
+        "throttled_usec": 659648,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "gateway_cpu_window_seconds": 10.324203491210938,
+      "gateway_memory_bytes": 209281024,
+      "cluster_lock_wait_samples": [
+        0,
+        6,
+        8,
+        7,
+        8,
+        9,
+        4,
+        10,
+        8,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        8,
+        8,
+        9,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        5,
+        6,
+        7,
+        9,
+        8,
+        8,
+        7,
+        10,
+        7,
+        8,
+        4,
+        9,
+        9,
+        7,
+        9,
+        8,
+        4,
+        7,
+        10,
+        7
+      ],
+      "monitor_errors": [],
+      "scope": "429-only; shared budget preserved; pg_locks waiters cluster-wide, not exact row-lock duration",
+      "index": 0,
+      "instance": "8e8f1bc9-d346-438f-9b0c-a5442782bdda",
+      "image": "localhost:5201/mlp-controlplane@sha256:7271ee509006b80d56c687ea4613b60a5fb28a1c2d887bef878027af78d32072",
+      "availability_passed": true,
+      "integrity_passed": true,
+      "pool_acquire_errors": 0
+    },
+    {
+      "planned": 5000,
+      "offered": 5000,
+      "started": 5000,
+      "completed": 5000,
+      "queue_dropped": 0,
+      "unscheduled": 0,
+      "canceled_before_start": 0,
+      "transport_errors": 0,
+      "offered_rps": 500,
+      "completed_rps": 466.2160156022046,
+      "completed_within_window_rps": 459.3,
+      "elapsed_seconds": 10.724642296,
+      "request_latency_ms": {
+        "count": 5000,
+        "p50": 386.986,
+        "p95": 521.710417,
+        "p99": 646.821458
+      },
+      "queue_delay_ms": {
+        "count": 5000,
+        "p50": 200.161417,
+        "p95": 400.967875,
+        "p99": 575.886751
+      },
+      "schedule_lag_ms": {
+        "count": 5000,
+        "p50": 0.476835,
+        "p95": 1.045795,
+        "p99": 1.2570439999999998
+      },
+      "first_body_byte_ms": {
+        "count": 0,
+        "p50": 0,
+        "p95": 0,
+        "p99": 0
+      },
+      "status_codes": {
+        "429": 4982,
+        "503": 18
+      },
+      "per_target": {
+        "target_0": {
+          "started": 5000,
+          "completed": 5000,
+          "transport_errors": 0,
+          "completed_rps": 466.2160156022046
+        }
+      },
+      "process_cpu_seconds": 0.810288,
+      "process_cpu_cores": 0.07555384857005584,
+      "peak_rss_bytes": 76521472,
+      "gomaxprocs": 2,
+      "stream": false,
+      "completed_within_window": 4593,
+      "workers": 24,
+      "pool_capacity": 15,
+      "exit_code": 0,
+      "phases": {
+        "auth": {
+          "observations": 5000.0,
+          "mean_ms": 0.10689859199301281,
+          "p50": 0.5003001801080649,
+          "p95": 0.9505703422053232,
+          "p99": 0.9905943566139684
+        },
+        "authorize": {
+          "observations": 5000.0,
+          "mean_ms": 0.0014883072100928985,
+          "p50": 0.5,
+          "p95": 0.95,
+          "p99": 0.99
+        },
+        "limiter.queue": {
+          "observations": 5000.0,
+          "mean_ms": 313.61978640640115,
+          "p50": 341.7721518987342,
+          "p95": 484.17721518987344,
+          "p99": 496.83544303797464
+        },
+        "limiter.total": {
+          "observations": 5000.0,
+          "mean_ms": 376.10363777059354,
+          "p50": 357.2786529060293,
+          "p95": 704.9861495844875,
+          "p99": 981.9944598337951
+        },
+        "limiter.work": {
+          "observations": 5000.0,
+          "mean_ms": 50.08542967139911,
+          "p50": 24.52777777777778,
+          "p95": 92.38861386138613,
+          "p99": 232.75862068965517
+        },
+        "mlp_db_pool_acquire_duration_seconds": {
+          "observations": 5009.0,
+          "mean_ms": 21.433991856868207,
+          "p50": 1.2734113712374582,
+          "p95": 6.520833333333345,
+          "p99": 122.03846153845986
+        },
+        "mlp_db_query_duration_seconds": {
+          "observations": 15021.0,
+          "mean_ms": 9.166133944807527,
+          "p50": 3.706929608326486,
+          "p95": 44.862213403880055,
+          "p99": 89.80411255411245
+        },
+        "mlp_gateway_event_loop_lag_seconds": {
+          "observations": 153.0,
+          "mean_ms": 5.325902770921566,
+          "p50": 0.7427184466019416,
+          "p95": 4.939534883720929,
+          "p99": 173.49999999999994
+        },
+        "route": {
+          "observations": 5000.0,
+          "mean_ms": 0.00564470398639969,
+          "p50": 0.5003001801080649,
+          "p95": 0.9505703422053232,
+          "p99": 0.9905943566139684
+        }
+      },
+      "max_observed_gauges": {
+        "mlp_db_pool_checked_out": 15.0,
+        "mlp_gateway_inflight": 200.0,
+        "mlp_gateway_limiter_workers": 24.0
+      },
+      "gateway_cpu_stat_delta": {
+        "usage_usec": 10738978,
+        "user_usec": 7752644,
+        "system_usec": 2986334,
+        "nice_usec": 0,
+        "nr_periods": 107,
+        "nr_throttled": 104,
+        "throttled_usec": 2234061,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "gateway_cpu_window_seconds": 10.738280057907104,
+      "gateway_memory_bytes": 211054592,
+      "cluster_lock_wait_samples": [
+        0,
+        0,
+        10,
+        8,
+        8,
+        10,
+        7,
+        11,
+        5,
+        10,
+        10,
+        11,
+        12,
+        11,
+        11,
+        11,
+        8,
+        6,
+        10,
+        9,
+        5,
+        7,
+        9,
+        12,
+        10,
+        7,
+        8,
+        7,
+        12,
+        10,
+        7,
+        9,
+        11,
+        10,
+        12,
+        11,
+        10,
+        10,
+        10,
+        9,
+        8,
+        10,
+        11,
+        9,
+        10,
+        9,
+        10,
+        12,
+        9,
+        11,
+        7,
+        10,
+        9,
+        8
+      ],
+      "monitor_errors": [],
+      "scope": "429-only; shared budget preserved; pg_locks waiters cluster-wide, not exact row-lock duration",
+      "index": 1,
+      "instance": "38fcfa42-087a-4cec-8295-9c41c3d82e85",
+      "pool_acquire_errors": 18,
+      "availability_passed": false,
+      "integrity_passed": true,
+      "image": "localhost:5201/mlp-controlplane@sha256:7271ee509006b80d56c687ea4613b60a5fb28a1c2d887bef878027af78d32072"
+    },
+    {
+      "planned": 5000,
+      "offered": 5000,
+      "started": 5000,
+      "completed": 5000,
+      "queue_dropped": 0,
+      "unscheduled": 0,
+      "canceled_before_start": 0,
+      "transport_errors": 0,
+      "offered_rps": 500,
+      "completed_rps": 487.25218133940905,
+      "completed_within_window_rps": 482,
+      "elapsed_seconds": 10.261626713,
+      "request_latency_ms": {
+        "count": 5000,
+        "p50": 271.566041,
+        "p95": 385.020167,
+        "p99": 434.152542
+      },
+      "queue_delay_ms": {
+        "count": 5000,
+        "p50": 0.002167,
+        "p95": 0.008375,
+        "p99": 0.020208
+      },
+      "schedule_lag_ms": {
+        "count": 5000,
+        "p50": 0.48763,
+        "p95": 1.123294,
+        "p99": 1.4690429999999999
+      },
+      "first_body_byte_ms": {
+        "count": 0,
+        "p50": 0,
+        "p95": 0,
+        "p99": 0
+      },
+      "status_codes": {
+        "429": 5000
+      },
+      "per_target": {
+        "target_0": {
+          "started": 5000,
+          "completed": 5000,
+          "transport_errors": 0,
+          "completed_rps": 487.25218133940905
+        }
+      },
+      "process_cpu_seconds": 0.880965,
+      "process_cpu_cores": 0.0858504235867345,
+      "peak_rss_bytes": 76529664,
+      "gomaxprocs": 2,
+      "stream": false,
+      "completed_within_window": 4820,
+      "workers": 12,
+      "pool_capacity": 15,
+      "exit_code": 0,
+      "phases": {
+        "auth": {
+          "observations": 5000.0,
+          "mean_ms": 0.011791151398210787,
+          "p50": 0.5002000800320128,
+          "p95": 0.9503801520608244,
+          "p99": 0.9903961584633854
+        },
+        "authorize": {
+          "observations": 5000.0,
+          "mean_ms": 0.00157921819773037,
+          "p50": 0.5,
+          "p95": 0.95,
+          "p99": 0.99
+        },
+        "limiter.queue": {
+          "observations": 5000.0,
+          "mean_ms": 162.40761922459933,
+          "p50": 140.15748031496065,
+          "p95": 474.03406730369755,
+          "p99": 494.80681346073953
+        },
+        "limiter.total": {
+          "observations": 5000.0,
+          "mean_ms": 183.84865876940822,
+          "p50": 199.15254237288136,
+          "p95": 474.5934959349594,
+          "p99": 494.91869918699183
+        },
+        "limiter.work": {
+          "observations": 5000.0,
+          "mean_ms": 20.02397987639888,
+          "p50": 17.105682421667552,
+          "p95": 55.158730158730165,
+          "p99": 94.84126984126983
+        },
+        "mlp_db_pool_acquire_duration_seconds": {
+          "observations": 5007.0,
+          "mean_ms": 1.3419705354424944,
+          "p50": 0.7731624459542927,
+          "p95": 4.834974747474747,
+          "p99": 19.434722222222263
+        },
+        "mlp_db_query_duration_seconds": {
+          "observations": 15067.0,
+          "mean_ms": 5.622111968726053,
+          "p50": 2.6117418099253973,
+          "p95": 25.491835147744933,
+          "p99": 48.9241835147745
+        },
+        "mlp_gateway_event_loop_lag_seconds": {
+          "observations": 137.0,
+          "mean_ms": 2.704854634735754,
+          "p50": 0.6715686274509804,
+          "p95": 4.6322580645161295,
+          "p99": 40.749999999999886
+        },
+        "route": {
+          "observations": 5000.0,
+          "mean_ms": 0.00740999820009165,
+          "p50": 0.5003001801080649,
+          "p95": 0.9505703422053232,
+          "p99": 0.9905943566139684
+        }
+      },
+      "max_observed_gauges": {
+        "mlp_db_pool_checked_out": 12.0,
+        "mlp_gateway_inflight": 184.0,
+        "mlp_gateway_limiter_workers": 12.0
+      },
+      "gateway_cpu_stat_delta": {
+        "usage_usec": 9484935,
+        "user_usec": 7172149,
+        "system_usec": 2312786,
+        "nice_usec": 0,
+        "nr_periods": 103,
+        "nr_throttled": 80,
+        "throttled_usec": 1057865,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "gateway_cpu_window_seconds": 10.270382642745972,
+      "gateway_memory_bytes": 209031168,
+      "cluster_lock_wait_samples": [
+        0,
+        7,
+        8,
+        8,
+        6,
+        0,
+        0,
+        0,
+        2,
+        9,
+        9,
+        9,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        7,
+        9,
+        4,
+        2,
+        6,
+        4,
+        9,
+        7,
+        4,
+        7,
+        7,
+        8,
+        10,
+        5,
+        6,
+        9,
+        6,
+        7,
+        7,
+        4,
+        9,
+        10,
+        8,
+        7,
+        6,
+        7,
+        8,
+        5,
+        6,
+        6,
+        6,
+        6,
+        6
+      ],
+      "monitor_errors": [],
+      "scope": "429-only; shared budget preserved; pg_locks waiters cluster-wide, not exact row-lock duration",
+      "availability_passed": true,
+      "pool_acquire_errors": 0,
+      "integrity_passed": true,
+      "index": 0,
+      "instance": "9aadd00a-a6bd-451c-8316-f49dc90ede5c",
+      "image": "localhost:5201/mlp-controlplane@sha256:7271ee509006b80d56c687ea4613b60a5fb28a1c2d887bef878027af78d32072"
+    },
+    {
+      "planned": 5000,
+      "offered": 5000,
+      "started": 5000,
+      "completed": 5000,
+      "queue_dropped": 0,
+      "unscheduled": 0,
+      "canceled_before_start": 0,
+      "transport_errors": 0,
+      "offered_rps": 500,
+      "completed_rps": 470.59038871573637,
+      "completed_within_window_rps": 464.1,
+      "elapsed_seconds": 10.62495138,
+      "request_latency_ms": {
+        "count": 5000,
+        "p50": 385.166,
+        "p95": 502.62625,
+        "p99": 629.470459
+      },
+      "queue_delay_ms": {
+        "count": 5000,
+        "p50": 57.717166999999996,
+        "p95": 302.081375,
+        "p99": 328.207625
+      },
+      "schedule_lag_ms": {
+        "count": 5000,
+        "p50": 0.485168,
+        "p95": 1.067377,
+        "p99": 1.3907100000000001
+      },
+      "first_body_byte_ms": {
+        "count": 0,
+        "p50": 0,
+        "p95": 0,
+        "p99": 0
+      },
+      "status_codes": {
+        "429": 4982,
+        "503": 18
+      },
+      "per_target": {
+        "target_0": {
+          "started": 5000,
+          "completed": 5000,
+          "transport_errors": 0,
+          "completed_rps": 470.59038871573637
+        }
+      },
+      "process_cpu_seconds": 0.8479610000000001,
+      "process_cpu_cores": 0.07980845932115692,
+      "peak_rss_bytes": 76730368,
+      "gomaxprocs": 2,
+      "stream": false,
+      "completed_within_window": 4641,
+      "workers": 24,
+      "pool_capacity": 15,
+      "exit_code": 0,
+      "phases": {
+        "auth": {
+          "observations": 5000.0,
+          "mean_ms": 0.10541610760628828,
+          "p50": 0.5003001801080649,
+          "p95": 0.9505703422053232,
+          "p99": 0.9905943566139684
+        },
+        "authorize": {
+          "observations": 5000.0,
+          "mean_ms": 0.0015050843991048168,
+          "p50": 0.5,
+          "p95": 0.95,
+          "p99": 0.99
+        },
+        "limiter.queue": {
+          "observations": 5000.0,
+          "mean_ms": 287.8205182638023,
+          "p50": 322.5440090857468,
+          "p95": 482.2544009085746,
+          "p99": 496.4508801817149
+        },
+        "limiter.total": {
+          "observations": 5000.0,
+          "mean_ms": 349.84807078521226,
+          "p50": 339.89407386200975,
+          "p95": 528.6343612334801,
+          "p99": 969.1629955947136
+        },
+        "limiter.work": {
+          "observations": 5000.0,
+          "mean_ms": 49.951552032013566,
+          "p50": 27.47653806047967,
+          "p95": 89.78658536585365,
+          "p99": 225.31645569620255
+        },
+        "mlp_db_pool_acquire_duration_seconds": {
+          "observations": 5009.0,
+          "mean_ms": 21.247103907355935,
+          "p50": 1.271636675235647,
+          "p95": 8.776442307692317,
+          "p99": 35.79687499999978
+        },
+        "mlp_db_query_duration_seconds": {
+          "observations": 15021.0,
+          "mean_ms": 9.154447094471175,
+          "p50": 3.820309176003404,
+          "p95": 42.773370497427074,
+          "p99": 86.84217877094959
+        },
+        "mlp_gateway_event_loop_lag_seconds": {
+          "observations": 155.0,
+          "mean_ms": 3.8817927932071936,
+          "p50": 0.8072916666666666,
+          "p95": 4.867924528301888,
+          "p99": 133.74999999999915
+        },
+        "route": {
+          "observations": 5000.0,
+          "mean_ms": 0.006710587203269824,
+          "p50": 0.5003001801080649,
+          "p95": 0.9505703422053232,
+          "p99": 0.9905943566139684
+        }
+      },
+      "max_observed_gauges": {
+        "mlp_db_pool_checked_out": 15.0,
+        "mlp_gateway_inflight": 200.0,
+        "mlp_gateway_limiter_workers": 24.0
+      },
+      "gateway_cpu_stat_delta": {
+        "usage_usec": 10660081,
+        "user_usec": 7566740,
+        "system_usec": 3093340,
+        "nice_usec": 0,
+        "nr_periods": 107,
+        "nr_throttled": 104,
+        "throttled_usec": 1459479,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "gateway_cpu_window_seconds": 10.643677711486816,
+      "gateway_memory_bytes": 211365888,
+      "cluster_lock_wait_samples": [
+        0,
+        8,
+        11,
+        11,
+        10,
+        10,
+        7,
+        12,
+        13,
+        10,
+        12,
+        11,
+        12,
+        8,
+        12,
+        10,
+        12,
+        11,
+        9,
+        11,
+        8,
+        8,
+        11,
+        9,
+        13,
+        13,
+        12,
+        9,
+        10,
+        11,
+        8,
+        8,
+        10,
+        7,
+        9,
+        8,
+        6,
+        8,
+        10,
+        9,
+        6,
+        9,
+        12,
+        11,
+        12,
+        11,
+        12,
+        9,
+        8,
+        12,
+        9,
+        7,
+        8
+      ],
+      "monitor_errors": [],
+      "scope": "429-only; shared budget preserved; pg_locks waiters cluster-wide, not exact row-lock duration",
+      "availability_passed": false,
+      "pool_acquire_errors": 18.0,
+      "integrity_passed": true,
+      "index": 1,
+      "instance": "04de954e-4fba-4bc1-b8df-00d48342c705",
+      "image": "localhost:5201/mlp-controlplane@sha256:7271ee509006b80d56c687ea4613b60a5fb28a1c2d887bef878027af78d32072"
+    },
+    {
+      "planned": 5000,
+      "offered": 5000,
+      "started": 5000,
+      "completed": 5000,
+      "queue_dropped": 0,
+      "unscheduled": 0,
+      "canceled_before_start": 0,
+      "transport_errors": 0,
+      "offered_rps": 500,
+      "completed_rps": 482.27193460983017,
+      "completed_within_window_rps": 477.8,
+      "elapsed_seconds": 10.367594797,
+      "request_latency_ms": {
+        "count": 5000,
+        "p50": 382.828042,
+        "p95": 471.6875,
+        "p99": 528.762
+      },
+      "queue_delay_ms": {
+        "count": 5000,
+        "p50": 72.932042,
+        "p95": 111.615792,
+        "p99": 125.39862500000001
+      },
+      "schedule_lag_ms": {
+        "count": 5000,
+        "p50": 0.5050439999999999,
+        "p95": 1.06988,
+        "p99": 1.415585
+      },
+      "first_body_byte_ms": {
+        "count": 0,
+        "p50": 0,
+        "p95": 0,
+        "p99": 0
+      },
+      "status_codes": {
+        "429": 5000
+      },
+      "per_target": {
+        "target_0": {
+          "started": 5000,
+          "completed": 5000,
+          "transport_errors": 0,
+          "completed_rps": 482.27193460983017
+        }
+      },
+      "process_cpu_seconds": 0.8845719999999999,
+      "process_cpu_cores": 0.08532084994833733,
+      "peak_rss_bytes": 76521472,
+      "gomaxprocs": 2,
+      "stream": false,
+      "completed_within_window": 4778,
+      "workers": 24,
+      "pool_capacity": 30,
+      "exit_code": 0,
+      "phases": {
+        "auth": {
+          "observations": 5000.0,
+          "mean_ms": 0.01668154600120033,
+          "p50": 0.5005005005005005,
+          "p95": 0.950950950950951,
+          "p99": 0.9909909909909911
+        },
+        "authorize": {
+          "observations": 5000.0,
+          "mean_ms": 0.0015475150001293513,
+          "p50": 0.5,
+          "p95": 0.95,
+          "p99": 0.99
+        },
+        "limiter.queue": {
+          "observations": 5000.0,
+          "mean_ms": 311.39470505342797,
+          "p50": 335.56958695080243,
+          "p95": 483.55695869508025,
+          "p99": 496.711391739016
+        },
+        "limiter.total": {
+          "observations": 5000.0,
+          "mean_ms": 362.14657439080656,
+          "p50": 359.6162845109967,
+          "p95": 491.2260177819373,
+          "p99": 750.0
+        },
+        "limiter.work": {
+          "observations": 5000.0,
+          "mean_ms": 49.250695050199646,
+          "p50": 39.670083279948756,
+          "p95": 171.15812917594656,
+          "p99": 237.97327394209353
+        },
+        "mlp_db_pool_acquire_duration_seconds": {
+          "observations": 5009.0,
+          "mean_ms": 1.815640128969802,
+          "p50": 0.975272585669782,
+          "p95": 6.107371794871801,
+          "p99": 20.382894736842086
+        },
+        "mlp_db_query_duration_seconds": {
+          "observations": 15075.0,
+          "mean_ms": 15.046129706609149,
+          "p50": 3.974041654089948,
+          "p95": 80.52519011406845,
+          "p99": 186.78892215568862
+        },
+        "mlp_gateway_event_loop_lag_seconds": {
+          "observations": 138.0,
+          "mean_ms": 1.705151572146544,
+          "p50": 0.7263157894736842,
+          "p95": 4.902702702702702,
+          "p99": 22.150000000000038
+        },
+        "route": {
+          "observations": 5000.0,
+          "mean_ms": 0.007336819987904164,
+          "p50": 0.5003001801080649,
+          "p95": 0.9505703422053232,
+          "p99": 0.9905943566139684
+        }
+      },
+      "max_observed_gauges": {
+        "mlp_db_pool_checked_out": 24.0,
+        "mlp_gateway_inflight": 200.0,
+        "mlp_gateway_limiter_workers": 24.0
+      },
+      "gateway_cpu_stat_delta": {
+        "usage_usec": 10350646,
+        "user_usec": 7583392,
+        "system_usec": 2767254,
+        "nice_usec": 0,
+        "nr_periods": 104,
+        "nr_throttled": 103,
+        "throttled_usec": 1943929,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "gateway_cpu_window_seconds": 10.39088749885559,
+      "gateway_memory_bytes": 210894848,
+      "cluster_lock_wait_samples": [
+        0,
+        12,
+        21,
+        18,
+        20,
+        18,
+        18,
+        20,
+        21,
+        12,
+        19,
+        14,
+        20,
+        19,
+        19,
+        11,
+        21,
+        19,
+        20,
+        19,
+        20,
+        19,
+        19,
+        19,
+        20,
+        20,
+        20,
+        20,
+        18,
+        17,
+        19,
+        20,
+        18,
+        20,
+        21,
+        20,
+        17,
+        19,
+        14,
+        21,
+        13,
+        18,
+        20,
+        17,
+        20,
+        20,
+        14,
+        18,
+        16,
+        21,
+        8,
+        17
+      ],
+      "monitor_errors": [],
+      "scope": "429-only; shared budget preserved; pg_locks waiters cluster-wide, not exact row-lock duration",
+      "availability_passed": true,
+      "pool_acquire_errors": 0,
+      "integrity_passed": true,
+      "index": 2,
+      "instance": "e229cae9-3d6d-4b85-9a1e-94c25e3b124f",
+      "image": "localhost:5201/mlp-controlplane@sha256:7271ee509006b80d56c687ea4613b60a5fb28a1c2d887bef878027af78d32072"
+    },
+    {
+      "planned": 5000,
+      "offered": 5000,
+      "started": 5000,
+      "completed": 5000,
+      "queue_dropped": 0,
+      "unscheduled": 0,
+      "canceled_before_start": 0,
+      "transport_errors": 0,
+      "offered_rps": 500,
+      "completed_rps": 471.6542069174252,
+      "completed_within_window_rps": 466,
+      "elapsed_seconds": 10.600986754000001,
+      "request_latency_ms": {
+        "count": 5000,
+        "p50": 378.717042,
+        "p95": 501.834542,
+        "p99": 652.44325
+      },
+      "queue_delay_ms": {
+        "count": 5000,
+        "p50": 14.288749999999999,
+        "p95": 261.8455,
+        "p99": 288.69008299999996
+      },
+      "schedule_lag_ms": {
+        "count": 5000,
+        "p50": 0.502754,
+        "p95": 1.072169,
+        "p99": 1.4148349999999998
+      },
+      "first_body_byte_ms": {
+        "count": 0,
+        "p50": 0,
+        "p95": 0,
+        "p99": 0
+      },
+      "status_codes": {
+        "429": 4982,
+        "503": 18
+      },
+      "per_target": {
+        "target_0": {
+          "started": 5000,
+          "completed": 5000,
+          "transport_errors": 0,
+          "completed_rps": 471.6542069174252
+        }
+      },
+      "process_cpu_seconds": 0.858337,
+      "process_cpu_cores": 0.0809676514005764,
+      "peak_rss_bytes": 77062144,
+      "gomaxprocs": 2,
+      "stream": false,
+      "completed_within_window": 4660,
+      "workers": 24,
+      "pool_capacity": 15,
+      "exit_code": 0,
+      "phases": {
+        "auth": {
+          "observations": 5000.0,
+          "mean_ms": 0.10825717399929999,
+          "p50": 0.5005005005005005,
+          "p95": 0.950950950950951,
+          "p99": 0.9909909909909911
+        },
+        "authorize": {
+          "observations": 5000.0,
+          "mean_ms": 0.0014969362033298238,
+          "p50": 0.5,
+          "p95": 0.95,
+          "p99": 0.99
+        },
+        "limiter.queue": {
+          "observations": 5000.0,
+          "mean_ms": 279.46436066460524,
+          "p50": 319.93661768942667,
+          "p95": 481.9936617689427,
+          "p99": 496.3987323537885
+        },
+        "limiter.total": {
+          "observations": 5000.0,
+          "mean_ms": 341.33872950596526,
+          "p50": 331.2049278846154,
+          "p95": 506.9124423963134,
+          "p99": 967.741935483871
+        },
+        "limiter.work": {
+          "observations": 5000.0,
+          "mean_ms": 49.5384548410053,
+          "p50": 27.21250662427133,
+          "p95": 90.03021148036254,
+          "p99": 234.21052631578948
+        },
+        "mlp_db_pool_acquire_duration_seconds": {
+          "observations": 5009.0,
+          "mean_ms": 21.04771744580607,
+          "p50": 1.0319051959890613,
+          "p95": 8.839108910891099,
+          "p99": 43.18269230769217
+        },
+        "mlp_db_query_duration_seconds": {
+          "observations": 15021.0,
+          "mean_ms": 9.10046241635565,
+          "p50": 3.7943780744905133,
+          "p95": 42.62468030690535,
+          "p99": 86.19176136363623
+        },
+        "mlp_gateway_event_loop_lag_seconds": {
+          "observations": 156.0,
+          "mean_ms": 4.118766070183856,
+          "p50": 0.7572815533980582,
+          "p95": 5.333333333333315,
+          "p99": 132.99999999999983
+        },
+        "route": {
+          "observations": 5000.0,
+          "mean_ms": 0.010813330797827803,
+          "p50": 0.5003001801080649,
+          "p95": 0.9505703422053232,
+          "p99": 0.9905943566139684
+        }
+      },
+      "max_observed_gauges": {
+        "mlp_db_pool_checked_out": 15.0,
+        "mlp_gateway_inflight": 200.0,
+        "mlp_gateway_limiter_workers": 24.0
+      },
+      "gateway_cpu_stat_delta": {
+        "usage_usec": 10605795,
+        "user_usec": 7561640,
+        "system_usec": 3044155,
+        "nice_usec": 0,
+        "nr_periods": 107,
+        "nr_throttled": 106,
+        "throttled_usec": 1659281,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "gateway_cpu_window_seconds": 10.615104913711548,
+      "gateway_memory_bytes": 211263488,
+      "cluster_lock_wait_samples": [
+        0,
+        4,
+        9,
+        12,
+        10,
+        9,
+        7,
+        9,
+        14,
+        11,
+        11,
+        10,
+        7,
+        10,
+        9,
+        5,
+        10,
+        9,
+        4,
+        13,
+        11,
+        11,
+        11,
+        10,
+        9,
+        9,
+        8,
+        11,
+        9,
+        8,
+        5,
+        9,
+        11,
+        7,
+        11,
+        9,
+        12,
+        10,
+        8,
+        11,
+        11,
+        9,
+        10,
+        10,
+        10,
+        8,
+        9,
+        11,
+        13,
+        10,
+        8,
+        10,
+        12
+      ],
+      "monitor_errors": [],
+      "scope": "429-only; shared budget preserved; pg_locks waiters cluster-wide, not exact row-lock duration",
+      "availability_passed": false,
+      "pool_acquire_errors": 18.0,
+      "integrity_passed": true,
+      "index": 3,
+      "instance": "c00354db-e881-4ae1-888f-b113bfa8c0f1",
+      "image": "localhost:5201/mlp-controlplane@sha256:7271ee509006b80d56c687ea4613b60a5fb28a1c2d887bef878027af78d32072"
+    },
+    {
+      "planned": 5000,
+      "offered": 5000,
+      "started": 5000,
+      "completed": 5000,
+      "queue_dropped": 0,
+      "unscheduled": 0,
+      "canceled_before_start": 0,
+      "transport_errors": 0,
+      "offered_rps": 500,
+      "completed_rps": 486.8197722600595,
+      "completed_within_window_rps": 481.6,
+      "elapsed_seconds": 10.270741422,
+      "request_latency_ms": {
+        "count": 5000,
+        "p50": 190.189041,
+        "p95": 376.43154200000004,
+        "p99": 398.46850099999995
+      },
+      "queue_delay_ms": {
+        "count": 5000,
+        "p50": 0.002209,
+        "p95": 0.009082999999999999,
+        "p99": 0.031791
+      },
+      "schedule_lag_ms": {
+        "count": 5000,
+        "p50": 0.48891799999999996,
+        "p95": 1.048252,
+        "p99": 1.193836
+      },
+      "first_body_byte_ms": {
+        "count": 0,
+        "p50": 0,
+        "p95": 0,
+        "p99": 0
+      },
+      "status_codes": {
+        "429": 5000
+      },
+      "per_target": {
+        "target_0": {
+          "started": 5000,
+          "completed": 5000,
+          "transport_errors": 0,
+          "completed_rps": 486.8197722600595
+        }
+      },
+      "process_cpu_seconds": 0.9181480000000001,
+      "process_cpu_cores": 0.08939452005220583,
+      "peak_rss_bytes": 77045760,
+      "gomaxprocs": 2,
+      "stream": false,
+      "completed_within_window": 4816,
+      "workers": 12,
+      "pool_capacity": 15,
+      "exit_code": 0,
+      "phases": {
+        "auth": {
+          "observations": 5000.0,
+          "mean_ms": 0.009902126784800203,
+          "p50": 0.5003001801080649,
+          "p95": 0.9505703422053232,
+          "p99": 0.9905943566139684
+        },
+        "authorize": {
+          "observations": 5000.0,
+          "mean_ms": 0.00154340719418542,
+          "p50": 0.5,
+          "p95": 0.95,
+          "p99": 0.99
+        },
+        "limiter.queue": {
+          "observations": 5000.0,
+          "mean_ms": 176.6488361587839,
+          "p50": 181.54362416107384,
+          "p95": 461.3242574257426,
+          "p99": 492.26485148514854
+        },
+        "limiter.total": {
+          "observations": 5000.0,
+          "mean_ms": 202.60609117739511,
+          "p50": 198.964896489649,
+          "p95": 464.16284403669727,
+          "p99": 492.83256880733944
+        },
+        "limiter.work": {
+          "observations": 5000.0,
+          "mean_ms": 24.34247849280473,
+          "p50": 20.210547833197055,
+          "p95": 74.10926365795726,
+          "p99": 97.8622327790974
+        },
+        "mlp_db_pool_acquire_duration_seconds": {
+          "observations": 5007.0,
+          "mean_ms": 1.6115750213711695,
+          "p50": 0.8976335604159196,
+          "p95": 4.8809664694280075,
+          "p99": 20.650000000000055
+        },
+        "mlp_db_query_duration_seconds": {
+          "observations": 15067.0,
+          "mean_ms": 6.8901388890931035,
+          "p50": 3.4928680590932246,
+          "p95": 34.155405405405396,
+          "p99": 66.40673575129533
+        },
+        "mlp_gateway_event_loop_lag_seconds": {
+          "observations": 138.0,
+          "mean_ms": 1.836583630287403,
+          "p50": 0.75,
+          "p95": 4.723809523809523,
+          "p99": 40.50000000000012
+        },
+        "route": {
+          "observations": 5000.0,
+          "mean_ms": 0.0088333211850113,
+          "p50": 0.5002000800320128,
+          "p95": 0.9503801520608244,
+          "p99": 0.9903961584633854
+        }
+      },
+      "max_observed_gauges": {
+        "mlp_db_pool_checked_out": 12.0,
+        "mlp_gateway_inflight": 196.0,
+        "mlp_gateway_limiter_workers": 12.0
+      },
+      "gateway_cpu_stat_delta": {
+        "usage_usec": 10303386,
+        "user_usec": 7459165,
+        "system_usec": 2844221,
+        "nice_usec": 0,
+        "nr_periods": 103,
+        "nr_throttled": 100,
+        "throttled_usec": 2345567,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "gateway_cpu_window_seconds": 10.281803846359253,
+      "gateway_memory_bytes": 209420288,
+      "cluster_lock_wait_samples": [
+        0,
+        9,
+        6,
+        7,
+        6,
+        8,
+        7,
+        6,
+        4,
+        1,
+        8,
+        9,
+        7,
+        8,
+        5,
+        8,
+        6,
+        8,
+        9,
+        7,
+        8,
+        9,
+        8,
+        9,
+        8,
+        5,
+        7,
+        6,
+        9,
+        6,
+        5,
+        8,
+        7,
+        8,
+        8,
+        5,
+        5,
+        8,
+        5,
+        7,
+        6,
+        8,
+        9,
+        7,
+        5,
+        6,
+        6,
+        6,
+        8,
+        7,
+        9,
+        7
+      ],
+      "monitor_errors": [],
+      "scope": "429-only; shared budget preserved; pg_locks waiters cluster-wide, not exact row-lock duration",
+      "availability_passed": true,
+      "pool_acquire_errors": 0,
+      "integrity_passed": true,
+      "index": 4,
+      "instance": "173f3d63-b1d7-4ae0-a50c-8ee553700885",
+      "image": "localhost:5201/mlp-controlplane@sha256:7271ee509006b80d56c687ea4613b60a5fb28a1c2d887bef878027af78d32072"
+    }
+  ],
+  "initial_report": "worker-experiment-initial.json",
+  "followup_report": "worker-experiment-followup.json",
+  "both_disposable_keys_revoked": true,
+  "limitations": "Cluster-wide pg_locks waiter samples, not exact per-query lock duration. cgroup CPU includes telemetry/probes. Fresh disposable pod for each sample. Not sustained/admitted inference capacity.",
+  "cleanup_verified": {
+    "probe_pods": 0,
+    "probe_jobs_configmaps_secrets": 0,
+    "task_port_forwards": 0,
+    "installed_api_gateway_reconciler": "2/2 ready each",
+    "normal_deployment_settings_changed": false
+  }
+}

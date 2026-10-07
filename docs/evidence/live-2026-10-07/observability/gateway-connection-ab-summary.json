@@ -1,0 +1,107 @@
+{
+  "samples": [
+    {
+      "connection_mode": "baseline",
+      "completed": 149999,
+      "transport_errors": 1,
+      "transport_error_kinds": {
+        "connection_reset": 1
+      },
+      "queue_dropped": 0,
+      "completed_rps": 499.9948929847833,
+      "completed_within_window_rps": 499.99666666666667,
+      "request_latency_ms": {
+        "count": 150000,
+        "p50": 1.544458,
+        "p95": 341.78524999999996,
+        "p99": 442.766042
+      },
+      "queue_delay_ms": {
+        "count": 150000,
+        "p50": 0.002208,
+        "p95": 0.601,
+        "p99": 150.277083
+      },
+      "new_connections": 2247,
+      "reused_connections": 147753,
+      "request_accounting_passed": true,
+      "capacity_passed": true,
+      "integrity_passed": false,
+      "availability_passed": false,
+      "exact_request_metric_delta": 149999.0,
+      "db_error_metric_delta": 0,
+      "process_cpu_cores": 0.09250631850975238,
+      "gateway_cpu_cores_mean": 0.6431352804000109,
+      "observed_regular_export_increments": 10
+    },
+    {
+      "connection_mode": "short-idle",
+      "completed": 150000,
+      "transport_errors": 0,
+      "transport_error_kinds": {},
+      "queue_dropped": 0,
+      "completed_rps": 499.9989204689974,
+      "completed_within_window_rps": 499.99666666666667,
+      "request_latency_ms": {
+        "count": 150000,
+        "p50": 1.419583,
+        "p95": 197.96337499999998,
+        "p99": 361.890875
+      },
+      "queue_delay_ms": {
+        "count": 150000,
+        "p50": 0.002167,
+        "p95": 0.009292,
+        "p99": 0.041375
+      },
+      "new_connections": 3340,
+      "reused_connections": 146660,
+      "request_accounting_passed": true,
+      "capacity_passed": true,
+      "integrity_passed": true,
+      "availability_passed": true,
+      "exact_request_metric_delta": 150000.0,
+      "db_error_metric_delta": 0,
+      "process_cpu_cores": 0.09026817843831819,
+      "gateway_cpu_cores_mean": 0.5953047529413867,
+      "observed_regular_export_increments": 10
+    },
+    {
+      "connection_mode": "no-keepalive",
+      "completed": 146609,
+      "transport_errors": 856,
+      "transport_error_kinds": {
+        "network": 856
+      },
+      "queue_dropped": 2535,
+      "completed_rps": 471.86303618644604,
+      "completed_within_window_rps": 471.63666666666666,
+      "request_latency_ms": {
+        "count": 147465,
+        "p50": 409.70941700000003,
+        "p95": 522.281542,
+        "p99": 628.4149580000001
+      },
+      "queue_delay_ms": {
+        "count": 147465,
+        "p50": 8313.472502999999,
+        "p95": 10682.026463,
+        "p99": 10894.186839
+      },
+      "new_connections": 146609,
+      "reused_connections": 0,
+      "request_accounting_passed": true,
+      "capacity_passed": false,
+      "integrity_passed": false,
+      "availability_passed": false,
+      "exact_request_metric_delta": 146609.0,
+      "db_error_metric_delta": 0,
+      "process_cpu_cores": 0.3486509618447676,
+      "gateway_cpu_cores_mean": 0.9799054051309946,
+      "observed_regular_export_increments": 10
+    }
+  ],
+  "comparison_passed": false,
+  "short_idle_gate_passed": true,
+  "scope": "One five-minute 429-only window per arm; baseline and keepalive-off failures preserved"
+}

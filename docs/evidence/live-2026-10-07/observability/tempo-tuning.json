@@ -1,0 +1,55 @@
+{
+  "passed": true,
+  "settings": {
+    "memory_request": "256Mi",
+    "memory_limit": "1Gi",
+    "querier.max_concurrent_queries": 2
+  },
+  "before_queries": {
+    "pod_uid": "5bf846ac-c9ea-4dee-a829-8104765d7f6a",
+    "restarts": 1,
+    "last_termination": {
+      "terminated": {
+        "containerID": "containerd://31a63e3297f35e386a4274d9faf0a8d5e5017f85594354c0d4183fd576693bb3",
+        "exitCode": 0,
+        "finishedAt": "2026-10-07T00:55:51Z",
+        "reason": "Completed",
+        "startedAt": "2026-10-07T00:55:09Z"
+      }
+    },
+    "memory_current": 34160640,
+    "memory_peak": 36429824,
+    "memory_limit": 1073741824,
+    "at_epoch": 1791334672.225659
+  },
+  "after_queries": {
+    "pod_uid": "5bf846ac-c9ea-4dee-a829-8104765d7f6a",
+    "restarts": 1,
+    "last_termination": {
+      "terminated": {
+        "containerID": "containerd://31a63e3297f35e386a4274d9faf0a8d5e5017f85594354c0d4183fd576693bb3",
+        "exitCode": 0,
+        "finishedAt": "2026-10-07T00:55:51Z",
+        "reason": "Completed",
+        "startedAt": "2026-10-07T00:55:09Z"
+      }
+    },
+    "memory_current": 266387456,
+    "memory_peak": 360914944,
+    "memory_limit": 1073741824,
+    "at_epoch": 1791334688.095264
+  },
+  "additional_restarts_during_queries": 0,
+  "configuration_verified_by": "Tempo 2.7.1 -config.verify=true",
+  "completed_backend_restored": {
+    "block_id": "e518eac5-650a-4dc5-b4d8-a724bffc94b5",
+    "traces": 1390,
+    "window": [
+      "2026-10-07T00:15:38Z",
+      "2026-10-07T00:48:11Z"
+    ],
+    "WAL_restored": false
+  },
+  "planned_restart_note": "One deliberate clean-exit container restart after deployment replacement to discover restored immutable backend blocks; no OOM restart during query check",
+  "scope": "100 historical reads at two client queries concurrently plus five fresh API/SQL traces; short laptop acceptance, not sustained production query capacity"
+}

@@ -1,0 +1,89 @@
+{
+  "runs": [
+    {
+      "file": "gateway-normal-soak.json",
+      "planned": 150000,
+      "completed": 149999,
+      "transport_errors": 1,
+      "strict_passed": false,
+      "capacity_passed": true,
+      "completed_rps": 499.99598060884847,
+      "cpu_cores_mean": 0.5564746335726004,
+      "cpu_ms_per_completed_request": 1.1131889145927638,
+      "memory_sample_min_mib": 242.52734375,
+      "memory_sample_max_mib": 252.73828125,
+      "memory_lifetime_peak_mib": 253.7109375,
+      "steady_python_thread_counts": [
+        18
+      ],
+      "observed_periodic_export_counter_increments": 10,
+      "http_latency_ms": {
+        "count": 150000,
+        "p50": 1.314834,
+        "p95": 157.883167,
+        "p99": 353.827
+      },
+      "client_queue_ms": {
+        "count": 150000,
+        "p50": 0.002208,
+        "p95": 0.008875000000000001,
+        "p99": 31.2845
+      },
+      "worker_queue_mean_ms": 16.13800042437699,
+      "limiter_work_mean_ms": 5.019826080623384,
+      "db_acquire_mean_ms": 0.5194001329611578,
+      "db_execute_mean_ms": 1.2980956114185473,
+      "event_loop_lag_mean_ms": 1.1124189843451642,
+      "db_error_metric_delta": 0,
+      "cluster_lock_waiters_max": 11,
+      "transport_error_kinds": {
+        "unclassified": 1
+      },
+      "scope": "Cgroup memory includes file cache; thread baseline grows as lazy executor starts; no actual inference forwarding"
+    },
+    {
+      "file": "gateway-normal-soak-repeat.json",
+      "planned": 150000,
+      "completed": 149998,
+      "transport_errors": 2,
+      "strict_passed": false,
+      "capacity_passed": true,
+      "completed_rps": 499.94217388238917,
+      "cpu_cores_mean": 0.5317880871199093,
+      "cpu_ms_per_completed_request": 1.0637630635075135,
+      "memory_sample_min_mib": 232.203125,
+      "memory_sample_max_mib": 239.69140625,
+      "memory_lifetime_peak_mib": 240.78125,
+      "steady_python_thread_counts": [
+        18
+      ],
+      "observed_periodic_export_counter_increments": 10,
+      "http_latency_ms": {
+        "count": 150000,
+        "p50": 1.279125,
+        "p95": 175.020875,
+        "p99": 384.866416
+      },
+      "client_queue_ms": {
+        "count": 150000,
+        "p50": 0.002167,
+        "p95": 0.009667,
+        "p99": 275.49941700000005
+      },
+      "worker_queue_mean_ms": 17.875410820721473,
+      "limiter_work_mean_ms": 4.349987671400442,
+      "db_acquire_mean_ms": 0.37086054075366465,
+      "db_execute_mean_ms": 1.1157339051654898,
+      "event_loop_lag_mean_ms": 1.0733063946729082,
+      "db_error_metric_delta": 0,
+      "cluster_lock_waiters_max": 10,
+      "transport_error_kinds": {
+        "connection_reset": 2
+      },
+      "scope": "Cgroup memory includes file cache; thread baseline grows as lazy executor starts; no actual inference forwarding"
+    }
+  ],
+  "traffic_gate_passed": false,
+  "observed_response_counter_consistent": true,
+  "scope": "Two five-minute real cluster 429-only normal telemetry tests; three transport failures retained"
+}

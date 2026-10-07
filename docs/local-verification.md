@@ -1,11 +1,13 @@
 # Verifying on a real cluster
 
-Current consolidated status (2026-10-06): [status.md](status.md). Dated findings and test records below retain their original scope.
+Current consolidated status (2026-10-07): [status.md](status.md). Dated findings and test records below retain their original scope.
 
-Latest recorded suite: **419 passed, 5 skipped, 217 deselected**, plus targeted native
-PostgreSQL promotion/concurrency checks. See [concurrency-identity-audit.md](concurrency-identity-audit.md)
+Latest full control-plane suite (2026-10-07, `TZ=UTC`): **758 passed, 100 skipped**;
+see [observability evidence](evidence/live-2026-10-07/observability/README.md). The earlier
+**419 passed, 5 skipped, 217 deselected** batch and native PostgreSQL promotion/concurrency
+checks retain their historical scope. See [concurrency-identity-audit.md](concurrency-identity-audit.md)
 and [security-hardening.md](security-hardening.md) for the complete scope. This document
-review did not rerun those tests; the older dated counts below are historical snapshots.
+review retains those earlier results; the older dated counts below are historical snapshots.
 
 Procedures and checklists for verifying the platform on a real Kubernetes cluster.
 A checklist row describes an expected result, not an automatic claim that every row
@@ -42,6 +44,17 @@ inference and real private S3 loading/gateway passed. See
 **Recorded limiter follow-up:** isolated telemetry and an in-cluster generator now
 verify 500 offered RPS at two/four gateways; the single-replica case still queues.
 See [load report](limiter-performance.md).
+
+**Observability follow-up (2026-10-07):** gateway server/outbound trace propagation,
+reconciler DB trace correlation, acquisition/query/error metrics and gateway phase/runtime
+signals have local tests. Go loadgen race/vet and 500 RPS local HTTP smoke passed;
+The paired in-cluster 1/2/4-pod comparison now passes request/budget integrity; both
+clients approach 500 completed RPS at 2/4 pods, while one pod still queues. See the
+[observability live report](evidence/live-2026-10-07/observability/README.md).
+Operator `pg_stat_statements` install/snapshot passed on isolated local PostgreSQL 16.4.
+New dashboard PromQL and Helm resource identities were validated locally; cluster
+Collector/Tempo export and populated resource/DB panels still need acceptance. See
+[observability evidence](evidence/live-2026-10-07/observability/README.md).
 
 **Open scopes:** single-replica capacity, sustained/high-budget inference load and
 sustained outage/thread growth, final clean
@@ -965,3 +978,90 @@ It is also called from CPU acceptance after project provisioning. **Recorded liv
 (2026-10-06):** four installed policies/bindings, zero type warnings and nine impersonated
 server dry runs passed; full CPU provisioning also passed. Repeat on the target chart/cluster; see
 [acceptance.md](acceptance.md#reconciler-admission-enforcement).
+
+## Rebuildable cache housekeeping
+
+`make cache-clean` caps unused Docker build cache at 2GB and clears pip, uv (when
+available), Go build/module caches, and repository pytest/mypy/ruff caches.
+Set `MLP_CACHE_LIMIT` to change the Docker bound
+and `MLP_UV` if uv has a nonstandard path. It removes neither images/containers/volumes
+nor installed virtualenv dependencies. Run between builds, not during an active build.
+No unattended global cleanup daemon is installed. Use this at the end of large build/test
+batches; downloaded dependencies will be fetched again when needed.
+
+The 2026-10-07 cleanup removed 8.349GB reported Docker build cache, ~551MB pip cache,
+30.5MiB uv cache, ~494MiB Go build cache, 161MiB Go module cache and the 109MiB temporary
+acceptance build directory. Host availability rose from ~778MiB to ~9.3GiB; Docker's
+logical cache sizes overlap/shared data and are not additive physical space guarantees.
+Cluster/registry volumes remained unchanged.
+After the next clean image build, housekeeping was repeated; the temporary loadgen
+build directory and ~81MiB of repository test/type-check caches were also removed.
+
+## Tempo historical query replay — 2026-10-07
+
+The configured 256Mi request / 1Gi limit and concurrency 2 pass the actual Tempo
+2.7.1 config validation. 100 restored historical trace reads plus five new API/SQL
+traces passed; peak 344MiB, no additional query-time restart/OOM. Raw storage was
+snapshotted privately before emptyDir pod replacement; only the completed backend block
+was restored. A deliberate clean-exit discovery restart preceded the measured window.
+[Procedure, preserved failure and repeat scope](evidence/live-2026-10-07/observability/tempo-tuning.md).
+
+## Gateway CPU and OTel comparison probes — 2026-10-07
+
+Use the disposable probe CLI on the explicit `kind-mlp-acceptance` lab. Each sample
+uses Go loadgen, 500 offered RPS for ten seconds, 1 CPU, 12 workers and 15 connections.
+The caller is deliberately indebted; requests return 429 without forwarding inference.
+The CLI revokes its temporary key and deletes its bucket/resources in cleanup.
+
+```bash
+.venv/bin/python scripts/controlplane_gateway_worker_check.py \
+  --cases 12:15 12:15 12:15 12:15 12:15 12:15 \
+  --otel-modes on off off on on off \
+  --out /tmp/gateway-otel-ab-repeat.json
+```
+
+`off` sets `OTEL_SDK_DISABLED=true`; it bypasses conditional instrumentation and uses
+no-op providers. Logs, HTTP handling, SQL, budgets and pool sizes remain active.
+Compare client latency and cgroup CPU in both modes; OTel metric integrity is verified
+only in `on`, and absence of exported pod metrics is verified in `off`.
+An existing output is refused to preserve evidence. This command requires the lab's
+existing comparison-generator image and migration-role database Secret.
+
+The earlier [CPU profile](evidence/live-2026-10-07/observability/gateway-cpu-profile.md)
+used `--profile-cpu`, three identical cases and the disposable Yappi image digest in
+its provenance JSON. Never combine profiling with this OTel A/B: profiler overhead
+alone reduced throughput 3.3 times.
+
+
+The [enabled-profile A/B](evidence/live-2026-10-07/observability/gateway-hotpath-ab.md)
+now passes 50,000 rejection-only requests, exact counters and real Tempo SQL/server
+span checks. Use `--telemetry-variants` and an explicit profile-capable image digest
+for full/sql-off/trace5/lean-labels/normal-interval/normal/off variants. Normal profile
+latency counts are sampled observations; exact request totals remain unsampled.
+Recorded live result: the [two five-minute normal-profile soaks](evidence/live-2026-10-07/observability/gateway-normal-soak.md)
+included ten regular export increments each and maintained approximately 500 RPS at
+0.53–0.56 CPU core. Both zero-error gates failed (three transport failures total, two
+classified as header-phase connection resets). Use `--duration-seconds 300`; preserve
+failed results and investigate connection reuse before claiming closure. Longer runs,
+real upstream/streaming and final release-artifact acceptance remain open.
+
+The subsequent [keep-alive A/B/C](evidence/live-2026-10-07/observability/gateway-connection-ab.md)
+reproduced a reset on a reused socket idle for 4,999 ms near Uvicorn's 5-second boundary.
+Client idle timeout 2 seconds retained reuse and passed 150,000/150,000 rejection requests
+at 500 RPS with no transport failures/drops and 0.60 mean CPU core. Keep-alive off failed
+at 472 RPS, 0.98 core, 856 network errors and 2,535 queue drops. The recommended acceptance
+client setting is idle 2 seconds; generic CLI defaults and installed deployments remain
+unchanged. Successful upstream/streaming, longer runs and final release acceptance remain open.
+
+The isolated [Go gateway PoC comparison](evidence/live-2026-10-07/observability/gateway-runtime-ab.md)
+now records normal OTel with the selected B transport (client idle 2 seconds). At 500
+rejection RPS, Python used 0.62 CPU core versus Go 0.18 (70.7% less CPU/request), with
+HTTP p95 251 versus 1.48 ms. Go completed 1,000/1,500 offered RPS without errors/drops
+at 0.33/0.48 core; Python completed 554/518 RPS and dropped offered traffic near one
+core. Real function forwarding/refusal smokes, shared PostgreSQL correctness and Tempo
+server→upstream trace/counter checks passed. These are six 60-second rejection windows,
+not successful inference capacity. OIDC/LLM/stream-timeout contract work and the
+subsequent migration are recorded separately below.
+The gateway has since migrated to Go; API/reconciler remain Python.
+See [migration and final-artifact checks](evidence/live-2026-10-07/observability/gateway-go-migration.md).
+Go maximum capacity and successful inference throughput remain unmeasured.

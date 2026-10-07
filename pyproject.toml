@@ -32,11 +32,13 @@ dev = [
     "requests>=2.32",
 ]
 controlplane = [
-    "sqlalchemy>=2.0",
+    # OTel SQLAlchemy instrumentation 0.66b0 supports SQLAlchemy <2.1.
+    "sqlalchemy>=2.0,<2.1",
     "alembic>=1.13",
     "psycopg[binary]>=3.2",
     "kubernetes>=31",
     "opentelemetry-instrumentation-sqlalchemy>=0.50b0",
+    "opentelemetry-instrumentation-httpx>=0.50b0",
     # OpenID Connect: verifying bearer and ID tokens (JWKS, RS256/ES256).
     "pyjwt[crypto]>=2.9",
     # The inference gateway forwards to serving with it (streamed, async).

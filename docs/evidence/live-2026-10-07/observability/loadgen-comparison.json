@@ -1,0 +1,404 @@
+{
+  "comparison": [
+    {
+      "planned": 5000,
+      "offered": 5000,
+      "started": 5000,
+      "completed": 5000,
+      "queue_dropped": 0,
+      "unscheduled": 0,
+      "canceled_before_start": 0,
+      "transport_errors": 0,
+      "offered_rps": 500,
+      "completed_rps": 363.5474915304592,
+      "completed_within_window_rps": 309.1,
+      "elapsed_seconds": 13.753361298,
+      "request_latency_ms": {
+        "count": 5000,
+        "p50": 396.934208,
+        "p95": 1429.6997920000001,
+        "p99": 5252.727877
+      },
+      "queue_delay_ms": {
+        "count": 5000,
+        "p50": 3109.45946,
+        "p95": 3459.7322520000002,
+        "p99": 3480.136877
+      },
+      "schedule_lag_ms": {
+        "count": 5000,
+        "p50": 0.519045,
+        "p95": 1.084334,
+        "p99": 1.285378
+      },
+      "first_body_byte_ms": {
+        "count": 0,
+        "p50": 0,
+        "p95": 0,
+        "p99": 0
+      },
+      "status_codes": {
+        "200": 737,
+        "429": 4263
+      },
+      "per_target": {
+        "target_0": {
+          "started": 5000,
+          "completed": 5000,
+          "transport_errors": 0,
+          "completed_rps": 363.5474915304592
+        }
+      },
+      "process_cpu_seconds": 0.871135,
+      "process_cpu_cores": 0.06333978880687731,
+      "peak_rss_bytes": 80097280,
+      "gomaxprocs": 2,
+      "stream": false,
+      "completed_within_window": 3091,
+      "exit_code": 0,
+      "generator": "go",
+      "replicas": 1,
+      "limiter": {
+        "observations": 5000.0,
+        "mean_ms": 25.670465843817148,
+        "p50": 20.837286527514234,
+        "p95": 80.96153846153847,
+        "p99": 105.76923076923077
+      }
+    },
+    {
+      "generator_transport": "aiohttp, 200 persistent pooled connections",
+      "generator_cpu_stat_delta": {
+        "usage_usec": 1091662,
+        "user_usec": 940203,
+        "system_usec": 151459,
+        "nice_usec": 0,
+        "nr_periods": 157,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "replicas": 1,
+      "offered_rps": 500,
+      "elapsed_seconds": 15.693189132000043,
+      "statuses": {
+        "200": 756,
+        "429": 4244
+      },
+      "completed_rps": 318.60955462548276,
+      "limiter_latency_ms": null,
+      "limiter_metric_window_seconds": 60,
+      "http_latency_ms": {
+        "p50": 5084.751336000409,
+        "p95": 5727.863543999774,
+        "p99": 7730.778046001433
+      },
+      "request_latency_ms": {
+        "p50": 419.05495899845846,
+        "p95": 1922.03021000023,
+        "p99": 6364.162628000486
+      },
+      "client_queue_latency_ms": {
+        "p50": 4336.38887699999,
+        "p95": 5289.583085999766,
+        "p99": 5330.861669001024
+      },
+      "scheduling_lag_p95_ms": 0.8859179997671163,
+      "max_observed_bucket_lock_waiters": null,
+      "allowed": 756,
+      "shared_budget_upper_bound": 757,
+      "shared_budget_upper_bound_holds": true,
+      "process_cpu_seconds": 1.102369,
+      "peak_rss_bytes": 81801216,
+      "generator": "python",
+      "limiter": {
+        "observations": 5000.0,
+        "mean_ms": 28.114173362801374,
+        "p50": 21.96266156055529,
+        "p95": 86.2992125984252,
+        "p99": 151.31578947368422
+      }
+    },
+    {
+      "generator_transport": "aiohttp, 200 persistent pooled connections",
+      "generator_cpu_stat_delta": {
+        "usage_usec": 1099583,
+        "user_usec": 968779,
+        "system_usec": 130805,
+        "nice_usec": 0,
+        "nr_periods": 100,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "replicas": 2,
+      "offered_rps": 500,
+      "elapsed_seconds": 10.00457987899972,
+      "statuses": {
+        "200": 699,
+        "429": 4301
+      },
+      "completed_rps": 499.7711108784621,
+      "limiter_latency_ms": null,
+      "limiter_metric_window_seconds": 60,
+      "http_latency_ms": {
+        "p50": 1.8249999993713573,
+        "p95": 413.18820800006506,
+        "p99": 898.4600010007853
+      },
+      "request_latency_ms": {
+        "p50": 1.8213749990536598,
+        "p95": 395.5378339996969,
+        "p99": 885.5432079999446
+      },
+      "client_queue_latency_ms": {
+        "p50": 0.0031669987947680056,
+        "p95": 63.51095799982431,
+        "p99": 138.7816250007745
+      },
+      "scheduling_lag_p95_ms": 1.1931680000998313,
+      "max_observed_bucket_lock_waiters": null,
+      "allowed": 699,
+      "shared_budget_upper_bound": 701,
+      "shared_budget_upper_bound_holds": true,
+      "process_cpu_seconds": 1.105016,
+      "peak_rss_bytes": 82718720,
+      "generator": "python",
+      "limiter": {
+        "observations": 5000.0,
+        "mean_ms": 11.085196331001134,
+        "p50": 3.5514805759304537,
+        "p95": 69.8,
+        "p99": 175.0
+      }
+    },
+    {
+      "planned": 5000,
+      "offered": 5000,
+      "started": 5000,
+      "completed": 5000,
+      "queue_dropped": 0,
+      "unscheduled": 0,
+      "canceled_before_start": 0,
+      "transport_errors": 0,
+      "offered_rps": 500,
+      "completed_rps": 499.96483767295246,
+      "completed_within_window_rps": 499.9,
+      "elapsed_seconds": 10.000703296,
+      "request_latency_ms": {
+        "count": 5000,
+        "p50": 2.017375,
+        "p95": 523.429833,
+        "p99": 1514.576084
+      },
+      "queue_delay_ms": {
+        "count": 5000,
+        "p50": 0.003083,
+        "p95": 400.274917,
+        "p99": 442.705833
+      },
+      "schedule_lag_ms": {
+        "count": 5000,
+        "p50": 0.416667,
+        "p95": 1.144253,
+        "p99": 1.33492
+      },
+      "first_body_byte_ms": {
+        "count": 0,
+        "p50": 0,
+        "p95": 0,
+        "p99": 0
+      },
+      "status_codes": {
+        "200": 699,
+        "429": 4301
+      },
+      "per_target": {
+        "target_0": {
+          "started": 2500,
+          "completed": 2500,
+          "transport_errors": 0,
+          "completed_rps": 249.98241883647623
+        },
+        "target_1": {
+          "started": 2500,
+          "completed": 2500,
+          "transport_errors": 0,
+          "completed_rps": 249.98241883647623
+        }
+      },
+      "process_cpu_seconds": 1.0483710000000002,
+      "process_cpu_cores": 0.10482972736720618,
+      "peak_rss_bytes": 82849792,
+      "gomaxprocs": 2,
+      "stream": false,
+      "completed_within_window": 4999,
+      "exit_code": 0,
+      "generator": "go",
+      "replicas": 2,
+      "limiter": {
+        "observations": 5000.0,
+        "mean_ms": 16.61462678139287,
+        "p50": 4.1719662556781305,
+        "p95": 86.9627507163324,
+        "p99": 206.8627450980392
+      }
+    },
+    {
+      "planned": 5000,
+      "offered": 5000,
+      "started": 5000,
+      "completed": 5000,
+      "queue_dropped": 0,
+      "unscheduled": 0,
+      "canceled_before_start": 0,
+      "transport_errors": 0,
+      "offered_rps": 500,
+      "completed_rps": 499.93280253221326,
+      "completed_within_window_rps": 499.9,
+      "elapsed_seconds": 10.00134413,
+      "request_latency_ms": {
+        "count": 5000,
+        "p50": 1.975791,
+        "p95": 262.02975,
+        "p99": 400.816708
+      },
+      "queue_delay_ms": {
+        "count": 5000,
+        "p50": 0.0025,
+        "p95": 0.011541000000000001,
+        "p99": 0.044834
+      },
+      "schedule_lag_ms": {
+        "count": 5000,
+        "p50": 0.35233600000000004,
+        "p95": 1.186712,
+        "p99": 1.314043
+      },
+      "first_body_byte_ms": {
+        "count": 0,
+        "p50": 0,
+        "p95": 0,
+        "p99": 0
+      },
+      "status_codes": {
+        "200": 699,
+        "429": 4301
+      },
+      "per_target": {
+        "target_0": {
+          "started": 1250,
+          "completed": 1250,
+          "transport_errors": 0,
+          "completed_rps": 124.98320063305331
+        },
+        "target_1": {
+          "started": 1250,
+          "completed": 1250,
+          "transport_errors": 0,
+          "completed_rps": 124.98320063305331
+        },
+        "target_2": {
+          "started": 1250,
+          "completed": 1250,
+          "transport_errors": 0,
+          "completed_rps": 124.98320063305331
+        },
+        "target_3": {
+          "started": 1250,
+          "completed": 1250,
+          "transport_errors": 0,
+          "completed_rps": 124.98320063305331
+        }
+      },
+      "process_cpu_seconds": 1.055697,
+      "process_cpu_cores": 0.10555551196697,
+      "peak_rss_bytes": 84291584,
+      "gomaxprocs": 2,
+      "stream": false,
+      "completed_within_window": 4999,
+      "exit_code": 0,
+      "generator": "go",
+      "replicas": 4,
+      "limiter": {
+        "observations": 5000.0,
+        "mean_ms": 16.697523424407336,
+        "p50": 3.443412368614031,
+        "p95": 117.20183486238534,
+        "p99": 283.0188679245283
+      }
+    },
+    {
+      "generator_transport": "aiohttp, 200 persistent pooled connections",
+      "generator_cpu_stat_delta": {
+        "usage_usec": 1270303,
+        "user_usec": 1068726,
+        "system_usec": 201576,
+        "nice_usec": 0,
+        "nr_periods": 100,
+        "nr_throttled": 0,
+        "throttled_usec": 0,
+        "nr_bursts": 0,
+        "burst_usec": 0
+      },
+      "replicas": 4,
+      "offered_rps": 500,
+      "elapsed_seconds": 10.006156879999253,
+      "statuses": {
+        "200": 699,
+        "429": 4301
+      },
+      "completed_rps": 499.69234541927085,
+      "limiter_latency_ms": null,
+      "limiter_metric_window_seconds": 60,
+      "http_latency_ms": {
+        "p50": 2.0857079998677364,
+        "p95": 422.07416699966416,
+        "p99": 587.1902920007415
+      },
+      "request_latency_ms": {
+        "p50": 2.081417000226793,
+        "p95": 412.5343329997122,
+        "p99": 584.021833999941
+      },
+      "client_queue_latency_ms": {
+        "p50": 0.002999999196617864,
+        "p95": 21.322124999642256,
+        "p99": 46.668666998812114
+      },
+      "scheduling_lag_p95_ms": 0.8395470013056183,
+      "max_observed_bucket_lock_waiters": null,
+      "allowed": 699,
+      "shared_budget_upper_bound": 701,
+      "shared_budget_upper_bound_holds": true,
+      "process_cpu_seconds": 1.276042,
+      "peak_rss_bytes": 84422656,
+      "generator": "python",
+      "limiter": {
+        "observations": 5000.0,
+        "mean_ms": 20.081176504190807,
+        "p50": 3.57984496124031,
+        "p95": 139.4736842105263,
+        "p99": 364.2857142857143
+      }
+    }
+  ],
+  "warm_trace_id": "a54f95ba916c4eceab83a9c90fbb1f47",
+  "scope": "paired in-cluster low-budget limiter fixture; not admitted inference capacity",
+  "conditions": {
+    "offered_rps": 500,
+    "window_seconds": 10,
+    "requests_per_sample": 5000,
+    "connections": 200,
+    "generator_cpu_limit": 2,
+    "generator_memory_limit_mib": 384,
+    "gateway_cpu_limit_per_pod": 1,
+    "budgets_units_per_minute": 600,
+    "trace_sampling_ratio": 0.01,
+    "queue_capacity": 5000,
+    "order": "Go/Python at 1 and 4; Python/Go at 2"
+  },
+  "integrity_passed": true
+}

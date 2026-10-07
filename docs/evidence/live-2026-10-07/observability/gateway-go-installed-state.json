@@ -1,0 +1,39 @@
+{
+  "workloads": [
+    {
+      "name": "mlp-controlplane-api",
+      "replicas": 2,
+      "ready": 2,
+      "image": "localhost:5201/mlp-controlplane@sha256:7271ee509006b80d56c687ea4613b60a5fb28a1c2d887bef878027af78d32072"
+    },
+    {
+      "name": "mlp-controlplane-gateway",
+      "replicas": 2,
+      "ready": 2,
+      "image": "localhost:5201/mlp-gateway-go@sha256:6e2d8490ef0b3e473ea4e6c6c1bb12edc601d29475ffa75cd3d7afb61c2f7925"
+    },
+    {
+      "name": "mlp-controlplane-reconciler",
+      "replicas": 2,
+      "ready": 2,
+      "image": "localhost:5201/mlp-controlplane@sha256:7271ee509006b80d56c687ea4613b60a5fb28a1c2d887bef878027af78d32072"
+    },
+    {
+      "name": "acceptance-postgres",
+      "replicas": 1,
+      "ready": 1,
+      "image": "postgres:16-alpine"
+    }
+  ],
+  "api_reconciler_templates_unchanged": true,
+  "test_keys_revoked": true,
+  "test_fixtures_deleted": true,
+  "helm_gateway_runtime": "go",
+  "helm_gateway_image": {
+    "digest": "sha256:6e2d8490ef0b3e473ea4e6c6c1bb12edc601d29475ffa75cd3d7afb61c2f7925",
+    "pullPolicy": "IfNotPresent",
+    "repository": "localhost:5201/mlp-gateway-go",
+    "tag": "migrate-20261007"
+  },
+  "api_reconciler_otlp_settings_persisted_in_values": true
+}

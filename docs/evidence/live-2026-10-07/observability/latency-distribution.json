@@ -1,0 +1,256 @@
+{
+  "scope": "same instance and exact 5000-request mixed sample; wall-time distribution, not CPU profiling",
+  "gateway_mean_ms": 490.3328452607991,
+  "upstream_200_count": 737,
+  "rejected_429_count": 4263,
+  "breakdown": {
+    "worker_queue": {
+      "mean_ms_per_all_requests": 228.64135098199952,
+      "percent_of_summed_gateway_wall_time": 46.62982567696222
+    },
+    "limiter_work": {
+      "mean_ms_per_all_requests": 25.685889991400835,
+      "percent_of_summed_gateway_wall_time": 5.23846000521115
+    },
+    "limiter_resume_and_observation_residual": {
+      "mean_ms_per_all_requests": 34.73533066540728,
+      "percent_of_summed_gateway_wall_time": 7.084030980411315
+    },
+    "upstream_headers_amortized": {
+      "mean_ms_per_all_requests": 191.58313194500624,
+      "percent_of_summed_gateway_wall_time": 39.072057643437425
+    },
+    "stream_amortized": {
+      "mean_ms_per_all_requests": 7.325858067598529,
+      "percent_of_summed_gateway_wall_time": 1.4940581970808091
+    },
+    "auth_route_authorize": {
+      "mean_ms_per_all_requests": 0.020172658408773716,
+      "percent_of_summed_gateway_wall_time": 0.004114074470790193
+    },
+    "remaining_gateway_residual": {
+      "mean_ms_per_all_requests": 2.3411109509779067,
+      "percent_of_summed_gateway_wall_time": 0.4774534224262934
+    }
+  },
+  "historical_snapshot_deltas": [
+    {
+      "metric": {
+        "__name__": "mlp_db_transaction_duration_seconds_sum",
+        "db_system": "postgresql",
+        "instance": "5e14892e-3a02-4eda-9882-053026b68cfe",
+        "job": "mlp-gateway",
+        "k8s_namespace_name": "mlp-system",
+        "k8s_node_name": "mlp-acceptance-control-plane",
+        "k8s_pod_name": "mlp-controlplane-gateway-d5b68c9c4-d66fz",
+        "k8s_pod_uid": "5e14892e-3a02-4eda-9882-053026b68cfe",
+        "outcome": "rollback",
+        "service_instance_id": "5e14892e-3a02-4eda-9882-053026b68cfe",
+        "service_name": "mlp-gateway",
+        "telemetry_sdk_language": "python",
+        "telemetry_sdk_name": "opentelemetry",
+        "telemetry_sdk_version": "1.45.0"
+      },
+      "delta": 0.17931716699968092
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_transaction_duration_seconds_count",
+        "db_system": "postgresql",
+        "instance": "5e14892e-3a02-4eda-9882-053026b68cfe",
+        "job": "mlp-gateway",
+        "k8s_namespace_name": "mlp-system",
+        "k8s_node_name": "mlp-acceptance-control-plane",
+        "k8s_pod_name": "mlp-controlplane-gateway-d5b68c9c4-d66fz",
+        "k8s_pod_uid": "5e14892e-3a02-4eda-9882-053026b68cfe",
+        "outcome": "rollback",
+        "service_instance_id": "5e14892e-3a02-4eda-9882-053026b68cfe",
+        "service_name": "mlp-gateway",
+        "telemetry_sdk_language": "python",
+        "telemetry_sdk_name": "opentelemetry",
+        "telemetry_sdk_version": "1.45.0"
+      },
+      "delta": 10.0
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_transaction_duration_seconds_sum",
+        "db_system": "postgresql",
+        "instance": "5e14892e-3a02-4eda-9882-053026b68cfe",
+        "job": "mlp-gateway",
+        "k8s_namespace_name": "mlp-system",
+        "k8s_node_name": "mlp-acceptance-control-plane",
+        "k8s_pod_name": "mlp-controlplane-gateway-d5b68c9c4-d66fz",
+        "k8s_pod_uid": "5e14892e-3a02-4eda-9882-053026b68cfe",
+        "outcome": "commit",
+        "service_instance_id": "5e14892e-3a02-4eda-9882-053026b68cfe",
+        "service_name": "mlp-gateway",
+        "telemetry_sdk_language": "python",
+        "telemetry_sdk_name": "opentelemetry",
+        "telemetry_sdk_version": "1.45.0"
+      },
+      "delta": 107.96604971392844
+    },
+    {
+      "metric": {
+        "__name__": "mlp_db_transaction_duration_seconds_count",
+        "db_system": "postgresql",
+        "instance": "5e14892e-3a02-4eda-9882-053026b68cfe",
+        "job": "mlp-gateway",
+        "k8s_namespace_name": "mlp-system",
+        "k8s_node_name": "mlp-acceptance-control-plane",
+        "k8s_pod_name": "mlp-controlplane-gateway-d5b68c9c4-d66fz",
+        "k8s_pod_uid": "5e14892e-3a02-4eda-9882-053026b68cfe",
+        "outcome": "commit",
+        "service_instance_id": "5e14892e-3a02-4eda-9882-053026b68cfe",
+        "service_name": "mlp-gateway",
+        "telemetry_sdk_language": "python",
+        "telemetry_sdk_name": "opentelemetry",
+        "telemetry_sdk_version": "1.45.0"
+      },
+      "delta": 5000.0
+    },
+    {
+      "metric": {
+        "__name__": "http_server_request_duration_seconds_sum",
+        "http_request_method": "POST",
+        "http_response_status_code": "200",
+        "http_route": "/v1/{project}/{endpoint}/{operation}",
+        "instance": "5e14892e-3a02-4eda-9882-053026b68cfe",
+        "job": "mlp-gateway",
+        "k8s_namespace_name": "mlp-system",
+        "k8s_node_name": "mlp-acceptance-control-plane",
+        "k8s_pod_name": "mlp-controlplane-gateway-d5b68c9c4-d66fz",
+        "k8s_pod_uid": "5e14892e-3a02-4eda-9882-053026b68cfe",
+        "network_protocol_version": "1.1",
+        "service_instance_id": "5e14892e-3a02-4eda-9882-053026b68cfe",
+        "service_name": "mlp-gateway",
+        "telemetry_sdk_language": "python",
+        "telemetry_sdk_name": "opentelemetry",
+        "telemetry_sdk_version": "1.45.0",
+        "url_scheme": "http"
+      },
+      "delta": 1054.8109854319919
+    },
+    {
+      "metric": {
+        "__name__": "http_server_request_duration_seconds_count",
+        "http_request_method": "POST",
+        "http_response_status_code": "200",
+        "http_route": "/v1/{project}/{endpoint}/{operation}",
+        "instance": "5e14892e-3a02-4eda-9882-053026b68cfe",
+        "job": "mlp-gateway",
+        "k8s_namespace_name": "mlp-system",
+        "k8s_node_name": "mlp-acceptance-control-plane",
+        "k8s_pod_name": "mlp-controlplane-gateway-d5b68c9c4-d66fz",
+        "k8s_pod_uid": "5e14892e-3a02-4eda-9882-053026b68cfe",
+        "network_protocol_version": "1.1",
+        "service_instance_id": "5e14892e-3a02-4eda-9882-053026b68cfe",
+        "service_name": "mlp-gateway",
+        "telemetry_sdk_language": "python",
+        "telemetry_sdk_name": "opentelemetry",
+        "telemetry_sdk_version": "1.45.0",
+        "url_scheme": "http"
+      },
+      "delta": 737.0
+    },
+    {
+      "metric": {
+        "__name__": "mlp_gateway_duration_seconds_sum",
+        "endpoint": "function",
+        "instance": "5e14892e-3a02-4eda-9882-053026b68cfe",
+        "job": "mlp-gateway",
+        "k8s_namespace_name": "mlp-system",
+        "k8s_node_name": "mlp-acceptance-control-plane",
+        "k8s_pod_name": "mlp-controlplane-gateway-d5b68c9c4-d66fz",
+        "k8s_pod_uid": "5e14892e-3a02-4eda-9882-053026b68cfe",
+        "project": "acceptance-ca9287f7c0",
+        "service_instance_id": "5e14892e-3a02-4eda-9882-053026b68cfe",
+        "service_name": "mlp-gateway",
+        "telemetry_sdk_language": "python",
+        "telemetry_sdk_name": "opentelemetry",
+        "telemetry_sdk_version": "1.45.0"
+      },
+      "delta": 2451.6642263039957
+    },
+    {
+      "metric": {
+        "__name__": "mlp_gateway_duration_seconds_count",
+        "endpoint": "function",
+        "instance": "5e14892e-3a02-4eda-9882-053026b68cfe",
+        "job": "mlp-gateway",
+        "k8s_namespace_name": "mlp-system",
+        "k8s_node_name": "mlp-acceptance-control-plane",
+        "k8s_pod_name": "mlp-controlplane-gateway-d5b68c9c4-d66fz",
+        "k8s_pod_uid": "5e14892e-3a02-4eda-9882-053026b68cfe",
+        "project": "acceptance-ca9287f7c0",
+        "service_instance_id": "5e14892e-3a02-4eda-9882-053026b68cfe",
+        "service_name": "mlp-gateway",
+        "telemetry_sdk_language": "python",
+        "telemetry_sdk_name": "opentelemetry",
+        "telemetry_sdk_version": "1.45.0"
+      },
+      "delta": 5000.0
+    },
+    {
+      "metric": {
+        "__name__": "http_server_request_duration_seconds_sum",
+        "http_request_method": "POST",
+        "http_response_status_code": "429",
+        "http_route": "/v1/{project}/{endpoint}/{operation}",
+        "instance": "5e14892e-3a02-4eda-9882-053026b68cfe",
+        "job": "mlp-gateway",
+        "k8s_namespace_name": "mlp-system",
+        "k8s_node_name": "mlp-acceptance-control-plane",
+        "k8s_pod_name": "mlp-controlplane-gateway-d5b68c9c4-d66fz",
+        "k8s_pod_uid": "5e14892e-3a02-4eda-9882-053026b68cfe",
+        "network_protocol_version": "1.1",
+        "service_instance_id": "5e14892e-3a02-4eda-9882-053026b68cfe",
+        "service_name": "mlp-gateway",
+        "telemetry_sdk_language": "python",
+        "telemetry_sdk_name": "opentelemetry",
+        "telemetry_sdk_version": "1.45.0",
+        "url_scheme": "http"
+      },
+      "delta": 1398.4625831119101
+    },
+    {
+      "metric": {
+        "__name__": "http_server_request_duration_seconds_count",
+        "http_request_method": "POST",
+        "http_response_status_code": "429",
+        "http_route": "/v1/{project}/{endpoint}/{operation}",
+        "instance": "5e14892e-3a02-4eda-9882-053026b68cfe",
+        "job": "mlp-gateway",
+        "k8s_namespace_name": "mlp-system",
+        "k8s_node_name": "mlp-acceptance-control-plane",
+        "k8s_pod_name": "mlp-controlplane-gateway-d5b68c9c4-d66fz",
+        "k8s_pod_uid": "5e14892e-3a02-4eda-9882-053026b68cfe",
+        "network_protocol_version": "1.1",
+        "service_instance_id": "5e14892e-3a02-4eda-9882-053026b68cfe",
+        "service_name": "mlp-gateway",
+        "telemetry_sdk_language": "python",
+        "telemetry_sdk_name": "opentelemetry",
+        "telemetry_sdk_version": "1.45.0",
+        "url_scheme": "http"
+      },
+      "delta": 4263.0
+    }
+  ],
+  "limits": "Upstream/stream phase means amortized across all 5000 requests; limiter residual is unclassified scheduling/observation timing, not CPU-only. DB observations are nested in limiter.work and include background probes. Quantiles not added. Native HTTP metric includes additional response/framework lifetime.",
+  "nested_limiter_work": {
+    "limiter_work_mean_ms": 25.685889991400835,
+    "db_execute_time_per_all_requests_ms": 21.26362761182063,
+    "db_acquisition_time_per_all_requests_ms": 2.1668785937905337,
+    "remaining_work_residual_ms": 2.25538378578967,
+    "scope": "Approximate nested totals; gateway DB series include readiness/probe queries. Residual contains unmeasured fetch/commit/Python/observation, not CPU-only."
+  },
+  "trace_inspection_issue": {
+    "component": "Tempo 2.7.1",
+    "memory_limit_mib": 512,
+    "termination_reason": "OOMKilled",
+    "exit_code": 137,
+    "finished_at": "2026-10-07T00:48:20Z",
+    "scope": "Observed during historical trace inspection; triggering query not causally proven. Tempo recovered 1/1 at existing limits. Prometheus metric history retained."
+  }
+}

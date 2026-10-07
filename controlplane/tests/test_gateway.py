@@ -417,3 +417,26 @@ def test_management_api_flow(env: Env, uow_factory: Factory, clock: Any) -> None
         f"{base}/endpoints/credit-risk-prod/usage"
     )
     assert without.json()["available"] is False and without.json()["error"]
+
+
+def test_phase_observer_covers_success_refusal_and_worker_balance(env: Env) -> None:
+    phases: list[tuple[str, str]] = []
+    workers: list[int] = []
+    env.gateway._observe_phase = lambda name, seconds, outcome: phases.append((name, outcome))
+    env.gateway._observe_worker = workers.append
+    env.expose()
+    assert env.call(env.key()).status_code == 200
+    assert {name for name, outcome in phases if outcome == "ok"} >= {
+        "auth",
+        "route",
+        "authorize",
+        "limiter.queue",
+        "limiter.work",
+        "limiter.total",
+        "upstream.headers",
+        "stream",
+    }
+    assert workers == [1, -1]
+    phases.clear()
+    assert env.call(None).status_code == 401
+    assert phases == [("auth", "error")]

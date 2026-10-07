@@ -1,0 +1,24 @@
+{
+  "scope": "isolated local PostgreSQL 16.4-alpine; not the cluster application DB",
+  "preload": "pg_stat_statements",
+  "observer_role": "mlp_profile with pg_read_all_stats; no runtime grants changed",
+  "expected_fixture_calls": 11,
+  "observed_fixture": {
+    "userid": 10,
+    "dbid": 5,
+    "queryid": "-3357661144425967028",
+    "calls": 11,
+    "rows": 11,
+    "total_exec_time": 0.7213319999999999,
+    "mean_exec_time": 0.06557563636363636,
+    "max_exec_time": 0.14400000000000002,
+    "shared_blks_hit": 0,
+    "shared_blks_read": 0,
+    "temp_blks_written": 0
+  },
+  "query_text_exported": false,
+  "image": "postgres:16.4-alpine",
+  "local_image_id": "sha256:cf78e76683b9ca8c5733cbbdce6c9262b45b6767934dd0a95e671f9a0fc20685",
+  "container_name": "mlp-observability-pg-check",
+  "cleanup": "container stopped and removed; PGDATA was tmpfs; no cluster DB changed"
+}

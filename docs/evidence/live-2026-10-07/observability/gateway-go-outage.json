@@ -1,0 +1,52 @@
+{
+  "scope": "installed Go gateway; real PostgreSQL outage, no retries on individual inference requests",
+  "samples": [
+    {
+      "phase": "before",
+      "status": 200,
+      "code": null,
+      "duration_ms": 1143.966999836266
+    },
+    {
+      "phase": "outage",
+      "status": 503,
+      "code": "data_store_unavailable",
+      "duration_ms": 3.560291603207588
+    },
+    {
+      "phase": "outage",
+      "status": 503,
+      "code": "data_store_unavailable",
+      "duration_ms": 6.555625237524509
+    },
+    {
+      "phase": "outage",
+      "status": 503,
+      "code": "data_store_unavailable",
+      "duration_ms": 5.521208979189396
+    },
+    {
+      "phase": "outage",
+      "status": 503,
+      "code": "data_store_unavailable",
+      "duration_ms": 2086.932457983494
+    },
+    {
+      "phase": "outage",
+      "status": 503,
+      "code": "data_store_unavailable",
+      "duration_ms": 3004.755209200084
+    },
+    {
+      "phase": "after",
+      "status": 200,
+      "code": null,
+      "duration_ms": 33.92458241432905
+    }
+  ],
+  "health_during": 200,
+  "ready_during": 503,
+  "database_outage_and_restart_seconds": 11.121955707669258,
+  "ready_after": 200,
+  "passed": true
+}
