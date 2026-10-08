@@ -75,6 +75,9 @@ class JobDefinitionRow(Base):
         JSONB, nullable=False, server_default="{}"
     )
     batch_spec: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, server_default="{}")
+    monitoring_spec: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, server_default="{}"
+    )
     created_at: Mapped[datetime] = _ts()
 
 
@@ -506,4 +509,39 @@ class DatasetVersionRow(Base):
             "producer_run_id IS NULL OR producer_pipeline_run_id IS NULL",
             name="ck_dataset_one_producer",
         ),
+    )
+
+
+class MonitoringReportRow(Base):
+    __tablename__ = "monitoring_reports"
+    id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
+    project_id: Mapped[UUID] = _fk("projects.id")
+    job_definition_id: Mapped[UUID] = _fk("job_definitions.id")
+    model_version_id: Mapped[UUID] = _fk("model_versions.id")
+    model_name: Mapped[str] = mapped_column(String(40), nullable=False)
+    model_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    check_name: Mapped[str] = mapped_column(String(40), nullable=False)
+    reference_dataset_id: Mapped[UUID] = _fk("dataset_versions.id")
+    observed_dataset_id: Mapped[UUID] = _fk("dataset_versions.id")
+    feedback_dataset_id: Mapped[UUID | None] = mapped_column(
+        Uuid, ForeignKey("dataset_versions.id", ondelete="RESTRICT")
+    )
+    job_run_id: Mapped[UUID | None] = mapped_column(
+        Uuid, ForeignKey("runs.id", ondelete="RESTRICT")
+    )
+    pipeline_run_id: Mapped[UUID | None] = mapped_column(
+        Uuid, ForeignKey("pipeline_runs.id", ondelete="RESTRICT")
+    )
+    step: Mapped[str] = mapped_column(String(63), nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False)
+    result: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = _ts()
+    __table_args__ = (
+        UniqueConstraint("job_run_id", "step", name="uq_monitoring_job_occurrence"),
+        UniqueConstraint("pipeline_run_id", "step", name="uq_monitoring_pipeline_occurrence"),
+        CheckConstraint(
+            "(job_run_id IS NULL) <> (pipeline_run_id IS NULL)", name="ck_monitoring_one_producer"
+        ),
+        Index("ix_monitoring_project_created", "project_id", "created_at"),
+        Index("ix_monitoring_model_version", "model_version_id"),
     )

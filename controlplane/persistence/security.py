@@ -22,6 +22,7 @@ API_TABLES = (
     "schedule_executions",
     "data_connections",
     "dataset_versions",
+    "monitoring_reports",
     "projects",
     "job_definitions",
     "runs",
@@ -180,7 +181,13 @@ def configure_roles(engine: Engine, users: Mapping[str, str]) -> None:
                 conn.execute(text(f"REVOKE ALL ON ALL FUNCTIONS IN SCHEMA public FROM {q}"))
             conn.execute(text(f"GRANT USAGE ON SCHEMA public TO {quoted}"))
             _grant(conn, "SELECT", ("alembic_version",), role)
-        _grant(conn, "SELECT, INSERT", API_TABLES, ROLES["api"])
+        _grant(
+            conn,
+            "SELECT, INSERT",
+            tuple(table for table in API_TABLES if table != "monitoring_reports"),
+            ROLES["api"],
+        )
+        _grant(conn, "SELECT", ("monitoring_reports",), ROLES["api"])
         mutable = tuple(
             table
             for table in API_TABLES
@@ -190,6 +197,7 @@ def configure_roles(engine: Engine, users: Mapping[str, str]) -> None:
                 "pipeline_definitions",
                 "data_connections",
                 "dataset_versions",
+                "monitoring_reports",
                 "deployment_revisions",
                 "promotions",
                 "notification_reads",
@@ -210,7 +218,12 @@ def configure_roles(engine: Engine, users: Mapping[str, str]) -> None:
             ROLES["reconciler"],
         )
         _grant(conn, "INSERT, UPDATE", RECONCILER_TABLES, ROLES["reconciler"])
-        _grant(conn, "INSERT", ("data_connections", "dataset_versions"), ROLES["reconciler"])
+        _grant(
+            conn,
+            "INSERT",
+            ("data_connections", "dataset_versions", "monitoring_reports"),
+            ROLES["reconciler"],
+        )
         _grant(conn, "INSERT", ("audit_events",), ROLES["reconciler"])
         _grant(conn, "SELECT", GATEWAY_TABLES, ROLES["gateway"])
         _grant(conn, "SELECT, INSERT, UPDATE", ("gateway_rate_buckets",), ROLES["gateway"])

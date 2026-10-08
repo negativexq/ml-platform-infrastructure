@@ -11,6 +11,7 @@ const PATHS: Record<string, string> = {
   infrastructure: 'M2 3h12v4H2zM2 9h12v4H2zM5 5h.01M5 11h.01',
   identity: 'M5 4a3 3 0 1 0 6 0a3 3 0 1 0-6 0M2 14c0-7 12-7 12 0',
   projects: 'M2.5 2.5h4.5v4.5h-4.5zM9 2.5h4.5v4.5h-4.5zM2.5 9h4.5v4.5h-4.5zM9 9h4.5v4.5h-4.5z',
+  'model-monitoring': 'M2 12h12M3 9l3-4 3 3 4-6M3 14v-3',
   monitor: 'M1.5 8.5h3l2-5 3 9 2-4h3',
   overview: 'M2.5 7.5l5.5-5 5.5 5M4 6.5v7h8v-7',
   runs: 'M5 3l8 5-8 5z',

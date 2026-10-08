@@ -19,6 +19,7 @@ from controlplane.api.deployments import deployments_router
 from controlplane.api.errors import DomainHttpError, PlatformRoute, handle_domain_error
 from controlplane.api.identity import identity_router, login_router
 from controlplane.api.jobs_runs import jobs_router, runs_router
+from controlplane.api.model_monitoring import monitoring_router
 from controlplane.api.models import model_versions_router, models_router
 from controlplane.api.notifications import notifications_router
 from controlplane.api.overview import overview_router
@@ -41,6 +42,7 @@ from controlplane.application.deployments import DeploymentService
 from controlplane.application.identity import visible_project_ids
 from controlplane.application.jobs import JobService
 from controlplane.application.members import MembershipService
+from controlplane.application.model_monitoring import ModelMonitoringService
 from controlplane.application.models import EvaluationService, ModelService, PromotionService
 from controlplane.application.notifications import NotificationService
 from controlplane.application.overview import OverviewService
@@ -191,6 +193,7 @@ def create_app(
     app.state.members = MembershipService(uow_factory, clock)
     app.state.projects = ProjectService(uow_factory, clock)
     app.state.secrets = ProjectSecretService(uow_factory, secrets, clock)
+    app.state.model_monitoring = ModelMonitoringService(uow_factory, batch_image, secrets, clock)
     app.state.batch_inference = BatchInferenceService(
         uow_factory, batch_image, experiments, secrets, clock
     )
@@ -235,6 +238,7 @@ def create_app(
     app.include_router(secrets_router())
     app.include_router(data_catalog_router())
     app.include_router(batch_router())
+    app.include_router(monitoring_router())
     app.include_router(jobs_router())
     app.include_router(runs_router())
     app.include_router(pipelines_router())

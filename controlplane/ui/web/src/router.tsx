@@ -1,3 +1,4 @@
+import { ModelMonitoringPage, MonitoringReportPage } from './pages/ModelMonitoring';
 import { ConnectionsPage, ConnectionPage, DatasetsPage, DatasetPage } from './pages/DataCatalog';
 import { BatchInferencePage } from './pages/BatchInference';
 import {
@@ -92,9 +93,13 @@ const connection = child('connections/$id', p => <ConnectionPage key={p.id} proj
 const projectDatasets = child('datasets', p => <DatasetsPage key={p.project} project={p.project!} />);
 const dataset = child('datasets/$name', p => <DatasetPage key={`${p.project}/${p.name}`} project={p.project!} name={p.name!} />);
 
+const modelMonitoring = createRoute({ getParentRoute: () => root, path: '/model-monitoring', component: () => <ModelMonitoringPage />, validateSearch: anySearch });
+const projectModelMonitoring = child('model-monitoring', p => <ModelMonitoringPage key={p.project} project={p.project!} />);
+const monitoringReport = child('model-monitoring/reports/$id', p => <MonitoringReportPage key={p.id} project={p.project!} id={p.id!} />);
+
 const routeTree = root.addChildren([
-  index, home, help, projects, connections, datasets, batch, monitor, schedules, schedule, services, ...capabilities, ...admin,
-  project.addChildren([overview, runs, pipelineRun, jobRun, pipelines, pipeline, jobs, job, models, model, functions, fn, endpoints, endpoint, deployments, deployment, activity, projectSchedules, projectBatch, projectConnections, connection, projectDatasets, dataset, settings]),
+  index, home, help, projects, modelMonitoring, connections, datasets, batch, monitor, schedules, schedule, services, ...capabilities, ...admin,
+  project.addChildren([overview, runs, pipelineRun, jobRun, pipelines, pipeline, jobs, job, models, model, functions, fn, endpoints, endpoint, deployments, deployment, activity, projectSchedules, projectBatch, projectConnections, connection, projectDatasets, dataset, projectModelMonitoring, monitoringReport, settings]),
 ]);
 // Plain `?key=value` query strings (every value is a string), rather than JSON-encoded ones, so
 // shared links stay readable: `#/projects/x/runs?status=failed&kind=job`.

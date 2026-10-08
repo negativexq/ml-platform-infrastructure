@@ -3,7 +3,7 @@ import { fmtAgo } from '../lib/format';
 import { useNow } from '../lib/now';
 
 const SYMBOLS: Record<string, string> = {
-  READY: '✓', SUCCEEDED: '✓', CHAMPION: '★', PASSED: '✓', APPLIED: '✓',
+  STABLE: '✓', INSUFFICIENT_DATA: '?', READY: '✓', SUCCEEDED: '✓', CHAMPION: '★', PASSED: '✓', APPLIED: '✓',
   RUNNING: '●', PROGRESSING: '●', SUBMITTED: '●', DEPLOYING: '●', EVALUATING: '●', PROVISIONING: '●',
   PENDING: '○', REGISTERED: '○', CANDIDATE: '◐',
   DEGRADED: '!', DRIFTED: '!', UNAVAILABLE: '!', CANCELLED: '–', DELETING: '!',

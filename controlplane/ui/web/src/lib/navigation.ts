@@ -6,14 +6,14 @@ export const GLOBAL_NAV: { label: string; items: [string, string][] }[] = [
   { label: 'AI', items: [['models', 'Models'], ['functions', 'Functions'], ['batch-inference', 'Batch Inference']] },
   { label: 'Serving', items: [['deployments', 'Deployments'], ['endpoints', 'Endpoints']] },
   { label: 'Platform', items: [['services', 'Services']] },
-  { label: 'Operations', items: [['monitor', 'Monitor'], ['activity', 'Activity']] },
+  { label: 'Operations', items: [['monitor', 'Monitor'], ['model-monitoring', 'Model Monitoring'], ['activity', 'Activity']] },
   { label: 'Admin', items: [['identity', 'Identity'], ['settings', 'Settings']] },
 ];
 export const PROJECT_NAV: { label: string; key: string; items?: [string, string][] }[] = [
   { key: '', label: 'Overview' },
   { key: 'build', label: 'Build', items: [['runs', 'Runs'], ['pipelines', 'Pipelines'], ['jobs', 'Jobs'], ['schedules', 'Schedules']] },
   { key: 'data', label: 'Data', items: [['connections', 'Connections'], ['datasets', 'Datasets']] },
-  { key: 'assets', label: 'Assets', items: [['models', 'Models'], ['functions', 'Functions'], ['batch-inference', 'Batch Inference']] },
+  { key: 'assets', label: 'Assets', items: [['models', 'Models'], ['functions', 'Functions'], ['batch-inference', 'Batch Inference'], ['model-monitoring', 'Model Monitoring']] },
   { key: 'serve', label: 'Serve', items: [['deployments', 'Deployments'], ['endpoints', 'Endpoints']] },
   { key: 'activity', label: 'Activity' }, { key: 'settings', label: 'Settings' },
 ];

@@ -798,6 +798,75 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{project}/model-monitoring/checks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Checks */
+        get: operations["checks_projects__project__model_monitoring_checks_get"];
+        put?: never;
+        /** Create */
+        post: operations["create_projects__project__model_monitoring_checks_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/model-monitoring/checks/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Check */
+        get: operations["check_projects__project__model_monitoring_checks__name__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/model-monitoring/reports": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Reports */
+        get: operations["reports_projects__project__model_monitoring_reports_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/model-monitoring/reports/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Report */
+        get: operations["report_projects__project__model_monitoring_reports__id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/projects/{project}/models": {
         parameters: {
             query?: never;
@@ -2051,6 +2120,31 @@ export interface components {
          * @enum {string}
          */
         Exposure: "internal" | "public";
+        /** FeatureMeasurement */
+        FeatureMeasurement: {
+            /** Drifted */
+            drifted: boolean;
+            /**
+             * Dtype
+             * @enum {string}
+             */
+            dtype: "string" | "integer" | "number" | "boolean";
+            /** Missing Rate Change */
+            missing_rate_change: number | null;
+            /** Name */
+            name: string;
+            /** Observed Missing Rate */
+            observed_missing_rate: number | null;
+            /** Psi */
+            psi: number | null;
+            /** Reference Missing Rate */
+            reference_missing_rate: number | null;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "STABLE" | "DRIFTED" | "INSUFFICIENT_DATA";
+        };
         /** FunctionServingIn */
         FunctionServingIn: {
             /**
@@ -2281,6 +2375,10 @@ export interface components {
             id: string;
             /** Image */
             image: string;
+            /** Monitoring Spec */
+            monitoring_spec?: {
+                [key: string]: unknown;
+            };
             /** Name */
             name: string;
             /** Parameter Schema */
@@ -2617,6 +2715,196 @@ export interface components {
             /** Version */
             version: number;
         };
+        /** MonitoringCreate */
+        MonitoringCreate: {
+            /**
+             * Batch Size
+             * @default 1000
+             */
+            batch_size: number;
+            /**
+             * Entity Key
+             * @default
+             */
+            entity_key: string;
+            /** Features */
+            features: string[];
+            /** Feedback Dataset Id */
+            feedback_dataset_id?: string | null;
+            /**
+             * Label Column
+             * @default actual
+             */
+            label_column: string;
+            /**
+             * Max Bytes
+             * @default 1073741824
+             */
+            max_bytes: number;
+            /**
+             * Max Join Bytes
+             * @default 1073741824
+             */
+            max_join_bytes: number;
+            /**
+             * Max Rows
+             * @default 10000000
+             */
+            max_rows: number;
+            /**
+             * Minimum Rows
+             * @default 100
+             */
+            minimum_rows: number;
+            /**
+             * Missing Rate Threshold
+             * @default 0.1
+             */
+            missing_rate_threshold: number;
+            /**
+             * Model Version Id
+             * Format: uuid
+             */
+            model_version_id: string;
+            /** Name */
+            name: string;
+            /**
+             * Observed Dataset Id
+             * Format: uuid
+             */
+            observed_dataset_id: string;
+            /**
+             * Prediction Column
+             * @default prediction
+             */
+            prediction_column: string;
+            /**
+             * Psi Threshold
+             * @default 0.2
+             */
+            psi_threshold: number;
+            /**
+             * Reference Dataset Id
+             * Format: uuid
+             */
+            reference_dataset_id: string;
+            /** Resources */
+            resources?: {
+                [key: string]: string;
+            };
+            /**
+             * Task
+             * @default REGRESSION
+             * @enum {string}
+             */
+            task: "REGRESSION" | "CLASSIFICATION";
+            /**
+             * Timeout Seconds
+             * @default 3600
+             */
+            timeout_seconds: number;
+        };
+        /** MonitoringReportList */
+        MonitoringReportList: {
+            /** Items */
+            items: components["schemas"]["MonitoringReportOut"][];
+            /** Limit */
+            limit: number;
+            /** Offset */
+            offset: number;
+        };
+        /** MonitoringReportOut */
+        MonitoringReportOut: {
+            /** Check Name */
+            check_name: string;
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Feedback Dataset Id */
+            feedback_dataset_id: string | null;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /**
+             * Job Definition Id
+             * Format: uuid
+             */
+            job_definition_id: string;
+            /** Job Run Id */
+            job_run_id: string | null;
+            /** Model Name */
+            model_name: string;
+            /** Model Version */
+            model_version: number;
+            /**
+             * Model Version Id
+             * Format: uuid
+             */
+            model_version_id: string;
+            /**
+             * Observed Dataset Id
+             * Format: uuid
+             */
+            observed_dataset_id: string;
+            /** Pipeline Run Id */
+            pipeline_run_id: string | null;
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /**
+             * Reference Dataset Id
+             * Format: uuid
+             */
+            reference_dataset_id: string;
+            result: components["schemas"]["MonitoringResult"];
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "STABLE" | "DRIFTED" | "INSUFFICIENT_DATA";
+            /** Step */
+            step: string;
+        };
+        /** MonitoringResult */
+        MonitoringResult: {
+            /** Execution */
+            execution: string;
+            /** Features */
+            features: components["schemas"]["FeatureMeasurement"][];
+            /** Feedback Dataset Id */
+            feedback_dataset_id: string | null;
+            /**
+             * Model Version Id
+             * Format: uuid
+             */
+            model_version_id: string;
+            /**
+             * Observed Dataset Id
+             * Format: uuid
+             */
+            observed_dataset_id: string;
+            /** Observed Rows */
+            observed_rows: number;
+            performance: components["schemas"]["PerformanceMeasurement"] | null;
+            /**
+             * Reference Dataset Id
+             * Format: uuid
+             */
+            reference_dataset_id: string;
+            /** Reference Rows */
+            reference_rows: number;
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "STABLE" | "DRIFTED" | "INSUFFICIENT_DATA";
+        };
         /** NotificationList */
         NotificationList: {
             /** Attention Count */
@@ -2676,6 +2964,31 @@ export interface components {
         NotificationReadOut: {
             /** Marked */
             marked: number;
+        };
+        /** PerformanceMeasurement */
+        PerformanceMeasurement: {
+            /** Coverage */
+            coverage: number | null;
+            /** Matched Rows */
+            matched_rows: number;
+            /** Metrics */
+            metrics: {
+                [key: string]: number | null;
+            };
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "MEASURED" | "INSUFFICIENT_DATA";
+            /**
+             * Task
+             * @enum {string}
+             */
+            task: "REGRESSION" | "CLASSIFICATION";
+            /** Unmatched Predictions */
+            unmatched_predictions: number;
+            /** Unmatched Truth */
+            unmatched_truth: number;
         };
         /** PipelineCreate */
         PipelineCreate: {
@@ -6515,6 +6828,173 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["ErrorOut"];
+                };
+            };
+        };
+    };
+    checks_projects__project__model_monitoring_checks_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_projects__project__model_monitoring_checks_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["MonitoringCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    check_projects__project__model_monitoring_checks__name__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    reports_projects__project__model_monitoring_reports_get: {
+        parameters: {
+            query?: {
+                model_version_id?: string | null;
+                limit?: number;
+                offset?: number;
+                job_run_id?: string | null;
+                pipeline_run_id?: string | null;
+            };
+            header?: never;
+            path: {
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonitoringReportList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    report_projects__project__model_monitoring_reports__id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonitoringReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
                 };
             };
         };

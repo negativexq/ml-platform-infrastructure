@@ -36,6 +36,15 @@ image gate at `b7a3420`. Historical counts retain their original scope.
   the deployed lineage/navigation. Telemetry audit delegation is covered by regression tests.
   [Contract](data-catalog.md) and [evidence](evidence/live-2026-10-08/data-management-ui/README.md).
 
+- Model Monitoring core adds immutable classic-model/dataset checks, PSI/missing-rate
+  drift, delayed-feedback MAE/RMSE/R² or label accuracy/macro F1, append-only reports
+  and attention notifications. Head `0026`; backend 878 passed/13 skipped, frontend
+  22 tests, Linux workers 21 tests and all 12 control-plane image gates passed.
+  Local acceptance revision 41 verifies real MinIO/Argo reports, retry, pipeline
+  attribution and duplicate-key rejection. Online capture and automatic new-window
+  selection remain open. [Contract](model-monitoring.md) and
+  [evidence](evidence/live-2026-10-08/model-monitoring/README.md).
+
 - Bottleneck telemetry now wires gateway native HTTP/outbound HTTPX spans and reconciler
   SQL tracing, including stored-origin context for DB spans. SQLAlchemy 2.0 pin fixes the
   instrumentor incompatibility with 2.1. DB acquisition/query/transaction-lifetime metrics,

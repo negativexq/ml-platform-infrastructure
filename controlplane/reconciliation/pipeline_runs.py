@@ -17,6 +17,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from controlplane.application.batch_inference import publish_output
+from controlplane.application.model_monitoring import publish_report
 from controlplane.application.projects import Clock, UnitOfWorkFactory, utc_now
 from controlplane.application.providers import (
     ExperimentProvider,
@@ -283,6 +284,25 @@ class PipelineRunReconciler:
                             status,
                             now,
                             reason="invalid or missing batch output result",
+                            exit_code=exit_code,
+                        )
+                if job and job.monitoring_spec:
+                    try:
+                        publish_report(
+                            uow,
+                            job,
+                            result,
+                            run_id=run.id,
+                            pipeline=True,
+                            step=step.step_name,
+                            now=now,
+                        )
+                    except InvalidArgument:
+                        status = StepStatus.FAILED
+                        moved = step.transition_to(
+                            status,
+                            now,
+                            reason="invalid or missing monitoring result",
                             exit_code=exit_code,
                         )
             uow.step_runs.update(moved, expected_status=step.status)

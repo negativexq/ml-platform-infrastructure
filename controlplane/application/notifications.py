@@ -170,6 +170,28 @@ class NotificationService:
                             break
                         offset += 200
 
+                offset = 0
+                while reports := uow.monitoring.list(project.id, limit=200, offset=offset):
+                    for report in reports:
+                        if report.created_at < since or report.status != "DRIFTED":
+                            continue
+                        version = uow.model_versions.get(report.model_version_id)
+                        model = uow.models.get(version.model_id) if version else None
+                        name = model.name if model else "Model"
+                        add(
+                            "model_drift",
+                            f"{name} data drift detected",
+                            "monitoring_report",
+                            str(report.id),
+                            name,
+                            report.status,
+                            report.created_at,
+                            "Feature distributions or missing rates exceeded this check's thresholds.",
+                        )
+                    if len(reports) < 200 or reports[-1].created_at < since:
+                        break
+                    offset += 200
+
                 for deployment in uow.deployments.list(project.id):
                     endpoint = uow.endpoints.get_by_deployment(deployment.id)
                     bad = deployment.status in {DeploymentStatus.FAILED, DeploymentStatus.DEGRADED}

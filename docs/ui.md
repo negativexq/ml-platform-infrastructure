@@ -27,7 +27,7 @@ rules we adopted (from the `Admin-ui-design` skill):
 The top bar contains breadcrumbs, global search, theme, help and account controls. The
 sidebar stays a global capability directory: Overview (Home), Work (Projects, Runs,
 Pipelines, Schedules), Data (Connections, Datasets), AI (Models, Functions, Batch Inference),
-Serving (Deployments, Endpoints), Platform (Services), Operations (Monitor, Activity), and
+Serving (Deployments, Endpoints), Platform (Services), Operations (Monitor, Model Monitoring, Activity), and
 Admin (Identity, Settings). Infrastructure remains withheld until cluster inventory APIs
 are available. GPU quota management remains in project Settings.
 
@@ -88,6 +88,16 @@ The lineage graph links pinned input/output dataset versions, recorded producer 
 model versions. Batch run output panels link directly to catalog versions. Graphs only
 follow recorded relationships in the same project; manual metadata registration does not
 claim that objects were fetched or their contents verified.
+
+## Model Monitoring
+
+Global/project Model Monitoring creates immutable classic-model checks against pinned
+reference/observed catalog versions. Typed controls select features, sample minima,
+thresholds and optional ground-truth matching fields. Checks use existing Job runs;
+reports link exact model/dataset versions and Job/Pipeline producers. Feature scores,
+missing-rate changes, feedback coverage and regression/classification metrics are
+shown separately. A drifted measurement can have a successful run. Insufficient data
+and missing feedback are explicit, and no raw report JSON is exposed.
 
 ## Monitor (platform health)
 

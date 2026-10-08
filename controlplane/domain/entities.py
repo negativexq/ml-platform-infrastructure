@@ -142,6 +142,7 @@ class JobDefinition:
     secret_refs: SecretRefs = field(default_factory=SecretRefs)
     parameter_schema: Mapping[str, Any] = field(default_factory=dict)
     batch_spec: Mapping[str, Any] = field(default_factory=dict)
+    monitoring_spec: Mapping[str, Any] = field(default_factory=dict)
     created_at: datetime
 
     @classmethod
@@ -159,8 +160,11 @@ class JobDefinition:
         secret_refs: SecretRefs | None = None,
         parameter_schema: Mapping[str, Any] | None = None,
         batch_spec: Mapping[str, Any] | None = None,
+        monitoring_spec: Mapping[str, Any] | None = None,
     ) -> Self:
         validate_slug(name, "job name")
+        if batch_spec and monitoring_spec:
+            raise InvalidArgument("a managed job has one runtime kind")
         if not image.strip() or any(c.isspace() for c in image):
             raise InvalidArgument("image must be a non-empty reference without whitespace")
         for key, value in resources.items():
@@ -184,6 +188,7 @@ class JobDefinition:
             secret_refs=secret_refs or SecretRefs(),
             parameter_schema=validate_schema(parameter_schema or {}),
             batch_spec=dict(batch_spec or {}),
+            monitoring_spec=dict(monitoring_spec or {}),
             created_at=now,
         )
 

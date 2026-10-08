@@ -8,9 +8,9 @@ revision=$(git -C "$root" rev-parse HEAD)
 mkdir -p "$out"
 docker build --platform "${CP_BATCH_PLATFORM:-linux/arm64}" --build-arg SOURCE_REVISION="$revision" -t "$image" -f "$root/docker/batch-inference/Dockerfile" "$root"
 docker run --rm "$image" python -m pip check
-docker run --rm "$image" python -c 'import batch_inference.worker, mlflow.pyfunc, pyarrow.parquet; print("batch runtime imports passed")'
+docker run --rm "$image" python -c 'import batch_inference.worker, batch_inference.monitoring_worker, mlflow.pyfunc, pyarrow.parquet; print("batch runtime imports passed")'
 # Run the bounded-worker contract against the actual Linux runtime libraries.
-docker run --rm -v "$root/controlplane/tests/test_batch_worker.py:/tests/test_batch_worker.py:ro" "$image" sh -c 'python -m pip install --quiet --no-cache-dir --target=/tmp/test-deps pytest==8.4.2 && PYTHONPATH=/tmp/test-deps:$PYTHONPATH python -m pytest /tests/test_batch_worker.py -q' > "$out/worker-tests.txt"
+docker run --rm -v "$root/controlplane/tests/test_batch_worker.py:/tests/test_batch_worker.py:ro" -v "$root/controlplane/tests/test_monitoring_worker.py:/tests/test_monitoring_worker.py:ro" "$image" sh -c 'python -m pip install --quiet --no-cache-dir --target=/tmp/test-deps pytest==8.4.2 && PYTHONPATH=/tmp/test-deps:$PYTHONPATH python -m pytest /tests/test_batch_worker.py /tests/test_monitoring_worker.py -q' > "$out/worker-tests.txt"
 trivy image --scanners vuln --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 --format json --output "$out/trivy-fixable.json" "$image"
 trivy image --scanners vuln --severity HIGH,CRITICAL --format json --output "$out/trivy-full.json" "$image"
 trivy image --scanners secret --exit-code 1 --format json --output "$out/secrets.json" "$image"

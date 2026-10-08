@@ -18,6 +18,7 @@ TABLES = (
     "schedule_executions",
     "data_connections",
     "dataset_versions",
+    "monitoring_reports",
     "projects",
     "job_definitions",
     "runs",

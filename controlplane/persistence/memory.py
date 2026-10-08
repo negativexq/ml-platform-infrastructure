@@ -35,6 +35,7 @@ from controlplane.domain.entities import (
     StepRun,
 )
 from controlplane.domain.errors import AlreadyExists, Conflict, NotFound
+from controlplane.domain.model_monitoring import MonitoringReport
 from controlplane.domain.schedules import Schedule, ScheduleExecution
 from controlplane.domain.states import (
     DeploymentStatus,
@@ -50,6 +51,7 @@ from controlplane.domain.states import (
 
 @dataclass
 class MemoryStore:
+    monitoring_reports: dict[UUID, MonitoringReport] = field(default_factory=dict)
     data_connections: dict[UUID, DataConnection] = field(default_factory=dict)
     dataset_versions: dict[UUID, DatasetVersion] = field(default_factory=dict)
     schedules: dict[UUID, Schedule] = field(default_factory=dict)
@@ -830,7 +832,10 @@ class MemoryUnitOfWork:
 
     def __enter__(self) -> Self:
         from controlplane.persistence.memory_data import MemoryDataCatalog
+        from controlplane.persistence.memory_monitoring import MemoryMonitoring
 
+        self._monitoring_reports = dict(self._store.monitoring_reports)
+        self.monitoring = MemoryMonitoring(self._monitoring_reports)
         self._data_connections = dict(self._store.data_connections)
         self._dataset_versions = dict(self._store.dataset_versions)
         self.data_catalog = MemoryDataCatalog(self._data_connections, self._dataset_versions)
@@ -886,6 +891,7 @@ class MemoryUnitOfWork:
         return None  # uncommitted work is simply dropped
 
     def commit(self) -> None:
+        self._store.monitoring_reports = self._monitoring_reports
         self._store.data_connections = self._data_connections
         self._store.dataset_versions = self._dataset_versions
         self._store.notification_reads = self._notification_reads

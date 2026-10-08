@@ -121,6 +121,7 @@ class JobService:
         same = same and existing.secret_refs == candidate.secret_refs
         same = same and existing.parameter_schema == candidate.parameter_schema
         same = same and existing.batch_spec == candidate.batch_spec
+        same = same and existing.monitoring_spec == candidate.monitoring_spec
         if not same:
             raise Conflict(
                 f"job {candidate.name!r} already exists with a different definition; "

@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
-import { useRef, useState } from 'react';
+import { useRef } from 'react';
+import { useSearchState } from '../lib/search';
 import { api, ApiError, enc, type S } from '../api/client';
 import { Alert, Badge, Empty, Table, Time } from '../components/bits';
 import { useDeploy } from '../components/Deploy';
@@ -25,7 +26,9 @@ export function ModelPage({ project, name, functions = false }: { project: strin
   const { confirm, toast, form } = useOverlays();
   const deploy = useDeploy(project);
   const act = useAct();
-  const [picked, setPicked] = useState<string | null>(null);
+  const [selection, setSelection] = useSearchState({ version: '' });
+  const picked = selection.version || null;
+  const setPicked = (id: string | null) => setSelection({ version: id ?? '' });
   const versionsNow = useRef<Version[]>([]);
 
   const query = useLiveQuery(['model', project, name], async () => {

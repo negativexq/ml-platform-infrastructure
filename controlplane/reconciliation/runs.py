@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from uuid import UUID
 
 from controlplane.application.batch_inference import publish_output
+from controlplane.application.model_monitoring import publish_report
 from controlplane.application.projects import Clock, UnitOfWorkFactory, utc_now
 from controlplane.application.providers import ExternalState, WorkflowProvider, WorkflowStatus
 from controlplane.application.workflow_compiler import MAIN_STEP, compile_job_run
@@ -147,6 +148,17 @@ class RunReconciler:
                             status,
                             now,
                             reason="invalid or missing batch output result",
+                            exit_code=exit_code,
+                        )
+                if job and job.monitoring_spec:
+                    try:
+                        publish_report(uow, job, result, run_id=run.id, now=now)
+                    except InvalidArgument:
+                        status, action = RunStatus.FAILED, "run.failed"
+                        moved = run.transition_to(
+                            status,
+                            now,
+                            reason="invalid or missing monitoring result",
                             exit_code=exit_code,
                         )
             uow.runs.update(moved, expected_status=run.status)

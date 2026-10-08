@@ -198,6 +198,7 @@ def _job(row: JobDefinitionRow) -> JobDefinition:
         secret_refs=SecretRefs.from_json(row.secret_refs),
         parameter_schema=dict(row.parameter_schema),
         batch_spec=dict(row.batch_spec),
+        monitoring_spec=dict(row.monitoring_spec),
         created_at=row.created_at,
     )
 
@@ -252,6 +253,7 @@ class SqlJobs:
                 secret_refs=job.secret_refs.to_json(),
                 parameter_schema=dict(job.parameter_schema),
                 batch_spec=dict(job.batch_spec),
+                monitoring_spec=dict(job.monitoring_spec),
                 created_at=job.created_at,
             )
         )
@@ -1631,9 +1633,7 @@ class SqlApiKeys:
             raise NotFound("api key", key.key_id)
 
     def touch(self, key_id: str, at: datetime) -> None:
-        self._s.execute(
-            update(ApiKeyRow).where(ApiKeyRow.key_id == key_id).values(last_used_at=at)
-        )
+        self._s.execute(update(ApiKeyRow).where(ApiKeyRow.key_id == key_id).values(last_used_at=at))
 
 
 class SqlNotificationReads:
@@ -1675,6 +1675,9 @@ class SqlUnitOfWork:
         from controlplane.persistence.data_catalog import SqlDataCatalog
 
         self.data_catalog = SqlDataCatalog(self._session)
+        from controlplane.persistence.model_monitoring import SqlMonitoring
+
+        self.monitoring = SqlMonitoring(self._session)
         self.notification_reads = SqlNotificationReads(self._session)
         from controlplane.persistence.schedules import SqlSchedules
 

@@ -132,7 +132,7 @@ function DatasetLineage({ project, dataset }: { project: string; dataset: Datase
   async function visit(node: S['LineageNode']) {
     setSelected(node.id);
     if (node.kind === 'DATASET') { const target = await api.get<Dataset>(`/projects/${enc(project)}/dataset-versions/${node.ref_id}`); go(datasetUrl(project, target.name, target.version)); }
-    else if (node.kind === 'MODEL_VERSION') go(routes.model(project, node.name));
+    else if (node.kind === 'MODEL_VERSION') go(`${routes.model(project, node.name)}?version=${node.ref_id}`);
     else go(node.kind === 'JOB_RUN' ? routes.jobRun(project, node.ref_id) : routes.pipelineRun(project, node.ref_id));
   }
   const { toast } = useOverlays();

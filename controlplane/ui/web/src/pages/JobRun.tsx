@@ -1,3 +1,4 @@
+import { MonitoringOutputs } from './ModelMonitoring';
 import { BatchOutputs } from './BatchInference';
 import { RunScheduleOrigin } from './Schedules';
 import { api, type S } from '../api/client';
@@ -55,6 +56,7 @@ export function JobRunPage({ project, id }: { project: string; id: string }) {
           {r.status_reason && <Alert bad={r.status === 'FAILED'}>{r.status_reason}</Alert>}
           {r.retry_of && <p className="small muted">{'Retry of '}<a href={routes.jobRun(project, r.retry_of)}>{shortId(r.retry_of)}</a></p>}
           <BatchOutputs project={project} runId={id} />
+          <MonitoringOutputs project={project} runId={id} active={active} />
           <Logs title="Logs" text={logs.data} live={logs.live || ACTIVE.has(r.status)} filename={`${r.job || 'job'}-${shortId(r.id)}.log`} />
         </>)}
     </QueryView>

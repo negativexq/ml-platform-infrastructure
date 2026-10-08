@@ -16,6 +16,7 @@ export function useNotifications() {
 
 export function notificationHref(n: Notification) {
   if (n.resource_type === 'pipeline_run') return routes.pipelineRun(n.project, n.resource_id);
+  if (n.resource_type === 'monitoring_report') return `${routes.project(n.project)}/model-monitoring/reports/${n.resource_id}`;
   if (n.resource_type === 'run') return routes.jobRun(n.project, n.resource_id);
   if (n.resource_type === 'deployment') return routes.deployment(n.project, n.resource_name);
   if (n.resource_type === 'endpoint') return routes.endpoint(n.project, n.resource_name);
