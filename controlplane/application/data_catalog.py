@@ -152,3 +152,29 @@ class DataCatalogService:
             if entity is None:
                 raise NotFound("dataset", name)
             return entity
+
+    def connection(self, project_ref: str, id: UUID) -> DataConnection:
+        with self.factory() as uow:
+            project = resolve_project(uow, project_ref)
+            entity = uow.data_catalog.connection(id)
+            if entity is None or entity.project_id != project.id:
+                raise NotFound("data connection", id)
+            return entity
+
+    def dataset_by_id(self, project_ref: str, id: UUID) -> DatasetVersion:
+        with self.factory() as uow:
+            project = resolve_project(uow, project_ref)
+            entity = uow.data_catalog.dataset(id)
+            if entity is None or entity.project_id != project.id:
+                raise NotFound("dataset version", id)
+            return entity
+
+    def lineage(self, project_ref: str, name: str, version: int | None = None) -> dict[str, Any]:
+        from controlplane.application.data_lineage import lineage
+
+        with self.factory() as uow:
+            project = resolve_project(uow, project_ref)
+            entity = uow.data_catalog.dataset_version(project.id, name, version)
+            if entity is None:
+                raise NotFound("dataset", name)
+            return lineage(uow, entity)

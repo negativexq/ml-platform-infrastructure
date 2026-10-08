@@ -251,3 +251,37 @@ def test_batch_api_enforces_project_roles(batch, uow_factory, clock):
         client.post(path, json=body, headers={"Authorization": "Bearer publisher"}).status_code
         == 201
     )
+
+
+@pytest.mark.parametrize("telemetry", [False, True])
+def test_committed_batch_lineage_pins_input_model_and_run(batch, uow_factory, clock, telemetry):
+    service, fields, catalog, provider = batch
+    job, _ = service.create("catalog-team", **fields)
+    runs, workflow = RunService(uow_factory, clock), FakeWorkflowProvider()
+    run, _ = runs.create("catalog-team", job.name)
+    reconciler = RunReconciler(uow_factory, workflow, clock)
+    reconciler.reconcile(run.id)
+    run = runs.get(run.id)
+    workflow._status[run.external_ref] = WorkflowStatus(
+        ExternalState.SUCCEEDED, results={"main": result(job, run)}
+    )
+    reconciler.reconcile(run.id)
+    if telemetry:
+        from controlplane.application.data_catalog import DataCatalogService
+        from controlplane.observability.uow import observed_uow_factory
+
+        uow_factory = observed_uow_factory(uow_factory)
+        catalog = DataCatalogService(uow_factory, clock, provider)
+    graph = catalog.lineage("catalog-team", "predictions", 1)
+    assert {node["kind"] for node in graph["nodes"]} == {"DATASET", "MODEL_VERSION", "JOB_RUN"}
+    assert {edge["relation"] for edge in graph["edges"]} == {"INPUT", "OUTPUT", "MODEL"}
+    assert (
+        next(n for n in graph["nodes"] if n["kind"] == "MODEL_VERSION")["ref_id"]
+        == fields["model_version_id"]
+    )
+    assert next(n for n in graph["nodes"] if n["id"] == graph["root"])["name"] == "predictions"
+    client = TestClient(create_app(uow_factory, clock, secrets=provider))
+    assert (
+        client.get("/projects/catalog-team/datasets/predictions/lineage?version=1").status_code
+        == 200
+    )

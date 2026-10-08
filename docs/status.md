@@ -27,7 +27,14 @@ image gate at `b7a3420`. Historical counts retain their original scope.
   Head `0025`; backend 816 passed/13 skipped, all 12 image gates and real MinIO/MLflow/Argo
   job, retry, pipeline and schedule passed on local acceptance revision 36.
   [Contract](batch-inference.md) and [evidence](evidence/live-2026-10-08/batch-inference/README.md).
-  Full Data Management UI is next; the Batch page and run output panels are implemented.
+  The Batch page and run output panels link to catalog versions.
+
+- Data Management UI adds global/project Connections and Datasets, typed registration,
+  immutable version history, schema/integrity details and recorded batch/model/run lineage.
+  Backend 824 passed/13 skipped, frontend 22 tests, focused browser flows and all 12 final
+  image gates passed. Local acceptance revision 38 verifies real MinIO predictions and
+  the deployed lineage/navigation. Telemetry audit delegation is covered by regression tests.
+  [Contract](data-catalog.md) and [evidence](evidence/live-2026-10-08/data-management-ui/README.md).
 
 - Bottleneck telemetry now wires gateway native HTTP/outbound HTTPX spans and reconciler
   SQL tracing, including stored-origin context for DB spans. SQLAlchemy 2.0 pin fixes the

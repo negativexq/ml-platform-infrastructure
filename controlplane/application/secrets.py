@@ -210,6 +210,13 @@ class ProjectSecretService:
         project = self._project(ref)
         result: dict[str, list[SecretUse]] = {}
         with self._uow() as uow:
+            offset = 0
+            while connections := uow.data_catalog.connections(project.id, 200, offset):
+                for connection in connections:
+                    result.setdefault(connection.credential_secret, []).append(
+                        SecretUse("data_connection", connection.name)
+                    )
+                offset += len(connections)
             for job in uow.jobs.list(project.id):
                 for name in job.secret_refs.names:
                     result.setdefault(name, []).append(SecretUse("job", job.name))

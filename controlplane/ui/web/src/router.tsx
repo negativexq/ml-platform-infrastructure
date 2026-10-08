@@ -1,3 +1,4 @@
+import { ConnectionsPage, ConnectionPage, DatasetsPage, DatasetPage } from './pages/DataCatalog';
 import { BatchInferencePage } from './pages/BatchInference';
 import {
   createHashHistory, createRootRoute, createRoute, createRouter, Navigate, Outlet, redirect, useParams,
@@ -84,9 +85,16 @@ const settings = child('settings', (p) => <SettingsPage key={p.project} project=
 const batch = createRoute({ getParentRoute: () => root, path: '/batch-inference', component: () => <BatchInferencePage /> });
 const projectBatch = child('batch-inference', p => <BatchInferencePage key={p.project} project={p.project!} />);
 
+const connections = createRoute({ getParentRoute: () => root, path: '/connections', component: () => <ConnectionsPage />, validateSearch: anySearch });
+const datasets = createRoute({ getParentRoute: () => root, path: '/datasets', component: () => <DatasetsPage />, validateSearch: anySearch });
+const projectConnections = child('connections', p => <ConnectionsPage key={p.project} project={p.project!} />);
+const connection = child('connections/$id', p => <ConnectionPage key={p.id} project={p.project!} id={p.id!} />);
+const projectDatasets = child('datasets', p => <DatasetsPage key={p.project} project={p.project!} />);
+const dataset = child('datasets/$name', p => <DatasetPage key={`${p.project}/${p.name}`} project={p.project!} name={p.name!} />);
+
 const routeTree = root.addChildren([
-  index, home, help, projects, batch, monitor, schedules, schedule, services, ...capabilities, ...admin,
-  project.addChildren([overview, runs, pipelineRun, jobRun, pipelines, pipeline, jobs, job, models, model, functions, fn, endpoints, endpoint, deployments, deployment, activity, projectSchedules, projectBatch, settings]),
+  index, home, help, projects, connections, datasets, batch, monitor, schedules, schedule, services, ...capabilities, ...admin,
+  project.addChildren([overview, runs, pipelineRun, jobRun, pipelines, pipeline, jobs, job, models, model, functions, fn, endpoints, endpoint, deployments, deployment, activity, projectSchedules, projectBatch, projectConnections, connection, projectDatasets, dataset, settings]),
 ]);
 // Plain `?key=value` query strings (every value is a string), rather than JSON-encoded ones, so
 // shared links stay readable: `#/projects/x/runs?status=failed&kind=job`.

@@ -204,7 +204,43 @@ def test_catalog_viewer_operator_and_other_project_boundaries(env, uow_factory, 
         client.post(path, json=body, headers={"Authorization": "Bearer reader"}).status_code == 403
     )
     assert client.get(path, headers={"Authorization": "Bearer outsider"}).status_code == 403
-    assert (
-        client.post(path, json=body, headers={"Authorization": "Bearer publisher"}).status_code
-        == 201
-    )
+    published = client.post(path, json=body, headers={"Authorization": "Bearer publisher"})
+    assert published.status_code == 201
+    for detail in [
+        f"/projects/catalog-team/data-connections/{connection.id}",
+        f"/projects/catalog-team/dataset-versions/{published.json()['id']}",
+        "/projects/catalog-team/datasets/customer-features/lineage?version=1",
+    ]:
+        assert client.get(detail, headers={"Authorization": "Bearer reader"}).status_code == 200
+        assert client.get(detail, headers={"Authorization": "Bearer outsider"}).status_code == 403
+
+
+def test_detail_and_lineage_endpoints_do_not_cross_project_boundaries(env, uow_factory, clock):
+    service, connection, _, provider = env
+    dataset, _ = service.publish_dataset("catalog-team", **spec(connection))
+    other, _ = ProjectService(uow_factory, clock).create(CreateProject("other-data"))
+    ProjectReconciler(uow_factory, FakeClusterProvider(), clock).reconcile(other.id)
+    client = TestClient(create_app(uow_factory, clock, secrets=provider))
+    for path in [f"data-connections/{connection.id}", f"dataset-versions/{dataset.id}"]:
+        assert client.get(f"/projects/catalog-team/{path}").status_code == 200
+        assert client.get(f"/projects/other-data/{path}").status_code == 404
+    graph = client.get(f"/projects/catalog-team/datasets/{dataset.name}/lineage?version=1")
+    assert graph.status_code == 200
+    assert len(graph.json()["nodes"]) == 1
+    assert graph.json()["edges"] == []
+    assert not graph.json()["truncated"]
+
+
+def test_secret_usage_includes_connections_beyond_first_page(env):
+    service, connection, secrets, _ = env
+    for index in range(205):
+        service.create_connection(
+            "catalog-team",
+            name=f"source-{index:03}",
+            endpoint=connection.endpoint,
+            bucket=connection.bucket,
+            credential_secret=connection.credential_secret,
+        )
+    uses = secrets.usage("catalog-team")[connection.credential_secret]
+    assert len(uses) == 206
+    assert all(use.kind == "data_connection" for use in uses)

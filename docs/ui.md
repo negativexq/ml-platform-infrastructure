@@ -26,10 +26,10 @@ rules we adopted (from the `Admin-ui-design` skill):
 
 The top bar contains breadcrumbs, global search, theme, help and account controls. The
 sidebar stays a global capability directory: Overview (Home), Work (Projects, Runs,
-Pipelines), AI (Models, Functions), Serving (Deployments, Endpoints), Platform (Services),
-Operations (Monitor, Activity), and Admin (Identity, Settings). Data and Infrastructure
-are withheld until dataset/object storage and cluster/compute/storage inventory APIs are
-available. GPU quota management remains in project Settings. No Coming later surfaces.
+Pipelines, Schedules), Data (Connections, Datasets), AI (Models, Functions, Batch Inference),
+Serving (Deployments, Endpoints), Platform (Services), Operations (Monitor, Activity), and
+Admin (Identity, Settings). Infrastructure remains withheld until cluster inventory APIs
+are available. GPU quota management remains in project Settings.
 
 `#/home` is the operational landing page. It shows visible projects, active runs, model
 counts excluding functions, deployments, endpoints, platform alerts, recent failures,
@@ -51,7 +51,7 @@ pipeline and 25 job runs per project, Activity the latest 25 events.
 
 Entering a project keeps Projects selected in the global sidebar. The content header shows
 the active project name and grouped lifecycle navigation: Overview, Build (Runs, Pipelines,
-Jobs), Assets (Models, Functions), Serve (Deployments, Endpoints), Activity and Settings.
+Jobs, Schedules), Data (Connections, Datasets), Assets (Models, Functions, Batch Inference), Serve (Deployments, Endpoints), Activity and Settings.
 Dropdowns close on navigation, outside click and Escape, and highlight the active group.
 Projects opens the project cards for selection. When leaving a project through the global
 Projects link, a section query parameter carries its lifecycle section to the cards; picking
@@ -75,6 +75,19 @@ links to existing project settings without introducing new policy APIs.
 
 On a phone, the global sidebar is a drawer; grouped project lifecycle navigation remains
 in the main content and wraps to the available width.
+
+## Data catalog
+
+Global Connections and Datasets select a project and paginate its metadata. The project
+Data menu opens the same views. Connection forms reference existing S3 credential secrets;
+no credential values are shown. Dataset forms use named columns, types and nullability,
+a checksum or S3 object version and optimistic version publication. No raw JSON editing
+is needed. Version history, schema and integrity metadata remain inspectable for old versions.
+
+The lineage graph links pinned input/output dataset versions, recorded producer runs and
+model versions. Batch run output panels link directly to catalog versions. Graphs only
+follow recorded relationships in the same project; manual metadata registration does not
+claim that objects were fetched or their contents verified.
 
 ## Monitor (platform health)
 

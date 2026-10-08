@@ -3,7 +3,7 @@ import { fmtDuration } from '../lib/format';
 export type DagStep = {
   step: string; status: string; depends_on: string[]; duration_seconds?: number | null;
   /** Second line of the node; defaults to the status and duration. */
-  detail?: string; reason?: string | null;
+  detail?: string; reason?: string | null; label?: string;
 };
 
 const NODE_W = 172, NODE_H = 56, GAP_X = 60, GAP_Y = 20, PAD = 10;
@@ -61,12 +61,12 @@ export function Dag({ steps, selected, onSelect, label = 'Pipeline steps and the
           const status = s.status.toLowerCase();
           return (
             <g key={s.step} className={`node st-${s.status}${selected === s.step ? ' sel' : ''}`} transform={`translate(${p.x} ${p.y})`}
-              tabIndex={0} role="button" aria-label={`${s.step}: ${status}`} data-step={s.step}
+              tabIndex={0} role="button" aria-label={`${s.label ?? s.step}: ${status}`} data-step={s.step}
               onClick={() => onSelect(s.step)}
               onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(s.step); } }}>
-              <title>{s.reason ? `${s.step}: ${s.reason}` : s.step}</title>
+              <title>{s.reason ? `${s.label ?? s.step}: ${s.reason}` : (s.label ?? s.step)}</title>
               <rect width={NODE_W} height={NODE_H} />
-              <text x={12} y={23}>{s.step}</text>
+              <text x={12} y={23}>{s.label ?? s.step}</text>
               <text className="st" x={12} y={42}>{s.detail ?? `${status}${s.duration_seconds != null ? ` · ${fmtDuration(s.duration_seconds)}` : ''}`}</text>
             </g>
           );

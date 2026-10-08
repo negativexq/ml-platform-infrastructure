@@ -5,6 +5,8 @@ const PATHS: Record<string, string> = {
   functions: 'M10 2H7L5 14M3 6h8',
   endpoints: 'M6 5H3v6h3M10 5h3v6h-3M6 8h4',
   services: 'M2 3h12v4H2zM2 9h12v4H2z',
+  connections: 'M6 5H3v6h3M10 5h3v6h-3M6 8h4',
+  datasets: 'M3 4c0-3 10-3 10 0v8c0 3-10 3-10 0zM3 4c0 3 10 3 10 0M3 8c0 3 10 3 10 0',
   data: 'M3 4c0-3 10-3 10 0v8c0 3-10 3-10 0zM3 4c0 3 10 3 10 0M3 8c0 3 10 3 10 0',
   infrastructure: 'M2 3h12v4H2zM2 9h12v4H2zM5 5h.01M5 11h.01',
   identity: 'M5 4a3 3 0 1 0 6 0a3 3 0 1 0-6 0M2 14c0-7 12-7 12 0',

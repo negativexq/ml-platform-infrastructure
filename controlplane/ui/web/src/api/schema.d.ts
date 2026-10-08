@@ -383,6 +383,40 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{project}/data-connections/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Connection */
+        get: operations["connection_projects__project__data_connections__id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/dataset-versions/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Dataset By Id */
+        get: operations["dataset_by_id_projects__project__dataset_versions__id__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/projects/{project}/datasets": {
         parameters: {
             query?: never;
@@ -410,6 +444,23 @@ export interface paths {
         };
         /** Dataset */
         get: operations["dataset_projects__project__datasets__name__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/datasets/{name}/lineage": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Lineage */
+        get: operations["lineage_projects__project__datasets__name__lineage_get"];
         put?: never;
         post?: never;
         delete?: never;
@@ -1582,6 +1633,17 @@ export interface components {
          * @enum {string}
          */
         DatasetFormat: "CSV" | "PARQUET";
+        /** DatasetLineage */
+        DatasetLineage: {
+            /** Edges */
+            edges: components["schemas"]["LineageEdge"][];
+            /** Nodes */
+            nodes: components["schemas"]["LineageNode"][];
+            /** Root */
+            root: string;
+            /** Truncated */
+            truncated: boolean;
+        };
         /** DatasetList */
         DatasetList: {
             /** Items */
@@ -2237,6 +2299,39 @@ export interface components {
             secret_refs?: components["schemas"]["SecretRefsIn"];
             /** Timeout Seconds */
             timeout_seconds: number;
+        };
+        /** LineageEdge */
+        LineageEdge: {
+            /**
+             * Relation
+             * @enum {string}
+             */
+            relation: "INPUT" | "OUTPUT" | "MODEL" | "TRAINED";
+            /** Source */
+            source: string;
+            /** Target */
+            target: string;
+        };
+        /** LineageNode */
+        LineageNode: {
+            /** Id */
+            id: string;
+            /**
+             * Kind
+             * @enum {string}
+             */
+            kind: "DATASET" | "MODEL_VERSION" | "JOB_RUN" | "PIPELINE_RUN";
+            /** Name */
+            name: string;
+            /**
+             * Ref Id
+             * Format: uuid
+             */
+            ref_id: string;
+            /** Status */
+            status?: string | null;
+            /** Version */
+            version?: number | null;
         };
         /** LlmServingIn */
         LlmServingIn: {
@@ -4843,6 +4938,70 @@ export interface operations {
             };
         };
     };
+    connection_projects__project__data_connections__id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ConnectionOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    dataset_by_id_projects__project__dataset_versions__id__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasetOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     datasets_projects__project__datasets_get: {
         parameters: {
             query?: {
@@ -4936,6 +5095,40 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["DatasetOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    lineage_projects__project__datasets__name__lineage_get: {
+        parameters: {
+            query?: {
+                version?: number | null;
+            };
+            header?: never;
+            path: {
+                project: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["DatasetLineage"];
                 };
             };
             /** @description Validation Error */

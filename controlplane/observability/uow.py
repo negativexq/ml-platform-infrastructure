@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+from collections.abc import Sequence
 from dataclasses import replace
 from types import TracebackType
 from typing import Any, Self, cast
@@ -22,6 +23,13 @@ class _ObservedAudit:
     def __init__(self, inner: AuditLog, pending: list[tuple[AuditEvent, str | None]]) -> None:
         self._inner = inner
         self._pending = pending
+
+    def latest(
+        self, *, project_id: UUID, entity_type: str, entity_id: UUID, actions: Sequence[str]
+    ) -> AuditEvent | None:
+        return self._inner.latest(
+            project_id=project_id, entity_type=entity_type, entity_id=entity_id, actions=actions
+        )
 
     def record(self, event: AuditEvent) -> None:
         origin = bound_origin()
@@ -58,7 +66,7 @@ class ObservedUnitOfWork:
 
     @property
     def audit(self) -> AuditLog:
-        return cast(AuditLog, _ObservedAudit(self._inner.audit, self._pending))
+        return _ObservedAudit(self._inner.audit, self._pending)
 
     def commit(self) -> None:
         self._inner.commit()

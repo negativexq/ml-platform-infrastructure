@@ -1,6 +1,6 @@
 from dataclasses import asdict
 from datetime import datetime
-from typing import Annotated
+from typing import Annotated, Literal
 from uuid import UUID
 
 from fastapi import APIRouter, Query, Request, Response, status
@@ -77,6 +77,28 @@ class DatasetList(BaseModel):
     offset: int
 
 
+class LineageNode(BaseModel):
+    id: str
+    kind: Literal["DATASET", "MODEL_VERSION", "JOB_RUN", "PIPELINE_RUN"]
+    ref_id: UUID
+    name: str
+    version: int | None = None
+    status: str | None = None
+
+
+class LineageEdge(BaseModel):
+    source: str
+    target: str
+    relation: Literal["INPUT", "OUTPUT", "MODEL", "TRAINED"]
+
+
+class DatasetLineage(BaseModel):
+    root: str
+    nodes: list[LineageNode]
+    edges: list[LineageEdge]
+    truncated: bool
+
+
 def data_catalog_router() -> APIRouter:
     router = APIRouter(
         route_class=PlatformRoute, prefix="/projects/{project}", tags=["data catalog"]
@@ -151,5 +173,22 @@ def data_catalog_router() -> APIRouter:
         version: Annotated[int | None, Query(ge=1)] = None,
     ) -> DatasetOut:
         return DatasetOut(**asdict(request.app.state.data_catalog.dataset(project, name, version)))
+
+    @router.get("/data-connections/{id}", response_model=ConnectionOut)
+    def connection(project: str, id: UUID, request: Request) -> ConnectionOut:
+        return ConnectionOut(**asdict(request.app.state.data_catalog.connection(project, id)))
+
+    @router.get("/dataset-versions/{id}", response_model=DatasetOut)
+    def dataset_by_id(project: str, id: UUID, request: Request) -> DatasetOut:
+        return DatasetOut(**asdict(request.app.state.data_catalog.dataset_by_id(project, id)))
+
+    @router.get("/datasets/{name}/lineage", response_model=DatasetLineage)
+    def lineage(
+        project: str,
+        name: str,
+        request: Request,
+        version: Annotated[int | None, Query(ge=1)] = None,
+    ) -> DatasetLineage:
+        return DatasetLineage(**request.app.state.data_catalog.lineage(project, name, version))
 
     return router
