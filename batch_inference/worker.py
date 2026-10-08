@@ -330,6 +330,9 @@ def run(
                     or head["ContentLength"] != output.stat().st_size
                 ):
                     raise BatchError("output object conflict") from exc
+                verify_output(
+                    clients["OUTPUT"], bucket, key, head, metadata, output.stat().st_size
+                )
         return {
             "execution": execution,
             "uri": f"s3://{bucket}/{key}",
@@ -338,6 +341,43 @@ def run(
             "columns": columns,
             "format": spec["output_format"],
         }
+
+
+def verify_output(
+    s3: Any,
+    bucket: str,
+    key: str,
+    head: dict[str, Any],
+    metadata: dict[str, str],
+    expected_size: int,
+) -> None:
+    """Replay trusts the fetched bytes, not user-writable object metadata.
+
+    Stream without another disk copy. IfMatch guards the HEAD-to-GET race;
+    SHA-256 is still authoritative because an ETag is not a content checksum.
+    """
+    try:
+        response = s3.get_object(
+            Bucket=bucket, Key=key, **({"IfMatch": head["ETag"]} if head.get("ETag") else {})
+        )
+    except ClientError as exc:
+        if exc.response["Error"]["Code"] in {"PreconditionFailed", "412", "NoSuchKey", "404"}:
+            raise BatchError("output object conflict") from exc
+        raise
+    body = response["Body"]
+    try:
+        if response.get("Metadata") != metadata or response["ContentLength"] != expected_size:
+            raise BatchError("output object conflict")
+        digest, size = hashlib.sha256(), 0
+        while chunk := body.read(min(1024 * 1024, expected_size - size + 1)):
+            size += len(chunk)
+            if size > expected_size:
+                raise BatchError("output object conflict")
+            digest.update(chunk)
+        if size != expected_size or digest.hexdigest() != metadata["sha256"]:
+            raise BatchError("output object conflict")
+    finally:
+        body.close()
 
 
 def main() -> None:

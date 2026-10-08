@@ -18,6 +18,9 @@ class Storage:
 
     def get_object(self, **kwargs):
         self.version = kwargs.get("VersionId")
+        if kwargs["Key"] in self.outputs:
+            data, metadata = self.outputs[kwargs["Key"]]
+            return {"ContentLength": len(data), "Body": io.BytesIO(data), "Metadata": metadata}
         return {"ContentLength": len(self.data), "Body": io.BytesIO(self.data)}
 
     def put_object(self, **kwargs):
@@ -90,6 +93,44 @@ def test_chunked_prediction_and_conditional_replay(monkeypatch, input_format, ou
         run(spec, clients, lambda *args: Predictor())
 
 
+def test_replay_refuses_same_size_mutation_with_unchanged_metadata(monkeypatch):
+    spec, storage = setup(monkeypatch)
+    clients = {role: storage for role in ["INPUT", "MODEL", "OUTPUT"]}
+    run(spec, clients, lambda *args: Predictor())
+    key = next(iter(storage.outputs))
+    data, metadata = storage.outputs[key]
+    storage.outputs[key] = (bytes([data[0] ^ 1]) + data[1:], metadata)
+    with pytest.raises(ValueError, match="conflict"):
+        run(spec, clients, lambda *args: Predictor())
+
+
+@pytest.mark.parametrize("change", ["metadata", "truncated", "oversized", "race"])
+def test_replay_verification_is_bounded_and_closes_response(monkeypatch, change):
+    from batch_inference.worker import verify_output
+
+    data = b"verified prediction"
+    metadata = {"sha256": hashlib.sha256(data).hexdigest()}
+    body = io.BytesIO(data[:-1] if change == "truncated" else data + b"x")
+    calls = []
+
+    class ReplayStorage:
+        def get_object(self, **kwargs):
+            calls.append(kwargs)
+            if change == "race":
+                raise ClientError({"Error": {"Code": "PreconditionFailed"}}, "GetObject")
+            return {
+                "Metadata": {} if change == "metadata" else metadata,
+                "ContentLength": len(data),
+                "Body": body,
+            }
+
+    with pytest.raises(ValueError, match="conflict"):
+        verify_output(ReplayStorage(), "bucket", "key", {"ETag": '"etag"'}, metadata, len(data))
+    assert calls == [{"Bucket": "bucket", "Key": "key", "IfMatch": '"etag"'}]
+    if change != "race":
+        assert body.closed
+
+
 def test_checksum_is_verified_before_loading_model(monkeypatch):
     spec, storage = setup(monkeypatch)
     spec["input"]["checksum_sha256"] = "0" * 64
@@ -143,7 +184,9 @@ def test_output_budget_is_enforced_before_bytes_hit_disk(monkeypatch, tmp_path, 
 
 def test_model_manifest_verifies_every_file_before_deserialization(monkeypatch, tmp_path):
     from unittest.mock import Mock
+
     import mlflow.pyfunc
+
     from batch_inference.worker import BatchError, load_model
 
     loader = Mock(return_value=Predictor())

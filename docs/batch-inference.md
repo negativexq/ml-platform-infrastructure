@@ -34,8 +34,14 @@ artifacts compatible with the image; the worker does not install model dependenc
 These are resource ceilings, not throughput claims. Container memory limits remain essential.
 
 Output keys contain batch name, platform run UUID and step name. Conditional `IfNoneMatch=*`
-publication prevents overwrite. A same-execution replay accepts an existing object only if
-its execution metadata, content hash, row count and size match. Prediction or input-validation failure publishes no output object. A failure after
+publication prevents overwrite. A same-execution replay first compares HEAD execution metadata,
+row count and size, then streams the existing object and verifies its actual SHA-256 against the
+newly generated output. GET uses `IfMatch` when HEAD provides an ETag to guard changes between
+the requests; the ETag itself is not treated as a content checksum. Reads are bounded by the
+expected output size plus one byte, and the response is always closed. Same-size replacements
+with copied metadata fail. Verification needs no additional disk copy, but replay requires
+S3 GET permission and transfers the output bytes again. Prediction or input-validation failure
+publishes no output object. A failure after
 upload may leave an orphan as described below. A platform retry creates a new run UUID and a separate object.
 
 Argo captures a bounded JSON result parameter. The reconciler verifies its identity, URI,
@@ -52,6 +58,16 @@ cannot leave a successful platform run without its catalog entry. Cleanup of orp
 policy. Dataset output lists can filter `producer_run_id` or `producer_pipeline_run_id`;
 run pages show output versions, rows, location and checksum. The immutable batch definition
 and `batch.output_published` audit connect the input dataset and model version to each output.
+
+Migration `0029` constrains both dataset producer links with `(producer_id, project_id)`
+foreign keys. Unattributed imported datasets remain valid; cross-project Job/Pipeline
+producers fail even for direct SQL writes. The migration validates existing links and
+rolls back on inconsistent data, requiring explicit remediation instead of rewriting lineage.
+
+Replay verification establishes the fetched object's integrity at that read. Storage actors
+with overwrite permission can still change it later; downstream checksum checks detect such
+changes on consumption. Storage-level immutability requires version-pinned reads or an
+appropriate write-once/access policy. The platform does not enable these bucket policies.
 
 ## Disk resource contract
 
@@ -122,5 +138,7 @@ Partition fan-out, streaming sources, moving latest model aliases and multi-outp
 remain outside the single-object contract.
 
 Official runtime contracts: [conditional S3 PUT](https://docs.aws.amazon.com/boto3/latest/reference/services/s3/client/put_object.html),
+[conditional S3 GET](https://docs.aws.amazon.com/AmazonS3/latest/API/API_GetObject.html),
+[PostgreSQL composite foreign keys](https://www.postgresql.org/docs/current/ddl-constraints.html),
 [Parquet record batches](https://arrow.apache.org/docs/python/generated/pyarrow.parquet.ParquetFile.html),
 [MLflow pyfunc loading](https://mlflow.org/docs/latest/api_reference/python_api/mlflow.pyfunc.html).

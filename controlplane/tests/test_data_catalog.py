@@ -244,3 +244,84 @@ def test_secret_usage_includes_connections_beyond_first_page(env):
     uses = secrets.usage("catalog-team")[connection.credential_secret]
     assert len(uses) == 206
     assert all(use.kind == "data_connection" for use in uses)
+
+
+@pytest.mark.parametrize("producer", ["producer_run_id", "producer_pipeline_run_id"])
+def test_postgres_dataset_producer_ownership_and_existing_data_validation(
+    env, uow_factory, clock, producer
+):
+    from sqlalchemy import insert, select, text, update
+    from sqlalchemy.exc import IntegrityError
+
+    from controlplane.application.jobs import CreateJob, JobService
+    from controlplane.application.pipeline_runs import PipelineRunService
+    from controlplane.application.pipelines import CreatePipeline, PipelineService, StepInput
+    from controlplane.application.runs import RunService
+    from controlplane.persistence.migrate import downgrade, upgrade
+    from controlplane.persistence.models import DatasetVersionRow
+
+    with uow_factory() as check:
+        if not hasattr(check, "_session"):
+            pytest.skip("PostgreSQL constraint test")
+        engine = check._session.get_bind()
+    foreign, _ = ProjectService(uow_factory, clock).create(CreateProject("foreign-producer"))
+    ProjectReconciler(uow_factory, FakeClusterProvider(), clock).reconcile(foreign.id)
+    producers = {}
+    for project in ["catalog-team", foreign.name]:
+        job, _ = JobService(uow_factory, clock).create(project, CreateJob("producer", "worker:1"))
+        if producer == "producer_run_id":
+            run, _ = RunService(uow_factory, clock).create(project, job.name)
+            producers[project] = run.id
+        else:
+            pipeline, _ = PipelineService(uow_factory, clock).create(
+                project, CreatePipeline("producer-pipeline", (StepInput("produce", job.name),))
+            )
+            view, _ = PipelineRunService(uow_factory, clock).create(project, pipeline.name)
+            producers[project] = view.run.id
+    service, connection, _, _ = env
+    dataset, _ = service.publish_dataset("catalog-team", **spec(connection))
+    # Unattributed imports and same-project producers remain valid.
+    with uow_factory() as uow:
+        session = uow._session
+        session.execute(
+            update(DatasetVersionRow)
+            .where(DatasetVersionRow.id == dataset.id)
+            .values(**{producer: producers["catalog-team"]})
+        )
+        uow.commit()
+    with uow_factory() as uow:
+        session = uow._session
+        row = session.get(DatasetVersionRow, dataset.id)
+        values = {column.name: getattr(row, column.name) for column in row.__table__.columns}
+        values.update(id=uuid4(), name="foreign-output", **{producer: producers[foreign.name]})
+        for statement in [
+            insert(DatasetVersionRow).values(**values),
+            update(DatasetVersionRow)
+            .where(DatasetVersionRow.id == dataset.id)
+            .values(**{producer: producers[foreign.name]}),
+        ]:
+            with pytest.raises(IntegrityError) as caught, session.begin_nested():
+                session.execute(statement)
+            assert caught.value.orig.sqlstate == "23503"
+    # Upgrading an old database with a foreign producer must fail atomically,
+    # preserving both its old revision and its data for explicit remediation.
+    downgrade(engine, "0028")
+    with engine.begin() as conn:
+        conn.execute(
+            update(DatasetVersionRow)
+            .where(DatasetVersionRow.id == dataset.id)
+            .values(**{producer: producers[foreign.name]})
+        )
+    with pytest.raises(IntegrityError):
+        upgrade(engine)
+    with engine.begin() as conn:
+        assert conn.scalar(text("SELECT version_num FROM alembic_version")) == "0028"
+        assert conn.scalar(
+            select(getattr(DatasetVersionRow, producer)).where(DatasetVersionRow.id == dataset.id)
+        ) == producers[foreign.name]
+        conn.execute(
+            update(DatasetVersionRow)
+            .where(DatasetVersionRow.id == dataset.id)
+            .values(**{producer: producers["catalog-team"]})
+        )
+    upgrade(engine)

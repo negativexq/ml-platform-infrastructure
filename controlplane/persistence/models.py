@@ -515,6 +515,18 @@ class DatasetVersionRow(Base):
             "producer_run_id IS NULL OR producer_pipeline_run_id IS NULL",
             name="ck_dataset_one_producer",
         ),
+        ForeignKeyConstraint(
+            ["producer_run_id", "project_id"],
+            ["runs.id", "runs.project_id"],
+            name="fk_dataset_producer_run_project",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["producer_pipeline_run_id", "project_id"],
+            ["pipeline_runs.id", "pipeline_runs.project_id"],
+            name="fk_dataset_producer_pipeline_project",
+            ondelete="RESTRICT",
+        ),
     )
 
 
