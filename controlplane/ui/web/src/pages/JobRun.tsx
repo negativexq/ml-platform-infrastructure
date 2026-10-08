@@ -1,5 +1,5 @@
 import { MonitoringOutputs } from './ModelMonitoring';
-import { BatchOutputs } from './BatchInference';
+import { BatchInputs, BatchOutputs } from './BatchInference';
 import { RunScheduleOrigin } from './Schedules';
 import { api, type S } from '../api/client';
 import { Alert, Badge, CopyButton, Kv, Time } from '../components/bits';
@@ -55,6 +55,7 @@ export function JobRunPage({ project, id }: { project: string; id: string }) {
           </p>
           {r.status_reason && <Alert bad={r.status === 'FAILED'}>{r.status_reason}</Alert>}
           {r.retry_of && <p className="small muted">{'Retry of '}<a href={routes.jobRun(project, r.retry_of)}>{shortId(r.retry_of)}</a></p>}
+          <BatchInputs project={project} inputs={r.batch_inputs} />
           <BatchOutputs project={project} runId={id} />
           <MonitoringOutputs project={project} runId={id} active={active} />
           <Logs title="Logs" text={logs.data} live={logs.live || ACTIVE.has(r.status)} filename={`${r.job || 'job'}-${shortId(r.id)}.log`} />

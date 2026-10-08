@@ -6,6 +6,8 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
+from controlplane.api.schemas_runs import BatchInputOut
+from controlplane.application.batch_snapshots import snapshot_inputs
 from controlplane.application.pipeline_runs import PipelineRunView, TrackedRun
 from controlplane.domain.entities import PipelineDefinition, PipelineRun, StepRun
 from controlplane.domain.states import RunStatus, StepStatus
@@ -97,6 +99,7 @@ class StepRunOut(BaseModel):
 
 
 class PipelineRunSummary(BaseModel):
+    batch_inputs: dict[str, BatchInputOut] = Field(default_factory=dict)
     parameters: dict[str, Any] = Field(default_factory=dict)
 
     """Omits the workflow system's references: the platform id is the only identity."""
@@ -134,6 +137,7 @@ class PipelineRunSummary(BaseModel):
             workflow_cleaned_at=run.workflow_cleaned_at,
             commit_sha=run.commit_sha,
             parameters=dict(run.parameters),
+            batch_inputs=snapshot_inputs(run.batch_snapshots),
             created_at=run.created_at,
             started_at=run.started_at,
             finished_at=run.finished_at,

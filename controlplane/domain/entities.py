@@ -298,6 +298,7 @@ class PipelineRun:
     timeout_seconds: int = 3600
     traceparent: str | None = None
     parameters: Mapping[str, Any] = field(default_factory=dict)
+    batch_snapshots: Mapping[str, Any] = field(default_factory=dict)
     created_at: datetime
     updated_at: datetime
     started_at: datetime | None = None
@@ -360,6 +361,7 @@ class Run:
     timeout_seconds: int = 3600
     traceparent: str | None = None
     parameters: Mapping[str, Any] = field(default_factory=dict)
+    batch_snapshot: Mapping[str, Any] = field(default_factory=dict)
     created_at: datetime
     updated_at: datetime
     started_at: datetime | None = None

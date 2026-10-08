@@ -45,6 +45,7 @@ def batch(request, uow_factory, clock):
         output_connection_id=connection.id,
         output_dataset="predictions",
         features=["income"],
+        model_manifest=[{"path": "MLmodel", "size": 10, "sha256": "a" * 64}],
     )
     return service, fields, catalog, provider
 
@@ -285,3 +286,18 @@ def test_committed_batch_lineage_pins_input_model_and_run(batch, uow_factory, cl
         client.get("/projects/catalog-team/datasets/predictions/lineage?version=1").status_code
         == 200
     )
+
+
+def test_disk_reservation_applies_to_managed_and_legacy_definitions(batch, uow_factory, clock):
+    from dataclasses import replace
+    from controlplane.application.workflow_compiler import compile_job_run
+
+    service, fields, _, _ = batch
+    job, _ = service.create("catalog-team", **fields, resources={"cpu": "500m", "memory": "1Gi"})
+    assert job.resources["ephemeral-storage"] == "3072Mi"
+    run, _ = RunService(uow_factory, clock).create("catalog-team", job.name)
+    with uow_factory() as uow:
+        project = uow.projects.get(job.project_id)
+    legacy = replace(job, resources={"cpu": "500m", "memory": "1Gi"})
+    compiled = compile_job_run(project, legacy, run)
+    assert compiled.steps[0].resources["ephemeral-storage"] == "3072Mi"

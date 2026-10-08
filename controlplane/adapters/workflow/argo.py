@@ -10,6 +10,7 @@ from typing import Any
 
 from kubernetes import client
 from kubernetes.client.exceptions import ApiException
+from kubernetes.utils.quantity import parse_quantity
 
 from controlplane.adapters.kubernetes import load_api_client
 from controlplane.adapters.kubernetes.security import (
@@ -25,7 +26,7 @@ from controlplane.application.providers import (
     WorkflowSpec,
     WorkflowStatus,
 )
-from controlplane.domain.errors import NotFound
+from controlplane.domain.errors import InvalidArgument, NotFound
 
 GROUP, VERSION, PLURAL = "argoproj.io", "v1alpha1", "workflows"
 
@@ -183,6 +184,15 @@ class ArgoWorkflowProvider:
         if self._require_image_digest:
             for step in spec.steps:
                 require_training_digest(step.image)
+        if any("ephemeral-storage" in step.resources for step in spec.steps):
+            # Capacity can change after a committed submit. Replay must adopt the
+            # existing workflow rather than reject it on a new capacity check.
+            try:
+                self._get(_ref(spec.namespace, spec.name))
+                return _ref(spec.namespace, spec.name)
+            except NotFound:
+                pass
+            self._validate_disk_capacity(spec)
         # The workflow name is derived from the run, so the name *is* the idempotency
         # key: a second submit hits 409 and returns the workflow that already exists.
         try:
@@ -193,6 +203,46 @@ class ArgoWorkflowProvider:
             if exc.status != 409:
                 raise
         return _ref(spec.namespace, spec.name)
+
+    def _validate_disk_capacity(self, spec: WorkflowSpec) -> None:
+        """Reject impossible pods, not temporary contention. Kubernetes reserves
+        requests and enforces current quota atomically at pod admission."""
+        defaults = {"request": 0, "limit": 0}
+        for limit_range in self._core.list_namespaced_limit_range(spec.namespace).items:
+            for item in limit_range.spec.limits:
+                if item.type == "Container":
+                    for kind, values in (
+                        ("request", item.default_request),
+                        ("limit", item.default),
+                    ):
+                        defaults[kind] = max(
+                            defaults[kind],
+                            parse_quantity((values or {}).get("ephemeral-storage", "0")),
+                        )
+        required = [
+            parse_quantity(step.resources["ephemeral-storage"])
+            for step in spec.steps
+            if "ephemeral-storage" in step.resources
+        ]
+        pod_request = max(max(required) + defaults["request"], defaults["request"])
+        pod_limit = max(max(required) + defaults["limit"], defaults["limit"])
+        for quota in self._core.list_namespaced_resource_quota(spec.namespace).items:
+            hard = quota.spec.hard or {}
+            for name, value in (
+                ("requests.ephemeral-storage", pod_request),
+                ("limits.ephemeral-storage", pod_limit),
+            ):
+                if name in hard and value > parse_quantity(hard[name]):
+                    raise InvalidArgument("worker disk reservation exceeds namespace quota")
+        nodes = self._core.list_node().items
+        if not any(
+            parse_quantity((node.status.allocatable or {}).get("ephemeral-storage", "0"))
+            >= pod_request
+            for node in nodes
+        ):
+            raise InvalidArgument(
+                "worker disk reservation exceeds every node's allocatable storage"
+            )
 
     def _get(self, ref: str) -> dict[str, Any]:
         namespace, name = _split(ref)

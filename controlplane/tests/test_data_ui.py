@@ -111,6 +111,7 @@ def test_batch_output_graph_opens_pinned_input(page, server):  # noqa: F811
         output_connection_id=connection.id,
         output_dataset="predictions",
         features=["income"],
+        model_manifest=[{"path": "MLmodel", "size": 10, "sha256": "a" * 64}],
     )
     runs, workflow = RunService(demo.uow_factory, demo.clock), FakeWorkflowProvider()
     run, _ = runs.create("credit-risk", job.name)

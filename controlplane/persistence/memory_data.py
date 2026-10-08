@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from datetime import date
 from uuid import UUID
 
 from controlplane.domain.data import DataConnection, DatasetVersion
@@ -64,6 +65,21 @@ class MemoryDataCatalog:
             and (version is None or version == e.version)
         ]
         return max(values, key=lambda e: e.version, default=None)
+
+    def dataset_for_date(
+        self, project_id: UUID, name: str, processing_date: date
+    ) -> DatasetVersion | None:
+        return max(
+            (
+                e
+                for e in self._datasets.values()
+                if e.project_id == project_id
+                and e.name == name
+                and e.processing_date == processing_date
+            ),
+            key=lambda e: e.version,
+            default=None,
+        )
 
     def datasets(
         self,

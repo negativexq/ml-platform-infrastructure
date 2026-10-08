@@ -275,6 +275,7 @@ class PipelineRunReconciler:
                             result,
                             run_id=run.id,
                             pipeline=True,
+                            snapshot=run.batch_snapshots.get(step.step_name, {}),
                             step=step.step_name,
                             now=now,
                         )

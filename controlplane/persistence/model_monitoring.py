@@ -1,5 +1,5 @@
 from collections.abc import Sequence
-from dataclasses import asdict
+from dataclasses import asdict, fields
 from uuid import UUID
 
 from sqlalchemy import select
@@ -8,7 +8,7 @@ from sqlalchemy.orm import Session
 
 from controlplane.domain.errors import AlreadyExists
 from controlplane.domain.model_monitoring import MonitoringReport
-from controlplane.persistence.models import MonitoringReportRow
+from controlplane.persistence.models import ModelVersionRow, MonitoringReportRow
 
 
 class SqlMonitoring:
@@ -16,7 +16,10 @@ class SqlMonitoring:
         self.session = session
 
     def add(self, report: MonitoringReport) -> None:
-        self.session.add(MonitoringReportRow(**asdict(report)))
+        model_id = self.session.scalar(
+            select(ModelVersionRow.model_id).where(ModelVersionRow.id == report.model_version_id)
+        )
+        self.session.add(MonitoringReportRow(model_id=model_id, **asdict(report)))
         try:
             self.session.flush()
         except IntegrityError as exc:
@@ -25,7 +28,7 @@ class SqlMonitoring:
     @staticmethod
     def entity(row: MonitoringReportRow) -> MonitoringReport:
         return MonitoringReport(
-            **{column.name: getattr(row, column.name) for column in row.__table__.columns}
+            **{field.name: getattr(row, field.name) for field in fields(MonitoringReport)}
         )
 
     def get(self, id: UUID) -> MonitoringReport | None:

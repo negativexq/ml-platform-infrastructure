@@ -11,6 +11,7 @@ import sqlite3
 import tempfile
 from collections import Counter
 from collections.abc import Iterator
+from contextlib import closing
 from pathlib import Path
 from typing import Any
 from urllib.parse import urlsplit
@@ -171,6 +172,15 @@ def key(value: Any) -> str:
 
 
 def performance(spec: dict[str, Any], paths: dict[str, Path], root: Path) -> dict[str, Any] | None:
+    try:
+        return _performance(spec, paths, root)
+    except sqlite3.OperationalError as exc:
+        if getattr(exc, "sqlite_errorcode", None) == sqlite3.SQLITE_FULL:
+            raise BatchError("feedback matching exceeds disk limit") from None
+        raise
+
+
+def _performance(spec: dict[str, Any], paths: dict[str, Path], root: Path) -> dict[str, Any] | None:
     if not spec.get("feedback"):
         return None
     matched = observed = truth_rows = 0
@@ -178,7 +188,15 @@ def performance(spec: dict[str, Any], paths: dict[str, Path], root: Path) -> dic
     labels: set[str] = set()
     confusion: Counter[tuple[str, str]] = Counter()
     database = root / "feedback.sqlite"
-    with sqlite3.connect(database) as connection:
+    # Reserve the database and its rollback journal separately. Enforce the page
+    # ceiling inside SQLite, before a batch can grow the file beyond its budget.
+    pages = spec["max_join_bytes"] // 4096
+    if pages < 3:
+        raise BatchError("feedback matching exceeds disk limit")
+    with closing(sqlite3.connect(database)) as connection, connection:
+        connection.execute("PRAGMA page_size=4096")
+        connection.execute(f"PRAGMA max_page_count={pages}")
+        connection.execute("PRAGMA journal_mode=DELETE")
         connection.execute("PRAGMA cache_size=-8192")
         connection.execute(
             "CREATE TABLE truth (entity TEXT PRIMARY KEY, value TEXT, matched INTEGER DEFAULT 0)"

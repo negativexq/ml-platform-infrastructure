@@ -103,6 +103,9 @@ class RunRow(Base):
     idempotency_key: Mapped[str | None] = mapped_column(String(200))
     traceparent: Mapped[str | None] = mapped_column(String(128))
     timeout_seconds: Mapped[int] = mapped_column(Integer, nullable=False, server_default="3600")
+    batch_snapshot: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, server_default="{}"
+    )
     parameters: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, server_default="{}")
     created_at: Mapped[datetime] = _ts()
     updated_at: Mapped[datetime] = _ts()
@@ -153,6 +156,9 @@ class PipelineRunRow(Base):
     idempotency_key: Mapped[str | None] = mapped_column(String(200))
     traceparent: Mapped[str | None] = mapped_column(String(128))
     timeout_seconds: Mapped[int] = mapped_column(Integer, nullable=False, server_default="3600")
+    batch_snapshots: Mapped[dict[str, Any]] = mapped_column(
+        JSONB, nullable=False, server_default="{}"
+    )
     parameters: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, server_default="{}")
     created_at: Mapped[datetime] = _ts()
     updated_at: Mapped[datetime] = _ts()
@@ -514,6 +520,7 @@ class DatasetVersionRow(Base):
 
 class MonitoringReportRow(Base):
     __tablename__ = "monitoring_reports"
+    model_id: Mapped[UUID] = mapped_column(Uuid, nullable=False)
     id: Mapped[UUID] = mapped_column(Uuid, primary_key=True)
     project_id: Mapped[UUID] = _fk("projects.id")
     job_definition_id: Mapped[UUID] = _fk("job_definitions.id")
@@ -545,3 +552,46 @@ class MonitoringReportRow(Base):
         Index("ix_monitoring_project_created", "project_id", "created_at"),
         Index("ix_monitoring_model_version", "model_version_id"),
     )
+
+
+# Monitoring ownership is enforced even for writes outside application services.
+for _parent in (JobDefinitionRow, DatasetVersionRow, RunRow, PipelineRunRow, ModelRow):
+    _parent.__table__.append_constraint(
+        UniqueConstraint("id", "project_id", name=f"uq_{_parent.__tablename__}_id_project")
+    )
+ModelVersionRow.__table__.append_constraint(
+    UniqueConstraint("id", "model_id", name="uq_model_versions_id_model")
+)
+for _column, _parent in {
+    "job_definition_id": "job_definitions",
+    "reference_dataset_id": "dataset_versions",
+    "observed_dataset_id": "dataset_versions",
+    "feedback_dataset_id": "dataset_versions",
+    "job_run_id": "runs",
+    "pipeline_run_id": "pipeline_runs",
+    "model_id": "models",
+}.items():
+    MonitoringReportRow.__table__.append_constraint(
+        ForeignKeyConstraint(
+            [_column, "project_id"],
+            [f"{_parent}.id", f"{_parent}.project_id"],
+            name=f"fk_monitoring_{_column}_project",
+            ondelete="RESTRICT",
+        )
+    )
+MonitoringReportRow.__table__.append_constraint(
+    ForeignKeyConstraint(
+        ["model_version_id", "model_id"],
+        ["model_versions.id", "model_versions.model_id"],
+        name="fk_monitoring_version_model",
+        ondelete="RESTRICT",
+    )
+)
+
+Index(
+    "ix_dataset_processing_date",
+    DatasetVersionRow.project_id,
+    DatasetVersionRow.name,
+    DatasetVersionRow.spec["processing_date"].astext,
+    DatasetVersionRow.version.desc(),
+)

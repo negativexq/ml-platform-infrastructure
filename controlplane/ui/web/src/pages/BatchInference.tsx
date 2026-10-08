@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api, enc, type S } from '../api/client';
 import { Empty, Table, Time } from '../components/bits';
 import { useOverlays } from '../components/overlays';
+import type { ParameterSchema } from '../components/ParameterFields';
 import { useAccess } from '../lib/me';
 import { useCrumbs } from '../lib/chrome';
 import { go, routes } from '../lib/format';
@@ -29,11 +30,13 @@ export function BatchInferencePage({ project: initialProject }: { project?: stri
       if (!datasets.items.length || !connections.items.length || !versions.length) { toast('Register a dataset, S3 connections and a classic model version first.', 'bad'); return; }
       const options = connections.items.map(c => ({ value: c.id, label: `${c.name} · ${c.bucket}/${c.prefix}` }));
       const job = await form<S['JobOut']>({ title: 'Create batch inference', submitLabel: 'Create batch',
-        intro: 'The input dataset and model version are pinned. Runs preserve input columns and add one prediction per row.',
+        intro: 'Each run freezes its selected dataset and verifies model files. Runs preserve input columns and add one prediction per row.',
         fields: [
           { name: 'name', label: 'Name', required: true, pattern: '^[a-z][a-z0-9]*(-[a-z0-9]+)*$', placeholder: 'daily-scoring' },
           { name: 'input_dataset_id', label: 'Input dataset version', required: true, options: datasets.items.map(d => ({ value: d.id, label: `${d.name} · v${d.version} · ${d.format}` })) },
+          { name: 'input_selection_policy', label: 'Input selection', value: 'PINNED', options: [{ value: 'PINNED', label: 'Use this dataset version' }, { value: 'LATEST_AT_EXECUTION', label: 'Latest version when the run is created' }, { value: 'BY_PROCESSING_DATE', label: 'Match the processing date' }], hint: 'Date selection requires datasets with a processing date. Bind processing_date in the schedule.' },
           { name: 'model_version_id', label: 'Model version', required: true, options: versions },
+          { name: 'model_manifest', label: 'Model file manifest (JSON)', type: 'textarea', required: true, hint: 'Complete file list with path, size and sha256, generated from the trusted model package.' },
           { name: 'model_connection_id', label: 'Model artifact connection', required: true, options },
           { name: 'output_connection_id', label: 'Output connection', required: true, options },
           { name: 'output_dataset', label: 'Output dataset name', required: true, placeholder: 'daily-predictions' },
@@ -43,7 +46,7 @@ export function BatchInferencePage({ project: initialProject }: { project?: stri
           { name: 'cpu', label: 'CPU', value: '1', hint: 'CPU request and limit, for example 1 or 500m.' },
           { name: 'memory', label: 'Memory', value: '2Gi', hint: 'Memory request and limit. Small local acceptance datasets can use 1Gi.' },
           { name: 'batch_size', label: 'Rows per prediction batch', value: '1000', pattern: '^[1-9][0-9]*$' },
-        ], submit: values => { const { cpu, memory, ...fields } = values; return api.post<S['JobOut']>(`/projects/${enc(project)}/batch-inference`, { ...fields, resources: { cpu, memory }, features: (values.features ?? '').split(',').map(s => s.trim()).filter(Boolean), batch_size: Number(values.batch_size) }); },
+        ], submit: values => { const { cpu, memory, ...fields } = values; return api.post<S['JobOut']>(`/projects/${enc(project)}/batch-inference`, { ...fields, model_manifest: JSON.parse(values.model_manifest || '[]'), resources: { cpu, memory }, features: (values.features ?? '').split(',').map(s => s.trim()).filter(Boolean), batch_size: Number(values.batch_size) }); },
       });
       if (job) { toast('Batch definition created'); query.refetch(); }
     } catch (error) { toast(error instanceof Error ? error.message : 'Could not create batch inference', 'bad'); }
@@ -52,10 +55,10 @@ export function BatchInferencePage({ project: initialProject }: { project?: stri
     <div className="page-head"><h1>Batch Inference</h1><button className="btn primary" disabled={!project || !access.may('operator')} onClick={create}>Create batch inference</button></div>
     <p className="sub">Score versioned CSV or Parquet datasets with classic ML models. Run now, use in a pipeline, or schedule recurring execution.</p>
     {!initialProject && <div className="toolbar"><label>Project <select aria-label="Project" value={project} onChange={e => setProject(e.target.value)}><option value="">Select a project</option>{projects.data?.items.map(p => <option key={p.id} value={p.name}>{p.display_name}</option>)}</select></label></div>}
-    {!project ? <Empty>Select a project to view its batch definitions.</Empty> : <QueryView query={query}>{list => list.items.length === 0 ? <Empty>No batch definitions yet.</Empty> : <Table head={['Definition', 'Input', 'Output dataset', 'Format', 'Created', '']} testid="batch-definitions">{list.items.map(job => {
+    {!project ? <Empty>Select a project to view its batch definitions.</Empty> : <QueryView query={query}>{list => list.items.length === 0 ? <Empty>No batch definitions yet.</Empty> : <Table head={['Definition', 'Input', 'Selection', 'Output dataset', 'Format', 'Created', '']} testid="batch-definitions">{list.items.map(job => {
       const spec = job.batch_spec as Record<string, unknown>;
       const input = spec.input as { name: string; version: number };
-      return <tr key={job.id}><td><a href={`${routes.project(project)}/jobs/${enc(job.name)}`}>{job.name}</a></td><td>{input.name} · v{input.version}</td><td>{String(spec.output_dataset)}</td><td>{String(spec.output_format)}</td><td><Time iso={job.created_at} /></td><td><button className="btn small" disabled={!access.may('operator')} onClick={async () => { try { const run = await api.post<S['RunOut']>(`/projects/${enc(project)}/jobs/${enc(job.name)}/runs`, {}); go(routes.jobRun(project, run.id)); } catch (error) { toast(error instanceof Error ? error.message : 'Could not start batch', 'bad'); } }}>Run now</button></td></tr>;
+      return <tr key={job.id}><td><a href={`${routes.project(project)}/jobs/${enc(job.name)}`}>{job.name}</a></td><td>{input.name} · v{input.version}</td><td>{String(spec.input_selection_policy ?? 'PINNED')}</td><td>{String(spec.output_dataset)}</td><td>{String(spec.output_format)}</td><td><Time iso={job.created_at} /></td><td><button className="btn small" disabled={!access.may('operator')} onClick={async () => { try { const run = job.parameter_schema && Object.keys(job.parameter_schema).length ? await form<S['RunOut']>({ title: `Run ${job.name}`, submitLabel: 'Start run', fields: [{ name: 'parameters', label: 'Run parameters', type: 'parameters', parameterSchema: () => (job.parameter_schema ?? {}) as ParameterSchema }], submit: values => api.post<S['RunOut']>(`/projects/${enc(project)}/jobs/${enc(job.name)}/runs`, { parameters: JSON.parse(values.parameters || '{}') }) }) : await api.post<S['RunOut']>(`/projects/${enc(project)}/jobs/${enc(job.name)}/runs`, {}); if (run) go(routes.jobRun(project, run.id)); } catch (error) { toast(error instanceof Error ? error.message : 'Could not start batch', 'bad'); } }}>Run now</button></td></tr>;
     })}</Table>}</QueryView>}
   </>;
 }
@@ -64,4 +67,12 @@ export function BatchOutputs({ project, runId, pipeline = false }: { project: st
   const query = useQuery({ queryKey: ['batch-outputs', runId, pipeline], queryFn: () => api.get<S['DatasetList']>(`/projects/${enc(project)}/datasets?${pipeline ? 'producer_pipeline_run_id' : 'producer_run_id'}=${enc(runId)}`), refetchInterval: 5000 });
   if (!query.data?.items.length) return null;
   return <section className="section card" data-testid="batch-outputs"><h2>Output datasets</h2><Table head={['Dataset', 'Rows', 'Format', 'Location', 'Integrity']}>{query.data.items.map(d => <tr key={d.id}><td><a href={`${routes.project(project)}/datasets/${enc(d.name)}?version=${d.version}`}>{d.name} · v{d.version}</a></td><td>{d.row_count?.toLocaleString() ?? '—'}</td><td>{d.format}</td><td className="mono small">{d.uri}</td><td className="mono small" title={d.checksum_sha256 ?? ''}>{d.checksum_sha256?.slice(0, 12)}…</td></tr>)}</Table></section>;
+}
+
+
+export function BatchInputs({ project, inputs }: { project: string; inputs?: Record<string, S['BatchInputOut']> }) {
+  if (!inputs || !Object.keys(inputs).length) return null;
+  return <section className="section card" data-testid="batch-inputs"><h2>Execution inputs</h2><Table head={['Step', 'Dataset', 'Processing date', 'Selection']}>
+    {Object.entries(inputs).map(([step, input]) => <tr key={step}><td>{step}</td><td><a href={`${routes.project(project)}/datasets/${enc(input.name)}?version=${input.version}`}>{input.name} · v{input.version}</a></td><td>{input.processing_date ?? '—'}</td><td>{input.selection_policy}</td></tr>)}
+  </Table></section>;
 }

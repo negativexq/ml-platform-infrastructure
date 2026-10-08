@@ -1,4 +1,5 @@
 from collections.abc import Sequence
+from datetime import date
 from typing import Protocol
 from uuid import UUID
 
@@ -18,6 +19,9 @@ class DataCatalogRepository(Protocol):
     def dataset(self, id: UUID) -> DatasetVersion | None: ...
     def dataset_version(
         self, project_id: UUID, name: str, version: int | None = None
+    ) -> DatasetVersion | None: ...
+    def dataset_for_date(
+        self, project_id: UUID, name: str, processing_date: date
     ) -> DatasetVersion | None: ...
     def datasets(
         self,

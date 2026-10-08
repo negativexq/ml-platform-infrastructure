@@ -126,3 +126,48 @@ def test_versioned_input_and_schema_mismatch(monkeypatch):
             lambda *args: Predictor(),
         )
     assert storage.version == "version-1"
+
+
+@pytest.mark.parametrize("fmt", ["CSV", "PARQUET"])
+def test_output_budget_is_enforced_before_bytes_hit_disk(monkeypatch, tmp_path, fmt):
+    from batch_inference.worker import BatchError, predict_file
+
+    spec, storage = setup(monkeypatch, output_format=fmt)
+    source, target = tmp_path / "input", tmp_path / "output"
+    source.write_bytes(storage.data)
+    spec["max_bytes"] = 24
+    with pytest.raises(BatchError, match="byte limit"):
+        predict_file(spec, source, target, Predictor())
+    assert target.stat().st_size <= 24
+
+
+def test_model_manifest_verifies_every_file_before_deserialization(monkeypatch, tmp_path):
+    from unittest.mock import Mock
+    import mlflow.pyfunc
+    from batch_inference.worker import BatchError, load_model
+
+    loader = Mock(return_value=Predictor())
+    monkeypatch.setattr(mlflow.pyfunc, "load_model", loader)
+    data = b"model: trusted"
+    manifest = [
+        {
+            "path": "MLmodel",
+            "size": len(data),
+            "sha256": hashlib.sha256(data).hexdigest(),
+            "object_version_id": "pinned-version",
+        }
+    ]
+    storage = Storage(data)
+    assert isinstance(
+        load_model(storage, "s3://datasets/model", tmp_path / "ok", 1000, manifest), Predictor
+    )
+    assert storage.version == "pinned-version"
+    loader.assert_called_once()
+    loader.reset_mock()
+    storage.data = b"model: changed"
+    with pytest.raises(BatchError, match="immutable manifest"):
+        load_model(storage, "s3://datasets/model", tmp_path / "corrupt", 1000, manifest)
+    loader.assert_not_called()
+    with pytest.raises(BatchError, match="manifest requires"):
+        load_model(storage, "s3://datasets/model", tmp_path / "missing", 1000)
+    loader.assert_not_called()

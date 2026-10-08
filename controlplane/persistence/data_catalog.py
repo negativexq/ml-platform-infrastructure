@@ -1,5 +1,6 @@
 from collections.abc import Sequence
 from dataclasses import asdict
+from datetime import date
 from typing import Any
 from uuid import UUID
 
@@ -39,6 +40,8 @@ def values(
     entity: DataConnection | DatasetVersion, row: type[DataConnectionRow] | type[DatasetVersionRow]
 ) -> dict[str, Any]:
     data = asdict(entity)
+    if isinstance(entity, DatasetVersion) and entity.processing_date is not None:
+        data["processing_date"] = entity.processing_date.isoformat()
     columns = set(row.__table__.columns.keys()) - {"spec"}
     return {
         **{k: v for k, v in data.items() if k in columns},
@@ -116,6 +119,21 @@ class SqlDataCatalog:
         if version is not None:
             query = query.where(DatasetVersionRow.version == version)
         row = self.session.scalar(query.order_by(DatasetVersionRow.version.desc()).limit(1))
+        return dataset(row) if row else None
+
+    def dataset_for_date(
+        self, project_id: UUID, name: str, processing_date: date
+    ) -> DatasetVersion | None:
+        row = self.session.scalar(
+            select(DatasetVersionRow)
+            .where(
+                DatasetVersionRow.project_id == project_id,
+                DatasetVersionRow.name == name,
+                DatasetVersionRow.spec["processing_date"].astext == processing_date.isoformat(),
+            )
+            .order_by(DatasetVersionRow.version.desc())
+            .limit(1)
+        )
         return dataset(row) if row else None
 
     def datasets(

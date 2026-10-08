@@ -47,6 +47,9 @@ def test_create_and_start_batch_from_typed_form(page, server):  # noqa: F811
     page.locator("#f-name").fill("daily-score")
     page.locator("#f-output_dataset").fill("predictions")
     page.locator("#f-features").fill("income")
+    page.locator("#f-model_manifest").fill(
+        '[{"path":"MLmodel","size":10,"sha256":"' + "a" * 64 + '"}]'
+    )
     page.locator("#f-memory").fill("1Gi")
     page.get_by_test_id("form-submit").click()
     expect(page.get_by_test_id("batch-definitions")).to_contain_text("daily-score")

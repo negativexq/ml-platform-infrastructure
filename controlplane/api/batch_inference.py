@@ -10,11 +10,23 @@ from controlplane.domain.data import DatasetFormat
 from controlplane.domain.errors import NotFound
 
 
+class ModelArtifactFile(BaseModel):
+    model_config = ConfigDict(extra="forbid")
+    path: str = Field(min_length=1, max_length=1024)
+    size: int = Field(ge=0, strict=True)
+    sha256: str = Field(pattern=r"^[a-f0-9]{64}$")
+    object_version_id: str | None = Field(default=None, min_length=1, max_length=1024)
+
+
 class BatchCreate(BaseModel):
     model_config = ConfigDict(extra="forbid")
     name: str = Field(max_length=40)
     input_dataset_id: UUID
+    input_selection_policy: Literal["PINNED", "LATEST_AT_EXECUTION", "BY_PROCESSING_DATE"] = (
+        "PINNED"
+    )
     model_version_id: UUID
+    model_manifest: list[ModelArtifactFile] = Field(min_length=1, max_length=1000)
     model_connection_id: UUID
     output_connection_id: UUID
     output_dataset: str = Field(max_length=40)

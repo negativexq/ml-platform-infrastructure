@@ -141,7 +141,7 @@ class RunReconciler:
                 job = uow.jobs.get(run.job_definition_id)
                 if job and job.batch_spec:
                     try:
-                        publish_output(uow, job, result, run_id=run.id, now=now)
+                        publish_output(uow, job, result, run_id=run.id, now=now, snapshot=run.batch_snapshot)
                     except InvalidArgument:
                         status, action = RunStatus.FAILED, "run.failed"
                         moved = run.transition_to(

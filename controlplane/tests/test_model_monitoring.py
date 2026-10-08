@@ -348,3 +348,109 @@ def test_feedback_matching_contract_and_metrics_are_validated(monitoring, reques
     )
     assert reconciler.reconcile(retry.id).after == RunStatus.FAILED
     assert len(service.reports("catalog-team")) == 1
+
+
+@pytest.mark.parametrize(
+    "field",
+    [
+        "job_definition_id",
+        "reference_dataset_id",
+        "observed_dataset_id",
+        "feedback_dataset_id",
+        "job_run_id",
+        "pipeline_run_id",
+        "model_version_id",
+        "model_id",
+    ],
+)
+def test_postgres_refuses_cross_project_report_links(monitoring, uow_factory, clock, field):
+    from sqlalchemy import insert, literal, select, update
+    from sqlalchemy.exc import IntegrityError
+    from controlplane.domain.entities import Project
+    from controlplane.persistence.models import (
+        DataConnectionRow,
+        DatasetVersionRow,
+        JobDefinitionRow,
+        ModelRow,
+        ModelVersionRow,
+        MonitoringReportRow,
+        RunRow,
+        PipelineDefinitionRow,
+        PipelineRunRow,
+    )
+    from controlplane.application.pipelines import PipelineService, CreatePipeline, StepInput
+    from controlplane.application.pipeline_runs import PipelineRunService
+
+    with uow_factory() as check:
+        if not hasattr(check, "_session"):
+            pytest.skip("PostgreSQL constraint test")
+    service, job, run, _, reconciler = complete(monitoring, clock)
+    reconciler.reconcile(run.id)
+    report = service.reports("catalog-team")[0]
+    pipeline, _ = PipelineService(uow_factory, clock).create(
+        "catalog-team", CreatePipeline(name="report-pipeline", steps=[StepInput("check", job.name)])
+    )
+    view, _ = PipelineRunService(uow_factory, clock).create("catalog-team", pipeline.name)
+    with uow_factory() as uow:
+        foreign = Project(
+            name="other-team", display_name="Other", created_at=clock(), updated_at=clock()
+        )
+        uow.projects.add(foreign)
+        session = uow._session
+        stored = session.get(MonitoringReportRow, report.id)
+        original_dataset = session.get(DatasetVersionRow, report.reference_dataset_id)
+
+        def clone(row, source_id, **changes):
+            table = row.__table__
+            new_id = uuid4()
+            overrides = {"id": new_id, **changes}
+            session.execute(
+                insert(table).from_select(
+                    [c.name for c in table.c],
+                    select(
+                        *[
+                            literal(overrides[c.name], type_=c.type) if c.name in overrides else c
+                            for c in table.c
+                        ]
+                    ).where(table.c.id == source_id),
+                )
+            )
+            return new_id
+
+        connection_id = clone(
+            DataConnectionRow, original_dataset.connection_id, project_id=foreign.id
+        )
+        dataset_id = clone(
+            DatasetVersionRow,
+            original_dataset.id,
+            project_id=foreign.id,
+            connection_id=connection_id,
+        )
+        job_id = clone(JobDefinitionRow, job.id, project_id=foreign.id)
+        model_id = clone(ModelRow, stored.model_id, project_id=foreign.id)
+        version_id = clone(ModelVersionRow, report.model_version_id, model_id=model_id)
+        run_id = clone(RunRow, run.id, project_id=foreign.id, job_definition_id=job_id)
+        pipeline_id = clone(PipelineDefinitionRow, pipeline.id, project_id=foreign.id)
+        pipeline_run_id = clone(
+            PipelineRunRow, view.run.id, project_id=foreign.id, pipeline_definition_id=pipeline_id
+        )
+        foreign_ids = {
+            "job_definition_id": job_id,
+            "reference_dataset_id": dataset_id,
+            "observed_dataset_id": dataset_id,
+            "feedback_dataset_id": dataset_id,
+            "job_run_id": run_id,
+            "pipeline_run_id": pipeline_run_id,
+            "model_version_id": version_id,
+            "model_id": model_id,
+        }
+        changes = {field: foreign_ids[field]}
+        if field == "pipeline_run_id":
+            changes["job_run_id"] = None
+        with pytest.raises(IntegrityError) as caught:
+            session.execute(
+                update(MonitoringReportRow)
+                .where(MonitoringReportRow.id == report.id)
+                .values(**changes)
+            )
+        assert caught.value.orig.sqlstate == "23503"

@@ -1470,6 +1470,12 @@ export interface components {
              */
             input_dataset_id: string;
             /**
+             * Input Selection Policy
+             * @default PINNED
+             * @enum {string}
+             */
+            input_selection_policy: "PINNED" | "LATEST_AT_EXECUTION" | "BY_PROCESSING_DATE";
+            /**
              * Max Bytes
              * @default 1073741824
              */
@@ -1489,6 +1495,8 @@ export interface components {
              * Format: uuid
              */
             model_connection_id: string;
+            /** Model Manifest */
+            model_manifest: components["schemas"]["ModelArtifactFile"][];
             /**
              * Model Version Id
              * Format: uuid
@@ -1520,6 +1528,25 @@ export interface components {
              * @default 3600
              */
             timeout_seconds: number;
+        };
+        /** BatchInputOut */
+        BatchInputOut: {
+            /**
+             * Dataset Id
+             * Format: uuid
+             */
+            dataset_id: string;
+            /** Name */
+            name: string;
+            /** Processing Date */
+            processing_date?: string | null;
+            /**
+             * Selection Policy
+             * @enum {string}
+             */
+            selection_policy: "PINNED" | "LATEST_AT_EXECUTION" | "BY_PROCESSING_DATE";
+            /** Version */
+            version: number;
         };
         /** CallerUsageOut */
         CallerUsageOut: {
@@ -1688,6 +1715,8 @@ export interface components {
             name: string;
             /** Object Version Id */
             object_version_id?: string | null;
+            /** Processing Date */
+            processing_date?: string | null;
             /** Producer Pipeline Run Id */
             producer_pipeline_run_id?: string | null;
             /** Producer Run Id */
@@ -1748,6 +1777,8 @@ export interface components {
             name: string;
             /** Object Version Id */
             object_version_id: string | null;
+            /** Processing Date */
+            processing_date?: string | null;
             /** Producer Pipeline Run Id */
             producer_pipeline_run_id: string | null;
             /** Producer Run Id */
@@ -2541,6 +2572,17 @@ export interface components {
          * @enum {string}
          */
         MissedRunPolicy: "SKIP" | "CATCH_UP";
+        /** ModelArtifactFile */
+        ModelArtifactFile: {
+            /** Object Version Id */
+            object_version_id?: string | null;
+            /** Path */
+            path: string;
+            /** Sha256 */
+            sha256: string;
+            /** Size */
+            size: number;
+        };
         /** ModelCreate */
         ModelCreate: {
             /** @description how a function runs (kind function only) */
@@ -3059,6 +3101,10 @@ export interface components {
         };
         /** PipelineRunOut */
         PipelineRunOut: {
+            /** Batch Inputs */
+            batch_inputs?: {
+                [key: string]: components["schemas"]["BatchInputOut"];
+            };
             /** Cancel Requested */
             cancel_requested: boolean;
             /** Commit Sha */
@@ -3109,6 +3155,10 @@ export interface components {
         };
         /** PipelineRunSummary */
         PipelineRunSummary: {
+            /** Batch Inputs */
+            batch_inputs?: {
+                [key: string]: components["schemas"]["BatchInputOut"];
+            };
             /** Cancel Requested */
             cancel_requested: boolean;
             /** Commit Sha */
@@ -3484,6 +3534,10 @@ export interface components {
         };
         /** RunOut */
         RunOut: {
+            /** Batch Inputs */
+            batch_inputs?: {
+                [key: string]: components["schemas"]["BatchInputOut"];
+            };
             /** Cancel Requested */
             cancel_requested: boolean;
             /**

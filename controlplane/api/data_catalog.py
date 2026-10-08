@@ -1,5 +1,5 @@
 from dataclasses import asdict
-from datetime import datetime
+from datetime import date, datetime
 from typing import Annotated, Literal
 from uuid import UUID
 
@@ -50,6 +50,7 @@ class DatasetCreate(BaseModel):
     object_version_id: str | None = Field(default=None, max_length=1024)
     producer_run_id: UUID | None = None
     producer_pipeline_run_id: UUID | None = None
+    processing_date: date | None = None
     row_count: int | None = Field(default=None, ge=0, le=9223372036854775807)
     expected_latest_version: int = Field(default=0, ge=0)
 
@@ -67,6 +68,7 @@ class DatasetOut(BaseModel):
     object_version_id: str | None
     producer_run_id: UUID | None
     producer_pipeline_run_id: UUID | None
+    processing_date: date | None = None
     row_count: int | None
     created_at: datetime
 

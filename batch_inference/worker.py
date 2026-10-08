@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import io
 import json
 import logging
 import os
@@ -26,6 +27,34 @@ RESULT_PATH = "/tmp/mlp-result.json"
 
 class BatchError(ValueError):
     """Safe operator message, containing no input values or credentials."""
+
+
+class BoundedOutput(io.RawIOBase):
+    """Reject an oversized write before it reaches the filesystem, including footer writes."""
+
+    def __init__(self, target: Path, limit: int) -> None:
+        self.stream = target.open("wb", buffering=0)
+        self.limit = limit
+
+    def writable(self) -> bool:
+        return True
+
+    def tell(self) -> int:
+        return self.stream.tell()
+
+    def write(self, data: bytes) -> int:
+        if self.tell() + len(data) > self.limit:
+            raise BatchError("output exceeds byte limit")
+        return self.stream.write(data)
+
+    def flush(self) -> None:
+        if not self.stream.closed:
+            self.stream.flush()
+
+    def close(self) -> None:
+        if not self.closed:
+            super().close()
+            self.stream.close()
 
 
 def identity() -> str:
@@ -85,31 +114,31 @@ def download(
     return size, digest.hexdigest()
 
 
-def load_model(s3: Any, uri: str, root: Path, limit: int) -> Any:
-    import mlflow.pyfunc
+def load_model(s3: Any, uri: str, root: Path, limit: int, manifest: Any = None) -> Any:
+    from controlplane.domain.model_artifacts import validate_manifest
 
+    try:
+        files = validate_manifest(manifest, limit)
+    except ValueError as exc:
+        raise BatchError(str(exc)) from None
     parsed = urlsplit(uri)
     prefix = parsed.path.lstrip("/").rstrip("/") + "/"
-    total, count = 0, 0
-    for page in s3.get_paginator("list_objects_v2").paginate(Bucket=parsed.netloc, Prefix=prefix):
-        for obj in page.get("Contents", []):
-            key = obj["Key"]
-            if key.endswith("/"):
-                continue
-            relative = key[len(prefix) :]
-            path = PurePosixPath(relative)
-            if not relative or path.is_absolute() or ".." in path.parts or "\\" in relative:
-                raise BatchError("unsafe model object path")
-            count += 1
-            if count > 1000 or total + obj["Size"] > limit:
-                raise BatchError("model exceeds artifact limits")
-            target = root.joinpath(*path.parts)
-            target.parent.mkdir(parents=True, exist_ok=True)
-            size, _ = download(s3, parsed.netloc, key, target, limit - total)
-            total += size
-    if not (root / "MLmodel").is_file():
-        raise BatchError("MLflow model metadata missing")
-    # Never install dependencies or execute environment managers from model metadata.
+    for entry in files:
+        target = root.joinpath(*PurePosixPath(entry["path"]).parts)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        size, digest = download(
+            s3,
+            parsed.netloc,
+            prefix + entry["path"],
+            target,
+            entry["size"],
+            entry.get("object_version_id"),
+        )
+        if size != entry["size"] or digest != entry["sha256"]:
+            raise BatchError("model artifact differs from its immutable manifest")
+    # Only manifest-listed, verified files exist here. Never install model dependencies.
+    import mlflow.pyfunc
+
     return mlflow.pyfunc.load_model(str(root))
 
 
@@ -189,6 +218,12 @@ def predict_file(
         frames = (
             batch.to_pandas() for batch in parquet.iter_batches(batch_size=spec["batch_size"])
         )
+    sink = BoundedOutput(target, spec["max_bytes"])
+    csv = (
+        io.TextIOWrapper(sink, encoding="utf-8", newline="")
+        if spec["output_format"] == "CSV"
+        else None
+    )
     try:
         for frame in frames:
             frame = validate_frame(frame, columns)
@@ -204,11 +239,12 @@ def predict_file(
             frame = validate_frame(frame, output_columns)
             table = pa.Table.from_pandas(frame, schema=schema, preserve_index=False, safe=True)
             if spec["output_format"] == "CSV":
-                frame.to_csv(target, index=False, mode="a", header=writer is None)
+                frame.to_csv(csv, index=False, header=writer is None)
+                csv.flush()
                 writer = True
             else:
                 if writer is None:
-                    writer = pq.ParquetWriter(target, schema, compression="snappy")
+                    writer = pq.ParquetWriter(sink, schema, compression="snappy")
                 writer.write_table(table)
             if target.stat().st_size > spec["max_bytes"]:
                 raise BatchError("output exceeds byte limit")
@@ -217,12 +253,18 @@ def predict_file(
                 last_report = time.monotonic()
         if writer is None:
             if spec["output_format"] == "CSV":
-                pd.DataFrame(columns=schema.names).to_csv(target, index=False)
+                pd.DataFrame(columns=schema.names).to_csv(csv, index=False)
+                csv.flush()
             else:
-                pq.write_table(pa.Table.from_batches([], schema=schema), target)
+                pq.write_table(pa.Table.from_batches([], schema=schema), sink)
     finally:
-        if isinstance(writer, pq.ParquetWriter):
-            writer.close()
+        try:
+            if isinstance(writer, pq.ParquetWriter):
+                writer.close()
+        finally:
+            if csv:
+                csv.close()
+            sink.close()
     if target.stat().st_size > spec["max_bytes"]:
         raise BatchError("output exceeds byte limit")
     expected = spec["input"].get("row_count")
@@ -253,7 +295,11 @@ def run(
             raise BatchError("input checksum differs from pinned dataset")
         log.info("loading pinned model")
         model = model_loader(
-            clients["MODEL"], spec["model_uri"], root / "model", spec["max_model_bytes"]
+            clients["MODEL"],
+            spec["model_uri"],
+            root / "model",
+            spec["max_model_bytes"],
+            spec.get("model_manifest"),
         )
         log.info("starting prediction")
         rows, columns = predict_file(spec, source, output, model)

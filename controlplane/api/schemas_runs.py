@@ -1,12 +1,13 @@
 from __future__ import annotations
 
-from datetime import datetime
-from typing import Any
+from datetime import date, datetime
+from typing import Any, Literal
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
 
 from controlplane.api.secrets import SecretRefsIn
+from controlplane.application.batch_snapshots import snapshot_inputs
 from controlplane.domain.entities import JobDefinition, Run
 from controlplane.domain.states import RunStatus
 
@@ -66,7 +67,16 @@ class JobList(BaseModel):
     items: list[JobOut]
 
 
+class BatchInputOut(BaseModel):
+    dataset_id: UUID
+    name: str
+    version: int
+    processing_date: date | None = None
+    selection_policy: Literal["PINNED", "LATEST_AT_EXECUTION", "BY_PROCESSING_DATE"]
+
+
 class RunOut(BaseModel):
+    batch_inputs: dict[str, BatchInputOut] = Field(default_factory=dict)
     parameters: dict[str, Any] = Field(default_factory=dict)
 
     """Deliberately omits the workflow system's references (workflow uid, pod
@@ -96,6 +106,7 @@ class RunOut(BaseModel):
             job_id=run.job_definition_id,
             job=job,
             parameters=dict(run.parameters),
+            batch_inputs=snapshot_inputs({"main": run.batch_snapshot}),
             status=run.status,
             status_reason=run.status_reason,
             exit_code=run.exit_code,

@@ -15,6 +15,7 @@ from controlplane.application.jobs import JobService, require_training_digest, r
 from controlplane.application.ports import UnitOfWork
 from controlplane.application.projects import Clock, UnitOfWorkFactory, utc_now
 from controlplane.application.secrets import SecretProvider, validate_refs
+from controlplane.application.worker_resources import worker_resources
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import JobDefinition
 from controlplane.domain.errors import Conflict, InvalidArgument, NotFound
@@ -196,7 +197,7 @@ class ModelMonitoringService:
                 image=self.image,
                 command=("python", "-m", "batch_inference.monitoring_worker"),
                 env={},
-                resources=resources or {"cpu": "1", "memory": "2Gi"},
+                resources=worker_resources(resources, monitoring=spec),
                 secret_refs=SecretRefs(env=refs),
                 monitoring_spec=spec,
                 now=self.clock(),

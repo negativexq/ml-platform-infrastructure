@@ -1,5 +1,5 @@
 import { MonitoringOutputs } from './ModelMonitoring';
-import { BatchOutputs } from './BatchInference';
+import { BatchInputs, BatchOutputs } from './BatchInference';
 import { RunScheduleOrigin } from './Schedules';
 import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
@@ -69,7 +69,8 @@ export function PipelineRunPage({ project, id }: { project: string; id: string }
                     title={access.why('operator') ?? 'Start a new run of the same pipeline version'} onClick={() => rerun(r)}>Run again</button>)}
               </div>
             </div>
-            <BatchOutputs project={project} runId={id} pipeline />
+            <BatchInputs project={project} inputs={r.batch_inputs} />
+          <BatchOutputs project={project} runId={id} pipeline />
           <MonitoringOutputs project={project} runId={id} pipeline active={running} />
             <RunScheduleOrigin kind="pipeline-runs" id={id} />
             {Object.keys(r.parameters ?? {}).length > 0 && <div className="section card" data-testid="execution-parameters"><h2>Execution parameters</h2><ParameterKv entries={Object.entries(r.parameters ?? {}).map(([key, value]) => [key, typeof value === 'string' ? value : JSON.stringify(value)])} /></div>}

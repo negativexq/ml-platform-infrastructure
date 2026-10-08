@@ -7,6 +7,7 @@ RUN python -m pip install --prefix=/install --no-deps -r constraints/batch.txt
 FROM dependencies AS builder
 COPY pyproject.toml ./
 COPY batch_inference ./batch_inference
+COPY controlplane/domain/model_artifacts.py ./controlplane/domain/model_artifacts.py
 RUN python -m pip install --prefix=/application --no-deps '.[inference,batch]' \
     && PYTHONPATH=/application/lib/python3.12/site-packages:/install/lib/python3.12/site-packages python -m pip check
 FROM ${PYTHON_IMAGE}

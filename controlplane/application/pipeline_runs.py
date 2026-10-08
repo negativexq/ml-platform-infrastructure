@@ -1,11 +1,13 @@
 from __future__ import annotations
 
+import json
 from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from typing import Any
 from uuid import UUID
 
+from controlplane.application.batch_snapshots import resolve_batch_snapshot
 from controlplane.application.context import current_traceparent
 from controlplane.application.identity import current_actor
 from controlplane.application.jobs import resolve_project
@@ -161,11 +163,13 @@ class PipelineRunService:
                 "pipeline", pipeline_name if version is None else f"{pipeline_name}@{version}"
             )
         resolved = resolve(definition.parameter_schema, parameters)
+        jobs = {}
         for step in definition.steps:
             job = uow.jobs.get_by_name(project.id, step.job)
             if job is None:
                 raise NotFound("job", step.job)
             project_values(job.parameter_schema, resolved)
+            jobs[step.name] = job
         if key is not None:
             existing = uow.pipeline_runs.get_by_idempotency_key(project.id, key)
             if existing is not None:
@@ -182,11 +186,19 @@ class PipelineRunService:
             raise Conflict(
                 f"project {project.name!r} is {project.status.value}; runs need a READY project"
             )
+        snapshots = {
+            name: resolve_batch_snapshot(uow, job, project_values(job.parameter_schema, resolved))
+            for name, job in jobs.items()
+            if job.batch_spec
+        }
+        if len(json.dumps(snapshots).encode()) > 1048576:
+            raise Conflict("pipeline batch execution snapshots exceed size limit")
         now = self._clock()
         run = PipelineRun(
             project_id=project.id,
             pipeline_definition_id=definition.id,
             parameters=resolved,
+            batch_snapshots=snapshots,
             commit_sha=commit_sha,
             timeout_seconds=timeout_seconds,
             idempotency_key=key,
@@ -211,6 +223,9 @@ class PipelineRunService:
                 pipeline=definition.name,
                 version=definition.version,
                 parameters_sha256=fingerprint(resolved),
+                input_datasets={
+                    name: value["input_dataset_id"] for name, value in snapshots.items()
+                },
             )
         )
         return self._view(uow, run), True

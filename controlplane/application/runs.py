@@ -4,6 +4,7 @@ from collections.abc import Collection, Mapping, Sequence
 from typing import Any
 from uuid import UUID
 
+from controlplane.application.batch_snapshots import resolve_batch_snapshot
 from controlplane.application.context import current_traceparent
 from controlplane.application.identity import current_actor
 from controlplane.application.jobs import resolve_project
@@ -124,11 +125,25 @@ class RunService:
             raise Conflict(
                 f"project {project.name!r} is {project.status.value}; runs need a READY project"
             )
+        if retry_of:
+            original = uow.runs.get(retry_of)
+            if (
+                original is None
+                or original.project_id != project.id
+                or original.job_definition_id != job.id
+            ):
+                raise NotFound("retry parent", retry_of)
+            if not original.is_terminal:
+                raise Conflict("retry parent must be terminal")
+            snapshot = dict(original.batch_snapshot) or dict(job.batch_spec)
+        else:
+            snapshot = resolve_batch_snapshot(uow, job, resolved)
         now = self._clock()
         run = Run(
             project_id=project.id,
             job_definition_id=job.id,
             parameters=resolved,
+            batch_snapshot=snapshot,
             retry_of=retry_of,
             timeout_seconds=timeout,
             idempotency_key=key,
@@ -144,6 +159,7 @@ class RunService:
                 job=job.name,
                 retry_of=str(retry_of) if retry_of else None,
                 parameters_sha256=fingerprint(resolved),
+                input_dataset_id=snapshot.get("input_dataset_id"),
             )
         )
         return run, True

@@ -51,3 +51,20 @@ Scheduling a check reuses its pinned datasets. It does not automatically select 
 production window. Online request capture, rolling-window discovery, predictive-error
 threshold alerts and automatic retraining remain future work. The attention inbox
 currently signals feature drift, not a configured performance SLA.
+
+## Disk reservation and database ownership
+
+The worker explicitly reserves local ephemeral storage for two datasets, or three with feedback,
+plus 512 MiB/10% scratch headroom. With feedback it also reserves `2 * max_join_bytes` for the
+SQLite database and rollback journal. SQLite enforces `max_page_count` before writes rather
+than checking only after each batch. At maximum configured bounds this reservation is 11 GiB.
+Custom smaller reservations are rejected. Namespace quotas, executor defaults and node total
+allocatable capacity are checked as described in [Batch inference](batch-inference.md).
+
+Migration `0027` adds composite foreign keys from every report's dataset, definition and run
+reference to the same `project_id`. Model ownership is enforced through both
+`(model_version_id, model_id)` and `(model_id, project_id)`, without duplicating project identity
+on model versions. Existing report/model links are backfilled and validated during migration;
+inconsistent existing data blocks the migration instead of being silently repaired. Direct
+SQL writes cannot link reports to another project's records. Reports remain append-only through
+runtime privileges; migration ownership checks are additional referential integrity.

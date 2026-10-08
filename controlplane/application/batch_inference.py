@@ -14,10 +14,12 @@ from controlplane.application.ports import UnitOfWork
 from controlplane.application.projects import Clock, UnitOfWorkFactory, utc_now
 from controlplane.application.providers import ExperimentProvider
 from controlplane.application.secrets import SecretProvider, validate_refs
+from controlplane.application.worker_resources import worker_resources
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.data import DatasetColumn, DatasetFormat, DatasetVersion
 from controlplane.domain.entities import JobDefinition, validate_slug
 from controlplane.domain.errors import Conflict, InvalidArgument, NotFound
+from controlplane.domain.model_artifacts import validate_manifest
 from controlplane.domain.secrets import SecretKeyRef, SecretRefs
 from controlplane.domain.states import ModelKind, ProjectStatus
 
@@ -54,6 +56,8 @@ class BatchInferenceService:
         output_connection_id: UUID,
         output_dataset: str,
         features: list[str],
+        model_manifest: list[dict[str, Any]],
+        input_selection_policy: str = "PINNED",
         output_format: DatasetFormat = DatasetFormat.PARQUET,
         prediction_dtype: str = "number",
         batch_size: int = 1000,
@@ -68,6 +72,8 @@ class BatchInferenceService:
         require_training_digest(self.image)
         validate_slug(name, "batch name")
         validate_slug(output_dataset, "output dataset name")
+        if input_selection_policy not in {"PINNED", "LATEST_AT_EXECUTION", "BY_PROCESSING_DATE"}:
+            raise InvalidArgument("invalid batch input selection policy")
         if prediction_dtype not in {"number", "integer", "string", "boolean"}:
             raise InvalidArgument("unsupported prediction dtype")
         if not 1 <= batch_size <= 100000 or not 1 <= max_rows <= 100000000:
@@ -75,6 +81,10 @@ class BatchInferenceService:
         # One-object conditional PUT is bounded below the 5 GiB S3 limit.
         if not 1 <= max_bytes <= 2147483648 or not 1 <= max_model_bytes <= 1073741824:
             raise InvalidArgument("invalid artifact byte limit")
+        try:
+            manifest = validate_manifest(model_manifest, max_model_bytes)
+        except ValueError as exc:
+            raise InvalidArgument(str(exc)) from None
         with self.factory() as uow:
             project = resolve_project(uow, project_ref)
             locked = uow.projects.lock(project.id)
@@ -155,10 +165,12 @@ class BatchInferenceService:
             spec = {
                 "name": name,
                 "input_dataset_id": str(dataset.id),
+                "input_selection_policy": input_selection_policy,
                 "model_version_id": str(version.id),
                 "model_connection_id": str(model_connection_id),
                 "output_connection_id": str(output_connection_id),
                 "model_uri": uri,
+                "model_manifest": manifest,
                 "input": {
                     **connection_spec(connections["input"]),
                     **json.loads(json.dumps(asdict(dataset), default=str)),
@@ -182,8 +194,16 @@ class BatchInferenceService:
                 image=self.image,
                 command=("python", "-m", "batch_inference.worker"),
                 env={},
-                resources=resources or {"cpu": "1", "memory": "2Gi"},
+                resources=worker_resources(resources, batch=spec),
                 secret_refs=SecretRefs(env=refs),
+                parameter_schema={
+                    "type": "object",
+                    "properties": {"processing_date": {"type": "string", "format": "date"}},
+                    "required": ["processing_date"],
+                    "additionalProperties": False,
+                }
+                if input_selection_policy == "BY_PROCESSING_DATE"
+                else {},
                 batch_spec=spec,
                 now=self.clock(),
                 timeout_seconds=timeout_seconds,
@@ -219,6 +239,7 @@ def publish_output(
     pipeline: bool = False,
     step: str = "main",
     now: Any,
+    snapshot: Any = None,
 ) -> None:
     """Caller owns the run CAS, dataset insert, audit and commit in the same transaction."""
     if not job.batch_spec:
@@ -227,7 +248,9 @@ def publish_output(
         raise InvalidArgument("batch result missing or oversized")
     try:
         result = json.loads(raw)
-        spec = job.batch_spec
+        from controlplane.application.batch_snapshots import execution_batch_spec
+
+        spec = execution_batch_spec(job, snapshot or {})
         execution = f"{run_id}/{step}"
         suffix = "csv" if spec["output_format"] == "CSV" else "parquet"
         key = f"{spec['output']['prefix'].rstrip('/')}/{spec['name']}/{execution}.{suffix}".lstrip(
@@ -261,6 +284,7 @@ def publish_output(
             columns=tuple(DatasetColumn(**c) for c in columns),
             checksum_sha256=result["checksum_sha256"],
             row_count=result["row_count"],
+            processing_date=spec["input"].get("processing_date"),
             producer_run_id=None if pipeline else run_id,
             producer_pipeline_run_id=run_id if pipeline else None,
             created_at=now,

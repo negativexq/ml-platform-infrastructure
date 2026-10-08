@@ -2,7 +2,7 @@
 
 import re
 from dataclasses import dataclass, field
-from datetime import datetime
+from datetime import date, datetime
 from enum import StrEnum
 from urllib.parse import urlsplit
 from uuid import UUID
@@ -86,11 +86,21 @@ class DatasetVersion:
     object_version_id: str | None = None
     producer_run_id: UUID | None = None
     producer_pipeline_run_id: UUID | None = None
+    processing_date: date | None = None
     row_count: int | None = None
     id: UUID = field(default_factory=new_id)
     created_at: datetime
 
     def __post_init__(self) -> None:
+        if isinstance(self.processing_date, str):
+            try:
+                object.__setattr__(
+                    self, "processing_date", date.fromisoformat(self.processing_date)
+                )
+            except ValueError:
+                raise InvalidArgument("processing_date must be an ISO calendar date") from None
+        if self.processing_date is not None and type(self.processing_date) is not date:
+            raise InvalidArgument("processing_date must be a calendar date")
         validate_slug(self.name, "dataset name")
         object.__setattr__(self, "columns", tuple(self.columns))
         try:

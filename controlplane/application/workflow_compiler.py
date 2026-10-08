@@ -4,8 +4,10 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 
+from controlplane.application.batch_snapshots import execution_batch_spec
 from controlplane.application.namespaces import LABEL_MANAGED_BY, LABEL_PROJECT, MANAGED_BY
 from controlplane.application.providers import StepSpec, WorkflowSpec
+from controlplane.application.worker_resources import worker_resources
 from controlplane.domain.entities import (
     JobDefinition,
     PipelineDefinition,
@@ -13,6 +15,8 @@ from controlplane.domain.entities import (
     Project,
     Run,
 )
+from controlplane.domain.errors import InvalidArgument
+from controlplane.domain.model_artifacts import validate_manifest
 from controlplane.domain.parameters import encode, project_values
 
 LABEL_RUN_ID = "mlp.io/run-id"
@@ -26,7 +30,21 @@ def workflow_name(run: Run) -> str:
     return f"run-{run.id.hex[:16]}"
 
 
+def require_model_manifest(job: JobDefinition) -> None:
+    if job.batch_spec:
+        try:
+            validate_manifest(
+                job.batch_spec.get("model_manifest"), job.batch_spec["max_model_bytes"]
+            )
+        except ValueError as exc:
+            raise InvalidArgument(
+                "batch definition requires a verified model manifest; create a new definition"
+            ) from exc
+
+
 def compile_job_run(project: Project, job: JobDefinition, run: Run) -> WorkflowSpec:
+    require_model_manifest(job)
+    batch = execution_batch_spec(job, run.batch_snapshot) if job.batch_spec else {}
     return WorkflowSpec(
         name=workflow_name(run),
         namespace=project.namespace,
@@ -43,7 +61,7 @@ def compile_job_run(project: Project, job: JobDefinition, run: Run) -> WorkflowS
                 env={
                     **job.env,
                     **(
-                        {"MLP_RUN_ID": str(run.id), "MLP_BATCH_SPEC": encode(dict(job.batch_spec))}
+                        {"MLP_RUN_ID": str(run.id), "MLP_BATCH_SPEC": encode(dict(batch))}
                         if job.batch_spec
                         else {}
                     ),
@@ -62,7 +80,13 @@ def compile_job_run(project: Project, job: JobDefinition, run: Run) -> WorkflowS
                     ),
                 },
                 secret_refs=job.secret_refs,
-                resources=dict(job.resources),
+                resources=(
+                    worker_resources(
+                        job.resources, batch=job.batch_spec, monitoring=job.monitoring_spec
+                    )
+                    if job.batch_spec or job.monitoring_spec
+                    else dict(job.resources)
+                ),
             ),
         ),
         labels={
@@ -121,6 +145,10 @@ def compile_pipeline_run(
     for name in definition.execution_order:
         spec = next(s for s in definition.steps if s.name == name)
         job = jobs[spec.job]
+        require_model_manifest(job)
+        batch = (
+            execution_batch_spec(job, run.batch_snapshots.get(name, {})) if job.batch_spec else {}
+        )
         steps.append(
             StepSpec(
                 name=name,
@@ -132,7 +160,7 @@ def compile_pipeline_run(
                 env={
                     **job.env,
                     **base,
-                    **({"MLP_BATCH_SPEC": encode(dict(job.batch_spec))} if job.batch_spec else {}),
+                    **({"MLP_BATCH_SPEC": encode(dict(batch))} if job.batch_spec else {}),
                     **(
                         {"MLP_MONITORING_SPEC": encode(dict(job.monitoring_spec))}
                         if job.monitoring_spec
@@ -142,7 +170,13 @@ def compile_pipeline_run(
                     "MLP_IMAGE": job.image,
                     "MLP_PARAMETERS": encode(project_values(job.parameter_schema, run.parameters)),
                 },
-                resources=dict(job.resources),
+                resources=(
+                    worker_resources(
+                        job.resources, batch=job.batch_spec, monitoring=job.monitoring_spec
+                    )
+                    if job.batch_spec or job.monitoring_spec
+                    else dict(job.resources)
+                ),
                 secret_refs=job.secret_refs,
                 depends_on=spec.depends_on,
             )

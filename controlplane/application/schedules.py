@@ -345,6 +345,20 @@ class ScheduleDispatcher:
     def _dispatch(
         self, uow: UnitOfWork, entity: ScheduleExecution, now: datetime
     ) -> ScheduleExecution:
+        try:
+            return self._dispatch_checked(uow, entity, now)
+        except (InvalidArgument, NotFound):
+            return self._finish(
+                uow,
+                entity,
+                ExecutionStatus.MISSED,
+                "execution input unavailable or incompatible",
+                now,
+            )
+
+    def _dispatch_checked(
+        self, uow: UnitOfWork, entity: ScheduleExecution, now: datetime
+    ) -> ScheduleExecution:
         if entity.concurrency_policy == ConcurrencyPolicy.QUEUE and entity.expires_at <= now:
             return self._finish(uow, entity, ExecutionStatus.MISSED, "queue deadline exceeded", now)
         project = uow.projects.get(entity.project_id)
