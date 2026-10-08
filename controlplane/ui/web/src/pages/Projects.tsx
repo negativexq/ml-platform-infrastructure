@@ -66,7 +66,7 @@ export function ProjectsPage() {
   const [query, setQuery] = useState('');
   const [filter, setFilter] = useState('all');
 
-  const rows = useLiveQuery<Row[]>(['projects'], async () => {
+  const rows = useLiveQuery<Row[]>(['projects', 'overview'], async () => {
     const { items } = await api.get<S['ProjectList']>('/projects?limit=200');
     const [summaries, problems] = await Promise.all([
       Promise.all(items.map((p) => api.get<S['SummaryOut']>(`/projects/${enc(p.name)}/summary`).catch(() => null))),

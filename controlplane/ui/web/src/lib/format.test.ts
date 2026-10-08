@@ -15,6 +15,15 @@ describe('format', () => {
     expect(fmtDuration(63)).toBe('1m 03s');
     expect(fmtDuration(3900)).toBe('1h 05m');
   });
+  it('shows scheduled times in the future', () => {
+    const now = Date.parse('2026-01-01T12:00:00Z');
+    expect(fmtAgo('2026-01-01T12:15:00Z', now)).toBe('in 15m');
+    expect(fmtAgo('2026-01-01T15:00:00Z', now)).toBe('in 3h');
+    expect(fmtAgo('2026-01-03T12:00:00Z', now)).toBe('in 2d');
+  });
+  it('does not display invalid dates as measurements', () => {
+    expect(fmtAgo('invalid')).toBe('—');
+  });
   it('relative time', () => {
     const now = Date.parse('2026-01-01T12:00:00Z');
     expect(fmtAgo('2026-01-01T11:59:50Z', now)).toBe('just now');

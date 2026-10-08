@@ -1569,3 +1569,20 @@ def test_notifications_fit_mobile(page: Page, server: Server) -> None:
     shot(page, "notifications-mobile")
     panel.get_by_role("button", name="Close", exact=True).click()
     expect(page.locator("dialog[open]")).to_have_count(0)
+
+
+def test_projects_and_resource_selectors_keep_distinct_cached_shapes(page, server):
+    """Project overview rows and raw ProjectList options have different contracts."""
+    page.goto(f"{server.url}/ui/#/projects")
+    expect(page.get_by_role("heading", name="Projects", exact=True)).to_be_visible()
+    expect(page.get_by_role("heading", name=re.compile(r"^Credit Risk"))).to_be_visible()
+    for path in ["batch-inference", "connections", "datasets", "model-monitoring"]:
+        page.goto(f"{server.url}/ui/#/{path}")
+        select = page.get_by_role("combobox", name="Project", exact=True)
+        expect(select).to_be_visible()
+        select.select_option("credit-risk")
+        expect(select).to_have_value("credit-risk")
+        expect(page.get_by_text("Something went wrong!", exact=True)).to_have_count(0)
+    page.goto(f"{server.url}/ui/#/projects")
+    expect(page.get_by_role("heading", name=re.compile(r"^Credit Risk"))).to_be_visible()
+    expect(page.get_by_text("Something went wrong!", exact=True)).to_have_count(0)
