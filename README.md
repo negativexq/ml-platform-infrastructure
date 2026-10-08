@@ -1,21 +1,13 @@
 # ML Platform
 
-**Home — platform overview**
-
-![Home: platform health, active runs, deployments and recent activity](docs/images/ui/01-home.png)
-
-**Projects — choose a workspace**
-
-![Projects: project cards, resource counts and items needing attention](docs/images/ui/02-projects.png)
-
-**Project Overview — Credit Risk**
-
-![Credit Risk: project navigation, runs, resources and deployments](docs/images/ui/03-project-overview.png)
-
 A self-hosted platform for teams to train, ship and run machine learning models on
 Kubernetes. Classic models, LLMs and your own functions alike: from a training run to a model behind a public,
 rate-limited API, with a web UI, sign-in and project roles, canary releases and full
 observability.
+
+![Current Home dashboard with platform health, active runs, deployments and model drift alerts](docs/images/ui/01-home.png)
+
+*Current UI, populated with synthetic demo data.*
 
 ## What it does
 
@@ -23,14 +15,58 @@ observability.
 | --- | --- |
 | **Projects and access** | Each project gets its own Kubernetes namespace and resource quota. Sign-in uses OpenID Connect, in the browser or with bearer tokens. Roles (`invoker`, `viewer`, `operator`, `admin`) are granted to users and groups; platform admins oversee everything. A fail-closed policy table decides who may call what. Every change is in an audit trail with the person's name |
 | **Training** | Jobs and multi-step pipelines (DAGs) on Argo Workflows. Runs can be started, cancelled and retried. Each run shows its logs, a step timeline and why it failed. Lineage links a run to the model versions it produced |
+| **Scheduling and parameters** | PostgreSQL-backed Job/Pipeline schedules with cron, timezone, pause/resume, concurrency and missed-run policies. Typed run parameters and immutable execution snapshots keep retries and scheduled runs traceable. [Scheduling](docs/scheduling.md) · [Run parameters](docs/run-parameters.md) |
+| **Data management** | Project S3/MinIO connections use SecretRefs. CSV/Parquet datasets have immutable versions, schemas, integrity identities and recorded producer/model lineage. Typed forms, version history and a lineage graph expose these relationships. [Contract](docs/data-catalog.md) |
+| **Batch inference** | Score a pinned dataset with a classic model version, preserve input columns and publish versioned predictions. Bounded downloads, integrity checks and atomic output lineage share the existing Job/Pipeline lifecycle. [Contract](docs/batch-inference.md) |
+| **Model Monitoring** | Compare pinned reference/observed data using PSI and missing-rate changes. Delayed ground truth adds MAE/RMSE/R² or label accuracy/macro F1, with matching coverage and unmatched counts. Reports link exact model/data/run identities; feature drift appears in the attention inbox. Online capture and automatic window selection remain open. [Contract](docs/model-monitoring.md) |
 | **Project secrets** | Admins create, rotate and delete project credentials in Settings. Values stay in Kubernetes Secrets; jobs and models use key and private-registry references. Read responses and audit records contain metadata only. See [project secrets](docs/secrets.md) |
 | **Models** | Versions come from the MLflow registry, with lineage-scoped discovery after successful pipelines, or full-commit-pinned LLM versions from the Hugging Face Hub. Acceptance thresholds decide each version: evaluation makes it a candidate or rejects it, and promotion makes it the champion. Registry aliases are kept in sync |
 | **Serving** | Immutable revisions. Canary rollouts shift traffic in steps and are gated on error rate, p95 latency and minimum traffic. A canary that fails its gates rolls back automatically, and any deployment can be rolled back by hand. Metrics and trends are kept per revision |
 | **LLMs** | Language models run on GPUs with KServe's Hugging Face runtime (vLLM). Platform admins set each project's GPU quota, and every deploy and canary is checked against it. The API is OpenAI-compatible chat completions, with streaming. The UI has a chat playground and shows token usage per caller |
 | **Functions** | The team's own container behind an endpoint: versions are images, scaled by Knative from zero to a maximum, called with any JSON at `POST …/invoke`. Same keys, limits, canaries and rollback as models |
 | **Public API** | A separate gateway service opens endpoints to callers outside the platform. Each caller gets its own API key, shown once and stored hashed. Limits apply per endpoint and per key, counted in requests or, for LLMs, in tokens. Usage is reported by caller. Every response has a request id and the same error shape |
-| **Monitoring** | A Monitor page shows the platform's own health: reconciler heartbeats, the API, the gateway and the external systems it calls. Its thresholds are the same as the alerts. There is a Grafana dashboard, promtool-tested alerts, and traces that run from an API request through the background reconcilers |
+| **Platform Monitoring** | A Monitor page shows the platform's own health: reconciler heartbeats, the API, the gateway and the external systems it calls. Its thresholds are the same as the alerts. There is a Grafana dashboard, promtool-tested alerts, and traces that run from an API request through the background reconcilers |
 | **Web UI** | Every area of the platform has a page, plus members and API access, in an app shell with a sidebar and project switcher. Charts follow a data-viz spec (validated colours, table twins, keyboard tooltips). Risky changes are previewed before they are made. Light, dark and mobile |
+
+## UI tour
+
+Screenshots below show the current navigation and a synthetic Credit Risk scenario:
+48,210 customer records, a pinned scorer, versioned predictions and delayed repayment
+labels. They illustrate product behavior, not production throughput measurements.
+
+<details>
+<summary><strong>Projects and project overview</strong> — shared navigation, resource inventory and active work</summary>
+
+![Projects with Credit Risk, Customer Support, Fraud Detection and a provisioning workspace](docs/images/ui/02-projects.png)
+
+![Credit Risk overview with current project tabs, runs, model and deployment summaries](docs/images/ui/03-project-overview.png)
+
+</details>
+
+<details>
+<summary><strong>Schedules and pipeline runs</strong> — recurring work, pinned targets and readable execution logs</summary>
+
+![Daily scoring, quality review and paused weekly retraining schedules with timezone and next execution](docs/images/ui/04-schedules.png)
+
+![Completed training pipeline with DAG, step timeline, model lineage and formatted logs](docs/images/ui/08-pipeline-run.png)
+
+</details>
+
+<details>
+<summary><strong>Data lineage and batch inference</strong> — dataset versions, schemas and prediction outputs</summary>
+
+![Prediction dataset version three with schema, version history and recorded training/model/input/output lineage](docs/images/ui/05-dataset-lineage.png)
+
+![Managed daily credit scoring with pinned input version and Parquet prediction output](docs/images/ui/06-batch-inference.png)
+
+</details>
+
+<details open>
+<summary><strong>Model Monitoring</strong> — feature drift, feedback coverage and predictive quality</summary>
+
+![Credit scorer quality report with income drift, missing-rate changes, matched labels, accuracy and macro F1](docs/images/ui/07-model-monitoring.png)
+
+</details>
 
 ## Architecture
 
@@ -88,10 +124,12 @@ make gateway-e2e    # real PostgreSQL + the real gateway process + a model serve
 make identity-up    # Keycloak with demo users (alice, bob, carol) for real sign-in
 ```
 
-The demo has three projects with history:
+The demo includes these workspaces:
+
 * **Credit Risk:** pipelines, a champion model, and a live canary.
 * **Customer Support:** an LLM assistant from the Hugging Face Hub, public with an API key.
 * **Fraud Detection:** an empty project, to start from.
+* **Churn Prediction:** a workspace being provisioned.
 
 Call a model from outside:
 
@@ -158,6 +196,16 @@ The [serving image remediation](docs/serving-image-security.md) records the expl
 MLServer compatibility fork and standalone storage library.
 Separate local evidence covers PostgreSQL tests, Chromium, Prometheus queries,
 Keycloak sign-in, promtool and kubeconform; it does not establish in-cluster OIDC.
+
+**Data and automation follow-up (2026-10-08):** local acceptance covers
+[scheduling](docs/evidence/live-2026-10-08/scheduling/README.md),
+[typed run parameters](docs/evidence/live-2026-10-08/run-parameters/README.md),
+[managed batch inference](docs/evidence/live-2026-10-08/batch-inference/README.md),
+[data management UI](docs/evidence/live-2026-10-08/data-management-ui/README.md) and
+[Model Monitoring core](docs/evidence/live-2026-10-08/model-monitoring/README.md).
+The latest monitoring release passed 878 backend tests, 21 Linux worker tests and
+all 12 control-plane image gates, with real MinIO/Argo retry and pipeline reports.
+These local correctness checks do not establish production scale or online capture.
 
 **PostgreSQL limiter load follow-up:** an in-cluster aiohttp/uvloop generator and
 isolated OTLP histograms now separate limiter, HTTP and client queue latency. At
