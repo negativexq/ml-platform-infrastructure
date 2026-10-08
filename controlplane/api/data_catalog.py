@@ -127,13 +127,17 @@ def data_catalog_router() -> APIRouter:
         project: str,
         request: Request,
         name: str | None = None,
+        producer_run_id: UUID | None = None,
+        producer_pipeline_run_id: UUID | None = None,
         limit: Annotated[int, Query(ge=1, le=200)] = 100,
         offset: Annotated[int, Query(ge=0)] = 0,
     ) -> DatasetList:
         return DatasetList(
             items=[
                 DatasetOut(**asdict(e))
-                for e in request.app.state.data_catalog.datasets(project, name, limit, offset)
+                for e in request.app.state.data_catalog.datasets(
+                    project, name, limit, offset, producer_run_id, producer_pipeline_run_id
+                )
             ],
             limit=limit,
             offset=offset,

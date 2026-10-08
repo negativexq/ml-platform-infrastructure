@@ -141,6 +141,7 @@ class JobDefinition:
     timeout_seconds: int = 3600
     secret_refs: SecretRefs = field(default_factory=SecretRefs)
     parameter_schema: Mapping[str, Any] = field(default_factory=dict)
+    batch_spec: Mapping[str, Any] = field(default_factory=dict)
     created_at: datetime
 
     @classmethod
@@ -157,6 +158,7 @@ class JobDefinition:
         timeout_seconds: int = 3600,
         secret_refs: SecretRefs | None = None,
         parameter_schema: Mapping[str, Any] | None = None,
+        batch_spec: Mapping[str, Any] | None = None,
     ) -> Self:
         validate_slug(name, "job name")
         if not image.strip() or any(c.isspace() for c in image):
@@ -181,6 +183,7 @@ class JobDefinition:
             timeout_seconds=validate_timeout(timeout_seconds),
             secret_refs=secret_refs or SecretRefs(),
             parameter_schema=validate_schema(parameter_schema or {}),
+            batch_spec=dict(batch_spec or {}),
             created_at=now,
         )
 

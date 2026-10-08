@@ -35,10 +35,16 @@ def compile_job_run(project: Project, job: JobDefinition, run: Run) -> WorkflowS
         steps=(
             StepSpec(
                 name=MAIN_STEP,
+                result_path="/tmp/mlp-result.json" if job.batch_spec else None,
                 image=job.image,
                 command=job.command,
                 env={
                     **job.env,
+                    **(
+                        {"MLP_RUN_ID": str(run.id), "MLP_BATCH_SPEC": encode(dict(job.batch_spec))}
+                        if job.batch_spec
+                        else {}
+                    ),
                     **(
                         {"MLP_PARAMETERS": encode(dict(run.parameters))}
                         if job.parameter_schema
@@ -108,11 +114,13 @@ def compile_pipeline_run(
         steps.append(
             StepSpec(
                 name=name,
+                result_path="/tmp/mlp-result.json" if job.batch_spec else None,
                 image=job.image,
                 command=job.command,
                 env={
                     **job.env,
                     **base,
+                    **({"MLP_BATCH_SPEC": encode(dict(job.batch_spec))} if job.batch_spec else {}),
                     "MLP_STEP": name,
                     "MLP_IMAGE": job.image,
                     "MLP_PARAMETERS": encode(project_values(job.parameter_schema, run.parameters)),

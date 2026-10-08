@@ -81,6 +81,7 @@ class StepSpec:
     resources: Mapping[str, str] = field(default_factory=dict)
     depends_on: tuple[str, ...] = ()
     secret_refs: SecretRefs = field(default_factory=SecretRefs)
+    result_path: str | None = None
 
 
 @dataclass(frozen=True, slots=True)
@@ -99,6 +100,7 @@ class WorkflowStatus:
     steps: Mapping[str, ExternalState] = field(default_factory=dict)
     reason: str | None = None
     exit_codes: Mapping[str, int] = field(default_factory=dict)
+    results: Mapping[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True, slots=True)

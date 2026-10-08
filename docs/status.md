@@ -1,6 +1,6 @@
 # Current platform status
 
-Updated 2026-10-07. Initial code review used `974a7b0`; subsequent live checks used
+Updated 2026-10-08. Initial code review used `974a7b0`; subsequent live checks used
 the commits recorded in [live evidence](evidence/live-2026-10-06/README.md), with the latest
 image gate at `b7a3420`. Historical counts retain their original scope.
 
@@ -20,6 +20,14 @@ image gate at `b7a3420`. Historical counts retain their original scope.
   Head `0024`; backend 779 passed/13 skipped, all 12 image checks and live metadata API
   checks passed on local acceptance revision 33. Object verification belongs to consumers.
   [Contract](data-catalog.md) and [scope](evidence/live-2026-10-08/data-catalog/README.md).
+
+- Managed Batch Inference adds pinned classic model + CSV/Parquet dataset definitions,
+  bounded S3 verification/prediction, conditional output publication and atomic catalog lineage.
+  Job retry/cancel, pipeline steps and recurring schedules reuse existing orchestration.
+  Head `0025`; backend 816 passed/13 skipped, all 12 image gates and real MinIO/MLflow/Argo
+  job, retry, pipeline and schedule passed on local acceptance revision 36.
+  [Contract](batch-inference.md) and [evidence](evidence/live-2026-10-08/batch-inference/README.md).
+  Full Data Management UI is next; the Batch page and run output panels are implemented.
 
 - Bottleneck telemetry now wires gateway native HTTP/outbound HTTPX spans and reconciler
   SQL tracing, including stored-origin context for DB spans. SQLAlchemy 2.0 pin fixes the

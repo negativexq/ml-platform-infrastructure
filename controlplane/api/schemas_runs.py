@@ -28,6 +28,7 @@ class JobCreate(BaseModel):
 
 
 class JobOut(BaseModel):
+    batch_spec: dict[str, Any] = Field(default_factory=dict)
     parameter_schema: dict[str, Any] = Field(default_factory=dict)
 
     id: UUID
@@ -52,6 +53,7 @@ class JobOut(BaseModel):
             command=list(job.command),
             resources=dict(job.resources),
             parameter_schema=dict(job.parameter_schema),
+            batch_spec=dict(job.batch_spec),
             env=dict(job.env),
             created_at=job.created_at,
             timeout_seconds=job.timeout_seconds,

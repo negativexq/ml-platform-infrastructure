@@ -16,6 +16,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from uuid import UUID
 
+from controlplane.application.batch_inference import publish_output
 from controlplane.application.projects import Clock, UnitOfWorkFactory, utc_now
 from controlplane.application.providers import (
     ExperimentProvider,
@@ -29,7 +30,7 @@ from controlplane.application.workflow_compiler import (
 )
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import PipelineRun, StepRun
-from controlplane.domain.errors import NotFound
+from controlplane.domain.errors import InvalidArgument, NotFound
 from controlplane.domain.states import RunStatus, StepStatus
 from controlplane.reconciliation.batch import ReconcileBackoff, reconcile_batch
 
@@ -134,6 +135,10 @@ class PipelineRunReconciler:
 
         self._sync_steps(run, status)
         target = _RUN_STATE.get(status.state)
+        if target is RunStatus.SUCCEEDED:
+            with self._uow_factory() as uow:
+                if any(s.status is StepStatus.FAILED for s in uow.step_runs.list(run.id)):
+                    target = RunStatus.FAILED
         if target is None or target is run.status:
             return run
         if run.status is RunStatus.SUBMITTED and target is RunStatus.SUCCEEDED:
@@ -162,15 +167,22 @@ class PipelineRunReconciler:
             target = _STEP_STATE.get(status.steps.get(step.step_name, ExternalState.PENDING))
             if target is None or target is step.status:
                 continue
-            self._advance_step(step, target, status.exit_codes.get(step.step_name))
+            self._advance_step(
+                step,
+                target,
+                status.exit_codes.get(step.step_name),
+                status.results.get(step.step_name),
+            )
 
-    def _advance_step(self, step: StepRun, target: StepStatus, exit_code: int | None) -> StepRun:
+    def _advance_step(
+        self, step: StepRun, target: StepStatus, exit_code: int | None, result: str | None = None
+    ) -> StepRun:
         if step.status is StepStatus.PENDING and target in (
             StepStatus.SUCCEEDED,
             StepStatus.FAILED,
         ):
             step = self._move_step(step, StepStatus.RUNNING)  # never PENDING -> terminal directly
-        return self._move_step(step, target, exit_code=exit_code)
+        return self._move_step(step, target, exit_code=exit_code, result=result)
 
     def _close_open_steps(self, run: PipelineRun, run_status: RunStatus) -> None:
         """A finished run leaves no step PENDING or RUNNING."""
@@ -240,11 +252,39 @@ class PipelineRunReconciler:
         *,
         reason: str | None = None,
         exit_code: int | None = None,
+        result: str | None = None,
     ) -> StepRun:
         now = self._clock()
         moved = step.transition_to(status, now, reason=reason, exit_code=exit_code)
         with self._uow_factory() as uow:
             run = uow.pipeline_runs.get(step.pipeline_run_id)
+            if status is StepStatus.SUCCEEDED and run:
+                definition = uow.pipelines.get(run.pipeline_definition_id)
+                node = (
+                    next((s for s in definition.steps if s.name == step.step_name), None)
+                    if definition
+                    else None
+                )
+                job = uow.jobs.get_by_name(run.project_id, node.job) if node else None
+                if job and job.batch_spec:
+                    try:
+                        publish_output(
+                            uow,
+                            job,
+                            result,
+                            run_id=run.id,
+                            pipeline=True,
+                            step=step.step_name,
+                            now=now,
+                        )
+                    except InvalidArgument:
+                        status = StepStatus.FAILED
+                        moved = step.transition_to(
+                            status,
+                            now,
+                            reason="invalid or missing batch output result",
+                            exit_code=exit_code,
+                        )
             uow.step_runs.update(moved, expected_status=step.status)
             uow.audit.record(
                 AuditEvent(

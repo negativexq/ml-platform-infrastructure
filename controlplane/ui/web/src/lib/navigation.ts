@@ -2,7 +2,7 @@
 export const GLOBAL_NAV: { label: string; items: [string, string][] }[] = [
   { label: 'Overview', items: [['home', 'Home']] },
   { label: 'Work', items: [['projects', 'Projects'], ['runs', 'Runs'], ['pipelines', 'Pipelines'], ['schedules', 'Schedules']] },
-  { label: 'AI', items: [['models', 'Models'], ['functions', 'Functions']] },
+  { label: 'AI', items: [['models', 'Models'], ['functions', 'Functions'], ['batch-inference', 'Batch Inference']] },
   { label: 'Serving', items: [['deployments', 'Deployments'], ['endpoints', 'Endpoints']] },
   { label: 'Platform', items: [['services', 'Services']] },
   { label: 'Operations', items: [['monitor', 'Monitor'], ['activity', 'Activity']] },
@@ -11,7 +11,7 @@ export const GLOBAL_NAV: { label: string; items: [string, string][] }[] = [
 export const PROJECT_NAV: { label: string; key: string; items?: [string, string][] }[] = [
   { key: '', label: 'Overview' },
   { key: 'build', label: 'Build', items: [['runs', 'Runs'], ['pipelines', 'Pipelines'], ['jobs', 'Jobs'], ['schedules', 'Schedules']] },
-  { key: 'assets', label: 'Assets', items: [['models', 'Models'], ['functions', 'Functions']] },
+  { key: 'assets', label: 'Assets', items: [['models', 'Models'], ['functions', 'Functions'], ['batch-inference', 'Batch Inference']] },
   { key: 'serve', label: 'Serve', items: [['deployments', 'Deployments'], ['endpoints', 'Endpoints']] },
   { key: 'activity', label: 'Activity' }, { key: 'settings', label: 'Settings' },
 ];

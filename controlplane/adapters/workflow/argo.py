@@ -85,7 +85,12 @@ def _container(step: StepSpec) -> dict[str, Any]:
         container["command"] = list(step.command)
     if step.resources:
         container["resources"] = {"requests": dict(step.resources), "limits": dict(step.resources)}
-    return {"name": step.name, "container": container}
+    template = {"name": step.name, "container": container}
+    if step.result_path:
+        template["outputs"] = {
+            "parameters": [{"name": "mlp-result", "valueFrom": {"path": step.result_path}}]
+        }
+    return template
 
 
 def build_workflow(spec: WorkflowSpec) -> dict[str, Any]:
@@ -244,7 +249,14 @@ class ArgoWorkflowProvider:
             return WorkflowStatus(ExternalState.FAILED, steps, stuck, exit_codes)
         if state is ExternalState.FAILED and workflow.get("spec", {}).get("shutdown"):
             state = ExternalState.CANCELLED
-        return WorkflowStatus(state, steps, reason, exit_codes)
+        results = {
+            key: p["value"]
+            for n in nodes.values()
+            if (key := _step_key(n)) is not None
+            for p in (n.get("outputs") or {}).get("parameters", [])
+            if p.get("name") == "mlp-result" and isinstance(p.get("value"), str)
+        }
+        return WorkflowStatus(state, steps, reason, exit_codes, results)
 
     def cancel(self, ref: str) -> None:
         namespace, name = _split(ref)

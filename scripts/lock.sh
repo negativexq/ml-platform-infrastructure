@@ -16,6 +16,7 @@ lock() {
   local input=pyproject.toml
   [[ "$name" == training || "$name" == mlflow || "$name" == mlflow-server || "$name" == serving || "$name" == controlplane-migrate ]] && input="constraints/$name.in"
   [[ "$name" == inference ]] && options+=(--extra inference)
+  [[ "$name" == batch ]] && options+=(--extra inference --extra batch --constraint constraints/inference.txt)
   [[ "$name" == controlplane ]] && options+=(--extra controlplane)
   if [[ "$name" == serving ]]; then
     python3 docker/serving/patch_mlserver.py --out "$MLP_LOCK_TEMP/mlserver"
@@ -36,7 +37,7 @@ lock() {
   echo "Regenerated constraints/$name.txt for Linux/amd64."
 }
 case "${1:-all}" in
-  all) lock inference; lock controlplane; lock controlplane-migrate; lock training; lock mlflow; lock mlflow-server; lock serving ;;
-  inference|controlplane|controlplane-migrate|training|mlflow|mlflow-server|serving) lock "$1" ;;
-  *) echo "usage: scripts/lock.sh [all|inference|controlplane|controlplane-migrate|training|mlflow|mlflow-server|serving]" >&2; exit 2 ;;
+  all) lock inference; lock batch; lock controlplane; lock controlplane-migrate; lock training; lock mlflow; lock mlflow-server; lock serving ;;
+  inference|batch|controlplane|controlplane-migrate|training|mlflow|mlflow-server|serving) lock "$1" ;;
+  *) echo "usage: scripts/lock.sh [all|inference|batch|batch|controlplane|controlplane-migrate|training|mlflow|mlflow-server|serving]" >&2; exit 2 ;;
 esac

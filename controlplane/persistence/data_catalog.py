@@ -119,11 +119,23 @@ class SqlDataCatalog:
         return dataset(row) if row else None
 
     def datasets(
-        self, project_id: UUID, name: str | None = None, limit: int = 100, offset: int = 0
+        self,
+        project_id: UUID,
+        name: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+        producer_run_id: UUID | None = None,
+        producer_pipeline_run_id: UUID | None = None,
     ) -> Sequence[DatasetVersion]:
         query = select(DatasetVersionRow).where(DatasetVersionRow.project_id == project_id)
         if name is not None:
             query = query.where(DatasetVersionRow.name == name)
+        if producer_run_id is not None:
+            query = query.where(DatasetVersionRow.producer_run_id == producer_run_id)
+        if producer_pipeline_run_id is not None:
+            query = query.where(
+                DatasetVersionRow.producer_pipeline_run_id == producer_pipeline_run_id
+            )
         return [
             dataset(row)
             for row in self.session.scalars(

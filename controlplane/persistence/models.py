@@ -74,6 +74,7 @@ class JobDefinitionRow(Base):
     parameter_schema: Mapped[dict[str, Any]] = mapped_column(
         JSONB, nullable=False, server_default="{}"
     )
+    batch_spec: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False, server_default="{}")
     created_at: Mapped[datetime] = _ts()
 
 

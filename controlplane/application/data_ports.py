@@ -20,5 +20,11 @@ class DataCatalogRepository(Protocol):
         self, project_id: UUID, name: str, version: int | None = None
     ) -> DatasetVersion | None: ...
     def datasets(
-        self, project_id: UUID, name: str | None = None, limit: int = 100, offset: int = 0
+        self,
+        project_id: UUID,
+        name: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+        producer_run_id: UUID | None = None,
+        producer_pipeline_run_id: UUID | None = None,
     ) -> Sequence[DatasetVersion]: ...

@@ -330,6 +330,41 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{project}/batch-inference": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Definitions */
+        get: operations["list_definitions_projects__project__batch_inference_get"];
+        put?: never;
+        /** Create */
+        post: operations["create_projects__project__batch_inference_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/batch-inference/{name}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get */
+        get: operations["get_projects__project__batch_inference__name__get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/projects/{project}/data-connections": {
         parameters: {
             query?: never;
@@ -1300,6 +1335,72 @@ export interface components {
             /** Items */
             items: components["schemas"]["AuditEventOut"][];
         };
+        /** BatchCreate */
+        BatchCreate: {
+            /**
+             * Batch Size
+             * @default 1000
+             */
+            batch_size: number;
+            /** Features */
+            features: string[];
+            /**
+             * Input Dataset Id
+             * Format: uuid
+             */
+            input_dataset_id: string;
+            /**
+             * Max Bytes
+             * @default 1073741824
+             */
+            max_bytes: number;
+            /**
+             * Max Model Bytes
+             * @default 536870912
+             */
+            max_model_bytes: number;
+            /**
+             * Max Rows
+             * @default 10000000
+             */
+            max_rows: number;
+            /**
+             * Model Connection Id
+             * Format: uuid
+             */
+            model_connection_id: string;
+            /**
+             * Model Version Id
+             * Format: uuid
+             */
+            model_version_id: string;
+            /** Name */
+            name: string;
+            /**
+             * Output Connection Id
+             * Format: uuid
+             */
+            output_connection_id: string;
+            /** Output Dataset */
+            output_dataset: string;
+            /** @default PARQUET */
+            output_format: components["schemas"]["DatasetFormat"];
+            /**
+             * Prediction Dtype
+             * @default number
+             * @enum {string}
+             */
+            prediction_dtype: "number" | "integer" | "string" | "boolean";
+            /** Resources */
+            resources?: {
+                [key: string]: string;
+            };
+            /**
+             * Timeout Seconds
+             * @default 3600
+             */
+            timeout_seconds: number;
+        };
         /** CallerUsageOut */
         CallerUsageOut: {
             /** Caller */
@@ -2096,6 +2197,10 @@ export interface components {
         };
         /** JobOut */
         JobOut: {
+            /** Batch Spec */
+            batch_spec?: {
+                [key: string]: unknown;
+            };
             /** Command */
             command: string[];
             /**
@@ -4571,6 +4676,104 @@ export interface operations {
             };
         };
     };
+    list_definitions_projects__project__batch_inference_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobList"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_projects__project__batch_inference_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["BatchCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    get_projects__project__batch_inference__name__get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+                name: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["JobOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
     connections_projects__project__data_connections_get: {
         parameters: {
             query?: {
@@ -4644,6 +4847,8 @@ export interface operations {
         parameters: {
             query?: {
                 name?: string | null;
+                producer_run_id?: string | null;
+                producer_pipeline_run_id?: string | null;
                 limit?: number;
                 offset?: number;
             };

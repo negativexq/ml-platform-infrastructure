@@ -1,6 +1,7 @@
 /** Navigation icons: 16px, 1.5px strokes in the text colour, decorative (the label names the place). */
 const PATHS: Record<string, string> = {
   home: 'M2.5 7.5l5.5-5 5.5 5M4 6.5v7h8v-7',
+  'batch-inference': 'M2 3h5v4H2zM9 3h5v4H9zM2 10h5v4H2zM9 10h5v4H9zM4.5 7v3M11.5 7v3',
   functions: 'M10 2H7L5 14M3 6h8',
   endpoints: 'M6 5H3v6h3M10 5h3v6h-3M6 8h4',
   services: 'M2 3h12v4H2zM2 9h12v4H2z',

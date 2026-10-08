@@ -66,3 +66,7 @@
 {{- if and .Values.production.enabled (ne (toString .Values.config.CP_DATABASE_ROLE_ENFORCEMENT) "true") }}
 {{- fail "production requires runtime database role enforcement" }}
 {{- end }}
+
+{{- if and .Values.config.CP_BATCH_IMAGE (not (regexMatch "^[^[:space:]@]+@sha256:[a-f0-9]{64}$" .Values.config.CP_BATCH_IMAGE)) }}
+{{- fail "CP_BATCH_IMAGE requires an immutable image digest" }}
+{{- end }}

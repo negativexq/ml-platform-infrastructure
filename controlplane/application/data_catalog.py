@@ -3,6 +3,7 @@
 from collections.abc import Sequence
 from dataclasses import asdict
 from typing import Any
+from uuid import UUID
 
 from controlplane.application.identity import current_actor
 from controlplane.application.jobs import resolve_project
@@ -125,11 +126,22 @@ class DataCatalogService:
             return uow.data_catalog.connections(resolve_project(uow, project_ref).id, limit, offset)
 
     def datasets(
-        self, project_ref: str, name: str | None = None, limit: int = 100, offset: int = 0
+        self,
+        project_ref: str,
+        name: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+        producer_run_id: UUID | None = None,
+        producer_pipeline_run_id: UUID | None = None,
     ) -> Sequence[DatasetVersion]:
         with self.factory() as uow:
             return uow.data_catalog.datasets(
-                resolve_project(uow, project_ref).id, name, limit, offset
+                resolve_project(uow, project_ref).id,
+                name,
+                limit,
+                offset,
+                producer_run_id,
+                producer_pipeline_run_id,
             )
 
     def dataset(self, project_ref: str, name: str, version: int | None = None) -> DatasetVersion:

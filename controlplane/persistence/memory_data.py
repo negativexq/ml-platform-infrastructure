@@ -66,13 +66,25 @@ class MemoryDataCatalog:
         return max(values, key=lambda e: e.version, default=None)
 
     def datasets(
-        self, project_id: UUID, name: str | None = None, limit: int = 100, offset: int = 0
+        self,
+        project_id: UUID,
+        name: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+        producer_run_id: UUID | None = None,
+        producer_pipeline_run_id: UUID | None = None,
     ) -> Sequence[DatasetVersion]:
         values = sorted(
             (
                 e
                 for e in self._datasets.values()
-                if e.project_id == project_id and (name is None or e.name == name)
+                if e.project_id == project_id
+                and (name is None or e.name == name)
+                and (producer_run_id is None or e.producer_run_id == producer_run_id)
+                and (
+                    producer_pipeline_run_id is None
+                    or e.producer_pipeline_run_id == producer_pipeline_run_id
+                )
             ),
             key=lambda e: (e.created_at, e.id),
             reverse=True,

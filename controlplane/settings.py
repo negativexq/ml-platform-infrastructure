@@ -41,6 +41,7 @@ class Settings(BaseSettings):
     # Where outside callers reach the gateway (https://api.example.com). Shown in the UI and
     # used to build each public endpoint's URL. Empty: no gateway is deployed.
     gateway_url: str = ""
+    batch_image: str = ""
     job_image_digest_required: bool = True
     gateway_limit_store: Literal["postgres", "memory"] = "postgres"
     # Logging. JSON by default (cluster log collectors want it); set false for a console.

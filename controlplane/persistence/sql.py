@@ -197,6 +197,7 @@ def _job(row: JobDefinitionRow) -> JobDefinition:
         timeout_seconds=row.timeout_seconds,
         secret_refs=SecretRefs.from_json(row.secret_refs),
         parameter_schema=dict(row.parameter_schema),
+        batch_spec=dict(row.batch_spec),
         created_at=row.created_at,
     )
 
@@ -250,6 +251,7 @@ class SqlJobs:
                 timeout_seconds=job.timeout_seconds,
                 secret_refs=job.secret_refs.to_json(),
                 parameter_schema=dict(job.parameter_schema),
+                batch_spec=dict(job.batch_spec),
                 created_at=job.created_at,
             )
         )
@@ -1627,7 +1629,6 @@ class SqlApiKeys:
         )
         if getattr(result, "rowcount", 0) != 1:
             raise NotFound("api key", key.key_id)
-
 
     def touch(self, key_id: str, at: datetime) -> None:
         self._s.execute(

@@ -13,12 +13,13 @@ from __future__ import annotations
 from dataclasses import dataclass
 from uuid import UUID
 
+from controlplane.application.batch_inference import publish_output
 from controlplane.application.projects import Clock, UnitOfWorkFactory, utc_now
 from controlplane.application.providers import ExternalState, WorkflowProvider, WorkflowStatus
 from controlplane.application.workflow_compiler import MAIN_STEP, compile_job_run
 from controlplane.domain.audit import AuditEvent
 from controlplane.domain.entities import Run
-from controlplane.domain.errors import NotFound
+from controlplane.domain.errors import InvalidArgument, NotFound
 from controlplane.domain.states import RunStatus
 from controlplane.reconciliation.batch import ReconcileBackoff, reconcile_batch
 
@@ -107,6 +108,7 @@ class RunReconciler:
             f"run.{target.value.lower()}",
             reason=status.reason,
             exit_code=_exit_code(status),
+            result=status.results.get(MAIN_STEP),
         )
 
     # -- persistence ------------------------------------------------------
@@ -127,12 +129,26 @@ class RunReconciler:
         reason: str | None = None,
         exit_code: int | None = None,
         external_ref: str | None = None,
+        result: str | None = None,
     ) -> Run:
         now = self._clock()
         moved = run.transition_to(
             status, now, reason=reason, exit_code=exit_code, external_ref=external_ref
         )
         with self._uow_factory() as uow:
+            if status is RunStatus.SUCCEEDED:
+                job = uow.jobs.get(run.job_definition_id)
+                if job and job.batch_spec:
+                    try:
+                        publish_output(uow, job, result, run_id=run.id, now=now)
+                    except InvalidArgument:
+                        status, action = RunStatus.FAILED, "run.failed"
+                        moved = run.transition_to(
+                            status,
+                            now,
+                            reason="invalid or missing batch output result",
+                            exit_code=exit_code,
+                        )
             uow.runs.update(moved, expected_status=run.status)
             uow.audit.record(
                 AuditEvent(

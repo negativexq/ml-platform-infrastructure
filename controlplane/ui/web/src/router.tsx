@@ -1,3 +1,4 @@
+import { BatchInferencePage } from './pages/BatchInference';
 import {
   createHashHistory, createRootRoute, createRoute, createRouter, Navigate, Outlet, redirect, useParams,
 } from '@tanstack/react-router';
@@ -80,9 +81,12 @@ const activity = child('activity', (p) => <ActivityPage key={p.project} project=
 const projectSchedules = child('schedules', (p) => <SchedulesPage key={p.project} project={p.project!} />);
 const settings = child('settings', (p) => <SettingsPage key={p.project} project={p.project!} />);
 
+const batch = createRoute({ getParentRoute: () => root, path: '/batch-inference', component: () => <BatchInferencePage /> });
+const projectBatch = child('batch-inference', p => <BatchInferencePage key={p.project} project={p.project!} />);
+
 const routeTree = root.addChildren([
-  index, home, help, projects, monitor, schedules, schedule, services, ...capabilities, ...admin,
-  project.addChildren([overview, runs, pipelineRun, jobRun, pipelines, pipeline, jobs, job, models, model, functions, fn, endpoints, endpoint, deployments, deployment, activity, projectSchedules, settings]),
+  index, home, help, projects, batch, monitor, schedules, schedule, services, ...capabilities, ...admin,
+  project.addChildren([overview, runs, pipelineRun, jobRun, pipelines, pipeline, jobs, job, models, model, functions, fn, endpoints, endpoint, deployments, deployment, activity, projectSchedules, projectBatch, settings]),
 ]);
 // Plain `?key=value` query strings (every value is a string), rather than JSON-encoded ones, so
 // shared links stay readable: `#/projects/x/runs?status=failed&kind=job`.

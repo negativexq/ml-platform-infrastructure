@@ -26,6 +26,7 @@ inference = [
     "skops>=0.10",
     "prometheus-client>=0.21",
 ]
+batch = ["pyarrow>=21,<26"]
 dev = [
     "pytest>=8.3",
     "httpx>=0.27",
@@ -68,7 +69,7 @@ build-backend = "setuptools.build_meta"
 # `find` rather than a fixed list: the inference image copies only app/, and a
 # listed-but-absent package would break its `pip install .[inference]`.
 [tool.setuptools.packages.find]
-include = ["app*", "controlplane*"]
+include = ["app*", "controlplane*", "batch_inference*"]
 exclude = ["controlplane.tests*"]
 
 [tool.setuptools.package-data]
