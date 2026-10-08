@@ -28,6 +28,73 @@ observability.
 | **Platform Monitoring** | A Monitor page shows the platform's own health: reconciler heartbeats, the API, the gateway and the external systems it calls. Its thresholds are the same as the alerts. There is a Grafana dashboard, promtool-tested alerts, and traces that run from an API request through the background reconcilers |
 | **Web UI** | Every area of the platform has a page, plus members and API access, in an app shell with a sidebar and project switcher. Charts follow a data-viz spec (validated colours, table twins, keyboard tooltips). Risky changes are previewed before they are made. Light, dark and mobile |
 
+## Case study: scheduled scoring of one million real taxi trips
+
+This scenario follows real data through scheduling, batch inference, output versioning
+and model-quality reporting. It uses the public
+[NYC TLC Yellow Taxi records](https://www.nyc.gov/site/tlc/about/tlc-trip-record-data.page)
+for January and February 2025, with **one million cleaned, sampled journeys per month**.
+The task is to predict the recorded fare in USD from distance, passenger count, pickup
+hour and weekday.
+
+January provides the reference distribution and 200,000 model-training rows; another
+800,000 January rows are held out. February provides one million scoring inputs and a
+separate ground-truth dataset. Preparation and model training run locally; the model
+is registered in MLflow before the platform executes the scheduled scoring pipeline.
+
+```mermaid
+flowchart TB
+    Schedule["Schedule + processing date"] --> Intent["PostgreSQL: execution intent<br/>frozen dataset and model identities"]
+    Intent --> Reconciler["Python reconciler → Argo Workflow"]
+    Reconciler --> Worker["Batch worker: bounded Parquet scoring"]
+    Input["MinIO: February inputs<br/>1,000,000 trips"] --> Worker
+    Model["MLflow model version<br/>verified SHA-256 manifest"] --> Worker
+    Worker --> Output["MinIO + dataset catalog<br/>fare-predictions v1 / v2 + producer lineage"]
+    Output -->|"After publication: submit a separate Job"| Monitoring["Monitoring worker<br/>feature PSI + bounded ground-truth join"]
+    Reference["January reference<br/>1,000,000 trips"] --> Monitoring
+    Truth["February recorded fares<br/>1,000,000 labels"] --> Monitoring
+    Monitoring --> Report["PostgreSQL report → Web UI<br/>drift, coverage, MAE / RMSE / R²"]
+```
+
+The schedule resolves business date `2025-02-01` to `taxi-features v2` and freezes that
+version in the execution snapshot. The worker verifies the input checksum and model
+manifest, scores in 10,000-row batches and publishes `fare-predictions v1`. A second
+pipeline execution produces **v2 at a separate S3 location with identical bytes**;
+replaying its creation key returns the same run. Catalog lineage links outputs to
+the exact pipeline step, input dataset and model version.
+
+The monitoring Job joins all **1,000,000 predictions** to recorded fares by unique
+`trip_id`: **100% coverage, zero unmatched rows**. MAE is **2.082 USD**, RMSE **4.466 USD**
+and R² **0.920**; independent pandas/sklearn calculations agree with the platform report.
+All four selected features report **STABLE** at PSI threshold 0.2, with PSI values
+between **0.000405 and 0.007974**.
+
+| Local measurement | Scoring pipeline | Monitoring Job |
+| --- | ---: | ---: |
+| Platform-reported duration, including Argo lifecycle overhead | 18.95 s | 28.17 s |
+| Main-container CPU / memory request and limit | 1 CPU / 1 GiB | 1 CPU / 1 GiB |
+| Explicit ephemeral-storage reservation | 3 GiB | 5.5 GiB |
+| Highest observed cgroup memory peak | 262.52 MiB | 276.96 MiB |
+| Highest sampled `/tmp` usage | 16.98 MiB | 119.44 MiB |
+
+These measurements come from a single-node local acceptance cluster with warm images.
+Seven live samples at a nominal three-second interval cover main-container memory and
+`/tmp`; they do not establish final absolute maxima. Disk reservations cover configured
+worst-case byte bounds, rather than only this dataset's size. An initial 2-GiB memory
+request waited for capacity; a new immutable 1-GiB definition completed successfully.
+
+**Verified scope:** this is a scheduled replay of historical data, with monitoring
+submitted separately after scoring publishes its output. Ground truth was withheld
+before scoring; it was not collected later from a live deployment. Automatic downstream
+output binding, rolling monitoring windows and production capacity remain open.
+STABLE describes the selected features in these cleaned windows, not every possible
+model-quality issue. The schedule is paused after the demonstration, while datasets,
+output versions and the report remain available in the UI.
+
+[Full scenario, data preparation and execution identities](docs/evidence/live-2026-10-08/million-row-acceptance/README.md)
+· [Artifact hashes](docs/evidence/live-2026-10-08/million-row-acceptance/ARTIFACTS.sha256)
+· [Batch and monitoring contracts](docs/batch-inference.md)
+
 ## UI tour
 
 Screenshots below show the current navigation and a synthetic Credit Risk scenario:
