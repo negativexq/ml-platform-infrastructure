@@ -35,3 +35,10 @@ The UI and report notifications reuse existing monitoring lifecycle behavior.
 Same-DAG dynamic output binding, online prediction capture and Feature Store are
 outside this delivery. Per-project rules are bounded at 100; dispatch batches are
 bounded at 50, and missing feedback is retried every 15 seconds.
+
+Runtime role provisioning grants the reconciler `INSERT` on immutable
+`job_definitions` for generated monitoring checks, without `UPDATE` or `DELETE`.
+Existing 0030 deployments created before this grant was added must run role
+provisioning again, or apply `GRANT INSERT ON public.job_definitions TO
+mlp_reconciler` as the database owner. This permission repair does not require
+resubmitting successful batch work; the pending publication event retries.

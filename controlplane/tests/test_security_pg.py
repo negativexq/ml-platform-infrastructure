@@ -38,7 +38,26 @@ def test_sql_runtime_privileges_and_audit_trigger(pg_engine: Engine) -> None:
                 if component in {"api", "reconciler"}:
                     conn.execute(text("SELECT * FROM public.schedule_executions LIMIT 1"))
                     conn.execute(text("UPDATE public.schedules SET paused=true WHERE false"))
+                if component in {"api", "reconciler"}:
+                    conn.execute(text("SELECT * FROM public.monitoring_rules LIMIT 1"))
+                    conn.execute(text("SELECT * FROM public.monitoring_executions LIMIT 1"))
+                    conn.execute(text("SELECT * FROM public.dataset_publication_events LIMIT 1"))
                 if component == "reconciler":
+                    conn.execute(
+                        text(
+                            "INSERT INTO public.job_definitions "
+                            "SELECT * FROM public.job_definitions WHERE false"
+                        )
+                    )
+                    conn.execute(
+                        text(
+                            "UPDATE public.dataset_publication_events "
+                            "SET processed_at=now() WHERE false"
+                        )
+                    )
+                    conn.execute(
+                        text("UPDATE public.monitoring_executions SET reason='test' WHERE false")
+                    )
                     conn.execute(
                         text("UPDATE public.schedule_executions SET reason='test' WHERE false")
                     )
@@ -66,7 +85,8 @@ def test_sql_runtime_privileges_and_audit_trigger(pg_engine: Engine) -> None:
                 "DELETE FROM public.gateway_rate_buckets",
             ),
             "api": (
-                "INSERT INTO public.monitoring_reports SELECT * FROM public.monitoring_reports WHERE false",
+                "INSERT INTO public.monitoring_reports "
+                "SELECT * FROM public.monitoring_reports WHERE false",
                 "UPDATE public.monitoring_reports SET status='STABLE' WHERE false",
                 "DELETE FROM public.monitoring_reports WHERE false",
                 "UPDATE public.data_connections SET name='changed' WHERE false",
@@ -77,6 +97,8 @@ def test_sql_runtime_privileges_and_audit_trigger(pg_engine: Engine) -> None:
                 "UPDATE public.job_definitions SET image='tag:mutable' WHERE false",
             ),
             "reconciler": (
+                "UPDATE public.job_definitions SET image='tag:mutable' WHERE false",
+                "DELETE FROM public.job_definitions WHERE false",
                 "UPDATE public.monitoring_reports SET status='STABLE' WHERE false",
                 "DELETE FROM public.monitoring_reports WHERE false",
                 "UPDATE public.data_connections SET name='changed' WHERE false",

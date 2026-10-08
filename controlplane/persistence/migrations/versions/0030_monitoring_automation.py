@@ -178,6 +178,7 @@ def upgrade() -> None:
       END IF;
       IF EXISTS (SELECT FROM pg_roles WHERE rolname = 'mlp_reconciler') THEN
         GRANT SELECT ON monitoring_rules TO mlp_reconciler;
+        GRANT INSERT ON job_definitions TO mlp_reconciler;
         GRANT SELECT, INSERT, UPDATE ON dataset_publication_events,
           monitoring_executions TO mlp_reconciler;
       END IF;

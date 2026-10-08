@@ -84,9 +84,12 @@ worst-case byte bounds, rather than only this dataset's size. An initial 2-GiB m
 request waited for capacity; a new immutable 1-GiB definition completed successfully.
 
 **Verified scope:** this is a scheduled replay of historical data, with monitoring
-submitted separately after scoring publishes its output. Ground truth was withheld
-before scoring; it was not collected later from a live deployment. Automatic downstream
-output binding, rolling monitoring windows and production capacity remain open.
+initially submitted separately. The follow-up run verified dataset-triggered automation:
+output version 3 automatically produced a STABLE report with 1,000,000 matched labels
+and no duplicate execution after reconciler restart. Ground truth was withheld before
+scoring, rather than collected from live traffic. Same-DAG output binding, rolling
+monitoring windows and production capacity remain open.
+[Automation evidence](docs/evidence/live-2026-10-08/monitoring-automation/README.md).
 STABLE describes the selected features in these cleaned windows, not every possible
 model-quality issue. The schedule is paused after the demonstration, while datasets,
 output versions and the report remain available in the UI.

@@ -23,6 +23,9 @@ API_TABLES = (
     "data_connections",
     "dataset_versions",
     "monitoring_reports",
+    "dataset_publication_events",
+    "monitoring_rules",
+    "monitoring_executions",
     "projects",
     "job_definitions",
     "runs",
@@ -44,6 +47,8 @@ API_TABLES = (
 RECONCILER_TABLES = (
     "schedules",
     "schedule_executions",
+    "dataset_publication_events",
+    "monitoring_executions",
     "projects",
     "runs",
     "pipeline_runs",
@@ -184,10 +189,14 @@ def configure_roles(engine: Engine, users: Mapping[str, str]) -> None:
         _grant(
             conn,
             "SELECT, INSERT",
-            tuple(table for table in API_TABLES if table != "monitoring_reports"),
+            tuple(
+                table
+                for table in API_TABLES
+                if table not in {"monitoring_reports", "monitoring_executions"}
+            ),
             ROLES["api"],
         )
-        _grant(conn, "SELECT", ("monitoring_reports",), ROLES["api"])
+        _grant(conn, "SELECT", ("monitoring_reports", "monitoring_executions"), ROLES["api"])
         mutable = tuple(
             table
             for table in API_TABLES
@@ -198,6 +207,8 @@ def configure_roles(engine: Engine, users: Mapping[str, str]) -> None:
                 "data_connections",
                 "dataset_versions",
                 "monitoring_reports",
+                "monitoring_executions",
+                "dataset_publication_events",
                 "deployment_revisions",
                 "promotions",
                 "notification_reads",
@@ -221,7 +232,7 @@ def configure_roles(engine: Engine, users: Mapping[str, str]) -> None:
         _grant(
             conn,
             "INSERT",
-            ("data_connections", "dataset_versions", "monitoring_reports"),
+            ("job_definitions", "data_connections", "dataset_versions", "monitoring_reports"),
             ROLES["reconciler"],
         )
         _grant(conn, "INSERT", ("audit_events",), ROLES["reconciler"])
