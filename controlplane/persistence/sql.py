@@ -1682,6 +1682,9 @@ class SqlUnitOfWork:
         from controlplane.persistence.model_monitoring import SqlMonitoring
 
         self.monitoring = SqlMonitoring(self._session)
+        from controlplane.persistence.monitoring_automation import SqlMonitoringAutomation
+
+        self.monitoring_automation = SqlMonitoringAutomation(self._session)
         self.notification_reads = SqlNotificationReads(self._session)
         from controlplane.persistence.schedules import SqlSchedules
 

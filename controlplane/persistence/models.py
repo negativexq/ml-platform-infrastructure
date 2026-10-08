@@ -607,3 +607,140 @@ Index(
     DatasetVersionRow.spec["processing_date"].astext,
     DatasetVersionRow.version.desc(),
 )
+
+
+class DatasetPublishedEventRow(Base):
+    __tablename__ = "dataset_publication_events"
+    id: Mapped[UUID] = _pk()
+    project_id: Mapped[UUID] = _fk("projects.id")
+    dataset_id: Mapped[UUID] = mapped_column(Uuid, nullable=False, unique=True)
+    created_at: Mapped[datetime] = _ts()
+    processed_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    __table_args__ = (
+        UniqueConstraint("id", "project_id", name="uq_dataset_event_id_project"),
+        ForeignKeyConstraint(
+            ["dataset_id", "project_id"],
+            ["dataset_versions.id", "dataset_versions.project_id"],
+            name="fk_dataset_event_project",
+            ondelete="RESTRICT",
+        ),
+        Index(
+            "ix_dataset_events_pending",
+            "created_at",
+            "id",
+            postgresql_where=text("processed_at IS NULL"),
+        ),
+    )
+
+
+class MonitoringRuleRow(Base):
+    __tablename__ = "monitoring_rules"
+    id: Mapped[UUID] = _pk()
+    project_id: Mapped[UUID] = _fk("projects.id")
+    name: Mapped[str] = mapped_column(String(40), nullable=False)
+    model_id: Mapped[UUID] = mapped_column(Uuid, nullable=False)
+    model_version_id: Mapped[UUID] = mapped_column(Uuid, nullable=False)
+    reference_dataset_id: Mapped[UUID] = mapped_column(Uuid, nullable=False)
+    observed_dataset_name: Mapped[str] = mapped_column(String(40), nullable=False)
+    feedback_dataset_name: Mapped[str | None] = mapped_column(String(40))
+    options: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    image: Mapped[str] = mapped_column(Text, nullable=False)
+    feedback_deadline_seconds: Mapped[int] = mapped_column(Integer, nullable=False)
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    revision: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = _ts()
+    updated_at: Mapped[datetime] = _ts()
+    __table_args__ = (
+        UniqueConstraint("project_id", "name", name="uq_monitoring_rule_name"),
+        UniqueConstraint("id", "project_id", name="uq_monitoring_rule_id_project"),
+        ForeignKeyConstraint(
+            ["model_id", "project_id"],
+            ["models.id", "models.project_id"],
+            name="fk_monitoring_rule_model_project",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["model_version_id", "model_id"],
+            ["model_versions.id", "model_versions.model_id"],
+            name="fk_monitoring_rule_version",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["reference_dataset_id", "project_id"],
+            ["dataset_versions.id", "dataset_versions.project_id"],
+            name="fk_monitoring_rule_reference",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint("revision > 0", name="ck_monitoring_rule_revision"),
+        CheckConstraint(
+            "feedback_deadline_seconds BETWEEN 60 AND 604800",
+            name="ck_monitoring_feedback_deadline",
+        ),
+    )
+
+
+class MonitoringExecutionRow(Base):
+    __tablename__ = "monitoring_executions"
+    id: Mapped[UUID] = _pk()
+    project_id: Mapped[UUID] = _fk("projects.id")
+    rule_id: Mapped[UUID] = mapped_column(Uuid, nullable=False)
+    event_id: Mapped[UUID] = mapped_column(Uuid, nullable=False)
+    observed_dataset_id: Mapped[UUID] = mapped_column(Uuid, nullable=False)
+    snapshot: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    status: Mapped[str] = mapped_column(String(24), nullable=False)
+    reason: Mapped[str | None] = mapped_column(Text)
+    job_definition_id: Mapped[UUID | None] = mapped_column(Uuid)
+    job_run_id: Mapped[UUID | None] = mapped_column(Uuid)
+    deadline_at: Mapped[datetime] = _ts()
+    next_attempt_at: Mapped[datetime] = _ts()
+    created_at: Mapped[datetime] = _ts()
+    updated_at: Mapped[datetime] = _ts()
+    __table_args__ = (
+        UniqueConstraint("rule_id", "observed_dataset_id", name="uq_monitoring_rule_occurrence"),
+        UniqueConstraint("job_run_id", name="uq_monitoring_execution_run"),
+        ForeignKeyConstraint(
+            ["rule_id", "project_id"],
+            ["monitoring_rules.id", "monitoring_rules.project_id"],
+            name="fk_monitoring_execution_rule",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["event_id", "project_id"],
+            ["dataset_publication_events.id", "dataset_publication_events.project_id"],
+            name="fk_monitoring_execution_event",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["observed_dataset_id", "project_id"],
+            ["dataset_versions.id", "dataset_versions.project_id"],
+            name="fk_monitoring_execution_observed",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["job_definition_id", "project_id"],
+            ["job_definitions.id", "job_definitions.project_id"],
+            name="fk_monitoring_execution_job",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["job_run_id", "project_id"],
+            ["runs.id", "runs.project_id"],
+            name="fk_monitoring_execution_run",
+            ondelete="RESTRICT",
+        ),
+        CheckConstraint(
+            "status IN ('WAITING_FEEDBACK', 'DISPATCHED', 'FAILED', 'SKIPPED')",
+            name="ck_monitoring_execution_status",
+        ),
+        CheckConstraint(
+            "(status = 'DISPATCHED') = (job_run_id IS NOT NULL AND job_definition_id IS NOT NULL)",
+            name="ck_monitoring_execution_dispatched",
+        ),
+        Index(
+            "ix_monitoring_execution_pending",
+            "next_attempt_at",
+            "id",
+            postgresql_where=text("status = 'WAITING_FEEDBACK'"),
+        ),
+        Index("ix_monitoring_execution_rule_created", "rule_id", "created_at"),
+    )

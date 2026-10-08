@@ -246,7 +246,7 @@ func (s *store) Ready(ctx context.Context) error {
 	// 0022–0029 add scheduling, run parameters, data catalog and ownership constraints.
 	// Gateway queries and privileges are unchanged.
 	// Accept these heads so this gateway can roll out before an additive migration.
-	if head != "0021" && head != "0022" && head != "0023" && head != "0024" && head != "0025" && head != "0026" && head != "0027" && head != "0028" && head != "0029" {
+	if head != "0021" && head != "0022" && head != "0023" && head != "0024" && head != "0025" && head != "0026" && head != "0027" && head != "0028" && head != "0030" {
 		return errors.New("schema does not match this release")
 	}
 	var safe bool

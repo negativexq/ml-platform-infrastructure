@@ -23,6 +23,7 @@ from controlplane.adapters.metrics import PrometheusMetricsProvider
 from controlplane.adapters.mlflow import MlflowExperimentProvider
 from controlplane.adapters.serving import KServeServingProvider
 from controlplane.adapters.workflow import ArgoWorkflowProvider
+from controlplane.application.monitoring_automation import MonitoringDispatcher
 from controlplane.application.ports import UnitOfWork
 from controlplane.application.schedules import ScheduleDispatcher
 from controlplane.observability import instrument_reconciler, observe, observed_uow_factory
@@ -190,6 +191,7 @@ def main() -> None:
     watchdog = ReconcileWatchdog(settings.reconciler_watchdog_seconds)
     token = progress.set(watchdog.beat)
     schedules = ScheduleDispatcher(uow)
+    monitoring_automation = MonitoringDispatcher(uow, heartbeat=heartbeat)
     log.info("reconciler started", telemetry=telemetry.enabled, standby=leadership is not None)
     try:
         if leadership:
@@ -203,6 +205,10 @@ def main() -> None:
                 lambda: [r for r in projects.reconcile_all() if r.before != r.after or r.changed],
             )
             _pass("schedules", lambda: [counts] if (counts := schedules.tick()) else [])
+            _pass(
+                "monitoring_automation",
+                lambda: [count] if (count := monitoring_automation.run_once()) else [],
+            )
             _pass("runs", lambda: [r for r in runs.reconcile_all() if r.before != r.after])
             _pass(
                 "pipeline_runs",

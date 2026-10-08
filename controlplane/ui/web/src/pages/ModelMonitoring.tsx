@@ -1,4 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
+import { MonitoringRules } from './MonitoringRules';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { api, enc, type S } from '../api/client';
 import { Alert, Badge, Empty, Kv, Table, Time } from '../components/bits';
 import { useOverlays } from '../components/overlays';
@@ -20,9 +21,10 @@ export function ModelMonitoringPage({ project: fixedProject }: { project?: strin
   const projects = useQuery({ queryKey: ['projects'], queryFn: () => api.get<S['ProjectList']>('/projects?limit=200') });
   const checks = useQuery({ queryKey: ['monitoring-checks', project], enabled: !!project, queryFn: () => api.get<S['JobList']>(`/projects/${enc(project)}/model-monitoring/checks`) });
   const reports = useQuery({ queryKey: ['monitoring-reports', project, offset], enabled: !!project, queryFn: () => api.get<S['MonitoringReportList']>(`/projects/${enc(project)}/model-monitoring/reports?limit=50&offset=${offset}`), refetchInterval: 10000 });
+  const queryClient = useQueryClient();
   const access = useAccess(project);
   const { form, toast } = useOverlays();
-  async function create() {
+  async function create(automatic = false) {
     try {
       const [datasets, models] = await Promise.all([
         api.get<S['DatasetList']>(`/projects/${enc(project)}/datasets?limit=200`),
@@ -34,18 +36,18 @@ export function ModelMonitoringPage({ project: fixedProject }: { project?: strin
       }))).flat();
       if (!datasets.items.length || !versions.length) { toast('Register datasets and a classic model version first.', 'bad'); return; }
       const options = datasets.items.map(d => ({ value: d.id, label: `${d.name} · v${d.version} · ${d.format}` }));
-      const job = await form<S['JobOut']>({ title: 'Create monitoring check', submitLabel: 'Create check',
+      const job = await form<S['JobOut'] | S['RuleOut']>({ title: automatic ? 'Create dataset-triggered rule' : 'Create monitoring check', submitLabel: automatic ? 'Create rule' : 'Create check',
         intro: 'Pin reference and observed dataset versions. Drift measures distribution changes; delayed feedback measures predictive quality.',
         fields: [
           { name: 'name', label: 'Check name', required: true, placeholder: 'credit-quality-october' },
           { name: 'model_version_id', label: 'Model version', required: true, options: versions },
           { name: 'reference_dataset_id', label: 'Reference dataset', required: true, options },
-          { name: 'observed_dataset_id', label: 'Observed dataset', required: true, options },
+          automatic ? { name: 'observed_dataset_name', label: 'Observed dataset catalog', required: true, options: [...new Set(datasets.items.map(d => d.name))].map(name => ({ value: name, label: name })) } : { name: 'observed_dataset_id', label: 'Observed dataset', required: true, options },
           { name: 'features', label: 'Feature columns', required: true, placeholder: 'income, age', hint: 'Up to 32 matching columns, separated by commas.' },
           { name: 'psi_threshold', label: 'PSI threshold', value: '0.2', hint: 'Configurable distribution-change threshold; not a statistical significance test.' },
           { name: 'missing_rate_threshold', label: 'Missing-rate change', value: '0.1', hint: 'Absolute fraction change; 0.1 means 10 percentage points.' },
           { name: 'minimum_rows', label: 'Minimum rows', value: '100', pattern: '^[1-9][0-9]*$', hint: 'Smaller samples are labelled insufficient data.' },
-          { name: 'feedback_dataset_id', label: 'Ground-truth dataset', value: '', options: [{ value: '', label: 'No feedback — drift only' }, ...options] },
+          automatic ? { name: 'feedback_dataset_name', label: 'Ground-truth catalog', value: '', options: [{ value: '', label: 'No feedback — drift only' }, ...[...new Set(datasets.items.map(d => d.name))].map(name => ({ value: name, label: name }))], hint: 'Resolve a version with the same processing date; wait up to 24 hours.' } : { name: 'feedback_dataset_id', label: 'Ground-truth dataset', value: '', options: [{ value: '', label: 'No feedback — drift only' }, ...options] },
           { name: 'task', label: 'Prediction task', value: 'REGRESSION', options: [{ value: 'REGRESSION', label: 'Regression' }, { value: 'CLASSIFICATION', label: 'Classification (predicted labels)' }] },
           { name: 'entity_key', label: 'Entity / request ID column', placeholder: 'request_id', hint: 'Required with feedback. Keys must be unique in both datasets.' },
           { name: 'prediction_column', label: 'Prediction column', value: 'prediction' },
@@ -54,17 +56,18 @@ export function ModelMonitoringPage({ project: fixedProject }: { project?: strin
           { name: 'memory', label: 'Memory', value: '2Gi' },
         ], submit: values => {
           const { cpu, memory, ...fields } = values;
-          return api.post<S['JobOut']>(`/projects/${enc(project)}/model-monitoring/checks`, { ...fields, resources: { cpu, memory }, feedback_dataset_id: values.feedback_dataset_id || null, features: (values.features ?? '').split(',').map(s => s.trim()).filter(Boolean), psi_threshold: Number(values.psi_threshold), missing_rate_threshold: Number(values.missing_rate_threshold), minimum_rows: Number(values.minimum_rows) });
+          return api.post<S['JobOut'] | S['RuleOut']>(`/projects/${enc(project)}/model-monitoring/${automatic ? 'rules' : 'checks'}`, { ...fields, resources: { cpu, memory }, ...(automatic ? { feedback_dataset_name: values.feedback_dataset_name || null } : { feedback_dataset_id: values.feedback_dataset_id || null }), features: (values.features ?? '').split(',').map(s => s.trim()).filter(Boolean), psi_threshold: Number(values.psi_threshold), missing_rate_threshold: Number(values.missing_rate_threshold), minimum_rows: Number(values.minimum_rows) });
         },
       });
-      if (job) { toast('Monitoring check created'); checks.refetch(); }
+      if (job) { toast(automatic ? 'Monitoring rule created' : 'Monitoring check created'); checks.refetch(); if (automatic) queryClient.invalidateQueries({ queryKey: ['monitoring-rules', project] }); }
     } catch (error) { toast(error instanceof Error ? error.message : 'Could not create monitoring check', 'bad'); }
   }
   return <>
-    <div className="page-head"><h1>Model Monitoring</h1><button className="btn primary" disabled={!project || !access.may('operator')} onClick={create}>Create monitoring check</button></div>
+    <div className="page-head"><h1>Model Monitoring</h1><button className="btn primary" disabled={!project || !access.may('operator')} onClick={() => create()}>Create monitoring check</button></div>
     <p className="sub">Feature drift and delayed ground-truth measurements for classic models. Each check preserves its dataset and model versions.</p>
     {!fixedProject && <div className="toolbar"><label>Project <select aria-label="Project" value={project} onChange={e => setFilters({ project: e.target.value, offset: '0' })}><option value="">Select a project</option>{projects.data?.items.map(p => <option key={p.id} value={p.name}>{p.display_name}</option>)}</select></label></div>}
     {!project ? <Empty>Select a project to browse model-quality checks.</Empty> : <>
+      <MonitoringRules project={project} create={() => create(true)} />
       <section className="card"><h2>Checks</h2><QueryView query={checks}>{list => !list.items.length ? <Empty>No monitoring checks yet.</Empty> : <Table head={['Check', 'Model', 'Reference → Observed', 'Features', '']} testid="monitoring-checks">{list.items.map(job => {
         const spec = job.monitoring_spec as { model_name: string; model_version: number; reference: { name: string; version: number }; observed: { name: string; version: number }; features: string[] };
         return <tr key={job.id}><td><a href={`${routes.project(project)}/jobs/${enc(job.name)}`}>{job.name}</a></td><td>{spec.model_name} · v{spec.model_version}</td><td>{spec.reference.name} · v{spec.reference.version} → {spec.observed.name} · v{spec.observed.version}</td><td>{spec.features.join(', ')}</td><td><button className="btn small" disabled={!access.may('operator')} onClick={async () => { try { const run = await api.post<S['RunOut']>(`/projects/${enc(project)}/jobs/${enc(job.name)}/runs`, {}); go(routes.jobRun(project, run.id)); } catch (error) { toast(error instanceof Error ? error.message : 'Could not start monitoring', 'bad'); } }}>Run now</button></td></tr>;

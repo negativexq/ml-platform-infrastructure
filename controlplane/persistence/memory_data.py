@@ -1,16 +1,21 @@
 from collections.abc import Sequence
 from datetime import date
-from uuid import UUID
+from uuid import UUID, uuid5
 
 from controlplane.domain.data import DataConnection, DatasetVersion
 from controlplane.domain.errors import AlreadyExists
+from controlplane.domain.monitoring_automation import DatasetPublishedEvent
 
 
 class MemoryDataCatalog:
     def __init__(
-        self, connections: dict[UUID, DataConnection], datasets: dict[UUID, DatasetVersion]
+        self,
+        connections: dict[UUID, DataConnection],
+        datasets: dict[UUID, DatasetVersion],
+        events: dict[UUID, DatasetPublishedEvent],
     ) -> None:
         self._connections, self._datasets = connections, datasets
+        self._events = events
 
     def add_connection(self, entity: DataConnection) -> None:
         if self.connection_by_name(entity.project_id, entity.name):
@@ -50,6 +55,10 @@ class MemoryDataCatalog:
         if self.dataset_version(entity.project_id, entity.name, entity.version):
             raise AlreadyExists("dataset version", entity.name)
         self._datasets[entity.id] = entity
+        event = DatasetPublishedEvent(
+            uuid5(entity.id, "dataset-published"), entity.project_id, entity.id, entity.created_at
+        )
+        self._events[event.id] = event
 
     def dataset(self, id: UUID) -> DatasetVersion | None:
         return self._datasets.get(id)

@@ -2,7 +2,7 @@ from collections.abc import Sequence
 from dataclasses import asdict
 from datetime import date
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid5
 
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -10,7 +10,11 @@ from sqlalchemy.orm import Session
 
 from controlplane.domain.data import DataConnection, DatasetColumn, DatasetFormat, DatasetVersion
 from controlplane.domain.errors import AlreadyExists
-from controlplane.persistence.models import DataConnectionRow, DatasetVersionRow
+from controlplane.persistence.models import (
+    DataConnectionRow,
+    DatasetPublishedEventRow,
+    DatasetVersionRow,
+)
 
 
 def connection(row: DataConnectionRow) -> DataConnection:
@@ -105,6 +109,11 @@ class SqlDataCatalog:
             self.session.flush()
         except IntegrityError as exc:
             raise AlreadyExists("dataset version", entity.name) from exc
+        self.session.add(DatasetPublishedEventRow(
+            id=uuid5(entity.id, "dataset-published"), project_id=entity.project_id,
+            dataset_id=entity.id, created_at=entity.created_at, processed_at=None,
+        ))
+        self.session.flush()
 
     def dataset(self, id: UUID) -> DatasetVersion | None:
         row = self.session.get(DatasetVersionRow, id)

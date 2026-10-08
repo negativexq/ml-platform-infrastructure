@@ -867,6 +867,58 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/projects/{project}/model-monitoring/rules": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List Rules */
+        get: operations["list_rules_projects__project__model_monitoring_rules_get"];
+        put?: never;
+        /** Create */
+        post: operations["create_projects__project__model_monitoring_rules_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{project}/model-monitoring/rules/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /** Toggle */
+        patch: operations["toggle_projects__project__model_monitoring_rules__id__patch"];
+        trace?: never;
+    };
+    "/projects/{project}/model-monitoring/rules/{id}/executions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Executions */
+        get: operations["executions_projects__project__model_monitoring_rules__id__executions_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/projects/{project}/models": {
         parameters: {
             query?: never;
@@ -2846,6 +2898,54 @@ export interface components {
              */
             timeout_seconds: number;
         };
+        /** MonitoringExecutionOut */
+        MonitoringExecutionOut: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /**
+             * Deadline At
+             * Format: date-time
+             */
+            deadline_at: string;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Job Definition Id */
+            job_definition_id: string | null;
+            /** Job Run Id */
+            job_run_id: string | null;
+            /**
+             * Observed Dataset Id
+             * Format: uuid
+             */
+            observed_dataset_id: string;
+            /** Reason */
+            reason: string | null;
+            /**
+             * Rule Id
+             * Format: uuid
+             */
+            rule_id: string;
+            /** Snapshot */
+            snapshot: {
+                [key: string]: unknown;
+            };
+            /**
+             * Status
+             * @enum {string}
+             */
+            status: "WAITING_FEEDBACK" | "DISPATCHED" | "FAILED" | "SKIPPED";
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
         /** MonitoringReportList */
         MonitoringReportList: {
             /** Items */
@@ -3514,6 +3614,164 @@ export interface components {
          * @enum {string}
          */
         RolloutStatus: "PENDING" | "PROGRESSING" | "SUCCEEDED" | "ROLLED_BACK";
+        /** RuleCreate */
+        RuleCreate: {
+            /**
+             * Batch Size
+             * @default 1000
+             */
+            batch_size: number;
+            /**
+             * Enabled
+             * @default true
+             */
+            enabled: boolean;
+            /**
+             * Entity Key
+             * @default
+             */
+            entity_key: string;
+            /** Features */
+            features: string[];
+            /** Feedback Dataset Id */
+            feedback_dataset_id?: null;
+            /** Feedback Dataset Name */
+            feedback_dataset_name?: string | null;
+            /**
+             * Feedback Deadline Seconds
+             * @default 86400
+             */
+            feedback_deadline_seconds: number;
+            /**
+             * Label Column
+             * @default actual
+             */
+            label_column: string;
+            /**
+             * Max Bytes
+             * @default 1073741824
+             */
+            max_bytes: number;
+            /**
+             * Max Join Bytes
+             * @default 1073741824
+             */
+            max_join_bytes: number;
+            /**
+             * Max Rows
+             * @default 10000000
+             */
+            max_rows: number;
+            /**
+             * Minimum Rows
+             * @default 100
+             */
+            minimum_rows: number;
+            /**
+             * Missing Rate Threshold
+             * @default 0.1
+             */
+            missing_rate_threshold: number;
+            /**
+             * Model Version Id
+             * Format: uuid
+             */
+            model_version_id: string;
+            /** Name */
+            name: string;
+            /** Observed Dataset Id */
+            observed_dataset_id?: null;
+            /** Observed Dataset Name */
+            observed_dataset_name: string;
+            /**
+             * Prediction Column
+             * @default prediction
+             */
+            prediction_column: string;
+            /**
+             * Psi Threshold
+             * @default 0.2
+             */
+            psi_threshold: number;
+            /**
+             * Reference Dataset Id
+             * Format: uuid
+             */
+            reference_dataset_id: string;
+            /** Resources */
+            resources?: {
+                [key: string]: string;
+            };
+            /**
+             * Task
+             * @default REGRESSION
+             * @enum {string}
+             */
+            task: "REGRESSION" | "CLASSIFICATION";
+            /**
+             * Timeout Seconds
+             * @default 3600
+             */
+            timeout_seconds: number;
+        };
+        /** RuleOut */
+        RuleOut: {
+            /**
+             * Created At
+             * Format: date-time
+             */
+            created_at: string;
+            /** Enabled */
+            enabled: boolean;
+            /** Feedback Dataset Name */
+            feedback_dataset_name: string | null;
+            /** Feedback Deadline Seconds */
+            feedback_deadline_seconds: number;
+            /**
+             * Id
+             * Format: uuid
+             */
+            id: string;
+            /** Image */
+            image: string;
+            /**
+             * Model Version Id
+             * Format: uuid
+             */
+            model_version_id: string;
+            /** Name */
+            name: string;
+            /** Observed Dataset Name */
+            observed_dataset_name: string;
+            /** Options */
+            options: {
+                [key: string]: unknown;
+            };
+            /**
+             * Project Id
+             * Format: uuid
+             */
+            project_id: string;
+            /**
+             * Reference Dataset Id
+             * Format: uuid
+             */
+            reference_dataset_id: string;
+            /** Revision */
+            revision: number;
+            /**
+             * Updated At
+             * Format: date-time
+             */
+            updated_at: string;
+        };
+        /** RuleToggle */
+        RuleToggle: {
+            /** Enabled */
+            enabled: boolean;
+            /** Revision */
+            revision: number;
+        };
         /** RunCreate */
         RunCreate: {
             /** Parameters */
@@ -7040,6 +7298,143 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["MonitoringReportOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    list_rules_projects__project__model_monitoring_rules_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleOut"][];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    create_projects__project__model_monitoring_rules_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RuleCreate"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    toggle_projects__project__model_monitoring_rules__id__patch: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                project: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RuleToggle"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["RuleOut"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    executions_projects__project__model_monitoring_rules__id__executions_get: {
+        parameters: {
+            query?: {
+                limit?: number;
+                offset?: number;
+            };
+            header?: never;
+            path: {
+                project: string;
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["MonitoringExecutionOut"][];
                 };
             };
             /** @description Validation Error */

@@ -36,6 +36,11 @@ from controlplane.domain.entities import (
 )
 from controlplane.domain.errors import AlreadyExists, Conflict, NotFound
 from controlplane.domain.model_monitoring import MonitoringReport
+from controlplane.domain.monitoring_automation import (
+    DatasetPublishedEvent,
+    MonitoringExecution,
+    MonitoringRule,
+)
 from controlplane.domain.schedules import Schedule, ScheduleExecution
 from controlplane.domain.states import (
     DeploymentStatus,
@@ -51,6 +56,9 @@ from controlplane.domain.states import (
 
 @dataclass
 class MemoryStore:
+    monitoring_rules: dict[UUID, MonitoringRule] = field(default_factory=dict)
+    dataset_events: dict[UUID, DatasetPublishedEvent] = field(default_factory=dict)
+    monitoring_executions: dict[UUID, MonitoringExecution] = field(default_factory=dict)
     monitoring_reports: dict[UUID, MonitoringReport] = field(default_factory=dict)
     data_connections: dict[UUID, DataConnection] = field(default_factory=dict)
     dataset_versions: dict[UUID, DatasetVersion] = field(default_factory=dict)
@@ -836,9 +844,19 @@ class MemoryUnitOfWork:
 
         self._monitoring_reports = dict(self._store.monitoring_reports)
         self.monitoring = MemoryMonitoring(self._monitoring_reports)
+        from controlplane.persistence.memory_automation import MemoryMonitoringAutomation
+
+        self._monitoring_rules = dict(self._store.monitoring_rules)
+        self._dataset_events = dict(self._store.dataset_events)
+        self._monitoring_executions = dict(self._store.monitoring_executions)
+        self.monitoring_automation = MemoryMonitoringAutomation(
+            self._monitoring_rules, self._dataset_events, self._monitoring_executions
+        )
         self._data_connections = dict(self._store.data_connections)
         self._dataset_versions = dict(self._store.dataset_versions)
-        self.data_catalog = MemoryDataCatalog(self._data_connections, self._dataset_versions)
+        self.data_catalog = MemoryDataCatalog(
+            self._data_connections, self._dataset_versions, self._dataset_events
+        )
         self._notification_reads = dict(self._store.notification_reads)
         self.notification_reads = _NotificationReads(self._notification_reads)
         from controlplane.persistence.memory_schedules import MemorySchedules
@@ -891,6 +909,9 @@ class MemoryUnitOfWork:
         return None  # uncommitted work is simply dropped
 
     def commit(self) -> None:
+        self._store.monitoring_rules = self._monitoring_rules
+        self._store.dataset_events = self._dataset_events
+        self._store.monitoring_executions = self._monitoring_executions
         self._store.monitoring_reports = self._monitoring_reports
         self._store.data_connections = self._data_connections
         self._store.dataset_versions = self._dataset_versions

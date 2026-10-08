@@ -110,3 +110,23 @@ def test_create_monitoring_and_inspect_drift_report(page, server):  # noqa: F811
     shot(page, "model-monitoring-mobile")
     page.get_by_role("link", name="reference · v1", exact=True).click()
     expect(page.get_by_role("heading", name="reference", exact=True)).to_be_visible()
+    # Register an automatic rule through the same product screen.
+    from controlplane.application.monitoring_automation import MonitoringAutomationService
+
+    demo.app.state.monitoring_automation = MonitoringAutomationService(
+        demo.uow_factory, "registry/batch@sha256:" + "a" * 64, provider, demo.clock
+    )
+    page.goto(f"{server.url}/ui/#/projects/credit-risk/model-monitoring")
+    page.get_by_role("button", name="Create monitoring rule", exact=True).click()
+    page.locator("#f-name").fill("automatic-quality")
+    page.locator("#f-features").fill("income")
+    page.locator("#f-reference_dataset_id").select_option(str(datasets[0].id))
+    page.locator("#f-observed_dataset_name").select_option("observed")
+    page.get_by_test_id("form-submit").click()
+    expect(page.get_by_test_id("monitoring-rules")).to_contain_text("automatic-quality")
+    page.get_by_test_id("monitoring-rules").get_by_role("button", name="Pause", exact=True).click()
+    expect(page.get_by_test_id("monitoring-rules")).to_contain_text("PAUSED", ignore_case=True)
+    page.get_by_test_id("monitoring-rules").get_by_role(
+        "button", name="automatic-quality", exact=True
+    ).click()
+    expect(page.get_by_text("Waiting for a new dataset version.", exact=True)).to_be_visible()

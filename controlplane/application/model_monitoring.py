@@ -7,6 +7,7 @@ import math
 from collections.abc import Sequence
 from dataclasses import asdict
 from datetime import datetime
+from typing import Any
 from uuid import UUID
 
 from controlplane.application.batch_inference import connection_spec
@@ -34,8 +35,40 @@ class ModelMonitoringService:
     ) -> None:
         self.factory, self.image, self.secrets, self.clock = factory, image, secrets, clock
 
-    def create(
+    def create(self, project_ref: str, **options: Any) -> tuple[JobDefinition, bool]:
+        with self.factory() as uow:
+            result = self.create_in_uow(uow, project_ref, **options)
+            uow.commit()
+            return result
+
+    def create_in_uow(
+        self, uow: UnitOfWork, project_ref: str, **options: Any
+    ) -> tuple[JobDefinition, bool]:
+        """Caller owns definition, run, automation intent and audit transaction."""
+        job = self.build_in_uow(uow, project_ref, **options)
+        existing = uow.jobs.get_by_name(job.project_id, job.name)
+        if existing:
+            return JobService._same_or_conflict(existing, job), False
+        uow.jobs.add(job)
+        uow.audit.record(
+            AuditEvent(
+                occurred_at=job.created_at,
+                actor=current_actor(),
+                action="monitoring.created",
+                entity_type="job",
+                entity_id=job.id,
+                project_id=job.project_id,
+                payload={
+                    "name": job.name,
+                    "model_version_id": job.monitoring_spec["model_version_id"],
+                },
+            )
+        )
+        return job, True
+
+    def build_in_uow(
         self,
+        uow: UnitOfWork,
         project_ref: str,
         *,
         name: str,
@@ -57,7 +90,7 @@ class ModelMonitoringService:
         max_join_bytes: int = 1073741824,
         timeout_seconds: int = 3600,
         resources: dict[str, str] | None = None,
-    ) -> tuple[JobDefinition, bool]:
+    ) -> JobDefinition:
         if not self.image:
             raise Conflict("scientific runtime is not configured")
         require_training_digest(self.image)
@@ -74,152 +107,133 @@ class ModelMonitoringService:
             raise InvalidArgument("invalid monitoring row or batch limit")
         if not 1 <= max_bytes <= 2147483648 or not 1 <= max_join_bytes <= 2147483648:
             raise InvalidArgument("invalid monitoring byte limit")
-        with self.factory() as uow:
-            project = resolve_project(uow, project_ref)
-            locked = uow.projects.lock(project.id)
-            if locked is None or locked.status != ProjectStatus.READY:
-                raise Conflict("monitoring requires a READY project")
-            project = locked
-            version = uow.model_versions.get(model_version_id)
-            model = uow.models.get(version.model_id) if version else None
-            if model is None or version is None or model.project_id != project.id:
-                raise NotFound("model version", model_version_id)
-            if model.kind != ModelKind.CLASSIC:
-                raise InvalidArgument("monitoring supports classic models")
-            datasets = {}
-            refs = {}
-            for role, id in [
-                ("reference", reference_dataset_id),
-                ("observed", observed_dataset_id),
-                ("feedback", feedback_dataset_id),
-            ]:
-                if id is None:
-                    continue
-                dataset = uow.data_catalog.dataset(id)
-                if dataset is None or dataset.project_id != project.id:
-                    raise NotFound("dataset version", id)
-                connection = uow.data_catalog.connection(dataset.connection_id)
-                if connection is None or connection.project_id != project.id:
-                    raise NotFound("data connection", dataset.connection_id)
-                validate_refs(
-                    self.secrets,
-                    project,
-                    SecretRefs(storage_secret=connection.credential_secret),
-                    {},
-                )
-                for key in ("ACCESS_KEY_ID", "SECRET_ACCESS_KEY", "SESSION_TOKEN"):
-                    if key != "SESSION_TOKEN" or (
-                        self.secrets
-                        and "AWS_SESSION_TOKEN"
-                        in self.secrets.get(project, connection.credential_secret).keys
-                    ):
-                        refs[f"BATCH_{role.upper()}_{key}"] = SecretKeyRef(
-                            connection.credential_secret, f"AWS_{key}"
-                        )
-                datasets[role] = {
-                    **connection_spec(connection),
-                    **json.loads(json.dumps(asdict(dataset), default=str)),
-                }
-            schemas = {
-                role: {column["name"]: column["dtype"] for column in dataset["columns"]}
-                for role, dataset in datasets.items()
-            }
-            if (
-                not 1 <= len(features) <= 32
-                or len(set(features)) != len(features)
-                or any(
-                    name not in schemas["reference"]
-                    or schemas["reference"].get(name) != schemas["observed"].get(name)
-                    for name in features
-                )
-            ):
-                raise InvalidArgument("choose 1-32 unique features with matching dataset types")
-            attribution = uow.audit.latest(
-                project_id=project.id,
-                entity_type="dataset_version",
-                entity_id=observed_dataset_id,
-                actions=["batch.output_published"],
+        project = resolve_project(uow, project_ref)
+        locked = uow.projects.lock(project.id)
+        if locked is None or locked.status != ProjectStatus.READY:
+            raise Conflict("monitoring requires a READY project")
+        project = locked
+        version = uow.model_versions.get(model_version_id)
+        model = uow.models.get(version.model_id) if version else None
+        if model is None or version is None or model.project_id != project.id:
+            raise NotFound("model version", model_version_id)
+        if model.kind != ModelKind.CLASSIC:
+            raise InvalidArgument("monitoring supports classic models")
+        datasets = {}
+        refs = {}
+        for role, id in [
+            ("reference", reference_dataset_id),
+            ("observed", observed_dataset_id),
+            ("feedback", feedback_dataset_id),
+        ]:
+            if id is None:
+                continue
+            dataset = uow.data_catalog.dataset(id)
+            if dataset is None or dataset.project_id != project.id:
+                raise NotFound("dataset version", id)
+            connection = uow.data_catalog.connection(dataset.connection_id)
+            if connection is None or connection.project_id != project.id:
+                raise NotFound("data connection", dataset.connection_id)
+            validate_refs(
+                self.secrets,
+                project,
+                SecretRefs(storage_secret=connection.credential_secret),
+                {},
             )
-            if attribution and attribution.payload.get("model_version_id") != str(model_version_id):
-                raise InvalidArgument("observed batch output belongs to another model version")
-            if feedback_dataset_id:
-                if (
-                    not entity_key
-                    or entity_key not in schemas["observed"]
-                    or schemas["observed"].get(entity_key) != schemas["feedback"].get(entity_key)
+            for key in ("ACCESS_KEY_ID", "SECRET_ACCESS_KEY", "SESSION_TOKEN"):
+                if key != "SESSION_TOKEN" or (
+                    self.secrets
+                    and "AWS_SESSION_TOKEN"
+                    in self.secrets.get(project, connection.credential_secret).keys
                 ):
-                    raise InvalidArgument("feedback needs a shared entity key with matching types")
-                if (
-                    prediction_column not in schemas["observed"]
-                    or label_column not in schemas["feedback"]
-                ):
-                    raise InvalidArgument("feedback needs prediction and label columns")
-                prediction_type, label_type = (
-                    schemas["observed"][prediction_column],
-                    schemas["feedback"][label_column],
-                )
-                if task == "REGRESSION" and (
-                    prediction_type not in {"number", "integer"}
-                    or label_type not in {"number", "integer"}
-                ):
-                    raise InvalidArgument("regression predictions and labels must be numeric")
-                if task == "CLASSIFICATION" and prediction_type != label_type:
-                    raise InvalidArgument(
-                        "classification predictions and labels need matching types"
+                    refs[f"BATCH_{role.upper()}_{key}"] = SecretKeyRef(
+                        connection.credential_secret, f"AWS_{key}"
                     )
-            spec = {
-                "name": name,
-                "model_version_id": str(model_version_id),
-                "model_name": model.name,
-                "model_version": version.version,
-                "reference_dataset_id": str(reference_dataset_id),
-                "observed_dataset_id": str(observed_dataset_id),
-                "feedback_dataset_id": str(feedback_dataset_id) if feedback_dataset_id else None,
-                **datasets,
-                "features": list(features),
-                "task": task,
-                "entity_key": entity_key,
-                "prediction_column": prediction_column,
-                "label_column": label_column,
-                "psi_threshold": psi_threshold,
-                "missing_rate_threshold": missing_rate_threshold,
-                "minimum_rows": minimum_rows,
-                "batch_size": batch_size,
-                "max_rows": max_rows,
-                "max_bytes": max_bytes,
-                "max_join_bytes": max_join_bytes,
+            datasets[role] = {
+                **connection_spec(connection),
+                **json.loads(json.dumps(asdict(dataset), default=str)),
             }
-            if len(json.dumps(spec).encode()) > 65536:
-                raise InvalidArgument("monitoring specification exceeds limit")
-            job = JobDefinition.create(
-                project_id=project.id,
-                name=name,
-                image=self.image,
-                command=("python", "-m", "batch_inference.monitoring_worker"),
-                env={},
-                resources=worker_resources(resources, monitoring=spec),
-                secret_refs=SecretRefs(env=refs),
-                monitoring_spec=spec,
-                now=self.clock(),
-                timeout_seconds=timeout_seconds,
+        schemas = {
+            role: {column["name"]: column["dtype"] for column in dataset["columns"]}
+            for role, dataset in datasets.items()
+        }
+        if (
+            not 1 <= len(features) <= 32
+            or len(set(features)) != len(features)
+            or any(
+                name not in schemas["reference"]
+                or schemas["reference"].get(name) != schemas["observed"].get(name)
+                for name in features
             )
-            existing = uow.jobs.get_by_name(project.id, name)
-            if existing:
-                return JobService._same_or_conflict(existing, job), False
-            uow.jobs.add(job)
-            uow.audit.record(
-                AuditEvent(
-                    occurred_at=job.created_at,
-                    actor=current_actor(),
-                    action="monitoring.created",
-                    entity_type="job",
-                    entity_id=job.id,
-                    project_id=project.id,
-                    payload={"name": name, "model_version_id": str(model_version_id)},
-                )
+        ):
+            raise InvalidArgument("choose 1-32 unique features with matching dataset types")
+        attribution = uow.audit.latest(
+            project_id=project.id,
+            entity_type="dataset_version",
+            entity_id=observed_dataset_id,
+            actions=["batch.output_published"],
+        )
+        if attribution and attribution.payload.get("model_version_id") != str(model_version_id):
+            raise InvalidArgument("observed batch output belongs to another model version")
+        if feedback_dataset_id:
+            if (
+                not entity_key
+                or entity_key not in schemas["observed"]
+                or schemas["observed"].get(entity_key) != schemas["feedback"].get(entity_key)
+            ):
+                raise InvalidArgument("feedback needs a shared entity key with matching types")
+            if (
+                prediction_column not in schemas["observed"]
+                or label_column not in schemas["feedback"]
+            ):
+                raise InvalidArgument("feedback needs prediction and label columns")
+            prediction_type, label_type = (
+                schemas["observed"][prediction_column],
+                schemas["feedback"][label_column],
             )
-            uow.commit()
-            return job, True
+            if task == "REGRESSION" and (
+                prediction_type not in {"number", "integer"}
+                or label_type not in {"number", "integer"}
+            ):
+                raise InvalidArgument("regression predictions and labels must be numeric")
+            if task == "CLASSIFICATION" and prediction_type != label_type:
+                raise InvalidArgument("classification predictions and labels need matching types")
+        spec = {
+            "name": name,
+            "model_version_id": str(model_version_id),
+            "model_name": model.name,
+            "model_version": version.version,
+            "reference_dataset_id": str(reference_dataset_id),
+            "observed_dataset_id": str(observed_dataset_id),
+            "feedback_dataset_id": str(feedback_dataset_id) if feedback_dataset_id else None,
+            **datasets,
+            "features": list(features),
+            "task": task,
+            "entity_key": entity_key,
+            "prediction_column": prediction_column,
+            "label_column": label_column,
+            "psi_threshold": psi_threshold,
+            "missing_rate_threshold": missing_rate_threshold,
+            "minimum_rows": minimum_rows,
+            "batch_size": batch_size,
+            "max_rows": max_rows,
+            "max_bytes": max_bytes,
+            "max_join_bytes": max_join_bytes,
+        }
+        if len(json.dumps(spec).encode()) > 65536:
+            raise InvalidArgument("monitoring specification exceeds limit")
+        job = JobDefinition.create(
+            project_id=project.id,
+            name=name,
+            image=self.image,
+            command=("python", "-m", "batch_inference.monitoring_worker"),
+            env={},
+            resources=worker_resources(resources, monitoring=spec),
+            secret_refs=SecretRefs(env=refs),
+            monitoring_spec=spec,
+            now=self.clock(),
+            timeout_seconds=timeout_seconds,
+        )
+        return job
 
     def reports(
         self,

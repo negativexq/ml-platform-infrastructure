@@ -8,6 +8,7 @@ from types import TracebackType
 from typing import Protocol, Self
 from uuid import UUID
 
+from controlplane.application.automation_ports import MonitoringAutomationRepository
 from controlplane.application.data_ports import DataCatalogRepository
 from controlplane.application.monitoring_ports import MonitoringRepository
 from controlplane.application.schedule_ports import ScheduleRepository
@@ -342,6 +343,9 @@ class NotificationReadRepository(Protocol):
 
 class UnitOfWork(Protocol):
     """One transaction. Leaving the block without `commit()` rolls everything back."""
+
+    @property
+    def monitoring_automation(self) -> MonitoringAutomationRepository: ...
 
     @property
     def monitoring(self) -> MonitoringRepository: ...
